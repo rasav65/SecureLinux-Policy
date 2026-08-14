@@ -1,0 +1,2 @@
+artifact	sha256	files	dirs	donor_script_sha256	donor_script_lines	test_files	regression_files	smoke_wired_regressions
+16.2.11.zip	1b25f554a5ad1509037aa9613b7851a595159fd44291913cc2dba63280e50494	52	9	f3be8723cd5a2be499e9e8e6370fad712bdec8afd68050f27af6a3e2d6fbc34b	18928	38	36	36

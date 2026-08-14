@@ -1,0 +1,205 @@
+=== GIT STATUS ===
+ M CHANGELOG.md
+ M README.md
+ M docs/architecture.md
+ M tests/smoke.sh
+?? tests/architecture-regression.sh
+
+=== DIFF CHECK ===
+RC=0
+
+=== TRACKED DIFF ===
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 7e96e59..6c519dc 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,3 +1,16 @@
++## Unreleased
++
++### Added
++
++- Добавлены три Mermaid-схемы: общий поток выполнения, карта модулей и поток `apply → manifest → restore`.
++- Добавлен `tests/architecture-regression.sh`, проверяющий соответствие схем фактическим потокам кода и manifest-модели.
++
++### Fixed
++
++- README дополнен отсутствовавшими regression-тестами.
++- Из `docs/architecture.md` удалена устаревшая ссылка на неподдерживаемый параметр `UFW_ALLOW_FROM_*`.
++- Карта модулей разделяет основной набор, дополнительные меры и opt-in корпоративную парольную политику.
++
+ ## 16.2.11 — 2026-07-04
+ 
+ ### Added
+diff --git a/README.md b/README.md
+index e29e5f6..49648f1 100644
+--- a/README.md
++++ b/README.md
+@@ -68,6 +68,8 @@ sudo ./securelinux-ng.sh --restore
+ 
+ > Раздел описывает гарантии текущего релиза. История появления изменений указана в `CHANGELOG.md`.
+ 
++Архитектурные схемы: [`docs/architecture.md`](docs/architecture.md#общая-схема-выполнения).
++
+ | Гарантия | Описание |
+ |---|---|
+ | Атомарность manifest | Все записи в manifest JSON — через temp + fsync + `os.replace` |
+@@ -349,6 +351,9 @@ tests/
+   syntax.sh                       — проверка синтаксиса
+   smoke.sh                        — полный smoke-набор
+   password-policy-regression.sh   — регрессия парольной политики
++  backup-failure-regression.sh    — блокировка изменений при ошибке backup
++  firewall-safety-regression.sh   — безопасность UFW и определение SSH-порта
++  architecture-regression.sh      — соответствие архитектурных схем коду
+   wheel-aging-regression.sh       — регрессия wheel и restore aging
+   runtime-paths-regression.sh     — права runtime-путей
+   fs-critical-regression.sh       — права критических файлов
+diff --git a/docs/architecture.md b/docs/architecture.md
+index 4ac013b..45248b9 100644
+--- a/docs/architecture.md
++++ b/docs/architecture.md
+@@ -33,6 +33,123 @@ Framework реализован; в проектном реестре реали
+ - `--config <file>`
+ - `--manifest <file>` — явный manifest для `--restore`
+ 
++
++## Общая схема выполнения
++
++Схема отражает фактический поток `main()`. Режимы `--help` и `--version`
++завершаются непосредственно в `parse_args()` и не переходят к основным режимам.
++
++```mermaid
++flowchart TB
++    CLI["Аргументы CLI"] --> PARSE["parse_args()"]
++    PARSE --> EARLY{"--help или --version?"}
++
++    EARLY -- "да" --> EXIT["Вывод результата<br/>exit 0"]
++    EARLY -- "нет" --> COMMON["require_cmds()<br/>validate_args()<br/>load_config()<br/>validate_args_post_config()<br/>validate_execution_context()<br/>finalize_paths()"]
++
++    COMMON --> MODE{"MODE"}
++
++    MODE --> CHECK["run_check_mode()"]
++    CHECK --> CHECK_PRE["run_preflight()"]
++    CHECK_PRE --> CHECK_MODULES["Проверка основных<br/>и включённых дополнительных модулей"]
++    CHECK_MODULES --> CHECK_OUT["check-report<br/>JSON report<br/>stdout summary"]
++
++    MODE --> APPLY["run_apply_mode()"]
++    APPLY --> APPLY_PRE["run_preflight()<br/>check_memory_requirements()"]
++    APPLY_PRE --> APPLY_STATE["ensure_state_dir()<br/>acquire_run_lock()<br/>manifest_init()"]
++    APPLY_STATE --> APPLY_MODULES["Применение основных<br/>и включённых дополнительных модулей"]
++    APPLY_MODULES --> APPLY_OUT["Manifest<br/>JSON report<br/>stdout summary"]
++
++    MODE --> RESTORE["run_restore_mode()"]
++    RESTORE --> RESTORE_PRE["run_preflight()<br/>resolve_restore_manifest()"]
++    RESTORE_PRE --> RESTORE_STATE["ensure_state_dir()<br/>acquire_run_lock()<br/>чтение параметров manifest"]
++    RESTORE_STATE --> RESTORE_MODULES["Откат модулей<br/>по данным manifest"]
++    RESTORE_MODULES --> RESTORE_OUT["JSON report<br/>stdout summary"]
++
++    MODE --> REPORT["run_report_mode()"]
++    REPORT --> REPORT_PRE["run_preflight()<br/>ensure_state_dir()"]
++    REPORT_PRE --> REPORT_OUT["Статическое покрытие ФСТЭК<br/>JSON report<br/>stdout summary"]
++```
++
++
++## Карта модулей усиления безопасности
++
++Группировка ниже отражает назначение модулей. Точный порядок вызовов задаётся
++функциями `run_check_mode()`, `run_apply_mode()` и `run_restore_mode()`.
++
++```mermaid
++flowchart TB
++    CHECK_APPLY["Режимы check и apply"] --> CORE["Основной набор модулей<br/>(вызывается всегда)"]
++    CHECK_APPLY --> FLAG{"ENABLE_ADDITIONAL_MEASURES = 1?"}
++
++    FLAG -- "да" --> EXTRA["Дополнительные семейства модулей"]
++    FLAG -- "нет" --> EXTRA_SKIP["Дополнительные модули пропускаются"]
++
++    CORE --> ACCESS["Учётные записи и доступ<br/>пустые пароли · SSH root login · pam_wheel · sudo"]
++    CORE --> CORP_FLAG{"ENABLE_CORPORATE_PASSWORD_POLICY = 1?"}
++    CORP_FLAG -- "да" --> CORP["Корпоративная парольная политика<br/>password policy · password aging<br/>faillock только для strict/paranoid"]
++    CORP_FLAG -- "нет" --> CORP_SKIP["Корпоративная парольная политика пропускается"]
++    CORE --> FILES["Файлы и пути<br/>критические файлы · runtime-пути · домашние каталоги<br/>sudo/cron PATH · пользовательский cron · системные пути<br/>SUID/SGID · cron targets · systemd units"]
++    CORE --> KERNEL["Ядро и загрузка<br/>kernel sysctl · параметры GRUB<br/>attack-surface sysctl · userspace-protection sysctl<br/>kernel.modules_disabled (временно SKIP)"]
++
++    EXTRA --> SERVICES["Службы и аудит<br/>SSH hardening · account audit · auditd<br/>rsyslog · chrony · unattended-upgrades"]
++    EXTRA --> PROTECTION["Средства защиты<br/>AppArmor · AIDE · Fail2ban · rkhunter"]
++    EXTRA --> PLATFORM["Платформа и сеть<br/>blacklist опасных kernel modules · mount hardening · /tmp tmpfs<br/>UFW · Apport · coredump · network sysctl"]
++
++    RESTORE["Режим restore"] --> CORE_RESTORE["Откат обязательных модулей<br/>по данным manifest"]
++    RESTORE --> MANIFEST_FLAG{"manifest:<br/>additional_measures_enabled"}
++    MANIFEST_FLAG -- "true" --> EXTRA_RESTORE["Откат дополнительных модулей"]
++    MANIFEST_FLAG -- "false" --> EXTRA_RESTORE_SKIP["Откат дополнительных модулей пропускается"]
++
++    REPORT["Режим report"] --> STATIC["Только статическое покрытие ФСТЭК<br/>модули не проверяются и не применяются"]
++```
++
++
++## Поток apply, manifest и restore
++
++Для операций, поддерживающих автоматический откат, до изменения сохраняется
++исходное состояние. Manifest обновляется атомарно и связывает restore с backup,
++снимками состояния и объектами, созданными текущим apply.
++
++```mermaid
++flowchart TB
++    APPLY["--apply"] --> INIT["manifest_init()"]
++
++    INIT --> PRESTATE["Фиксация исходного состояния"]
++    PRESTATE --> FILE_BACKUP["Файлы<br/>backup_file_checked()"]
++    PRESTATE --> SNAPSHOTS["Metadata и runtime snapshots<br/>права · sysctl · password aging"]
++    PRESTATE --> PACKAGES["Список пакетов<br/>до установки"]
++
++    FILE_BACKUP --> BACKUP_OK{"Backup успешен?"}
++    BACKUP_OK -- "нет" --> SKIP["Изменение объекта пропускается<br/>warning записывается в manifest"]
++    BACKUP_OK -- "да" --> CHANGE["Применение изменения"]
++    SNAPSHOTS --> CHANGE
++    PACKAGES --> CHANGE
++
++    CHANGE --> RECORD["Атомарное обновление manifest"]
++    RECORD --> MANIFEST["backups · created_files · created_groups<br/>modified_files · added_group_memberships<br/>password_aging_snapshots · installed_packages<br/>apply_report · warnings · irreversible_changes"]
++
++    RESTORE["--restore"] --> RESOLVE["Выбор manifest<br/>--manifest FILE<br/>последний manifest-*.json<br/>manifest.json"]
++    RESOLVE --> READ["Чтение profile<br/>additional_measures_enabled<br/>и записей исходного состояния"]
++    READ --> MODULES["Модульный restore"]
++
++    MANIFEST --> MODULES
++
++    MODULES --> FILES["Восстановление файлов<br/>из backup"]
++    MODULES --> CREATED["Удаление объектов,<br/>созданных текущим apply"]
++    MODULES --> METADATA["Восстановление владельцев,<br/>групп и режимов доступа"]
++    MODULES --> RUNTIME["Адресный runtime restore<br/>sysctl и password aging"]
++    MODULES --> PACKAGE_DIFF["Purge только новых пакетов<br/>корпоративной password policy"]
++    MODULES --> LIMITS["Partial, manual или reboot<br/>для несимметричных изменений"]
++
++    FILES --> REPORT["Restore report и stdout summary"]
++    CREATED --> REPORT
++    METADATA --> REPORT
++    RUNTIME --> REPORT
++    PACKAGE_DIFF --> REPORT
++    LIMITS --> REPORT
++```
++
+ ## Модель профилей
+ 
+ Проект использует три профиля:
+@@ -63,7 +180,7 @@ CLI `--profile` всегда имеет приоритет над значени
+ - `ENABLE_ADDITIONAL_MEASURES` — включает дополнительные меры; по умолчанию `0`; CLI-флаг `--enable-additional-measures` имеет приоритет;
+ - `WHEEL_USERS` — необязательный явный список существующих администраторов для безопасного включения `pam_wheel`; при пустом значении обычный запуск через `sudo` использует проверенного `SUDO_USER`;
+ - `USER_NAMESPACES_LIMIT` — значение `user.max_user_namespaces`;
+-- `UFW_EXTRA_RULES`, `UFW_ALLOW_FROM_*` — дополнительные правила firewall.
++- `UFW_EXTRA_RULES` — дополнительные разрешения UFW вида `порт/протокол:комментарий`; правила применяются без ограничения по адресу источника.
+ 
+ ## Блокировки apt/dpkg
+ 
+diff --git a/tests/smoke.sh b/tests/smoke.sh
+index 797848f..22079d5 100755
+--- a/tests/smoke.sh
++++ b/tests/smoke.sh
+@@ -74,6 +74,7 @@ EOF
+ bash tests/password-policy-regression.sh &&
+ bash tests/backup-failure-regression.sh &&
+ bash tests/firewall-safety-regression.sh &&
++bash tests/architecture-regression.sh &&
+ bash tests/wheel-aging-regression.sh &&
+ bash tests/runtime-paths-regression.sh &&
+ bash tests/fs-critical-regression.sh &&
+

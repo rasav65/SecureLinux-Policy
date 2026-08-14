@@ -1,0 +1,3 @@
+artifact_id	path	sha256	lines_or_members	role
+DONOR-SCRIPT	archive/securelinux-ng.sh	f3be8723cd5a2be499e9e8e6370fad712bdec8afd68050f27af6a3e2d6fbc34b	18928	engineering-donor-non-normative
+FINAL-ARCH-REVIEW	archive/engineering-review-20260731/SecureLinux-NG-architecture-final-review-20260731-112906.tar.gz	7a62c1304a423e4431b08c34e999ed221777d63ecfb0aec180767fadf80759d2	6 files	engineering-review-evidence

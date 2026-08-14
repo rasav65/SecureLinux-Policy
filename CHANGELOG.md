@@ -5,6 +5,30 @@
 
 ## [Unreleased]
 
+### Added — engineering donor preservation
+
+- Полный SecureLinux-NG v16.2.11 test/development snapshot сохранён byte-for-byte
+  и разложен в inspectable archive; source ZIP SHA-256
+  `1b25f554a5ad1509037aa9613b7851a595159fd44291913cc2dba63280e50494`.
+- Добавлен `index/engineering-tests-v1`: 38 test-файлов, 36 focused regressions,
+  36/36 smoke wiring, 32 generalized engineering test contracts и отдельная
+  donor VM evidence table.
+- Добавлена `docs/testing-strategy.md`: differential, failure-injection,
+  crash-consistency, filesystem safety и VM acceptance как разные test layers.
+- Активно принят переносимый `tools/write-sha256.py` вместе с адаптированным
+  regression-тестом; инструмент не зависит от старого монолитного скрипта.
+- Старые donor tests, фиксирующие смешанную FSTEC mapping, явно помечены
+  `historical-only` и не участвуют в v3 source coverage.
+- Финальный architecture-review SecureLinux-NG сохранён byte-for-byte как
+  историческое engineering evidence; он не является нормативным источником v3.
+- Добавлен `index/engineering-donor-v1`: 310 функций, 190 source chunks,
+  141 semantic candidate, 478 raw evidence rows и 15 будущих инженерных
+  контрактов.
+- Добавлен regression `tests/engineering-donor-v1/test_donor_index.py`,
+  который сверяет reverse-index с pinned donor и запускает исходный
+  `architecture-regression.sh` против pinned donor/docs.
+- Зафиксировано, что donor-index не создаёт controls и не закрывает FSTEC rows.
+
 ### Pending
 
 - Фактический read-only запуск `sysctl-v1` probe на reference VM.

@@ -303,6 +303,75 @@ faa6fad0754be36fcf2cbe7e44e9d366de12d643afe825df73abeb54cc47508b
 `checker.py` командой `--emit-schema`, а Gate 0 `schema_generation_parity`
 падает, если закоммиченный файл не байт-идентичен порождённому.
 
+## Engineering donor: сохранение проверенных наработок
+
+Старый `SecureLinux-NG` используется только как **engineering donor**, а не как
+нормативный источник.
+
+Машинный reverse-index:
+
+```text
+index/engineering-donor-v1/
+```
+
+Зафиксировано:
+
+- donor `archive/securelinux-ng.sh`: 18 928 строк, SHA-256
+  `f3be8723cd5a2be499e9e8e6370fad712bdec8afd68050f27af6a3e2d6fbc34b`;
+- 310 функций;
+- 190 chunk-записей, покрывающих все 18 928 строк;
+- 141 semantic candidate;
+- 478 строк raw evidence;
+- 15 проверенных инженерных контрактов для будущих apply/restore.
+
+Финальный architecture-review старого SecureLinux-NG сохранён byte-for-byte в
+`archive/engineering-review-20260731/` с SHA-256
+`7a62c1304a423e4431b08c34e999ed221777d63ecfb0aec180767fadf80759d2`.
+
+Эти данные **не создают controls и не закрывают строки FSTEC source-index**.
+Текущий нормативный прогресс остаётся 349 / CLOSED 5 / OPEN 344.
+
+Подробно: `docs/engineering-donor.md`.
+
+## Engineering donor: финальный regression suite v16.2.11
+
+Полный загруженный проект SecureLinux-NG v16.2.11 сохранён как отдельный
+engineering snapshot:
+
+```text
+archive/engineering-donor-v16.2.11/
+```
+
+Source ZIP SHA-256:
+
+```text
+1b25f554a5ad1509037aa9613b7851a595159fd44291913cc2dba63280e50494
+```
+
+Из него машинно зарегистрированы:
+
+- 38 test-файлов / 11 420 строк;
+- 36 focused `*-regression.sh`;
+- `smoke.sh` вызывает все 36 regressions ровно по одному разу;
+- 32 обобщённых test contracts для будущих apply/restore/runtime/CLI;
+- историческая donor VM evidence вынесена отдельно и **не** заменяет v3 Gate 5.
+
+Реестр:
+
+```text
+index/engineering-tests-v1/
+```
+
+Из donor suite уже можно безопасно использовать сейчас
+`tools/write-sha256.py`: он пишет переносимые GNU `sha256sum -c`-совместимые
+sidecar-файлы атомарно и отказывается от symlink/неоднозначных входов.
+Его regression перенесён в `tests/engineering-tests-v1/`.
+
+Старые `fstec-mapping-regression.sh` и `wheel-fstec-regression.sh` сохранены
+только как historical evidence и не могут закрывать строки v3 FSTEC index.
+
+Стратегия тестирования: `docs/testing-strategy.md`.
+
 ## Что не считается готовым
 
 На текущей стадии:

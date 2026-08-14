@@ -1,0 +1,16 @@
+contract_id	mechanism	adoption_class	evidence_function	evidence_start_line	evidence_marker	v3_status	rule
+ENG-001	fail-closed backup before file mutation	future-v3-invariant	backup_file_checked	301	backup_file_checked() {	PENDING_NOT_ACTIVE	Backup failure must prevent mutation of the protected object.
+ENG-002	atomic critical-file replacement	future-v3-invariant	atomic_write_command_output	324	os.replace(temporary, target)	PENDING_NOT_ACTIVE	Write via temporary file, fsync, metadata preservation and atomic replace.
+ENG-003	exclusive apply/restore execution lock	future-v3-invariant	acquire_run_lock	603	flock -n 9	PENDING_NOT_ACTIVE	Concurrent mutating runs must fail closed.
+ENG-004	atomic manifest update	future-v3-invariant	manifest_init	16880	os.replace(tmp_path, str(path))	PENDING_NOT_ACTIVE	Manifest writes must be atomic and durable enough to survive interruption.
+ENG-005	explicit warnings and irreversible changes	future-v3-invariant	manifest_init	16880	"""irreversible_changes"": []"	PENDING_NOT_ACTIVE	Non-symmetric changes and warnings must be machine-visible.
+ENG-006	sysctl runtime snapshot before apply	future-v3-invariant	record_sysctl_runtime_snapshot	3782	record_sysctl_runtime_snapshot() {	PENDING_NOT_ACTIVE	Capture live values before applying managed sysctl changes.
+ENG-007	isolated sysctl apply	future-v3-invariant	apply_sysctl_kernel_module	5274	"sysctl -p ""$SYSCTL_KERNEL_DROPIN"""	PENDING_NOT_ACTIVE	Apply only the managed drop-in; never global sysctl --system.
+ENG-008	targeted sysctl runtime restore	future-v3-invariant	restore_sysctl_runtime_snapshot	3945	sysctl -w	PENDING_NOT_ACTIVE	Restore recorded keys individually and report partial/reboot limitations.
+ENG-009	package pre-state snapshot	future-v3-invariant	snapshot_installed_packages	1974	snapshot_installed_packages() {	PENDING_NOT_ACTIVE	Capture package set before transactional installation.
+ENG-010	record only newly installed packages	future-v3-invariant	record_newly_installed_packages	2009	record_newly_installed_packages() {	PENDING_NOT_ACTIVE	Restore logic may act only on the package delta attributable to this apply.
+ENG-011	restore only recorded package delta	future-v3-invariant	restore_installed_packages	2240	restore_installed_packages() {	PENDING_NOT_ACTIVE	Do not purge packages that predated apply.
+ENG-012	deterministic restore manifest selection	future-v3-invariant	resolve_restore_manifest	6695	"base.glob(""manifest-*.json"")"	PENDING_NOT_ACTIVE	Explicit manifest wins; otherwise deterministic documented fallback.
+ENG-013	file restore from recorded backup	future-v3-invariant	restore_file_from_manifest	6938	restore_file_from_manifest() {	PENDING_NOT_ACTIVE	Restore must use recorded backup evidence rather than inferred prior state.
+ENG-014	mode pipeline architecture regression	validation-pattern	main	18910	"case ""$MODE"" in"	PENDING_NOT_ACTIVE	Executable architecture tests should compare documentation/contract with actual dispatch order.
+ENG-015	apply/restore state captured in manifest	future-v3-invariant	run_apply_mode	18685	manifest_init	PENDING_NOT_ACTIVE	Future apply must record enough pre-state and feature-state for deterministic restore.

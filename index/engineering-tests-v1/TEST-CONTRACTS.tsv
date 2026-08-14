@@ -1,0 +1,33 @@
+contract_id	area	invariant	donor_tests	target_stage
+TST-001	manifest-bootstrap	manifest must be durably initialized before the first mutation	manifest-bootstrap-regression.sh	future-apply-restore
+TST-002	manifest-writer	restore-critical manifest writes fail closed; informational writes may be explicit best-effort only	manifest-writer-contract-regression.sh	future-apply-restore
+TST-003	top-level-rc	aggregate module/report failures into final RC without suppressing later restore/cleanup steps	top-level-rc-regression.sh	future-cli
+TST-004	check-report-rc	policy noncompliance is not an execution error; internal/preflight/report failures are	check-report-rc-regression.sh	future-cli
+TST-005	state-dir	state directory must have controlled owner/mode and reject symlink, non-directory and wrong-owner states	state-dir-security-regression.sh	future-runtime
+TST-006	created-file-journal	created files use pending -> mutation -> committed journal so crash restore is possible	created-file-crash-regression.sh	future-apply-restore
+TST-007	group-journal	group creation and membership changes use pending/committed transaction records	group-membership-crash-regression.sh	future-apply-restore
+TST-008	package-journal	package install records intent before mutation and commits actual package diff after mutation	package-crash-regression.sh	future-apply-restore
+TST-009	service-journal	systemd service state uses typed pending pre-state and exact restore	service-state-crash-regression.sh	future-apply-restore
+TST-010	manifest-resolution	restore manifest resolution has explicit priority and ignores symlink candidates	manifest-resolution-regression.sh	future-restore
+TST-011	hardlink-safety	managed-file backup/write/restore must refuse unrepresented multi-hardlink topology	hardlink-safety-regression.sh	future-apply-restore
+TST-012	symlink-safety	managed writes and restore must preserve symlink semantics and never mutate unintended targets	symlink-target-regression.sh	future-apply-restore
+TST-013	atomic-write	managed file replacement is temp-write + fsync + metadata + verification + atomic replace, with no replace on producer failure	atomic-writer-shell-function-regression.sh,extended-metadata-regression.sh	future-apply-restore
+TST-014	extended-metadata	managed-file update preserves readable xattrs and conditionally ACL/capabilities; unexpected metadata errors fail before replace	extended-metadata-regression.sh	future-apply-restore
+TST-015	typed-fstab	fstab restore uses typed state/backups, never free-form report text, with explicit legacy fallback	typed-fstab-state-regression.sh	future-apply-restore
+TST-016	typed-shadow	shadow-sensitive state uses typed records, rejects symlink targets and avoids generic backup collision	shadow-state-regression.sh,empty-password-restore-regression.sh	future-apply-restore
+TST-017	backup-fail-closed	backup or snapshot failure must prevent the corresponding mutation	backup-failure-regression.sh	future-apply-restore
+TST-018	firewall-transaction	firewall changes preserve typed pre-state, write intent before mutation, locally rollback partial failure, and restore exact prior state	ufw-transaction-regression.sh,firewall-safety-regression.sh	future-firewall
+TST-019	package-restore	restore removes only packages actually installed by the transaction	password-package-restore-regression.sh,package-crash-regression.sh	future-apply-restore
+TST-020	write-once-sysctl	write-once sysctl restore failures are classified separately as irreversible only when proven; mixed/ordinary failures remain errors	write-once-sysctl-restore-regression.sh	future-sysctl-restore
+TST-021	no-weakening	apply logic must not replace a stricter current security value with a weaker target without an explicit policy decision	sysctl-stricter-values-regression.sh	future-sysctl-apply
+TST-022	profile-before-dry-run	profile eligibility is evaluated before dry-run announces or plans a module	profile-aware-dry-run-regression.sh	future-corporate
+TST-023	opt-in	additional/corporate hardening remains opt-in and cannot silently enter FSTEC core	additional-measures-optin-regression.sh,corporate-password-policy-cli-regression.sh	future-cli
+TST-024	artifact-sha	checksum sidecars are portable GNU sha256sum-compatible, basename-only, atomic, and reject symlink/ambiguous inputs	portable-sha256-regression.sh	active-now
+TST-025	architecture-sync	machine tests compare documented architecture flow with actual code order and manifest model	architecture-regression.sh	adopt-pattern-now
+TST-026	smoke-completeness	the smoke orchestrator must invoke every registered regression exactly once	smoke.sh	adopt-pattern-now
+TST-027	runtime-paths	runtime command/path resolution must be explicit and portable across target distributions	runtime-paths-regression.sh,sudo-policy-portability-regression.sh	future-runtime
+TST-028	filesystem-critical	critical-file permission changes are explicit, testable and restore-aware	fs-critical-regression.sh	future-apply
+TST-029	identity-state	group membership and password aging changes require captured pre-state and exact restore	wheel-aging-regression.sh	future-corporate
+TST-030	apport-runtime-order	runtime snapshots must precede services that can rewrite the same kernel value; restore order mirrors transaction semantics	apport-suid-dumpable-regression.sh	future-apply-restore
+TST-031	syntax-gate	generated/modified executable shell must pass syntax validation before acceptance	syntax.sh	adopt-pattern-now
+TST-032	legacy-normative-isolation	legacy donor tests that assert old FSTEC mappings are evidence only and must not close v3 source-index rows	fstec-mapping-regression.sh,wheel-fstec-regression.sh	historical-only
