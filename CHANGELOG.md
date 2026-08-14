@@ -5,6 +5,33 @@
 
 ## [Unreleased]
 
+### Pinned — engineering donor adoption policy
+
+- SecureLinux-NG v16.2.11 is formally pinned as an engineering donor, not a
+  normative source of truth.
+- Mature donor mechanisms must pass through
+  `DONOR_TO_V3_MAPPING -> REUSE|ADAPT|REJECT|DEFER` before apply/restore
+  contract and implementation-adapter work.
+- `DONOR_TO_V3_MAPPING` is now a mandatory precondition to roadmap step 8.
+- The donor mapping itself closes zero FSTEC/corporate source-index rows.
+- Explicitly protected donor families include preflight, transactional apply,
+  manifest/restore, atomic writes, backup fail-closed, package delta,
+  preserve-stricter sysctl, isolated sysctl, network-online reapply, dry-run,
+  run locking, layer/profile separation and preserved regression contracts.
+- Final `securelinux-ng.sh` remains a deterministic generated artifact with
+  machine-checkable provenance per emitted block.
+
+### Recorded — Step 5 audit provenance closure
+
+- Stored three Step 5 reference-VM ACCEPT verdict records.
+- Did not claim "3 independent reviews": reviewer independence is provenance,
+  not a count derived from verdict texts.
+- Recorded the known limitation that one reviewer participated in v3 format
+  design and authored two verdicts; exact review-id mapping is not asserted.
+- Preserved 349 total / 5 controlled CLOSED / 344 OPEN.
+- Added the authoritative forward roadmap.
+- Next authorized engineering step: Gate 6 `evidence_binding`.
+
 ### Added — reference VM Gate 5 evidence
 
 - Выполнен фактический read-only `sysctl-v1` probe на Ubuntu 24.04.4 LTS

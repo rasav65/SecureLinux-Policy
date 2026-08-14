@@ -31,6 +31,35 @@
 ещё не закрыты. Синтетический selftest Gate 5 остаётся regression, но не
 заменяет фактическое reference-VM evidence.
 
+## Step 5 audit provenance closure
+
+The Step 5 reference-VM evidence package has three recorded ACCEPT verdict
+texts with ADMISSION=PASS, INTEGRITY=PASS and BLOCKERS=NONE.
+
+The project deliberately does **not** summarize this as "3 independent
+reviews". Available provenance states that one reviewer participated in the v3
+format design and authored two verdicts, while the exact mapping to the three
+stored records is not established. Provenance is therefore stored record by
+record in `audit/step5-reference-vm-evidence-20260814/PROVENANCE.tsv`.
+
+Coverage is unchanged: 349 total / 5 controlled CLOSED / 344 OPEN.
+The next authorized engineering step is Gate 6 `evidence_binding`.
+
+The authoritative forward order is in `docs/ROADMAP-v3.md`.
+
+## Engineering donor rule
+
+SecureLinux-NG v16.2.11 is preserved as an **engineering donor**, not as a
+normative source of truth. Mature mechanisms and tests are not discarded, but
+they are not copied into v3 automatically.
+
+Before the roadmap reaches `apply/restore semantic contract`, the project must
+build and review a complete `DONOR_TO_V3_MAPPING` with decisions
+`REUSE | ADAPT | REJECT | DEFER`. The mapping itself closes zero source-index
+rows.
+
+The mandatory policy is `docs/DONOR-V3-ADOPTION-POLICY.md`.
+
 ## Архитектура
 
 ```text
