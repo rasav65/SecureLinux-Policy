@@ -1,0 +1,57 @@
+{
+  "probe_kind": "sysctl",
+  "read_only": true,
+  "results": [
+    {
+      "compliance": "PASS",
+      "control_id": "FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT",
+      "evidence_path": "/proc/sys/kernel/dmesg_restrict",
+      "key": "kernel.dmesg_restrict",
+      "kind": "sysctl",
+      "locator": "sysctl",
+      "status": "VALUE",
+      "value": "1"
+    },
+    {
+      "compliance": "FAIL",
+      "control_id": "FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT",
+      "evidence_path": "/proc/sys/kernel/kptr_restrict",
+      "key": "kernel.kptr_restrict",
+      "kind": "sysctl",
+      "locator": "sysctl",
+      "status": "VALUE",
+      "value": "1"
+    },
+    {
+      "compliance": "ERROR",
+      "control_id": "FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN",
+      "evidence_path": "/proc/sys/net/core/bpf_jit_harden",
+      "key": "net.core.bpf_jit_harden",
+      "kind": "sysctl",
+      "locator": "sysctl",
+      "status": "ERROR",
+      "value": null
+    },
+    {
+      "compliance": "FAIL",
+      "control_id": "FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID",
+      "evidence_path": "/proc/sys/kernel/perf_event_paranoid",
+      "key": "kernel.perf_event_paranoid",
+      "kind": "sysctl",
+      "locator": "sysctl",
+      "status": "VALUE",
+      "value": "4"
+    },
+    {
+      "compliance": "FAIL",
+      "control_id": "FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED",
+      "evidence_path": "/proc/sys/kernel/kexec_load_disabled",
+      "key": "kernel.kexec_load_disabled",
+      "kind": "sysctl",
+      "locator": "sysctl",
+      "status": "VALUE",
+      "value": "0"
+    }
+  ],
+  "schema": "securelinux-policy-probe-results-v1"
+}

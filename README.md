@@ -18,11 +18,18 @@
 - `OPEN_INDEX_ROWS=344`
 - `CLOSURE_RATIO=5/349`
 
-Фактический запуск read-only probe на reference VM ещё не выполнен:
+Фактический read-only probe выполнен на reference VM Ubuntu 24.04.4 LTS
+(minimized, kernel `6.8.0-134-generic`, host `testmin`):
 
-- `REFERENCE_VM_EVIDENCE=NOT_YET_PROVIDED`
+- `REFERENCE_VM_EVIDENCE=PASS`
+- `GATE5=PASS checked=5 value=5 not_found=0 noncompliant=4 errors=0`
+- непривилегированный запуск сохранён отдельно: 4 `VALUE` + 1 `ERROR` из-за
+  запрета чтения `/proc/sys/net/core/bpf_jit_harden` (mode `0600 root:root`);
+- повторный read-only запуск через `sudo` дал 5/5 `VALUE`, 0 `ERROR`.
 
-Синтетический selftest Gate 5 не считается evidence reference VM.
+`OVERALL=FAIL` остаётся ожидаемым только из-за Gate 2: 344 source-index rows
+ещё не закрыты. Синтетический selftest Gate 5 остаётся regression, но не
+заменяет фактическое reference-VM evidence.
 
 ## Архитектура
 
@@ -232,6 +239,13 @@ Gate 5 различает:
 `VALUE`, не соответствующее policy, означает noncompliance, но не ошибку
 исполняемости probe.
 
+Фактический reference-VM прогон первого sysctl pilot:
+`GATE5=PASS checked=5 value=5 not_found=0 noncompliant=4 errors=0`.
+Evidence хранится в
+`probes/sysctl-v1/evidence/ubuntu-24.04.4-minimal-testmin-20260814/`.
+На этой VM `net.core.bpf_jit_harden` имеет mode `0600 root:root`, поэтому
+полный read-only сбор этого параметра требует привилегированного чтения.
+
 ## Поддерживаемые probe kinds
 
 Checker v1/v2 знает восемь базовых типов:
@@ -376,7 +390,8 @@ sidecar-файлы атомарно и отказывается от symlink/н�
 
 На текущей стадии:
 
-- не выполнен фактический reference-VM Gate 5;
+- фактический reference-VM Gate 5 закрыт только для текущего пятизаписного
+  `sysctl` pilot; остальные probe kinds ещё не имеют reference-VM evidence;
 - 344 source-index rows остаются OPEN;
 - старый corpus не считается автоматически перенесённым;
 - apply/remediation не реализуются этим pilot;

@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+### Added — reference VM Gate 5 evidence
+
+- Выполнен фактический read-only `sysctl-v1` probe на Ubuntu 24.04.4 LTS
+  minimized (`testmin`, kernel `6.8.0-134-generic`).
+- Непривилегированный прогон: 5 результатов, 4 `VALUE`, 1 `ERROR`;
+  `/proc/sys/net/core/bpf_jit_harden` имеет mode `0600 root:root` и обычному
+  пользователю не читается. Этот результат сохранён как environment evidence.
+- Повторный read-only прогон через `sudo`: 5 `VALUE`, 0 `NOT_FOUND`,
+  0 `ERROR`, 4 noncompliant observations.
+- Активный checker с реальным evidence:
+  `GATE5=PASS checked=5 value=5 not_found=0 noncompliant=4 errors=0`.
+- `OVERALL=FAIL` ожидаем и вызван Gate 2: 344 source-index rows остаются OPEN.
+- SHA-256 privileged evidence:
+  `43c574a68d3478f35e4c7a5a50571ab4408d43a3e3a3cfed9ac3f50fbb1fc29c`.
+- SHA-256 unprivileged evidence:
+  `53e3bea08d07bcdf4210d125a026c1d1a4ce1481b2ee7d1415d4baf112389203`.
+
 ### Added — engineering donor preservation
 
 - Полный SecureLinux-NG v16.2.11 test/development snapshot сохранён byte-for-byte
@@ -31,9 +48,7 @@
 
 ### Pending
 
-- Фактический read-only запуск `sysctl-v1` probe на reference VM.
-- Проверка реального Gate 5 evidence.
-- Независимый аудит Step 0–5.
+- Независимый аудит Step 0–5 с фактическим reference-VM evidence.
 - Дальнейшее закрытие source-index rows только после прохождения
   соответствующих gates.
 
