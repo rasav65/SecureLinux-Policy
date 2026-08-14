@@ -60,6 +60,18 @@ rows.
 
 The mandatory policy is `docs/DONOR-V3-ADOPTION-POLICY.md`.
 
+## Gate 6 — evidence binding
+
+Gate 6 is implemented for the current factual `sysctl-v1` reference-VM
+evidence. It mechanically binds VM metadata to the current probe, probe plan,
+privileged result, unprivileged result and the evidence directory checksum
+set.
+
+Gate 6 proves integrity/binding only. It explicitly records
+`VM_ORIGIN_ATTESTATION=NOT_PROVEN`; no cryptographic VM-origin claim is made.
+
+After Gate 6 closure, the next roadmap step is `type/boolean contract cleanup`.
+
 ## Архитектура
 
 ```text

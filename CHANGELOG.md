@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### Added — Gate 6 evidence_binding
+
+- Added a closed-schema evidence-binding checker for the factual `sysctl-v1`
+  reference-VM evidence.
+- Gate 6 verifies the evidence checksum set, VM metadata schema, current
+  probe/plan hashes, both result hashes and `read_only=true` result roots.
+- Added positive and nine negative regression cases.
+- Gate 6 explicitly emits `VM_ORIGIN_ATTESTATION=NOT_PROVEN`; it proves
+  integrity/binding, not cryptographic VM-origin attestation.
+- No FSTEC/corporate source rows are closed by this change.
+- Next roadmap step: `type/boolean contract cleanup`.
+
 ### Pinned — engineering donor adoption policy
 
 - SecureLinux-NG v16.2.11 is formally pinned as an engineering donor, not a

@@ -43,3 +43,16 @@ The mapping must account explicitly for the mature donor mechanisms listed in
 `docs/DONOR-V3-ADOPTION-POLICY.md`. The mapping itself closes zero FSTEC or
 corporate source-index rows. No implementation adapter may bypass the
 apply/restore contract merely because equivalent code existed in the donor.
+
+## Gate 6 closure
+
+Gate 6 `evidence_binding` is implemented and verified for the current factual
+`sysctl-v1` reference-VM evidence.
+
+It proves the binding:
+
+`VM-METADATA -> probe.py -> probe-plan.tsv -> privileged/unprivileged results -> evidence SHA256SUMS`
+
+It does **not** prove cryptographic origin from the named VM.
+
+NEXT: type/boolean contract cleanup.
