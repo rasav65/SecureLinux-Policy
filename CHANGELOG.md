@@ -5,6 +5,15 @@
 
 ## [Unreleased]
 
+### Added — visual architecture diagrams
+
+- Added three GitHub-rendered Mermaid diagrams: CLI/runtime modes,
+  module/additional-measures/restore flow, and apply/manifest/restore flow.
+- Marked them as target runtime architecture inherited from the engineering
+  donor, not as claims that every runtime mechanism is already implemented.
+- README links directly to the rendered diagrams.
+- No normative/runtime behavior changed.
+
 ### Added — Gate 6 evidence_binding
 
 - Added a closed-schema evidence-binding checker for the factual `sysctl-v1`

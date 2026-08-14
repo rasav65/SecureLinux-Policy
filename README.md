@@ -72,6 +72,17 @@ Gate 6 proves integrity/binding only. It explicitly records
 
 After Gate 6 closure, the next roadmap step is `type/boolean contract cleanup`.
 
+## Визуальная архитектура
+
+GitHub отрисовывает Mermaid-схемы проекта непосредственно как диаграммы:
+
+- [CLI и основные режимы](docs/ARCHITECTURE-DIAGRAMS.md#1-cli-и-основные-режимы)
+- [Модули, дополнительные меры и restore](docs/ARCHITECTURE-DIAGRAMS.md#2-модули-дополнительные-меры-и-restore)
+- [Apply → manifest → restore](docs/ARCHITECTURE-DIAGRAMS.md#3-apply--manifest--restore)
+
+Схемы являются целевой runtime-архитектурой, сохранённой из engineering donor,
+и не подменяют текущий статус реализации v3.
+
 ## Архитектура
 
 ```text
