@@ -1,0 +1,1 @@
+105 membership-changing behavior without exact authorization -> CONTRACT_ERROR

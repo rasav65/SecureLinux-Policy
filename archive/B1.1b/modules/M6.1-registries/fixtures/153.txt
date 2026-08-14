@@ -1,0 +1,1 @@
+153 binding names absent slot -> CONTRACT_ERROR

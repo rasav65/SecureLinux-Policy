@@ -1,0 +1,1 @@
+26 single-decimal-slot matching-paths excludes glob/rcS.d/multi-digit

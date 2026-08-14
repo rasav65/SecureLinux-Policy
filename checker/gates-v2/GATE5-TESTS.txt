@@ -1,0 +1,13 @@
+test_duplicate_result_fails (__main__.Gate5Tests.test_duplicate_result_fails) ... ok
+test_error_status_fails (__main__.Gate5Tests.test_error_status_fails) ... ok
+test_extra_result_fails (__main__.Gate5Tests.test_extra_result_fails) ... ok
+test_identity_mismatch_fails (__main__.Gate5Tests.test_identity_mismatch_fails) ... ok
+test_missing_results_file_fails (__main__.Gate5Tests.test_missing_results_file_fails) ... ok
+test_not_found_is_explicit_execution_result (__main__.Gate5Tests.test_not_found_is_explicit_execution_result) ... ok
+test_value_compliant_passes (__main__.Gate5Tests.test_value_compliant_passes) ... ok
+test_value_noncompliant_still_executable (__main__.Gate5Tests.test_value_noncompliant_still_executable) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.001s
+
+OK

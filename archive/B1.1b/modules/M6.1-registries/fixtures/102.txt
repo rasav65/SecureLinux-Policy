@@ -1,0 +1,1 @@
+102 root/event/source/adapter/producer target metadata mismatch -> CONTRACT_ERROR

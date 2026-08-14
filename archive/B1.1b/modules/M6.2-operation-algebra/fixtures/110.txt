@@ -1,0 +1,1 @@
+110 transformation tag without closed operation record -> schema FAIL

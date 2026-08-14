@@ -1,0 +1,1 @@
+139 adapter missing input_slots -> schema FAIL

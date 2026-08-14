@@ -1,0 +1,1 @@
+84 selector instance frozen by this meta-contract candidate -> gate FAIL

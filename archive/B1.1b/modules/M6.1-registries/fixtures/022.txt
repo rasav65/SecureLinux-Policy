@@ -1,0 +1,1 @@
+22 adapter output subject/schema mismatch -> CONTRACT_ERROR

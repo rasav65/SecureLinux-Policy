@@ -1,0 +1,1 @@
+48 lexicographic identity field role not identity -> CONTRACT_ERROR

@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0027"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.5.4"
+  quote: "2.5.4. Отключить системный вызов kexec_load путём установки значения sysctl-опции kernel.kexec_load_disabled=1."
+  quote_sha256: "0231e3c8de27fab8de667f632bf6d08609a7c62836be9c787fd4cb955974ff09"
+  norm: "norm-v1"
+requirement:
+  stated: "2.5.4. Отключить системный вызов kexec_load путём установки значения sysctl-опции kernel.kexec_load_disabled=1."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sysctl"
+  locator: "sysctl"
+  key: "kernel.kexec_load_disabled"
+expected:
+  op: "eq"
+  value: 1
+  type: "integer"
+apply:
+  supported: false

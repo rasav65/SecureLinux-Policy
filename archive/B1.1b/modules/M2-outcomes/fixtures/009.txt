@@ -1,0 +1,1 @@
+09 operation missing/unavailable -> CONTRACT_ERROR

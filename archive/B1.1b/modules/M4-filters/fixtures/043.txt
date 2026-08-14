@@ -1,0 +1,1 @@
+43 fake reference authority for none/literal operand -> CONTRACT_ERROR

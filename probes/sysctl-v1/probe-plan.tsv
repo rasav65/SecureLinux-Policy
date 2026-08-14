@@ -1,0 +1,6 @@
+control_id	kind	locator	key	expected_type	expected_value
+FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT	sysctl	sysctl	kernel.dmesg_restrict	integer	1
+FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT	sysctl	sysctl	kernel.kptr_restrict	integer	2
+FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN	sysctl	sysctl	net.core.bpf_jit_harden	integer	2
+FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID	sysctl	sysctl	kernel.perf_event_paranoid	integer	3
+FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED	sysctl	sysctl	kernel.kexec_load_disabled	integer	1

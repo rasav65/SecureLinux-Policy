@@ -1,0 +1,1 @@
+49 source-order sequence field absent/duplicated/not source-sequence -> CONTRACT_ERROR

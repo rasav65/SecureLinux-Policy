@@ -1,0 +1,1 @@
+127 pure-schema claim treated as implementation behavior proof -> gate FAIL

@@ -1,0 +1,1 @@
+147 duplicate field_ref in one registry snapshot -> CONTRACT_ERROR

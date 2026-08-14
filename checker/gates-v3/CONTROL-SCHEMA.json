@@ -1,0 +1,668 @@
+{
+  "$id": "securelinux-policy-v3-control-schema-v2",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "else": {
+        "properties": {
+          "profile": {
+            "type": "null"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "layer": {
+            "const": "corporate"
+          }
+        },
+        "required": [
+          "layer"
+        ]
+      },
+      "then": {
+        "properties": {
+          "profile": {
+            "enum": [
+              "baseline",
+              "strict",
+              "paranoid"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "else": {
+        "properties": {
+          "requirement": {
+            "properties": {
+              "justification": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "requirement": {
+            "properties": {
+              "derived": {
+                "const": true
+              }
+            },
+            "required": [
+              "derived"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "requirement": {
+            "properties": {
+              "justification": {
+                "pattern": ".*\\S.*",
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "type": {
+                "const": "integer"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "value": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "type": {
+                "const": "string"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "value": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "type": {
+                "const": "boolean"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "value": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "sysctl"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "enum": [
+                  "integer",
+                  "string"
+                ]
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "pattern": "^[A-Za-z0-9_.-]+$"
+              },
+              "locator": {
+                "const": "sysctl"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "file-kv"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "enum": [
+                  "integer",
+                  "string",
+                  "boolean"
+                ]
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "locator": {
+                "pattern": "^/"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "file-mode-owner"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "enum": [
+                  "mode",
+                  "owner",
+                  "group",
+                  "owner_group"
+                ]
+              },
+              "locator": {
+                "pattern": "^/"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "mount-option"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "anyOf": [
+                  {
+                    "const": "fstype"
+                  },
+                  {
+                    "pattern": "^option::.+$"
+                  }
+                ]
+              },
+              "locator": {
+                "pattern": "^/"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "systemd-unit-state"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "boolean"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "enum": [
+                  "active",
+                  "enabled",
+                  "masked"
+                ]
+              },
+              "locator": {
+                "pattern": "^[A-Za-z0-9_.@:-]+\\.(service|socket|timer|path|mount|target)$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "package-presence"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "boolean"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "installed"
+              },
+              "locator": {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9+._:-]*$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "pam-line"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "contains"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "pattern": "^active_line::.+"
+              },
+              "locator": {
+                "pattern": "^/"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "audit-rule"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "contains"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "locator": {
+                "pattern": "^/"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "apply": {
+      "additionalProperties": false,
+      "properties": {
+        "supported": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "supported"
+      ],
+      "type": "object"
+    },
+    "expected": {
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "pattern": ".*\\S.*",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "integer",
+            "string",
+            "boolean"
+          ]
+        },
+        "value": {}
+      },
+      "required": [
+        "op",
+        "value",
+        "type"
+      ],
+      "type": "object"
+    },
+    "id": {
+      "pattern": "^[A-Z0-9][A-Z0-9._-]{2,127}$",
+      "type": "string"
+    },
+    "layer": {
+      "enum": [
+        "fstec-core",
+        "recommended",
+        "corporate",
+        "firewall"
+      ]
+    },
+    "parameter": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "pattern": ".*\\S.*",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "sysctl",
+            "file-kv",
+            "file-mode-owner",
+            "mount-option",
+            "systemd-unit-state",
+            "package-presence",
+            "pam-line",
+            "audit-rule"
+          ]
+        },
+        "locator": {
+          "pattern": ".*\\S.*",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "locator",
+        "key"
+      ],
+      "type": "object"
+    },
+    "profile": {
+      "enum": [
+        null,
+        "baseline",
+        "strict",
+        "paranoid"
+      ]
+    },
+    "requirement": {
+      "additionalProperties": false,
+      "properties": {
+        "applicability": {
+          "enum": [
+            "technical",
+            "monitoring",
+            "firewall"
+          ]
+        },
+        "derived": {
+          "type": "boolean"
+        },
+        "justification": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stated": {
+          "pattern": ".*\\S.*",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stated",
+        "derived",
+        "justification",
+        "applicability"
+      ],
+      "type": "object"
+    },
+    "source": {
+      "additionalProperties": false,
+      "properties": {
+        "doc_id": {
+          "pattern": ".*\\S.*",
+          "type": "string"
+        },
+        "doc_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "index_id": {
+          "pattern": "^SRC-[0-9]{4}$",
+          "type": "string"
+        },
+        "locator": {
+          "pattern": ".*\\S.*",
+          "type": "string"
+        },
+        "norm": {
+          "const": "norm-v1"
+        },
+        "quote": {
+          "pattern": ".*\\S.*",
+          "type": "string"
+        },
+        "quote_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "index_id",
+        "doc_id",
+        "doc_sha256",
+        "locator",
+        "quote",
+        "quote_sha256",
+        "norm"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "layer",
+    "profile",
+    "source",
+    "requirement",
+    "parameter",
+    "expected",
+    "apply"
+  ],
+  "title": "SecureLinux-Policy v3 control record",
+  "type": "object"
+}

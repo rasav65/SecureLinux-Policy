@@ -1,0 +1,13 @@
+test_active_pilot_without_vm_evidence_is_fail_closed (__main__.ActivePilotTests.test_active_pilot_without_vm_evidence_is_fail_closed) ... ok
+test_atomic_contract_exact_set_passes (__main__.ContractTests.test_atomic_contract_exact_set_passes) ... ok
+test_composite_contract_incomplete_actual_set_fails (__main__.ContractTests.test_composite_contract_incomplete_actual_set_fails) ... ok
+test_missing_contract_fails (__main__.ContractTests.test_missing_contract_fails) ... ok
+test_corporate_profile_variants_allowed (__main__.Gate4ScopeTests.test_corporate_profile_variants_allowed) ... ok
+test_cross_layer_divergence_fail_closed (__main__.Gate4ScopeTests.test_cross_layer_divergence_fail_closed) ... ok
+test_same_scope_divergence_fails (__main__.Gate4ScopeTests.test_same_scope_divergence_fails) ... ok
+test_schema_has_nested_contract_and_eight_kinds (__main__.SchemaContractTests.test_schema_has_nested_contract_and_eight_kinds) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.008s
+
+OK

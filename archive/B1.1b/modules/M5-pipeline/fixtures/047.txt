@@ -1,0 +1,1 @@
+47 identity field list missing/extra/reordered in candidate -> CONTRACT_ERROR

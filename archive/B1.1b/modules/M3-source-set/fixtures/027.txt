@@ -1,0 +1,1 @@
+27 filename-marker exact/suffix is case-sensitive NFC, not pattern syntax

@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0016"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.4.1"
+  quote: "2.4.1. Ограничить доступ к журналу ядра путём установки значения sysctl- опции kernel.dmesg_restrict=1. Журнал ядра должен быть доступен только пользователям, которые обладают разрешением CAP_SYSLOG (администраторы системы)."
+  quote_sha256: "c889161dc17ca0ec538a88477aeebfd920e8d10a53d34952e69b12b24338a5e6"
+  norm: "norm-v1"
+requirement:
+  stated: "2.4.1. Ограничить доступ к журналу ядра путём установки значения sysctl- опции kernel.dmesg_restrict=1. Журнал ядра должен быть доступен только пользователям, которые обладают разрешением CAP_SYSLOG (администраторы системы)."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sysctl"
+  locator: "sysctl"
+  key: "kernel.dmesg_restrict"
+expected:
+  op: "eq"
+  value: 1
+  type: "integer"
+apply:
+  supported: false

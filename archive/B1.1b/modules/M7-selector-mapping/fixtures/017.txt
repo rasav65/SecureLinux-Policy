@@ -1,0 +1,1 @@
+17 union members length <2 or nested union -> schema/contract FAIL

@@ -1,0 +1,1 @@
+10 non-operation candidate_targets forbidden; source-entry source_items allowed

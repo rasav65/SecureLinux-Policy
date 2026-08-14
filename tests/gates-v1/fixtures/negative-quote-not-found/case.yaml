@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0034"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.5.11"
+  quote: "ЭТОЙ СТРОКИ НЕТ В ИСХОДНОМ ДОКУМЕНТЕ ФСТЭК"
+  quote_sha256: "2447b9daf30a944a3a2939fc014e526e828678ce3fecaa7d25278fffbc241fee"
+  norm: "norm-v1"
+requirement:
+  stated: "kernel.randomize_va_space = 2"
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sysctl"
+  locator: "sysctl"
+  key: "kernel.randomize_va_space"
+expected:
+  op: "eq"
+  value: 2
+  type: "integer"
+apply:
+  supported: false

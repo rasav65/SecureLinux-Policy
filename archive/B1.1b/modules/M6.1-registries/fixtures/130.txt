@@ -1,0 +1,1 @@
+130 adapter registry v5 with exactly one instance_owner B1.2 and exact adapter-source slot -> PASS

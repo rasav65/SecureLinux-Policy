@@ -1,0 +1,1 @@
+94 single-decimal directory emits path only, never directory contents

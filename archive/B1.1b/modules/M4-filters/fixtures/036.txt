@@ -1,0 +1,1 @@
+36 bit-set zero/negative/non-integer mask -> schema/contract FAIL

@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0023"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.4.8"
+  quote: "2.4.8. Включить защиту подсистемы eBPF JIT ядра Linux путём установки значения sysctl-опции net.core.bpf_jit_harden=2."
+  quote_sha256: "ffeec17a621afd4726e6c0fcf0aef4fb1e22c86f45ca20d1d568471675c3914f"
+  norm: "norm-v1"
+requirement:
+  stated: "2.4.8. Включить защиту подсистемы eBPF JIT ядра Linux путём установки значения sysctl-опции net.core.bpf_jit_harden=2."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sysctl"
+  locator: "sysctl"
+  key: "net.core.bpf_jit_harden"
+expected:
+  op: "eq"
+  value: 2
+  type: "integer"
+apply:
+  supported: false

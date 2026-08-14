@@ -1,0 +1,1 @@
+96 literal-value scalar -> one item; set -> canonical scalar item sequence

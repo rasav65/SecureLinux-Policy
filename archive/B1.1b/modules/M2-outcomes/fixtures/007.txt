@@ -1,0 +1,1 @@
+07 not-attempted reason union differs from terminal causes -> CONTRACT_ERROR

@@ -1,0 +1,1 @@
+120 host/adapter without exact enumeration domain/use/first operation -> schema/contract FAIL

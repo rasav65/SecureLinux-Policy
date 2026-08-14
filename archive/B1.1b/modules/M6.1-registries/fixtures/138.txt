@@ -1,0 +1,1 @@
+138 adapter-source slot target/source fields differ from adapter or value target -> CONTRACT_ERROR
