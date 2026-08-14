@@ -21,17 +21,139 @@ PARAM_KEYS = {"kind","locator","key"}
 EXPECTED_KEYS = {"op","value","type"}
 APPLY_KEYS = {"supported"}
 
-LAYERS = {"fstec-core","recommended","corporate","firewall"}
-PROFILES = {"baseline","strict","paranoid"}
-APPLICABILITY = {"technical","monitoring","firewall"}
+LAYER_ORDER = ["fstec-core","recommended","corporate","firewall"]
+PROFILE_ORDER = ["baseline","strict","paranoid"]
+APPLICABILITY_ORDER = ["technical","monitoring","firewall"]
+LAYERS = set(LAYER_ORDER)
+PROFILES = set(PROFILE_ORDER)
+APPLICABILITY = set(APPLICABILITY_ORDER)
 DISPOSITIONS = {"not-technical","organizational","external","out-of-scope","informational"}
 
-ID_RE = re.compile(r"^[A-Z0-9][A-Z0-9._-]{2,127}$")
-SHA_RE = re.compile(r"^[0-9a-f]{64}$")
-INDEX_ID_RE = re.compile(r"^SRC-[0-9]{4}$")
-SYSCTL_KEY_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
-UNIT_RE = re.compile(r"^[A-Za-z0-9_.@:-]+\.(?:service|socket|timer|path|mount|target)$")
-PKG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9+._:-]*$")
+# Machine identifiers, locators and keys are single-line by contract.
+#
+# Runtime matches patterns with re.fullmatch; JSON Schema `pattern` has search
+# semantics, and in the Python regex engine `$` also matches just before a
+# trailing newline. Sharing one pattern string is therefore not enough to
+# share one meaning: "kernel.x\n" would be rejected by fullmatch and accepted
+# by a searching validator. Every anchored pattern below carries an explicit
+# no-CR/LF assertion, which behaves identically under fullmatch, under Python
+# search and under ECMA-262, so the two sides accept exactly the same strings.
+# parse_scalar rejects control characters as well, as defence in depth.
+SINGLE_LINE = r"(?![\s\S]*[\r\n])"
+
+def single_line(body: str) -> str:
+    return "^" + SINGLE_LINE + body + "$"
+
+
+ID_PATTERN = single_line(r"[A-Z0-9][A-Z0-9._-]{2,127}")
+SHA_PATTERN = single_line(r"[0-9a-f]{64}")
+INDEX_ID_PATTERN = single_line(r"SRC-[0-9]{4}")
+NONEMPTY_PATTERN = r".*\S.*"
+SYSCTL_KEY_PATTERN = single_line(r"[A-Za-z0-9_.-]+")
+UNIT_PATTERN = single_line(r"[A-Za-z0-9_.@:-]+\.(?:service|socket|timer|path|mount|target)")
+PKG_PATTERN = single_line(r"[A-Za-z0-9][A-Za-z0-9+._:-]*")
+ABSOLUTE_PATH_PATTERN = single_line(r"/.*")
+MOUNT_OPTION_KEY_PATTERN = single_line(r"option::.+")
+PAM_LINE_KEY_PATTERN = single_line(r"active_line::.+")
+
+
+ID_RE = re.compile(ID_PATTERN)
+SHA_RE = re.compile(SHA_PATTERN)
+INDEX_ID_RE = re.compile(INDEX_ID_PATTERN)
+
+# Single source of truth for the per-kind parameter contract.
+#
+# Both the runtime closure check (validate_parameter_closure) and the published
+# JSON Schema (build_control_schema / --emit-schema) are derived from this
+# table, so the two cannot diverge. Constraints use a deliberately small
+# vocabulary that has an exact equivalent on both sides:
+#   {"const": x}   {"enum": [...]}   {"pattern": "..."}   {"anyOf": [...]}
+# A None constraint means the field carries no kind-specific restriction
+# beyond the base schema.
+KIND_RULES = {
+    "sysctl": {
+        "locator": {"const": "sysctl"},
+        "key": {"pattern": SYSCTL_KEY_PATTERN},
+        "op": {"const": "eq"},
+        "type": {"enum": ["integer", "string"]},
+    },
+    "file-kv": {
+        "locator": {"pattern": ABSOLUTE_PATH_PATTERN},
+        "key": None,
+        "op": {"const": "eq"},
+        "type": {"enum": ["integer", "string", "boolean"]},
+    },
+    "file-mode-owner": {
+        "locator": {"pattern": ABSOLUTE_PATH_PATTERN},
+        "key": {"enum": ["mode", "owner", "group", "owner_group"]},
+        "op": {"const": "eq"},
+        "type": {"const": "string"},
+    },
+    "mount-option": {
+        "locator": {"pattern": ABSOLUTE_PATH_PATTERN},
+        "key": {"anyOf": [{"const": "fstype"},
+                          {"pattern": MOUNT_OPTION_KEY_PATTERN}]},
+        "op": {"const": "eq"},
+        "type": {"const": "string"},
+    },
+    "systemd-unit-state": {
+        "locator": {"pattern": UNIT_PATTERN},
+        "key": {"enum": ["active", "enabled", "masked"]},
+        "op": {"const": "eq"},
+        "type": {"const": "boolean"},
+    },
+    "package-presence": {
+        "locator": {"pattern": PKG_PATTERN},
+        "key": {"const": "installed"},
+        "op": {"const": "eq"},
+        "type": {"const": "boolean"},
+    },
+    "pam-line": {
+        "locator": {"pattern": ABSOLUTE_PATH_PATTERN},
+        "key": {"pattern": PAM_LINE_KEY_PATTERN},
+        "op": {"const": "contains"},
+        "type": {"const": "string"},
+    },
+    "audit-rule": {
+        "locator": {"pattern": ABSOLUTE_PATH_PATTERN},
+        "key": None,
+        "op": {"const": "contains"},
+        "type": {"const": "string"},
+    },
+}
+
+PARAMETER_KINDS = list(KIND_RULES)
+
+
+def constraint_ok(value, constraint) -> bool:
+    """Evaluate one constraint with exactly the semantics the emitted JSON
+    Schema keyword has. Patterns are anchored in the table and matched with
+    fullmatch so that runtime and schema accept the same set of strings."""
+    if constraint is None:
+        return True
+    if "const" in constraint:
+        return value == constraint["const"]
+    if "enum" in constraint:
+        return any(value == x for x in constraint["enum"])
+    if "pattern" in constraint:
+        return isinstance(value, str) and re.fullmatch(constraint["pattern"], value) is not None
+    if "anyOf" in constraint:
+        return any(constraint_ok(value, c) for c in constraint["anyOf"])
+    raise ValueError(f"unsupported constraint {constraint!r}")
+
+
+def describe_constraint(constraint) -> str:
+    if constraint is None:
+        return "unconstrained"
+    if "const" in constraint:
+        return f"must be {constraint['const']!r}"
+    if "enum" in constraint:
+        return "must be one of " + ", ".join(repr(x) for x in constraint["enum"])
+    if "pattern" in constraint:
+        return f"must match {constraint['pattern']}"
+    if "anyOf" in constraint:
+        return " or ".join(describe_constraint(c) for c in constraint["anyOf"])
+    raise ValueError(f"unsupported constraint {constraint!r}")
 
 
 def sha256_file(path: Path) -> str:
@@ -71,6 +193,10 @@ def parse_scalar(value: str, path: Path, lineno: int):
             raise ValueError(f"{path}:{lineno}: invalid JSON-quoted scalar: {exc}")
         if not isinstance(parsed, str):
             raise ValueError(f"{path}:{lineno}: quoted scalar must be a string")
+        if any(ch in parsed for ch in "\r\n\t\x00"):
+            raise ValueError(
+                f"{path}:{lineno}: control characters are forbidden in scalars"
+            )
         return parsed
     if value.startswith("'"):
         raise ValueError(f"{path}:{lineno}: single-quoted scalars are not supported")
@@ -253,64 +379,158 @@ def validate_record_schema(record, where):
 
 
 def validate_parameter_closure(record, where):
-    errors = []
+    """Kind-specific closure. Driven entirely by KIND_RULES so that the
+    published CONTROL-SCHEMA.json and this check cannot disagree."""
     p, e = record["parameter"], record["expected"]
-    kind, locator, key, op, typ = p["kind"], p["locator"], p["key"], e["op"], e["type"]
-    if kind == "sysctl":
-        if locator != "sysctl":
-            errors.append(f"{where}: sysctl locator must be 'sysctl'")
-        if not SYSCTL_KEY_RE.fullmatch(key):
-            errors.append(f"{where}: invalid sysctl key")
-        if op != "eq" or typ not in {"integer","string"}:
-            errors.append(f"{where}: sysctl requires op=eq and type integer|string")
-    elif kind == "file-kv":
-        if not locator.startswith("/"):
-            errors.append(f"{where}: file-kv locator must be absolute")
-        if op != "eq" or typ not in {"integer","string","boolean"}:
-            errors.append(f"{where}: file-kv requires op=eq and scalar type")
-    elif kind == "file-mode-owner":
-        if not locator.startswith("/"):
-            errors.append(f"{where}: file-mode-owner locator must be absolute")
-        if key not in {"mode","owner","group","owner_group"}:
-            errors.append(f"{where}: file-mode-owner key unsupported")
-        if op != "eq" or typ != "string":
-            errors.append(f"{where}: file-mode-owner requires op=eq type=string")
-    elif kind == "mount-option":
-        if not locator.startswith("/"):
-            errors.append(f"{where}: mount-option locator must be absolute mount point")
-        if not (key == "fstype" or key.startswith("option::")):
-            errors.append(f"{where}: mount-option key must be fstype or option::<name>")
-        if op != "eq" or typ != "string":
-            errors.append(f"{where}: mount-option requires op=eq type=string")
-    elif kind == "systemd-unit-state":
-        if not UNIT_RE.fullmatch(locator):
-            errors.append(f"{where}: invalid systemd unit locator")
-        if key not in {"active","enabled","masked"}:
-            errors.append(f"{where}: systemd state key unsupported")
-        if op != "eq" or typ != "boolean":
-            errors.append(f"{where}: systemd-unit-state requires op=eq type=boolean")
-    elif kind == "package-presence":
-        if not PKG_RE.fullmatch(locator):
-            errors.append(f"{where}: invalid package locator")
-        if key != "installed":
-            errors.append(f"{where}: package-presence key must be installed")
-        if op != "eq" or typ != "boolean":
-            errors.append(f"{where}: package-presence requires op=eq type=boolean")
-    elif kind == "pam-line":
-        if not locator.startswith("/"):
-            errors.append(f"{where}: pam-line locator must be absolute")
-        if not key.startswith("active_line::"):
-            errors.append(f"{where}: pam-line key must start active_line::")
-        if op != "contains" or typ != "string":
-            errors.append(f"{where}: pam-line requires op=contains type=string")
-    elif kind == "audit-rule":
-        if not locator.startswith("/"):
-            errors.append(f"{where}: audit-rule locator must be absolute")
-        if op != "contains" or typ != "string":
-            errors.append(f"{where}: audit-rule requires op=contains type=string")
-    else:
-        errors.append(f"{where}: unsupported parameter.kind {kind!r}")
+    kind = p["kind"]
+    rules = KIND_RULES.get(kind)
+    if rules is None:
+        return [f"{where}: unsupported parameter.kind {kind!r}"]
+    errors = []
+    for field, value in (
+        ("parameter.locator", p["locator"]),
+        ("parameter.key", p["key"]),
+        ("expected.op", e["op"]),
+        ("expected.type", e["type"]),
+    ):
+        constraint = rules[field.split(".")[1]]
+        if not constraint_ok(value, constraint):
+            errors.append(
+                f"{where}: {kind} {field} {describe_constraint(constraint)}"
+            )
     return errors
+
+
+def build_control_schema():
+    """Derive the published JSON Schema from the same runtime constants used
+    by validate_record_schema and validate_parameter_closure."""
+    def nonempty_string():
+        return {"pattern": NONEMPTY_PATTERN, "type": "string"}
+
+    def obj(properties, required):
+        return {
+            "additionalProperties": False,
+            "properties": properties,
+            "required": list(required),
+            "type": "object",
+        }
+
+    kind_branches = []
+    for kind, rules in KIND_RULES.items():
+        parameter_props = {}
+        for field in ("locator", "key"):
+            if rules[field] is not None:
+                parameter_props[field] = dict(rules[field])
+        expected_props = {
+            "op": dict(rules["op"]),
+            "type": dict(rules["type"]),
+        }
+        then = {"properties": {"expected": {"properties": expected_props}}}
+        if parameter_props:
+            then["properties"]["parameter"] = {"properties": parameter_props}
+        kind_branches.append({
+            "if": {"properties": {"parameter": {
+                "properties": {"kind": {"const": kind}},
+                "required": ["kind"],
+            }}},
+            "then": then,
+        })
+
+    value_branches = [
+        {
+            "if": {"properties": {"expected": {
+                "properties": {"type": {"const": t}},
+                "required": ["type"],
+            }}},
+            "then": {"properties": {"expected": {
+                "properties": {"value": {"type": t}}
+            }}},
+        }
+        for t in ("integer", "string", "boolean")
+    ]
+
+    return {
+        "$id": "securelinux-policy-v3-control-schema-v3",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": False,
+        "allOf": [
+            {
+                "if": {"properties": {"layer": {"const": "corporate"}},
+                       "required": ["layer"]},
+                "then": {"properties": {"profile": {"enum": list(PROFILE_ORDER)}}},
+                "else": {"properties": {"profile": {"type": "null"}}},
+            },
+            {
+                "if": {"properties": {"requirement": {
+                    "properties": {"derived": {"const": True}},
+                    "required": ["derived"],
+                }}},
+                "then": {"properties": {"requirement": {
+                    "properties": {"justification": nonempty_string()}
+                }}},
+                "else": {"properties": {"requirement": {
+                    "properties": {"justification": {"type": "null"}}
+                }}},
+            },
+        ] + value_branches + kind_branches,
+        "properties": {
+            "apply": obj({"supported": {"type": "boolean"}}, ["supported"]),
+            "expected": obj({
+                "op": nonempty_string(),
+                "type": {"enum": ["integer", "string", "boolean"]},
+                "value": {},
+            }, ["op", "value", "type"]),
+            "id": {"pattern": ID_PATTERN, "type": "string"},
+            "layer": {"enum": list(LAYER_ORDER)},
+            "parameter": obj({
+                "key": nonempty_string(),
+                "kind": {"enum": PARAMETER_KINDS},
+                "locator": nonempty_string(),
+            }, ["kind", "locator", "key"]),
+            "profile": {"enum": [None] + list(PROFILE_ORDER)},
+            "requirement": obj({
+                "applicability": {"enum": list(APPLICABILITY_ORDER)},
+                "derived": {"type": "boolean"},
+                "justification": {"type": ["string", "null"]},
+                "stated": nonempty_string(),
+            }, ["stated", "derived", "justification", "applicability"]),
+            "source": obj({
+                "doc_id": nonempty_string(),
+                "doc_sha256": {"pattern": SHA_PATTERN, "type": "string"},
+                "index_id": {"pattern": INDEX_ID_PATTERN, "type": "string"},
+                "locator": nonempty_string(),
+                "norm": {"const": NORM_VERSION},
+                "quote": nonempty_string(),
+                "quote_sha256": {"pattern": SHA_PATTERN, "type": "string"},
+            }, ["index_id", "doc_id", "doc_sha256", "locator",
+                "quote", "quote_sha256", "norm"]),
+        },
+        "required": ["id", "layer", "profile", "source",
+                     "requirement", "parameter", "expected", "apply"],
+        "title": "SecureLinux-Policy v3 control record",
+        "type": "object",
+    }
+
+
+def render_control_schema() -> str:
+    return json.dumps(build_control_schema(), ensure_ascii=False,
+                      indent=2, sort_keys=True) + "\n"
+
+
+def schema_parity_errors(schema_path: Path):
+    """Fail closed when the committed schema is not the one this checker
+    derives from its own constants."""
+    try:
+        validate_regular(schema_path)
+        actual = schema_path.read_text(encoding="utf-8")
+    except Exception as exc:
+        return [f"{schema_path}: cannot read published schema: {exc}"]
+    if actual != render_control_schema():
+        return [
+            f"{schema_path}: published schema differs from the schema derived "
+            f"from runtime constants (regenerate with --emit-schema)"
+        ]
+    return []
 
 
 def load_normalizer(project_root: Path):
@@ -917,7 +1137,11 @@ def run_all(project_root: Path, index_path: Path, controls_root: Path, probe_res
     index_rows, index_by_id = load_index(index_path)
     records, files = load_controls(controls_root)
     closure_contract_path = index_path.resolve().parent / "CLOSURE-CONTRACT.tsv"
+    schema_path = Path(__file__).resolve().parent / "CONTROL-SCHEMA.json"
+    parity = schema_parity_errors(schema_path)
     gates = [
+        {"gate": 0, "name": "schema_generation_parity", "pass": not parity,
+         "schema_path": str(schema_path), "errors": parity},
         gate1(project_root.resolve(), index_by_id, records),
         gate2(index_rows, index_by_id, records, closure_contract_path),
         gate3(records),
@@ -927,6 +1151,7 @@ def run_all(project_root: Path, index_path: Path, controls_root: Path, probe_res
     return {
         "overall_pass": all(g["pass"] for g in gates),
         "project_root": str(project_root.resolve()),
+        "schema_path": str(schema_path),
         "index_path": str(index_path.resolve()),
         "closure_contract_path": str(closure_contract_path),
         "controls_root": str(controls_root.resolve()),
@@ -938,8 +1163,9 @@ def run_all(project_root: Path, index_path: Path, controls_root: Path, probe_res
 
 def format_report(report):
     by = {g["gate"]: g for g in report["gates"]}
-    g1,g2,g3,g4,g5 = by[1],by[2],by[3],by[4],by[5]
+    g0,g1,g2,g3,g4,g5 = by[0],by[1],by[2],by[3],by[4],by[5]
     lines = [
+        f"GATE0={'PASS' if g0['pass'] else 'FAIL'} schema_generation_parity errors={len(g0['errors'])}",
         f"GATE1={'PASS' if g1['pass'] else 'FAIL'} checked={g1['checked_records']} errors={len(g1['errors'])}",
         f"GATE2={'PASS' if g2['pass'] else 'FAIL'} total={g2['total_index_rows']} controlled_closed={g2['controlled_closed_rows']} disposed_closed={g2['disposed_closed_rows']} uncovered={g2['uncovered_rows']} contracts={g2['contract_rows']} errors={len(g2['errors'])}",
         f"GATE3={'PASS' if g3['pass'] else 'FAIL'} checked={g3['checked_records']} errors={len(g3['errors'])}",
@@ -957,12 +1183,24 @@ def format_report(report):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--project-root", required=True)
-    ap.add_argument("--index", required=True)
-    ap.add_argument("--controls", required=True)
+    ap.add_argument("--project-root")
+    ap.add_argument("--index")
+    ap.add_argument("--controls")
+    ap.add_argument("--emit-schema", metavar="PATH",
+                    help="write the schema derived from runtime constants and exit")
     ap.add_argument("--probe-results")
     ap.add_argument("--json-out")
     args = ap.parse_args()
+
+    if args.emit_schema:
+        Path(args.emit_schema).write_text(render_control_schema(),
+                                          encoding="utf-8", newline="\n")
+        return 0
+
+    for required in ("project_root", "index", "controls"):
+        if getattr(args, required) is None:
+            ap.error(f"--{required.replace('_','-')} is required")
+
     probe_results = None if args.probe_results is None else Path(args.probe_results)
     report = run_all(
         Path(args.project_root),

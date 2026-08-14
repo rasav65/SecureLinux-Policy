@@ -288,10 +288,20 @@ checker/gates-v3/checker.py
 SHA-256:
 
 ```text
-7217e741622690ac9f60521abf106b0250fecdb646537f3776dbf1d13ff00bdb
+4c6012b7541923a682b6bb78bf5d8ccf5b241da54ecaa601f2c9d5479eafb5a6
 ```
 
 `CONTROL-SCHEMA.json` в gates-v3 содержит полный закрытый nested contract и ограничения всех восьми parameter kinds.
+
+SHA-256:
+
+```text
+faa6fad0754be36fcf2cbe7e44e9d366de12d643afe825df73abeb54cc47508b
+```
+
+Схема не редактируется вручную: она порождается из таблицы `KIND_RULES` в
+`checker.py` командой `--emit-schema`, а Gate 0 `schema_generation_parity`
+падает, если закоммиченный файл не байт-идентичен порождённому.
 
 ## Что не считается готовым
 

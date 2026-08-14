@@ -13,6 +13,92 @@
 - Дальнейшее закрытие source-index rows только после прохождения
   соответствующих gates.
 
+## [0.0.5-r3] — 2026-08-14
+
+### Fixed after third independent audit
+
+- B-R2-01: одной строки регулярного выражения недостаточно для одной семантики.
+  Runtime сопоставляет шаблоны через `re.fullmatch`, а JSON Schema `pattern`
+  имеет search-семантику, и в движке Python `$` совпадает также перед
+  завершающим переводом строки. Из-за этого `key: "kernel.x\n"` отвергался
+  runtime и принимался валидатором схемы. Достижимо: YAML-подмножество
+  пропускает double-quoted скаляр через `json.loads`.
+- Введён инвариант single-line: все машинные идентификаторы, локаторы и ключи
+  несут явное утверждение об отсутствии CR/LF (`SINGLE_LINE`), которое ведёт
+  себя одинаково при fullmatch, при поиске в Python и в ECMA-262.
+- `parse_scalar` отвергает управляющие символы в скалярах — второй рубеж.
+- Gate 0 переименован в `schema_generation_parity`: он проверяет байтовое
+  равенство закоммиченной и порождённой схемы, а не семантический паритет.
+  Семантический паритет обеспечивают дифференциальные тесты.
+
+### Added
+
+- 16 граничных случаев с CR/LF в дифференциальной матрице (всего 50).
+- `PatternSemanticsTests`: для каждого шаблона fullmatch и search обязаны
+  совпадать на 22 пограничных строках.
+- `ParserInvariantTests`: управляющий символ в скаляре не проходит парсер.
+- Прогон настоящим `jsonschema.Draft202012Validator`, когда библиотека
+  установлена; при её отсутствии тесты пропускаются явно.
+
+### Fixed
+
+- `README.md`: устаревший SHA checker-v3; добавлен SHA схемы и правило,
+  что схема не редактируется вручную.
+
+### Preserved
+
+- Pilot controls: 5, не изменялись. `index/source-v4`: не изменялся.
+- Sysctl probe: не изменялся. 349 / CLOSED 5 / OPEN 344.
+- Reference VM evidence: `NOT_YET_PROVIDED`.
+
+### Checker
+
+`checker/gates-v3/checker.py`
+
+SHA-256:
+
+`4c6012b7541923a682b6bb78bf5d8ccf5b241da54ecaa601f2c9d5479eafb5a6`
+
+## [0.0.5-r2] — 2026-08-14
+
+### Fixed after second independent audit
+
+- B-R1-01: `CONTROL-SCHEMA.json` и runtime-проверка расходились в двух точках
+  (`parameter.key` ровно `option::` и ровно `active_line::` принимались
+  runtime и отвергались схемой).
+- Устранена причина, а не два случая: kind-контракт вынесен в единственную
+  таблицу `KIND_RULES` в `checker.py`. Из неё выводятся и
+  `validate_parameter_closure`, и вся публикуемая схема.
+- Добавлен `checker.py --emit-schema PATH` — генерация схемы из runtime-констант.
+- Добавлен Gate 0 `schema_runtime_parity`: fail-closed, если закоммиченная
+  схема не байт-идентична сгенерированной.
+- `LAYER_ORDER` / `PROFILE_ORDER` / `APPLICABILITY_ORDER` задают
+  детерминированный порядок enum в схеме.
+- Схема: `$id` → `securelinux-policy-v3-control-schema-v3`; шаблоны приведены
+  к якорной форме, эквивалентной `re.fullmatch` в runtime.
+
+### Added
+
+- `tests/gates-v3/test_schema_runtime_parity.py` — два независимых
+  предохранителя: генерационный паритет и дифференциальная матрица из 34
+  записей по всем восьми kinds в обе стороны (accept и reject).
+
+### Preserved
+
+- Pilot controls: 5, не изменялись.
+- `index/source-v4`: не изменялся.
+- Sysctl probe: не изменялся, SHA `e454d691e6433c2bfb8588884575fa4f5b880a6a0cb328682a5dbe1135dabd5e`.
+- Source population: 349. CLOSED: 5. OPEN: 344.
+- Reference VM evidence: `NOT_YET_PROVIDED`.
+
+### Checker
+
+`checker/gates-v3/checker.py`
+
+SHA-256:
+
+`0397a5e64a2e859bba1791a844feacad094120ee3375588ac2e31c597320edb7`
+
 ## [0.0.5-r1] — 2026-08-14
 
 ### Fixed after independent audit

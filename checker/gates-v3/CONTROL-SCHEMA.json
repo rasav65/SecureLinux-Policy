@@ -1,5 +1,5 @@
 {
-  "$id": "securelinux-policy-v3-control-schema-v2",
+  "$id": "securelinux-policy-v3-control-schema-v3",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "allOf": [
@@ -186,7 +186,7 @@
           "parameter": {
             "properties": {
               "key": {
-                "pattern": "^[A-Za-z0-9_.-]+$"
+                "pattern": "^(?![\\s\\S]*[\\r\\n])[A-Za-z0-9_.-]+$"
               },
               "locator": {
                 "const": "sysctl"
@@ -230,7 +230,7 @@
           "parameter": {
             "properties": {
               "locator": {
-                "pattern": "^/"
+                "pattern": "^(?![\\s\\S]*[\\r\\n])/.*$"
               }
             }
           }
@@ -275,7 +275,7 @@
                 ]
               },
               "locator": {
-                "pattern": "^/"
+                "pattern": "^(?![\\s\\S]*[\\r\\n])/.*$"
               }
             }
           }
@@ -317,12 +317,12 @@
                     "const": "fstype"
                   },
                   {
-                    "pattern": "^option::.+$"
+                    "pattern": "^(?![\\s\\S]*[\\r\\n])option::.+$"
                   }
                 ]
               },
               "locator": {
-                "pattern": "^/"
+                "pattern": "^(?![\\s\\S]*[\\r\\n])/.*$"
               }
             }
           }
@@ -366,7 +366,7 @@
                 ]
               },
               "locator": {
-                "pattern": "^[A-Za-z0-9_.@:-]+\\.(service|socket|timer|path|mount|target)$"
+                "pattern": "^(?![\\s\\S]*[\\r\\n])[A-Za-z0-9_.@:-]+\\.(?:service|socket|timer|path|mount|target)$"
               }
             }
           }
@@ -406,7 +406,7 @@
                 "const": "installed"
               },
               "locator": {
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9+._:-]*$"
+                "pattern": "^(?![\\s\\S]*[\\r\\n])[A-Za-z0-9][A-Za-z0-9+._:-]*$"
               }
             }
           }
@@ -443,10 +443,10 @@
           "parameter": {
             "properties": {
               "key": {
-                "pattern": "^active_line::.+"
+                "pattern": "^(?![\\s\\S]*[\\r\\n])active_line::.+$"
               },
               "locator": {
-                "pattern": "^/"
+                "pattern": "^(?![\\s\\S]*[\\r\\n])/.*$"
               }
             }
           }
@@ -483,7 +483,7 @@
           "parameter": {
             "properties": {
               "locator": {
-                "pattern": "^/"
+                "pattern": "^(?![\\s\\S]*[\\r\\n])/.*$"
               }
             }
           }
@@ -528,7 +528,7 @@
       "type": "object"
     },
     "id": {
-      "pattern": "^[A-Z0-9][A-Z0-9._-]{2,127}$",
+      "pattern": "^(?![\\s\\S]*[\\r\\n])[A-Z0-9][A-Z0-9._-]{2,127}$",
       "type": "string"
     },
     "layer": {
@@ -618,11 +618,11 @@
           "type": "string"
         },
         "doc_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
+          "pattern": "^(?![\\s\\S]*[\\r\\n])[0-9a-f]{64}$",
           "type": "string"
         },
         "index_id": {
-          "pattern": "^SRC-[0-9]{4}$",
+          "pattern": "^(?![\\s\\S]*[\\r\\n])SRC-[0-9]{4}$",
           "type": "string"
         },
         "locator": {
@@ -637,7 +637,7 @@
           "type": "string"
         },
         "quote_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
+          "pattern": "^(?![\\s\\S]*[\\r\\n])[0-9a-f]{64}$",
           "type": "string"
         }
       },
