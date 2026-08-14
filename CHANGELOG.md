@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### Added — project-native v3 architecture map
+
+- Added `docs/PROJECT-MAP-v3.md` as the primary visual map of the current
+  SecureLinux-Policy v3 project.
+- The map covers sources, normalization/recovery, source-v4, controls,
+  Gates 0–6, reference-VM evidence, policy layers, engineering donor flow and
+  the future deterministic build.
+- Exactly one roadmap node is marked current: `type/boolean contract cleanup`.
+- Existing `docs/ARCHITECTURE-DIAGRAMS.md` is explicitly reclassified as a
+  donor runtime reference, not the primary v3 project map.
+- No normative/runtime behavior changed.
+
 ### Added — visual architecture diagrams
 
 - Added three GitHub-rendered Mermaid diagrams: CLI/runtime modes,

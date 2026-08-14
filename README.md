@@ -83,6 +83,19 @@ GitHub отрисовывает Mermaid-схемы проекта непосре
 Схемы являются целевой runtime-архитектурой, сохранённой из engineering donor,
 и не подменяют текущий статус реализации v3.
 
+## Основная карта проекта v3
+
+Главная наглядная схема текущего проекта:
+[`docs/PROJECT-MAP-v3.md`](docs/PROJECT-MAP-v3.md).
+
+Она показывает реальную архитектуру SecureLinux-Policy v3: первичные
+источники, нормализацию/recovery, source index, controls, Gates 0–6,
+reference-VM evidence, policy layers, engineering donor и путь к
+детерминированно собираемому `securelinux-ng.sh`.
+
+`docs/ARCHITECTURE-DIAGRAMS.md` сохранён как отдельный **donor runtime
+reference**. Это не основная карта v3.
+
 ## Архитектура
 
 ```text
