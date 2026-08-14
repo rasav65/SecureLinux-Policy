@@ -5,6 +5,32 @@
 
 ## [Unreleased]
 
+### Fixed — project-map audit findings and clean-checkout manifests
+
+- Corrected the text-corpus graph: normal pdftotext/norm-v1 covers 10 pinned
+  PDFs, while glyph recovery is a separate PDF-origin branch for exactly two
+  documents and is normalized separately under `recovered-v1/norm-v1`.
+- Added Gate 1 corpus selection by `SOURCE-INDEX.text_quality` and the exact
+  extraction/recovery manifests.
+- Added `CLOSURE-CONTRACT.tsv` and explicit disposition+reason as the two Gate 2
+  closure mechanisms.
+- Added the schema/runtime differential suite and separated it from Gate 0
+  generation parity; mandatory real Draft202012Validator remains the next
+  release-validation roadmap item after type/boolean cleanup.
+- Scoped Gate 5 to the five-sysctl/one-VM pilot and Gate 6 to the current
+  sysctl-v1 evidence directory.
+- Added audit/Git/bundle provenance and clean-checkout reproducibility to the
+  project map.
+- Replaced the direct index->control implication with a dashed "currently
+  manual" relationship.
+- Connected the future adapter branch to an explicit normative controls input.
+- Fixed root manifests so Git-ignored donor runtime state is excluded by a
+  canonical Git-visible population builder.
+- Removed stale README/ROADMAP status text; the single current stage is
+  `type/boolean contract cleanup`.
+- No controls, source-index rows, checker semantics, probes, source PDFs or
+  engineering-donor payloads were changed.
+
 ### Added — project-native v3 architecture map
 
 - Added `docs/PROJECT-MAP-v3.md` as the primary visual map of the current

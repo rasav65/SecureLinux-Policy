@@ -9,7 +9,7 @@
 
 ## Текущий статус
 
-Текущая активная стадия: **Step 5 — sysctl pilot**.
+Текущая активная стадия: **type/boolean contract cleanup**.
 
 Состояние source index:
 
@@ -43,7 +43,7 @@ stored records is not established. Provenance is therefore stored record by
 record in `audit/step5-reference-vm-evidence-20260814/PROVENANCE.tsv`.
 
 Coverage is unchanged: 349 total / 5 controlled CLOSED / 344 OPEN.
-The next authorized engineering step is Gate 6 `evidence_binding`.
+Step 5 provenance closure and Gate 6 `evidence_binding` are CLOSED. The current authorized engineering step is `type/boolean contract cleanup`.
 
 The authoritative forward order is in `docs/ROADMAP-v3.md`.
 

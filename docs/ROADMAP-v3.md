@@ -30,7 +30,7 @@ Non-negotiable rules:
 - Release/audit validation requires a real Draft 2020-12 validator and records its version.
 - Future git bundles must be actively verified and tree-compared to the project snapshot; they do not prove remote origin.
 
-NEXT: Gate 6 `evidence_binding`.
+CURRENT STATUS: Gate 6 is CLOSED.
 
 ## Engineering donor preservation rule
 

@@ -2,78 +2,107 @@
 
 > **Это основная архитектурная карта текущего SecureLinux-Policy v3.**
 >
-> Она показывает действующие источники истины, индексы, controls, Gates,
-> reference-VM evidence, policy layers, engineering donor и путь к конечному
-> `securelinux-ng.sh`.
+> Карта показывает действующие источники истины, текстовые корпуса, source
+> index, controls, механические gates, reference-VM evidence, audit provenance,
+> policy layers, engineering donor и путь к конечному `securelinux-ng.sh`.
 >
-> Старый SecureLinux-NG здесь присутствует только как **engineering donor**.
-> Его runtime-архитектура не является архитектурой v3 и не закрывает
-> нормативные строки автоматически.
+> Старый SecureLinux-NG присутствует только как **engineering donor**. Его
+> runtime-архитектура не является нормативной архитектурой v3 и сама по себе
+> не закрывает source-index rows.
 
 ## Легенда
 
-- зелёный — закрытый этап/гейт;
-- **оранжевый — единственное текущее место работы**;
+- зелёный — PASS/CLOSED **в явно указанном текущем scope**;
 - серый — будущий этап;
 - синий — действующий структурный компонент;
-- фиолетовый — engineering donor.
+- фиолетовый — engineering donor;
+- оранжевый используется **только в разделе «Где мы находимся»** и ровно один
+  раз обозначает текущее место работы.
 
-## 1. Как устроен проект v3 сейчас
+## 1. Источники → текстовые корпуса → index → controls → Gates
 
 ```mermaid
 flowchart LR
     subgraph SRC["1. ПЕРВИЧНЫЕ ИСТОЧНИКИ"]
-        PDF["sources/fstec/<br/>10 закреплённых PDF"]:::component
-        HASH["sources/fstec/SHA256SUMS"]:::component
-        PDF --> HASH
+        PDF["sources/fstec/<br/>10 pinned PDF"]:::component
+        PHASH["sources/fstec/SHA256SUMS"]:::component
+        PDF --> PHASH
     end
 
-    subgraph TEXT["2. ДЕТЕРМИНИРОВАННЫЙ ТЕКСТ"]
-        NORM["norm-v1<br/>детерминированная нормализация"]:::component
-        REC["recovered-v1<br/>восстановление проблемного текста<br/>без OCR"]:::component
-        PDF --> NORM --> REC
+    subgraph TEXT["2. ДВЕ ВЕТКИ ПОЛУЧЕНИЯ НОРМАЛИЗОВАННОГО ТЕКСТА"]
+        RAWEXT["raw-pdftotext<br/>обычное извлечение<br/>10 документов"]:::component
+        EXNORM["sources/extracted/norm-v1<br/>нормализованный extracted corpus<br/>10 документов"]:::component
+
+        GLYPH["glyph-id-cross-document-v1<br/>PyMuPDF get_texttrace()<br/>ТОЛЬКО 2 документа"]:::component
+        RAWREC["raw-glyph-recovered<br/>fstec-linux-2022<br/>fstec-vulnerability-analysis-2025"]:::component
+        RECNORM["sources/recovered-v1/norm-v1<br/>нормализованный recovered corpus<br/>2 документа"]:::component
+
+        PDF --> RAWEXT --> EXNORM
+        PDF --> GLYPH --> RAWREC --> RECNORM
     end
 
-    subgraph INDEX["3. SOURCE INDEX"]
-        IDX["index/source-v4<br/>349 строк"]:::component
-        CLOSED["5 controlled CLOSED"]:::closed
+    subgraph SELECT["3. ВЫБОР КОРПУСА ДЛЯ SOURCE ANCHOR"]
+        QUALITY{"Gate 1 corpus selector<br/>по SOURCE-INDEX.text_quality"}:::component
+        EXMAN["sources/extracted/<br/>EXTRACTION-MANIFEST.tsv"]:::component
+        RECMAN["sources/recovered-v1/<br/>RECOVERY-MANIFEST.tsv"]:::component
+
+        EXNORM --> EXMAN --> QUALITY
+        RECNORM --> RECMAN --> QUALITY
+    end
+
+    subgraph INDEX["4. SOURCE INDEX"]
+        IDX["index/source-v4<br/>349 rows"]:::component
+        C5["5 controlled CLOSED"]:::closed
         OPEN["344 OPEN"]:::component
-        REC --> IDX
-        IDX --> CLOSED
+        QUALITY --> IDX
+        IDX --> C5
         IDX --> OPEN
     end
 
-    subgraph CONTROL["4. CONTROL RECORDS"]
+    subgraph CONTROL["5. CONTROL RECORDS / SCHEMA"]
         CTRL["controls/<br/>5 pilot controls"]:::component
-        KIND["KIND_RULES<br/>единый kind-контракт"]:::component
-        SCHEMA["CONTROL-SCHEMA.json<br/>генерируется из KIND_RULES"]:::component
+        KIND["KIND_RULES<br/>single runtime kind contract"]:::component
+        SCHEMA["CONTROL-SCHEMA.json<br/>generated from KIND_RULES"]:::component
+        DIFF["tests/gates-v3/<br/>test_schema_runtime_parity.py<br/>50 records · 16 CR/LF cases<br/>pattern semantics"]:::component
+        SEMPAR["schema ↔ runtime<br/>semantic parity regression"]:::component
+        REALJSON["roadmap step 4<br/>mandatory real Draft202012Validator<br/>for release/audit"]:::future
+
         KIND --> SCHEMA
+        KIND --> DIFF
+        SCHEMA --> DIFF --> SEMPAR --> REALJSON
+        IDX -. "source: сейчас заполняется вручную;<br/>generator появится на roadmap step 5" .-> CTRL
         KIND --> CTRL
-        IDX --> CTRL
     end
 
-    subgraph GATES["5. MACHINE GATES"]
-        G0["Gate 0<br/>schema_generation_parity"]:::closed
-        G1["Gate 1<br/>source/quote anchor"]:::closed
-        G2["Gate 2<br/>reverse source coverage<br/>344 OPEN"]:::component
-        G3["Gate 3<br/>parameter closure"]:::closed
-        G4["Gate 4<br/>uniqueness/conflicts"]:::closed
-        G5["Gate 5<br/>probe executability"]:::closed
-        G6["Gate 6<br/>evidence_binding"]:::closed
+    subgraph GATES["6. MACHINE GATES"]
+        G0["Gate 0 PASS<br/>schema_generation_parity<br/>только byte-generation parity"]:::closed
+        G1["Gate 1 PASS<br/>source/quote anchor<br/>current 5 controls"]:::closed
+        G2["Gate 2 FAIL<br/>reverse source coverage<br/>344 uncovered"]:::component
+        G3["Gate 3 PASS<br/>parameter closure<br/>current 5 controls"]:::closed
+        G4["Gate 4 PASS<br/>uniqueness/conflicts<br/>current 5 controls"]:::closed
+        G5["Gate 5 PASS — PILOT SCOPE<br/>5 sysctl controls<br/>1 reference VM"]:::closed
+        G6["Gate 6 PASS — CURRENT EVIDENCE SCOPE<br/>one sysctl-v1 evidence directory"]:::closed
+
+        CLOSURE["index/source-v4/<br/>CLOSURE-CONTRACT.tsv<br/>exact expected control set<br/>for controlled CLOSED rows"]:::component
+        DISP["second closure path:<br/>disposed CLOSED + disposition + reason<br/>currently 0 rows"]:::component
 
         SCHEMA --> G0
         IDX --> G1
         CTRL --> G1
+
         IDX --> G2
         CTRL --> G2
+        CLOSURE --> G2
+        DISP --> G2
+
         CTRL --> G3
         CTRL --> G4
         CTRL --> G5
     end
 
-    subgraph EVID["6. READ-ONLY REFERENCE-VM EVIDENCE"]
-        PLAN["probe-plan.tsv"]:::component
-        PROBE["probe.py<br/>read-only"]:::component
+    subgraph EVID["7. READ-ONLY REFERENCE-VM EVIDENCE"]
+        PLAN["probes/sysctl-v1/probe-plan.tsv"]:::component
+        PROBE["probes/sysctl-v1/probe.py<br/>read-only"]:::component
         VM["Ubuntu 24.04.4 Minimal<br/>reference VM"]:::component
         PRIV["privileged result<br/>5 VALUE / 0 ERROR"]:::component
         UNPRIV["unprivileged result<br/>4 VALUE / 1 ERROR"]:::component
@@ -84,7 +113,9 @@ flowchart LR
         VM --> PRIV
         VM --> UNPRIV
         VM --> META
+
         PRIV --> G5
+
         META --> G6
         PROBE --> G6
         PLAN --> G6
@@ -93,45 +124,66 @@ flowchart LR
         SUMS --> G6
     end
 
-    G2 -. "закрывается только<br/>controls/dispositions" .-> OPEN
-
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
     classDef component fill:#dcecff,stroke:#3e6ea8,color:#111;
+    classDef future fill:#eeeeee,stroke:#888,color:#444,stroke-dasharray: 5 5;
 ```
 
-## 2. Слои политики и единый конвейер
+### Что важно в первой схеме
+
+`recovered-v1` не является продолжением обычного `extracted/norm-v1`.
+Восстановление читает PDF отдельным glyph-based путём только для двух
+документов, затем отдельно нормализуется в `recovered-v1/norm-v1`.
+
+Gate 1 выбирает нужный корпус по `SOURCE-INDEX.text_quality`:
+`recovered-glyph-map-v1` ведёт через `RECOVERY-MANIFEST.tsv`; обычные readable
+rows — через `EXTRACTION-MANIFEST.tsv`.
+
+Gate 0 и differential suite — разные доказательства. Gate 0 проверяет
+байтовую воспроизводимость schema generation. Семантическое совпадение
+runtime/schema проверяет отдельная differential matrix. Roadmap step 4 должен
+сделать реальный `Draft202012Validator` обязательным для release/audit.
+
+Gate 2 имеет два допустимых пути закрытия строки: control coverage с точным
+`CLOSURE-CONTRACT.tsv` либо explicit disposition + reason.
+
+## 2. Слои политики и единый index-конвейер
 
 ```mermaid
 flowchart TB
-    FSTEC["FSTEC core<br/>первичные источники ФСТЭК"]:::component
-    RECOMMENDED["recommended<br/>рекомендованные меры"]:::future
-    CORPORATE["corporate<br/>внутренний Стандарт / доп. источники"]:::future
+    FSTEC["FSTEC core<br/>primary FSTEC sources"]:::component
+    RECOMMENDED["recommended<br/>recommended measures"]:::future
+    CORPORATE["corporate<br/>internal Standard / additional sources"]:::future
     FIREWALL["firewall<br/>role-specific policy"]:::future
 
-    FSTEC --> CONTRACT["единый index contract"]:::component
+    FSTEC --> CONTRACT["common index contract"]:::component
     RECOMMENDED --> CONTRACT
     CORPORATE --> CONTRACT
     FIREWALL --> CONTRACT
 
-    CONTRACT --> INDEXES["layer-specific indexes<br/>FSTEC: source-v4 уже существует<br/>corporate: ещё предстоит"]:::component
+    CONTRACT --> INDEXES["layer-specific indexes<br/>FSTEC: source-v4 exists<br/>corporate: not built yet"]:::component
     INDEXES --> GENERATOR["index-generic<br/>source skeleton generator"]:::future
-    GENERATOR --> SOURCE["source:<br/>генерируется автоматически<br/>единственный writer"]:::future
+    GENERATOR --> SOURCE["source:<br/>generated automatically<br/>single writer"]:::future
     SOURCE --> PARITY["source-block<br/>regeneration parity"]:::future
-    PARITY --> SEM["requirement / parameter / expected<br/>осмысленная часть control"]:::future
+    PARITY --> SEM["requirement / parameter / expected<br/>semantic part of control"]:::future
     SEM --> CONTROLS["controls/<br/>layer + profile"]:::component
-    CONTROLS --> CHECKER["checker / Gates<br/>fail-closed"]:::component
+    CONTROLS --> CHECKER["checker / gates<br/>fail-closed"]:::component
+
+    DISP2["explicit dispositions<br/>alternative closure route<br/>per index row"]:::component
+    INDEXES --> DISP2
+    DISP2 --> CHECKER
 
     classDef component fill:#dcecff,stroke:#3e6ea8,color:#111;
     classDef future fill:#eeeeee,stroke:#888,color:#444,stroke-dasharray: 5 5;
 ```
 
-## 3. Engineering donor и путь к runtime
+## 3. Engineering donor → future runtime
 
 ```mermaid
 flowchart LR
-    OLD["SecureLinux-NG v16.2.11<br/>СТАРЫЙ ПРОЕКТ"]:::donor
+    OLD["SecureLinux-NG v16.2.11<br/>OLD PROJECT"]:::donor
 
-    ARCHIVE["archive/engineering-donor-*<br/>byte-preserved"]:::component
+    ARCHIVE["archive/engineering-donor-*<br/>byte-preserved donor"]:::component
     DONOR_INDEX["index/engineering-donor-v1<br/>310 functions · 190 chunks<br/>141 semantic candidates"]:::component
     DONOR_TESTS["engineering-tests-v1<br/>38 donor tests<br/>32 generalized contracts"]:::component
 
@@ -139,7 +191,7 @@ flowchart LR
     APPLY["apply/restore<br/>semantic contract"]:::future
     ADAPTERS["implementation adapters"]:::future
     BUILD["deterministic build"]:::future
-    SCRIPT["securelinux-ng.sh<br/>единый distributable artifact"]:::future
+    SCRIPT["securelinux-ng.sh<br/>single distributable artifact"]:::future
 
     OLD --> ARCHIVE
     ARCHIVE --> DONOR_INDEX
@@ -149,10 +201,13 @@ flowchart LR
 
     MAP --> APPLY --> ADAPTERS --> BUILD --> SCRIPT
 
-    VERIFIED["проверенные controls"]:::component --> ADAPTERS
-    PROV["provenance каждого блока:<br/>control_id · locator · quote_sha256<br/>adapter id/version"]:::component --> BUILD
+    NORMIN["external input from normative branch:<br/>controls that passed required gates"]:::component
+    NORMIN --> ADAPTERS
 
-    ZERO["DONOR mapping<br/>сам по себе закрывает<br/>0 source-index rows"]:::note
+    PROVOUT["every emitted block provenance:<br/>control_id · locator · quote_sha256<br/>adapter id/version"]:::component
+    PROVOUT --> BUILD
+
+    ZERO["DONOR mapping itself<br/>closes 0 source-index rows"]:::note
     MAP -.-> ZERO
 
     classDef donor fill:#efe3ff,stroke:#7651a8,color:#111,stroke-width:2px;
@@ -161,7 +216,38 @@ flowchart LR
     classDef note fill:#fff8d8,stroke:#9d8730,color:#111;
 ```
 
-## 4. Где мы находимся
+## 4. Provenance, Git checkpoint и воспроизводимость дерева
+
+```mermaid
+flowchart LR
+    REVIEW["audit/step5-reference-vm-evidence-*/<br/>PROVENANCE.tsv<br/>verdict provenance;<br/>independent count NOT inferred"]:::component
+    COMMIT["Git commit checkpoint<br/>content-addressed tree"]:::component
+    PKG["external audit package<br/>PROJECT-SNAPSHOT.tsv"]:::component
+    BUNDLE["full Git bundle<br/>external handoff artifact"]:::component
+
+    VERIFY["independent verification:<br/>git bundle verify<br/>git fsck --full<br/>git ls-tree vs PROJECT-SNAPSHOT.tsv"]:::component
+    ROOTMAN["root manifests<br/>canonical Git-visible population<br/>clean-checkout reproducible"]:::component
+    TRUST["verified commit/tree consistency<br/>and package/tree agreement"]:::closed
+    LIMIT["boundary:<br/>does NOT cryptographically prove<br/>origin from a particular remote/VM"]:::note
+
+    REVIEW --> TRUST
+    COMMIT --> BUNDLE --> VERIFY
+    PKG --> VERIFY
+    VERIFY --> TRUST
+    ROOTMAN --> TRUST
+    TRUST -.-> LIMIT
+
+    classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
+    classDef component fill:#dcecff,stroke:#3e6ea8,color:#111;
+    classDef note fill:#fff8d8,stroke:#9d8730,color:#111;
+```
+
+The Git bundle is an external audit/handoff artifact, not a claim that the
+repository itself stores every bundle. Bundle verification proves commit/tree
+self-consistency and permits independent tree comparison; it does not prove
+that a commit originated from a particular remote.
+
+## 5. Где мы находимся
 
 ```mermaid
 flowchart LR
@@ -190,10 +276,10 @@ flowchart LR
 детерминированной сборкой из проверенных нормативных controls, инженерных
 semantic contracts, implementation adapters и tests.
 
-То есть направление проекта:
+Направление проекта:
 
-`источник → index → control → gates → semantic contract → adapter → build → script`
+`source → text corpus → index → control/disposition → gates → semantic contract → adapter → deterministic build → script`
 
 а не:
 
-`старый shell-скрипт → правки вручную → новый shell-скрипт`.
+`old shell script → manual edits → new shell script`.
