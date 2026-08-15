@@ -9,7 +9,7 @@
 
 ## Текущий статус
 
-Текущая активная стадия: **index-generic source skeleton generator**.
+Текущая активная стадия: **source-block regeneration parity**.
 
 Состояние source index:
 
@@ -43,7 +43,7 @@ stored records is not established. Provenance is therefore stored record by
 record in `audit/step5-reference-vm-evidence-20260814/PROVENANCE.tsv`.
 
 Coverage is unchanged: 349 total / 5 controlled CLOSED / 344 OPEN.
-Step 5 provenance closure and Gate 6 `evidence_binding` are CLOSED. The mandatory real-jsonschema release gate is CLOSED. The current authorized engineering step is `index-generic source skeleton generator`.
+Step 5 provenance closure and Gate 6 `evidence_binding` are CLOSED. The mandatory real-jsonschema release gate and the index-generic source skeleton generator are CLOSED. The current authorized engineering step is `source-block regeneration parity`.
 
 The authoritative forward order is in `docs/ROADMAP-v3.md`.
 
@@ -480,6 +480,26 @@ archive/
 Они используются как evidence и engineering donor, но не являются
 нормативным контрактом новой модели.
 
+## Index-generic source skeleton generator closure
+
+Roadmap step 5 is CLOSED in a deliberately scoped form.
+
+- canonical tool: `tools/source_skeleton_generator.py`;
+- common-index path is explicit (`--index`), with `index/source-v4` only the
+  current default;
+- supported `unit_kind`: `numbered-position` (1 of 13);
+- rows in that kind: 74;
+- exact extractions: 72;
+- explicit refusals: `SRC-0001`, `SRC-0133`;
+- current accepted controls reproduced byte-for-byte: 5/5;
+- trust-chain corruption is covered by permanent negative tests.
+
+For supported kinds the generator is the single normative producer of
+`source:`. Step 6 will make committed hand-edits mechanically detectable by
+regeneration parity.
+
+This closure changes no controls and closes zero FSTEC source rows.
+
 ## Проверка текущего состояния
 
 Основные точки проверки:
@@ -515,8 +535,7 @@ Engineering donor inventory is now explicitly classified for every indexed funct
 
 `pending-review` means not yet reviewed for invariant adoption; it does not mean that no invariant exists.
 
-This parallel donor-classification work does not advance the normative roadmap.
-The current authorized stage remains `mandatory real-jsonschema release gate`.
+This parallel donor-classification work did not independently advance the normative roadmap.
 
 ## JSON Schema release-version policy
 

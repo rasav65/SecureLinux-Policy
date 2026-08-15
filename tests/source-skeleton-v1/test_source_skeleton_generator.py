@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import csv
+import hashlib
+import importlib.util
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+GEN = ROOT / "tools/source_skeleton_generator.py"
+EXPECTED_GEN_SHA = "b79db6b03ecfe125ffb691dcc717baab230e35a95cb5c15a7345148103d13abb"
+EXPECTED_SRC0018_SHA = "016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d"
+EXPECTED_REFUSED = {"SRC-0001", "SRC-0133"}
+
+
+def sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def load_gen():
+    spec = importlib.util.spec_from_file_location(
+        "source_skeleton_generator_tested", GEN
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def run_cli(*args: str):
+    cp = subprocess.run(
+        [sys.executable, "-B", str(GEN), "--project-root", str(ROOT), *args],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+    return cp.returncode, cp.stdout, cp.stderr
+
+
+assert sha(GEN) == EXPECTED_GEN_SHA
+
+gate = load_gen()
+normalize_text = gate.load_normalizer(ROOT)
+rows, by_id = gate.load_index(ROOT / "index/source-v4/SOURCE-INDEX.tsv")
+
+assert len(rows) == 349
+assert len({row["unit_kind"] for row in rows}) == 13
+assert gate.SUPPORTED_UNIT_KINDS == {"numbered-position"}
+
+# Positive ground truth: every current control is in the supported kind and
+# regenerates byte-identically.
+rc, out, err = run_cli("--verify-pilot")
+assert rc == 0, (out, err)
+assert "PILOT_VERIFY=PASS controls=5 mismatches=0" in out
+assert out.count("  OK    ") == 5
+assert "  SKIP  " not in out
+assert "  DIFF  " not in out
+
+# Supported-kind coverage is deliberately partial and fail-closed.
+supported = [
+    row for row in rows
+    if row["unit_kind"] in gate.SUPPORTED_UNIT_KINDS
+]
+assert len(supported) == 74
+
+ok = []
+refused = {}
+for row in supported:
+    try:
+        gate.build_source_block(ROOT, row, normalize_text)
+        ok.append(row["index_id"])
+    except Exception as exc:
+        refused[row["index_id"]] = str(exc)
+
+assert len(ok) == 72
+assert set(refused) == EXPECTED_REFUSED
+assert all("bare integer" in why for why in refused.values())
+
+# Exact known example.
+block = gate.build_source_block(ROOT, by_id["SRC-0018"], normalize_text)
+assert block["quote_sha256"] == EXPECTED_SRC0018_SHA
+rendered = gate.render_source_block(block)
+assert rendered.startswith('source:\n  index_id: "SRC-0018"\n')
+assert '  norm: "norm-v1"\n' in rendered
+
+# Index-generic path: the same common-contract index can be supplied from a
+# different path. The generator must not depend on index/source-v4 as a
+# hard-coded input location.
+with tempfile.TemporaryDirectory(prefix="slp-index-generic-") as td:
+    alt = Path(td) / "ANY-LAYER-INDEX.tsv"
+    shutil.copy2(ROOT / "index/source-v4/SOURCE-INDEX.tsv", alt)
+    rc, alt_out, alt_err = run_cli(
+        "--index", str(alt), "--index-id", "SRC-0018"
+    )
+    assert rc == 0, (alt_out, alt_err)
+    assert alt_out == rendered
+
+# Negative: duplicate index identity.
+with tempfile.TemporaryDirectory(prefix="slp-duplicate-index-") as td:
+    dup = Path(td) / "SOURCE-INDEX.tsv"
+    text = (
+        ROOT / "index/source-v4/SOURCE-INDEX.tsv"
+    ).read_text(encoding="utf-8")
+    lines = text.splitlines()
+    dup.write_text(
+        text.rstrip("\n") + "\n" + lines[1] + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    try:
+        gate.load_index(dup)
+    except ValueError as exc:
+        assert "duplicate index_id" in str(exc)
+    else:
+        raise AssertionError("duplicate index_id was accepted")
+
+# Negative: source anchor not ready.
+bad = dict(by_id["SRC-0018"])
+bad["quote_anchor_ready"] = "NO"
+try:
+    gate.build_source_block(ROOT, bad, normalize_text)
+except ValueError as exc:
+    assert "quote_anchor_ready != YES" in str(exc)
+else:
+    raise AssertionError("non-ready quote anchor was accepted")
+
+# Negative: altered normalizer.
+with tempfile.TemporaryDirectory(prefix="slp-normalizer-tamper-") as td:
+    temp_root = Path(td)
+    dst = temp_root / "sources/extracted"
+    dst.mkdir(parents=True)
+    original = ROOT / "sources/extracted/normalizer-v1.py"
+    (dst / "normalizer-v1.py").write_text(
+        original.read_text(encoding="utf-8") + "\n# tamper fixture\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    try:
+        gate.load_normalizer(temp_root)
+    except ValueError as exc:
+        assert "SHA mismatch" in str(exc)
+    else:
+        raise AssertionError("altered normalizer was accepted")
+
+# Negative: corpus hash tampered in the recovery manifest.
+with tempfile.TemporaryDirectory(prefix="slp-manifest-tamper-") as td:
+    temp_root = Path(td)
+    rec_src = ROOT / "sources/recovered-v1"
+    rec_dst = temp_root / "sources/recovered-v1"
+    shutil.copytree(rec_src, rec_dst)
+
+    manifest = rec_dst / "RECOVERY-MANIFEST.tsv"
+    with manifest.open(encoding="utf-8", newline="") as stream:
+        reader = csv.DictReader(stream, delimiter="\t")
+        fields = list(reader.fieldnames or [])
+        data = list(reader)
+
+    target = by_id["SRC-0018"]["source_id"]
+    changed = 0
+    for row in data:
+        if row["source_id"] == target:
+            row["norm_sha256"] = "0" * 64
+            changed += 1
+    assert changed == 1
+
+    with manifest.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(
+            stream,
+            fieldnames=fields,
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(data)
+
+    try:
+        gate.resolve_corpus(temp_root, by_id["SRC-0018"])
+    except ValueError as exc:
+        assert "norm SHA mismatch" in str(exc)
+    else:
+        raise AssertionError("corrupted norm SHA was accepted")
+
+print(
+    "SOURCE_SKELETON_TESTS=PASS "
+    "pilot=5 unit_kinds=1/13 supported_rows=74 exact=72 refused=2 "
+    "index_generic_path=1 negative_duplicate_index=1 "
+    "negative_quote_anchor=1 negative_normalizer_sha=1 "
+    "negative_norm_sha=1"
+)

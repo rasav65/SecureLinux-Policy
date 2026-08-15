@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+### Added — index-generic source skeleton generator
+
+- Added canonical `tools/source_skeleton_generator.py` as the single normative
+  producer of `source:` blocks for supported unit kinds.
+- Current extraction scope is explicitly limited to
+  `unit_kind=numbered-position`: 74 rows, 72 exact extractions and two
+  fail-closed refusals (`SRC-0001`, `SRC-0133`).
+- Reproduces all five accepted pilot controls byte-for-byte.
+- Added fail-closed checks for index uniqueness, `quote_anchor_ready`, pinned
+  normalizer SHA/selftest, manifest provenance and normalized-corpus SHA.
+- Added permanent positive/negative regression tests and an alternate-index-path
+  test to keep the generator index-generic.
+- Roadmap step 5 is CLOSED in this scoped form; step 6
+  `SOURCE_BLOCK_REGENERATION_PARITY` is now NEXT.
+- No controls, source-index rows, source corpora, probes or checker gates were
+  changed; FSTEC progress remains 349 / 5 / 344.
+
 ### Fixed — jsonschema release-version policy
 
 - Added fail-closed minimum supported `jsonschema` version `4.10.3`.

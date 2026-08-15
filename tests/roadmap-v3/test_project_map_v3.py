@@ -9,7 +9,8 @@ assert text.count(":::current") == 1
 
 assert 'S3["type/boolean<br/>contract cleanup"]:::closed' in text
 assert 'S4["mandatory real-jsonschema<br/>release gate"]:::closed' in text
-assert 'S5["МЫ ЗДЕСЬ<br/>index-generic<br/>source skeleton generator"]:::current' in text
+assert 'S5["index-generic<br/>source skeleton generator"]:::closed' in text
+assert 'S6["МЫ ЗДЕСЬ<br/>source-block<br/>regeneration parity"]:::current' in text
 
 required = (
     "raw-pdftotext",
@@ -27,7 +28,8 @@ required = (
     "test_schema_runtime_parity.py",
     "semantic parity regression",
     "Draft202012Validator",
-    "source: сейчас заполняется вручную",
+    "source skeleton generator",
+    "single normative producer",
     "5 sysctl controls",
     "1 reference VM",
     "one sysctl-v1 evidence directory",

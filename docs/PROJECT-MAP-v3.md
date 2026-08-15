@@ -70,7 +70,8 @@ flowchart LR
         KIND --> SCHEMA
         KIND --> DIFF
         SCHEMA --> DIFF --> SEMPAR --> REALJSON
-        IDX -. "source: сейчас заполняется вручную;<br/>generator появится на roadmap step 5" .-> CTRL
+        IDX --> SGEN["source skeleton generator<br/>step 5 CLOSED · numbered-position<br/>5/5 pilot"]:::closed
+        SGEN --> CTRL
         KIND --> CTRL
     end
 
@@ -141,8 +142,8 @@ rows — через `EXTRACTION-MANIFEST.tsv`.
 
 Gate 0 и differential suite — разные доказательства. Gate 0 проверяет
 байтовую воспроизводимость schema generation. Семантическое совпадение
-runtime/schema проверяет отдельная differential matrix. Roadmap step 4 должен
-сделать реальный `Draft202012Validator` обязательным для release/audit.
+runtime/schema проверяет отдельная differential matrix. Roadmap step 4 сделал
+реальный `Draft202012Validator` обязательным для release/audit.
 
 Gate 2 имеет два допустимых пути закрытия строки: control coverage с точным
 `CLOSURE-CONTRACT.tsv` либо explicit disposition + reason.
@@ -162,9 +163,9 @@ flowchart TB
     FIREWALL --> CONTRACT
 
     CONTRACT --> INDEXES["layer-specific indexes<br/>FSTEC: source-v4 exists<br/>corporate: not built yet"]:::component
-    INDEXES --> GENERATOR["index-generic<br/>source skeleton generator"]:::future
-    GENERATOR --> SOURCE["source:<br/>generated automatically<br/>single writer"]:::future
-    SOURCE --> PARITY["source-block<br/>regeneration parity"]:::future
+    INDEXES --> GENERATOR["index-generic<br/>source skeleton generator<br/>step 5 CLOSED"]:::component
+    GENERATOR --> SOURCE["source:<br/>generator output<br/>single normative producer"]:::component
+    SOURCE --> PARITY["source-block<br/>regeneration parity<br/>NEXT"]:::future
     PARITY --> SEM["requirement / parameter / expected<br/>semantic part of control"]:::future
     SEM --> CONTROLS["controls/<br/>layer + profile"]:::component
     CONTROLS --> CHECKER["checker / gates<br/>fail-closed"]:::component
@@ -255,8 +256,8 @@ flowchart LR
     S2["Gate 6<br/>evidence_binding"]:::closed
     S3["type/boolean<br/>contract cleanup"]:::closed
     S4["mandatory real-jsonschema<br/>release gate"]:::closed
-    S5["МЫ ЗДЕСЬ<br/>index-generic<br/>source skeleton generator"]:::current
-    S6["source-block<br/>regeneration parity"]:::future
+    S5["index-generic<br/>source skeleton generator"]:::closed
+    S6["МЫ ЗДЕСЬ<br/>source-block<br/>regeneration parity"]:::current
     S7["FSTEC + corporate<br/>index expansion / dispositions"]:::future
     S8["apply/restore<br/>semantic contract"]:::future
     S9["implementation<br/>adapters"]:::future

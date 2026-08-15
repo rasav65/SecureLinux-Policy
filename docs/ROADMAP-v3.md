@@ -30,7 +30,7 @@ Non-negotiable rules:
 - Release/audit validation requires a real Draft 2020-12 validator and records its version.
 - Future git bundles must be actively verified and tree-compared to the project snapshot; they do not prove remote origin.
 
-CURRENT STATUS: Gate 6 is CLOSED.
+CURRENT STATUS: roadmap steps 1–5 are CLOSED; step 6 source-block regeneration parity is NEXT.
 
 ## Engineering donor preservation rule
 
@@ -86,4 +86,30 @@ matrix must both have zero disagreements.
 
 This is separate from Gate 0 generation parity.
 
-NEXT: index-generic source skeleton generator.
+INDEX-GENERIC SOURCE SKELETON GENERATOR: CLOSED.
+
+## Index-generic source skeleton generator closure
+
+`tools/source_skeleton_generator.py` is now the canonical producer of
+`source:` for supported unit kinds.
+
+Current scope is deliberately narrow and measured:
+
+- source index: 349 rows / 13 unit kinds;
+- supported kind: `numbered-position` only;
+- rows in supported kind: 74;
+- exact extractions: 72;
+- refused rather than guessed: `SRC-0001`, `SRC-0133`;
+- current accepted controls reproduced byte-for-byte: 5/5.
+
+The generator accepts an explicit index path and consumes the common index
+field contract. It validates the normalizer, corpus manifests and normalized
+corpus hashes fail-closed.
+
+"Single writer" at this step is a normative authoring rule. Mechanical
+detection of a hand-edited committed `source:` block is the next roadmap step,
+`SOURCE_BLOCK_REGENERATION_PARITY`.
+
+This closure changes no controls and closes zero FSTEC source rows.
+
+NEXT: source-block regeneration parity.

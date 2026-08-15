@@ -24,6 +24,7 @@ assert rows[0]["status"] == "CLOSED"
 assert rows[1]["status"] == "CLOSED"
 assert rows[2]["status"] == "CLOSED"
 assert rows[3]["status"] == "CLOSED"
-assert rows[4]["status"] == "NEXT"
-assert all(r["status"] == "BLOCKED_BY_PREVIOUS" for r in rows[5:])
+assert rows[4]["status"] == "CLOSED"
+assert rows[5]["status"] == "NEXT"
+assert all(r["status"] == "BLOCKED_BY_PREVIOUS" for r in rows[6:])
 print("ROADMAP_V3_ORDER=PASS")
