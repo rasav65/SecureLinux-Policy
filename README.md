@@ -18,11 +18,16 @@ disposition + reason` больше недостаточно без провер�
 `DISPOSITION-LEDGER.tsv`. Подэтап не меняет `SOURCE-INDEX.tsv` и не закрывает
 ни одной строки FSTEC.
 
-Статус Step 7A после независимого аудита R1: **REVISE**.
-Найден и исправляется единственный подтверждённый blocker `S7A-R1-B01`:
-closed-schema должна проверять не только точный заголовок, но и ровно шесть
-TSV-значений в каждой строке данных. После R2 обязателен повторный независимый
-аудит. До него Step 7B и реальные dispositions не открываются.
+Статус Step 7A: **REVISE**. R2 закрыл обычные ragged-row случаи
+`S7A-R1-B01`, но повторный независимый аудит нашёл `S7A-R2-B01`: стандартная
+CSV quoting-семантика позволяла скрыть `TAB` в свободнотекстовом поле и
+склеивать физические строки через quoted `CR/LF`.
+
+R3 переводит disposition ledger на physical TSV без CSV quoting semantics
+(`QUOTE_NONE`) и добавляет постоянные проверки `quoted_tab_basis`,
+`quoted_newline_basis`, `quoted_cr_basis` и `quoted_tab_reason`. После R3
+обязателен независимый re-audit. До его ACCEPT Step 7B и реальные dispositions
+не открываются.
 
 Отдельное решение аудита: `quote-anchor` обязателен **до первого реального
 disposition**. Он должен опираться на типизированный API generator

@@ -758,7 +758,7 @@ def load_disposition_ledger(path: Path):
     """
     validate_regular(path)
     with path.open(encoding="utf-8", newline="") as f:
-        reader = csv.reader(f, delimiter="\t")
+        reader = csv.reader(f, delimiter="\t", quoting=csv.QUOTE_NONE)
         try:
             fields = next(reader)
         except StopIteration:

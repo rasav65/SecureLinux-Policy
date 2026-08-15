@@ -206,10 +206,32 @@ R2 требует одновременно:
 - полный прогон `tests/` до и после изменения без новых падений;
 - `349 / 5 / 344`, real ledger rows `0`.
 
-После реализации R2 статус Step 7A — `AWAITING_INDEPENDENT_REAUDIT`.
-Step 7B и первый реальный disposition до повторного аудита запрещены.
+Повторный аудит R2 выявил `S7A-R2-B01`: `csv.reader` с включённой
+CSV quoting-семантикой позволял спрятать `TAB` внутри кавычек и объединять две
+физические строки через quoted `CR/LF`. Поэтому Step 7A остаётся `REVISE`.
 
-Quote-anchor теперь имеет отдельный pre-real-disposition gate:
+### Step 7A R3 — physical TSV без quoting
+
+R3 требует:
+
+- `csv.reader(..., delimiter="\t", quoting=csv.QUOTE_NONE)`;
+- точный шестипольный header и ровно шесть значений каждой физической строки;
+- quoted `TAB` в `basis` → FAIL;
+- quoted `LF` и quoted `CR` в `basis` → FAIL;
+- quoted `TAB` в `reason` → FAIL независимо от index↔ledger equality;
+- полный `tests/` без новых регрессий;
+- `349 / 5 / 344`, real ledger rows `0`.
+
+Adversarial-методика: parser-level атаки проверяются прежде всего на
+наименее ограниченном поле (`basis`), затем на других свободнотекстовых полях.
+Критерий — буквальное выполнение объявленного инварианта, а не отсутствие
+видимого вреда благодаря другой проверке.
+
+После реализации R3 статус Step 7A —
+`AWAITING_INDEPENDENT_REAUDIT_R3`. Step 7B и первый реальный disposition до
+ACCEPT повторного аудита запрещены.
+
+Quote-anchor остаётся отдельным pre-real-disposition gate:
 `REQUIRE_BEFORE_FIRST_REAL_DISPOSITION`. Будущий generator API должен
 различать `EXACT`, `REFUSED`, `UNSUPPORTED`, а integrity failures должны
 оставаться исключениями.

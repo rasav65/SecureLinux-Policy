@@ -245,6 +245,38 @@ with tempfile.TemporaryDirectory(prefix="slp-disposition-short-data-row-") as td
     assert not g["pass"]
     assert any("expected 6 TSV fields, got 5" in e for e in g["errors"]), g["errors"]
 
+# Negative 15: quoting is disabled; a tab in free-text basis is a real delimiter.
+with tempfile.TemporaryDirectory(prefix="slp-disposition-quoted-tab-basis-") as td:
+    root = Path(td)
+    quoted = valid_ledger_line(basis='"Basis\tINJECTED"')
+    g = gate2_for(root, row(), ledger_body=quoted)
+    assert not g["pass"]
+    assert any("expected 6 TSV fields, got 7" in e for e in g["errors"]), g["errors"]
+
+# Negative 16: quoting may not merge physical LF-delimited lines.
+with tempfile.TemporaryDirectory(prefix="slp-disposition-quoted-newline-basis-") as td:
+    root = Path(td)
+    quoted = valid_ledger_line(basis='"Basis\nINJECTED"')
+    g = gate2_for(root, row(), ledger_body=quoted)
+    assert not g["pass"]
+    assert any("expected 6 TSV fields" in e for e in g["errors"]), g["errors"]
+
+# Negative 17: quoting may not merge physical CR-delimited lines either.
+with tempfile.TemporaryDirectory(prefix="slp-disposition-quoted-cr-basis-") as td:
+    root = Path(td)
+    quoted = valid_ledger_line(basis='"Basis\rINJECTED"')
+    g = gate2_for(root, row(), ledger_body=quoted)
+    assert not g["pass"]
+    assert any("expected 6 TSV fields" in e for e in g["errors"]), g["errors"]
+
+# Negative 18: parser safety in reason must not depend on index equality as a side effect.
+with tempfile.TemporaryDirectory(prefix="slp-disposition-quoted-tab-reason-") as td:
+    root = Path(td)
+    quoted = valid_ledger_line(reason='"Synthetic\treviewed disposition"')
+    g = gate2_for(root, row(), ledger_body=quoted)
+    assert not g["pass"]
+    assert any("expected 6 TSV fields, got 7" in e for e in g["errors"]), g["errors"]
+
 print(
     "DISPOSITION_LEDGER_TESTS=PASS positive=1 "
     "negative_enum=1 negative_blank_reason=1 negative_missing_ledger=1 "
@@ -252,5 +284,7 @@ print(
     "negative_controlled_ledger=1 negative_missing_ledger_file=1 "
     "negative_disposed_contract=1 negative_disposition_mismatch=1 "
     "negative_reason_mismatch=1 negative_invalid_decided_at=1 "
-    "negative_extra_data_field=1 negative_short_data_row=1"
+    "negative_extra_data_field=1 negative_short_data_row=1 "
+    "negative_quoted_tab_basis=1 negative_quoted_newline_basis=1 "
+    "negative_quoted_cr_basis=1 negative_quoted_tab_reason=1"
 )

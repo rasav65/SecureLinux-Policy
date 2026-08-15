@@ -5,6 +5,24 @@
 
 ## [Unreleased]
 
+### Исправлено — Step 7A R3: physical TSV без CSV quoting
+
+- Повторный аудит R2 выявил `S7A-R2-B01`: `csv.reader` сохранял CSV
+  quoting-семантику, поэтому quoted `TAB` в свободнотекстовом `basis` не менял
+  логическую арность, а quoted `CR/LF` мог объединять физические строки.
+- Loader теперь использует `quoting=csv.QUOTE_NONE`: кавычки — обычные данные,
+  delimiter и границы физических строк больше нельзя скрыть quoting-механизмом.
+- Добавлены четыре постоянные negative fixtures:
+  `quoted_tab_basis`, `quoted_newline_basis`, `quoted_cr_basis`,
+  `quoted_tab_reason`.
+- Adversarial-правило зафиксировано явно: parser-level атаки сначала применяются
+  к наименее ограниченному полю, а PASS означает соблюдение объявленного
+  инварианта, не просто отсутствие видимого вреда.
+- После R3 Step 7A остаётся `AWAITING_INDEPENDENT_REAUDIT_R3`; Step 7B и первый
+  real disposition заблокированы.
+- Quote-anchor policy не меняется:
+  `REQUIRE_BEFORE_FIRST_REAL_DISPOSITION`.
+
 ### Исправлено — Step 7A R2: закрытая схема строк disposition ledger
 
 - Независимый аудит R1 нашёл обход closed-schema: при корректном шестиколоночном
