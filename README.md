@@ -31,46 +31,65 @@
 ещё не закрыты. Синтетический selftest Gate 5 остаётся regression, но не
 заменяет фактическое reference-VM evidence.
 
-## Step 5 audit provenance closure
+## Язык документации
 
-The Step 5 reference-VM evidence package has three recorded ACCEPT verdict
-texts with ADMISSION=PASS, INTEGRITY=PASS and BLOCKERS=NONE.
+Пользовательская документация проекта ведётся на русском языке. Английский
+сохраняется только там, где он является частью машинного контракта или точного
+технического имени: имена файлов и CLI, идентификаторы roadmap/gates, enum,
+классы/API, поля schema и проверяемые machine-status строки.
 
-The project deliberately does **not** summarize this as "3 independent
-reviews". Available provenance states that one reviewer participated in the v3
-format design and authored two verdicts, while the exact mapping to the three
-stored records is not established. Provenance is therefore stored record by
-record in `audit/step5-reference-vm-evidence-20260814/PROVENANCE.tsv`.
+Старые англоязычные пояснения переводятся постепенно отдельными
+documentation-only проходами, без смешивания перевода с нормативными или
+runtime-изменениями.
 
-Coverage is unchanged: 349 total / 5 controlled CLOSED / 344 OPEN.
-Step 5 provenance closure and Gate 6 `evidence_binding` are CLOSED. The mandatory real-jsonschema release gate, the index-generic source skeleton generator and source-block regeneration parity are CLOSED. The current authorized engineering step is `FSTEC + corporate index expansion / dispositions`.
+## Закрытие provenance-аудита Step 5
 
-The authoritative forward order is in `docs/ROADMAP-v3.md`.
+В пакете evidence Step 5 с reference VM сохранены три текста вердиктов
+`ACCEPT` со значениями `ADMISSION=PASS`, `INTEGRITY=PASS` и `BLOCKERS=NONE`.
 
-## Engineering donor rule
+Проект намеренно **не** описывает это как «3 независимых аудита». Сохранённый
+provenance указывает, что один reviewer участвовал в проектировании формата v3
+и подготовил два вердикта, но точное соответствие reviewer ↔ три сохранённые
+записи не установлено. Поэтому provenance хранится для каждой записи отдельно
+в `audit/step5-reference-vm-evidence-20260814/PROVENANCE.tsv`.
 
-SecureLinux-NG v16.2.11 is preserved as an **engineering donor**, not as a
-normative source of truth. Mature mechanisms and tests are not discarded, but
-they are not copied into v3 automatically.
+Покрытие не изменилось: 349 всего / 5 controlled `CLOSED` / 344 `OPEN`.
+Закрыты provenance Step 5, Gate 6 `evidence_binding`, обязательный release-gate
+с реальным `jsonschema`, универсальный по индексу генератор `source:` и
+паритет регенерации `source:`. Текущий разрешённый инженерный этап —
+`FSTEC + corporate index expansion / dispositions`.
 
-Before the roadmap reaches `apply/restore semantic contract`, the project must
-build and review a complete `DONOR_TO_V3_MAPPING` with decisions
-`REUSE | ADAPT | REJECT | DEFER`. The mapping itself closes zero source-index
-rows.
+<!-- Совместимость с текущим status-test:
+The current authorized engineering step is `FSTEC + corporate index expansion / dispositions`.
+-->
 
-The mandatory policy is `docs/DONOR-V3-ADOPTION-POLICY.md`.
+Обязательный порядок дальнейших работ зафиксирован в `docs/ROADMAP-v3.md`.
 
-## Gate 6 — evidence binding
+## Правило инженерного донора
 
-Gate 6 is implemented for the current factual `sysctl-v1` reference-VM
-evidence. It mechanically binds VM metadata to the current probe, probe plan,
-privileged result, unprivileged result and the evidence directory checksum
-set.
+SecureLinux-NG v16.2.11 сохранён как **инженерный донор**, а не как
+нормативный источник истины. Зрелые механизмы и tests не выбрасываются, но и
+не копируются в v3 автоматически.
 
-Gate 6 proves integrity/binding only. It explicitly records
-`VM_ORIGIN_ATTESTATION=NOT_PROVEN`; no cryptographic VM-origin claim is made.
+До этапа `apply/restore semantic contract` проект обязан построить и проверить
+полный `DONOR_TO_V3_MAPPING` с решениями
+`REUSE | ADAPT | REJECT | DEFER`. Сам mapping закрывает 0 строк source index.
 
-After Gate 6 closure, the next roadmap step is `type/boolean contract cleanup`.
+Обязательная политика описана в `docs/DONOR-V3-ADOPTION-POLICY.md`.
+
+## Gate 6 — привязка evidence
+
+Gate 6 реализован для текущего фактического evidence `sysctl-v1` с reference
+VM. Он механически связывает метаданные VM с текущим probe, probe plan,
+привилегированным результатом, непривилегированным результатом и набором
+контрольных сумм каталога evidence.
+
+Gate 6 доказывает только целостность и привязку. Он явно фиксирует
+`VM_ORIGIN_ATTESTATION=NOT_PROVEN`; криптографическое доказательство
+происхождения от конкретной VM не заявляется.
+
+Исторически после закрытия Gate 6 следующим этапом roadmap была очистка
+контракта type/boolean; этот этап уже закрыт.
 
 ## Визуальная архитектура
 
@@ -96,9 +115,14 @@ reference-VM evidence, policy layers, engineering donor и путь к
 `docs/ARCHITECTURE-DIAGRAMS.md` сохранён как отдельный **donor runtime
 reference**. Это не основная карта v3.
 
-## Release validation
+## Валидация релиза
 
-Release/audit closure requires a real `jsonschema.Draft202012Validator`; absence is a hard failure, not a skipped test. Current closure evidence records `jsonschema=4.10.3` in `checker/release-v1/RELEASE-EVIDENCE.json`. See `docs/release-validation.md`.
+Для закрытия релиза или аудита требуется реальный
+`jsonschema.Draft202012Validator`; отсутствие зависимости является жёсткой
+ошибкой, а не пропущенным тестом. Evidence текущего закрытия фиксирует
+`jsonschema=4.10.3` в `checker/release-v1/RELEASE-EVIDENCE.json`.
+
+Подробности: `docs/release-validation.md`.
 
 ## Архитектура
 
@@ -480,45 +504,46 @@ archive/
 Они используются как evidence и engineering donor, но не являются
 нормативным контрактом новой модели.
 
-## Index-generic source skeleton generator closure
+## Закрытие универсального по индексу генератора `source:`
 
-Roadmap step 5 is CLOSED in a deliberately scoped form.
+Этап 5 roadmap закрыт в намеренно ограниченной области.
 
-- canonical tool: `tools/source_skeleton_generator.py`;
-- common-index path is explicit (`--index`), with `index/source-v4` only the
-  current default;
-- supported `unit_kind`: `numbered-position` (1 of 13);
-- rows in that kind: 74;
-- exact extractions: 72;
-- explicit refusals: `SRC-0001`, `SRC-0133`;
-- current accepted controls reproduced byte-for-byte: 5/5;
-- trust-chain corruption is covered by permanent negative tests.
+- канонический инструмент: `tools/source_skeleton_generator.py`;
+- путь к common index задаётся явно через `--index`, а
+  `index/source-v4` является только текущим значением по умолчанию;
+- поддерживаемый `unit_kind`: `numbered-position` (1 из 13);
+- строк этого типа: 74;
+- точных извлечений: 72;
+- явных отказов: `SRC-0001`, `SRC-0133`;
+- текущие принятые controls воспроизводятся побайтово: 5/5;
+- повреждение trust chain покрыто постоянными отрицательными tests.
 
-For supported kinds the generator is the single normative producer of
-`source:`. Roadmap step 6 now mechanically enforces that rule by regenerating
-every committed control block and requiring byte-for-byte parity.
+Для поддерживаемых типов генератор является единственным нормативным
+производителем `source:`. Этап 6 roadmap теперь механически обеспечивает это
+правило: каждый закоммиченный блок control регенерируется и обязан совпасть
+побайтово.
 
-This closure changes no controls and closes zero FSTEC source rows.
+Это закрытие не изменяет controls и закрывает 0 строк FSTEC source index.
 
-## Source-block regeneration parity closure
+## Закрытие паритета регенерации блока `source:`
 
-Roadmap step 6 is CLOSED.
+Этап 6 roadmap закрыт.
 
 - checker: `checker/source-parity-v1/source_block_regeneration_parity.py`;
-- current controls: 5;
-- supported: 5;
-- byte-identical matches: 5;
+- текущих controls: 5;
+- поддерживаемых: 5;
+- побайтовых совпадений: 5;
 - unsupported: 0;
-- missing index rows: 0;
+- отсутствующих строк index: 0;
 - mismatches: 0;
 - errors: 0.
 
-Unsupported `unit_kind` is an explicit fail-closed result, never a silent
-skip. Permanent negative fixtures cover edits to `quote`, `quote_sha256`,
-`locator`, unsupported kinds, missing index rows and malformed duplicate
-`source:` blocks.
+Неподдерживаемый `unit_kind` является явным fail-closed результатом и никогда
+не пропускается молча. Постоянные отрицательные fixtures покрывают изменения
+`quote`, `quote_sha256`, `locator`, неподдерживаемые типы, отсутствующие строки
+index и некорректные дублированные блоки `source:`.
 
-This closure changes no controls and closes zero FSTEC source rows.
+Это закрытие не изменяет controls и закрывает 0 строк FSTEC source index.
 
 ## Проверка текущего состояния
 
@@ -542,30 +567,37 @@ tests/gates-v2/SHA256SUMS
 До перехода к следующему этапу результат каждого gate должен трактоваться
 fail-closed.
 
-## Engineering donor — adoption classification
+## Инженерный донор — классификация принятия
 
-Engineering donor inventory is now explicitly classified for every indexed function.
+Inventory инженерного донора теперь явно классифицирован для каждой
+проиндексированной функции.
 
-- donor script coverage: 18,928 / 18,928 lines;
-- functions classified: 310 / 310;
-- adoption classes: 19 `contracted`, 31 `candidate`, 53 `evidence-only`, 207 `pending-review`;
+- покрытие donor script: 18 928 / 18 928 строк;
+- классифицировано функций: 310 / 310;
+- классы принятия: 19 `contracted`, 31 `candidate`, 53 `evidence-only`,
+  207 `pending-review`;
 - engineering contracts: 20;
-- registered donor sources: 6;
-- `restore-model.md` is registered as an input for the future apply/restore semantic contract;
-- donor `fstec-mapping.md` remains `engineering-donor-claimed-mapping-non-normative`;
-- this change closes 0 FSTEC source rows.
+- зарегистрированных donor sources: 6;
+- `restore-model.md` зарегистрирован как вход будущего этапа
+  `apply/restore semantic contract`;
+- donor `fstec-mapping.md` остаётся
+  `engineering-donor-claimed-mapping-non-normative`;
+- это изменение закрывает 0 строк FSTEC source index.
 
-`pending-review` means not yet reviewed for invariant adoption; it does not mean that no invariant exists.
+`pending-review` означает «ещё не проверено для принятия инварианта», а не
+«инварианта не существует».
 
-This parallel donor-classification work did not independently advance the normative roadmap.
+Эта параллельная классификация инженерного донора сама по себе не продвигала
+нормативный roadmap.
 
-## JSON Schema release-version policy
+## Политика версий JSON Schema для релиза
 
-Release validation requires the real `jsonschema.Draft202012Validator` and
-enforces a minimum supported distribution version of `4.10.3`.
+Валидация релиза требует реального `jsonschema.Draft202012Validator` и
+устанавливает минимальную поддерживаемую версию дистрибутива `4.10.3`.
 
-Retained compatibility evidence covers both `jsonschema 4.10.3` and
-`jsonschema 4.26.0`. Both runs must show zero runtime↔real and emulator↔real
-disagreements and zero real-schema-invalid active controls.
+Сохранённое evidence совместимости охватывает `jsonschema 4.10.3` и
+`jsonschema 4.26.0`. Оба запуска обязаны показывать нулевое число расхождений
+runtime↔real и emulator↔real и 0 активных controls, невалидных по реальной
+schema.
 
-Dependency absence and a version below the minimum fail closed.
+Отсутствие зависимости и версия ниже минимальной обрабатываются fail-closed.

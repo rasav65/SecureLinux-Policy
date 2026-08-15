@@ -1,59 +1,62 @@
-# Release validation policy
+# Политика валидации релиза
 
-## Mandatory real JSON Schema dependency
+## Обязательная реальная зависимость JSON Schema
 
-For release/audit closure, SecureLinux-Policy v3 requires a real
+Для закрытия релиза или аудита SecureLinux-Policy v3 требуется реальный
 `jsonschema.Draft202012Validator`.
 
-The development differential suite keeps its optional behavior so lightweight
-developer environments can still run the emulator checks. That optional path
-is **not** sufficient for release.
+Дифференциальный набор разработки сохраняет необязательный режим, чтобы
+облегчённые окружения разработчика могли выполнять проверки эмулятора. Этот
+необязательный путь **недостаточен** для релиза.
 
-The release gate:
+Release-gate:
 
 `checker/release-v1/real_jsonschema_gate.py`
 
-must pass without fallback.
+должен завершаться успешно без fallback-механизма.
 
-## Why this is separate from Gate 0
+## Почему это отделено от Gate 0
 
-Gate 0 proves only byte generation parity:
+Gate 0 доказывает только байтовый паритет генерации:
 
 `committed CONTROL-SCHEMA.json == checker.render_control_schema()`
 
-It does not independently prove that JSON Schema pattern/type semantics agree
-with runtime validation.
+Он сам по себе не доказывает, что семантика pattern/type в JSON Schema
+совпадает с runtime-валидацией.
 
-The release gate therefore executes the full differential matrix against the
-real Draft 2020-12 validator and records the installed `jsonschema`
-distribution version.
+Поэтому release-gate выполняет полную дифференциальную матрицу на реальном
+валидаторе Draft 2020-12 и записывает установленную версию дистрибутива
+`jsonschema`.
 
-This specifically preserves the lesson from prior regex/newline parity
-failures: validator semantics are part of release evidence, not an assumed
-environment detail.
+Так сохраняется вывод из прошлых ошибок паритета regex/newline: семантика
+валидатора является частью доказательств релиза, а не предполагаемым свойством
+окружения.
 
-## Current evidence
+## Текущие доказательства
 
-Current closure evidence is stored in:
+Доказательства текущего закрытия хранятся в:
 
 `checker/release-v1/RELEASE-EVIDENCE.json`
 
-The file records the validator version used on the machine that closed the
-gate. A later release may use a different version, but must rerun the gate and
-produce new evidence rather than treating an old PASS as timeless.
+Файл фиксирует версию валидатора, использованную на машине, где gate был
+закрыт. В следующем релизе может использоваться другая версия, но gate должен
+быть запущен заново с созданием новых evidence; старый `PASS` не считается
+бессрочным.
 
-Current closure used `jsonschema` distribution version `4.10.3`.
+Текущее закрытие выполнено с дистрибутивом `jsonschema` версии `4.10.3`.
 
-## Version policy
+## Политика версий
 
-Minimum supported `jsonschema` release: `4.10.3`.
+Минимальная поддерживаемая версия `jsonschema`: `4.10.3`.
 
-System closure evidence is generated with 4.10.3. The same updated gate is
-also run under an explicitly supplied 4.26.0 compatibility interpreter.
+Системное evidence закрытия создано на версии `4.10.3`. Тот же обновлённый
+gate дополнительно запущен через явно заданный совместимый интерпретатор с
+`jsonschema 4.26.0`.
 
-Both runs must use `Draft202012Validator`, pass the 50-case differential
-matrix including 16 newline cases, show zero runtime↔real and emulator↔real
-disagreements, and validate all five active controls.
+Оба запуска обязаны использовать `Draft202012Validator`, проходить
+дифференциальную матрицу из 50 случаев, включая 16 случаев newline, иметь
+нулевое число расхождений runtime↔real и emulator↔real и успешно валидировать
+все пять активных controls.
 
-Dependency absence, an unparseable version, or a version below 4.10.3 fails
-closed.
+Отсутствие зависимости, невозможность разобрать версию или версия ниже
+`4.10.3` приводят к fail-closed.

@@ -1,95 +1,96 @@
-# Index-generic source skeleton generator
+# Универсальный по индексу генератор блока `source:`
 
-Roadmap step 5 introduces the canonical producer of a control record's
-`source:` block.
+Этап 5 roadmap вводит канонический способ построения блока `source:` записи
+control.
 
-## Contract
+## Контракт
 
-For a supported source-index row, `tools/source_skeleton_generator.py`
-derives:
+Для поддерживаемой строки source index
+`tools/source_skeleton_generator.py` формирует:
 
 - `index_id`;
 - `doc_id`;
 - `doc_sha256`;
 - `locator`;
-- canonical `quote`;
+- канонический `quote`;
 - `quote_sha256`;
 - `norm`.
 
-The index path is an explicit CLI input (`--index`); `index/source-v4` is only
-the current default. The generator therefore consumes the common source-index
-contract rather than a FSTEC-only hard-coded index path.
+Путь к индексу задаётся явно через CLI (`--index`); `index/source-v4` является
+только текущим значением по умолчанию. Поэтому генератор использует общий
+контракт source index, а не жёстко заданный путь только для FSTEC.
 
-The generator is the **single normative producer** of `source:` for supported
-unit kinds. Roadmap step 6 now enforces this mechanically: every committed
-control is regenerated and byte-compared by
+Для поддерживаемых `unit_kind` генератор является **единственным нормативным
+производителем** `source:`. Этап 6 roadmap теперь обеспечивает это механически:
+каждый закоммиченный control регенерируется и побайтово сравнивается через
 `checker/source-parity-v1/source_block_regeneration_parity.py`.
 
-## Current extraction scope
+## Текущая область извлечения
 
-The current source index contains 349 rows and 13 `unit_kind` values.
+Текущий source index содержит 349 строк и 13 значений `unit_kind`.
 
-This version supports exactly one kind:
+Эта версия поддерживает ровно один тип:
 
 `numbered-position`
 
-Current measured scope:
+Измеренная область:
 
-- rows of this kind: 74;
-- exact extraction: 72;
-- refused: 2;
-- current accepted pilot controls reproduced byte-for-byte: 5/5.
+- строк этого типа: 74;
+- точных извлечений: 72;
+- отказов: 2;
+- текущие принятые пилотные controls воспроизводятся побайтово: 5/5.
 
-The two refused rows are:
+Две строки с отказом:
 
 - `SRC-0001` / `2.1.1`;
 - `SRC-0133` / `6.2`.
 
-Both spans cross page furniture and end with a bare page number in `norm-v1`.
-The generator refuses rather than guessing which trailing integer is page
-furniture.
+Оба фрагмента пересекают разрыв страницы и заканчиваются номером страницы,
+попавшим в `norm-v1`. Генератор отказывается от результата, а не угадывает,
+является ли конечное целое число служебной разметкой страницы.
 
-The other 12 unit kinds remain unsupported by this version. No claim of
-automatic quote generation is made for those rows.
+Остальные 12 типов `unit_kind` этой версией не поддерживаются. Для этих строк
+не заявляется автоматическая генерация цитаты.
 
-## Boundary rule for numbered-position
+## Правило границ для `numbered-position`
 
-A number-looking token becomes an outline boundary only if it is a legal
-structural successor of the previous accepted marker: first child, next
-sibling, or next sibling of an ancestor.
+Токен, похожий на номер, становится границей структуры только тогда, когда он
+является допустимым структурным продолжением предыдущего принятого маркера:
+первым потомком, следующим соседом либо следующим соседом одного из предков.
 
-This prevents values such as `kernel.dmesg_restrict=1.` and document/page
-numbers from silently becoming unit boundaries.
+Это не позволяет значениям вроде `kernel.dmesg_restrict=1.` и номерам
+документов/страниц молча превращаться в границы нормативной единицы.
 
-## Trust chain
+## Цепочка доверия
 
-Before emitting a block, the generator validates fail-closed:
+Перед выдачей блока генератор проверяет fail-closed:
 
-- exact source-index field contract and unique `index_id`;
+- точный контракт полей source index и уникальность `index_id`;
 - `quote_anchor_ready=YES`;
-- pinned `normalizer-v1.py` SHA and its selftest;
-- recovered/extracted corpus selection by `text_quality`;
-- manifest source SHA and normalization metadata;
-- normalized-corpus SHA;
-- canonical norm-v1 quote;
-- quote substring membership in the selected normalized corpus.
+- закреплённый SHA `normalizer-v1.py` и его selftest;
+- выбор recovered/extracted корпуса по `text_quality`;
+- SHA источника и метаданные нормализации из manifest;
+- SHA нормализованного корпуса;
+- каноничность цитаты по `norm-v1`;
+- наличие цитаты как подстроки выбранного нормализованного корпуса.
 
-Physical verification of the pinned PDF file itself remains Gate 1's
-responsibility; the generator deliberately does not hard-code a FSTEC PDF
-directory so that the index input remains layer-generic.
+Физическая проверка закреплённого PDF остаётся обязанностью Gate 1. Генератор
+намеренно не содержит жёстко заданного каталога PDF FSTEC, чтобы входной индекс
+оставался универсальным для разных policy layers.
 
-## Regression evidence
+## Регрессионные доказательства
 
-`tests/source-skeleton-v1/test_source_skeleton_generator.py` permanently checks:
+`tests/source-skeleton-v1/test_source_skeleton_generator.py` постоянно
+проверяет:
 
-- five byte-identical pilot blocks;
-- 72 exact / 2 refused supported rows;
-- the known `SRC-0018` quote hash;
-- use of an alternate index path;
-- duplicate-index rejection;
-- `quote_anchor_ready != YES` rejection;
-- altered-normalizer rejection;
-- corrupted normalized-corpus hash rejection.
+- пять побайтово совпадающих пилотных блоков;
+- 72 точных извлечения и 2 отказа для поддерживаемого типа;
+- известный hash цитаты `SRC-0018`;
+- работу с альтернативным путём к индексу;
+- отказ при дублировании index;
+- отказ при `quote_anchor_ready != YES`;
+- отказ при изменённом normalizer;
+- отказ при повреждённом hash нормализованного корпуса.
 
-This step closes zero FSTEC source rows. Normative progress remains
-349 total / 5 controlled CLOSED / 344 OPEN.
+Этот этап закрывает 0 строк FSTEC source index. Нормативный прогресс остаётся:
+349 всего / 5 controlled `CLOSED` / 344 `OPEN`.

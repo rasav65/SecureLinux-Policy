@@ -1,26 +1,26 @@
-# Source-block regeneration parity
+# Паритет регенерации блока `source:`
 
-Roadmap step 6 mechanically enforces the step-5 single-writer rule for
-committed `source:` blocks.
+Этап 6 roadmap механически обеспечивает введённое на этапе 5 правило
+единственного нормативного производителя для закоммиченных блоков `source:`.
 
-The checker:
+Checker:
 
-- loads the canonical source skeleton generator through `tools/SHA256SUMS`;
-- loads the selected source index through the generator's common index
-  contract;
-- discovers committed control YAML files;
-- regenerates `source:` for every control whose `unit_kind` is supported;
-- requires byte-for-byte equality with the committed block;
-- fails closed for unsupported unit kinds, missing index rows, malformed
-  `source:` blocks, generation errors, or any byte mismatch.
+- загружает канонический генератор `source:` через `tools/SHA256SUMS`;
+- загружает выбранный source index через общий index-контракт генератора;
+- находит закоммиченные YAML controls;
+- регенерирует `source:` для каждого control с поддерживаемым `unit_kind`;
+- требует побайтового равенства с закоммиченным блоком;
+- работает fail-closed при неподдерживаемом `unit_kind`, отсутствующей строке
+  index, некорректном блоке `source:`, ошибке генерации или любом байтовом
+  расхождении.
 
-Current closure scope is the five existing pilot controls. All five use
-`unit_kind=numbered-position`, which is supported by the generator, and all
-five match byte-for-byte.
+Текущая область закрытия — пять существующих пилотных controls. Все пять имеют
+`unit_kind=numbered-position`, который поддерживается генератором, и все пять
+совпадают побайтово.
 
-An unsupported control is not silently skipped. It is reported as
-`UNSUPPORTED` and makes parity fail until that unit kind has a reviewed
-generator rule.
+Неподдерживаемый control не пропускается молча. Он получает статус
+`UNSUPPORTED`, а parity завершается неуспешно до появления проверенного правила
+генератора для соответствующего `unit_kind`.
 
-This checker does not close source-index rows and does not change Gate 1–6
-semantics. It protects the provenance block that those gates consume.
+Этот checker не закрывает строки source index и не меняет семантику Gate 1–6.
+Он защищает provenance-блок, который используют эти gates.

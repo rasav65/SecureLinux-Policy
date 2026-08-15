@@ -180,7 +180,7 @@ flowchart TB
     classDef future fill:#eeeeee,stroke:#888,color:#444,stroke-dasharray: 5 5;
 ```
 
-## 3. Engineering donor → future runtime
+## 3. Инженерный донор → будущий runtime
 
 ```mermaid
 flowchart LR
@@ -245,10 +245,10 @@ flowchart LR
     classDef note fill:#fff8d8,stroke:#9d8730,color:#111;
 ```
 
-The Git bundle is an external audit/handoff artifact, not a claim that the
-repository itself stores every bundle. Bundle verification proves commit/tree
-self-consistency and permits independent tree comparison; it does not prove
-that a commit originated from a particular remote.
+Git bundle — внешний артефакт для аудита и handoff, а не утверждение, что
+репозиторий хранит каждый созданный bundle. Проверка bundle доказывает
+внутреннюю согласованность commit/tree и позволяет независимо сравнить дерево,
+но не доказывает, что commit был получен из конкретного remote.
 
 ## 5. Где мы находимся
 

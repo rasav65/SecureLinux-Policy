@@ -1,141 +1,160 @@
-# SecureLinux-Policy v3 — authoritative forward roadmap
+# SecureLinux-Policy v3 — основной план дальнейших работ
 
-This is the authoritative order after Step 5 reference-VM evidence closure.
-Do not start a later step until the preceding step is closed unless this
-roadmap is explicitly reviewed and changed.
+Это обязательный порядок работ после закрытия evidence на reference VM для
+Step 5. Нельзя начинать более поздний этап, пока предыдущий не закрыт, если
+этот roadmap не был отдельно пересмотрен и изменён.
 
-1. Step 5 audit provenance closure
+1. Закрытие provenance-аудита Step 5
 2. Gate 6 `evidence_binding`
-3. type/boolean contract cleanup
-4. mandatory real-jsonschema release gate
-5. index-generic source skeleton generator
-6. source-block regeneration parity gate
-7. FSTEC + corporate index expansion / dispositions
-8. apply/restore semantic contract
-9. implementation adapters
-10. deterministic build
-11. single distributable `securelinux-ng.sh`
+3. Очистка контракта type/boolean
+4. Обязательный release-gate с реальным `jsonschema`
+5. Универсальный по индексу генератор блока `source:`
+6. Gate паритета регенерации `source:`
+7. Расширение FSTEC + corporate index / dispositions
+8. Семантический контракт apply/restore
+9. Implementation adapters
+10. Детерминированная сборка
+11. Единый распространяемый `securelinux-ng.sh`
 
-Non-negotiable rules:
-- Do not begin mass work on the 344 OPEN FSTEC rows before Gate 6, boolean/type cleanup, the skeleton generator and source-block parity are closed.
-- Gate 6 proves evidence binding/integrity, not cryptographic origin from a VM.
-- The skeleton generator is index-generic and is the only writer of `source:`.
-- A parity gate regenerates `source:` and compares it to committed controls.
-- `211` is only the measured count of source_role=transitive-process in source-v4; it is not a disposition forecast.
-- Corporate is a first-class layer and needs its own index population.
-- apply/restore semantics must be defined before implementation adapters.
-- The final monolith is a deterministic build artifact, never source of truth.
-- Generated output must not depend on timestamps, absolute paths, filesystem traversal order or unittest timing.
-- Every emitted block carries provenance: control_id, source locator, quote_sha256, implementation adapter identity/version.
-- Release/audit validation requires a real Draft 2020-12 validator and records its version.
-- Future git bundles must be actively verified and tree-compared to the project snapshot; they do not prove remote origin.
+Неизменяемые правила:
 
-CURRENT STATUS: roadmap steps 1–6 are CLOSED; step 7 FSTEC + corporate index expansion / dispositions is NEXT.
+- нельзя начинать массовую работу по 344 строкам FSTEC со статусом `OPEN` до
+  закрытия Gate 6, очистки boolean/type, генератора `source:` и паритета
+  регенерации;
+- Gate 6 доказывает привязку и целостность evidence, но не криптографическое
+  происхождение от конкретной VM;
+- генератор `source:` универсален по индексу и является единственным
+  нормативным производителем блока;
+- parity-gate регенерирует `source:` и сравнивает результат с закоммиченными
+  controls;
+- `211` — только измеренное количество строк
+  `source_role=transitive-process` в source-v4, а не прогноз disposition;
+- corporate — самостоятельный policy layer и должен иметь собственную
+  популяцию index;
+- семантика apply/restore должна быть определена до implementation adapters;
+- финальный монолит — детерминированный артефакт сборки, а не источник истины;
+- генерируемый результат не должен зависеть от timestamps, абсолютных путей,
+  порядка обхода файловой системы или timing `unittest`;
+- каждый сгенерированный блок несёт provenance: `control_id`, source locator,
+  `quote_sha256`, идентификатор/версию implementation adapter;
+- release/audit validation требует реального валидатора Draft 2020-12 и
+  фиксирует его версию;
+- будущие Git bundles должны активно проверяться и сравниваться по дереву со
+  снимком проекта; сами по себе они не доказывают происхождение из конкретного
+  remote.
 
-## Engineering donor preservation rule
+ТЕКУЩИЙ СТАТУС: этапы roadmap 1–6 `CLOSED`; этап 7
+FSTEC + corporate index expansion / dispositions имеет статус `NEXT`.
 
-The preserved SecureLinux-NG v16.2.11 project remains an engineering donor,
-not normative authority. Before roadmap step 8 (`apply/restore semantic
-contract`) begins, the project MUST complete and review `DONOR_TO_V3_MAPPING`
-using the decisions `REUSE | ADAPT | REJECT | DEFER`.
+## Правило сохранения инженерного донора
 
-The mapping must account explicitly for the mature donor mechanisms listed in
-`docs/DONOR-V3-ADOPTION-POLICY.md`. The mapping itself closes zero FSTEC or
-corporate source-index rows. No implementation adapter may bypass the
-apply/restore contract merely because equivalent code existed in the donor.
+Сохранённый проект SecureLinux-NG v16.2.11 остаётся **инженерным донором**, а
+не нормативным источником. До начала этапа 8
+(`apply/restore semantic contract`) проект ОБЯЗАН завершить и проверить
+`DONOR_TO_V3_MAPPING` с решениями `REUSE | ADAPT | REJECT | DEFER`.
 
-## Gate 6 closure
+Mapping должен явно учитывать зрелые механизмы донора, перечисленные в
+`docs/DONOR-V3-ADOPTION-POLICY.md`. Сам mapping закрывает 0 строк FSTEC или
+corporate source index. Ни один implementation adapter не может обходить
+контракт apply/restore только потому, что эквивалентный код существовал в
+доноре.
 
-Gate 6 `evidence_binding` is implemented and verified for the current factual
-`sysctl-v1` reference-VM evidence.
+## Закрытие Gate 6
 
-It proves the binding:
+Gate 6 `evidence_binding` реализован и проверен для текущего фактического
+evidence `sysctl-v1` с reference VM.
+
+Он доказывает следующую привязку:
 
 `VM-METADATA -> probe.py -> probe-plan.tsv -> privileged/unprivileged results -> evidence SHA256SUMS`
 
-It does **not** prove cryptographic origin from the named VM.
+Он **не** доказывает криптографическое происхождение от указанной VM.
 
 TYPE/BOOLEAN CONTRACT CLEANUP: CLOSED.
 
-## Type/boolean contract cleanup closure
+## Закрытие очистки контракта type/boolean
 
-The accidental generic `"true"` / `"false"` string coercion has been removed.
+Случайное общее преобразование строк `"true"` / `"false"` в boolean удалено.
 
-Current/forward observation contracts:
+Текущие и будущие контракты observation:
 
-- sysctl: implemented runner; integer/string wire values are JSON strings;
-  boolean is not a valid sysctl control type;
-- systemd-unit-state: future runner must emit JSON boolean for boolean VALUE;
-- package-presence: future runner must emit JSON boolean for boolean VALUE;
-- file-kv boolean: explicitly deferred until its probe design defines
-  source-specific textual mapping.
+- sysctl: runner реализован; integer/string значения wire-format передаются как
+  JSON strings; boolean не является допустимым типом sysctl control;
+- systemd-unit-state: будущий runner должен выдавать JSON boolean для boolean
+  `VALUE`;
+- package-presence: будущий runner должен выдавать JSON boolean для boolean
+  `VALUE`;
+- file-kv boolean: явно отложен до тех пор, пока дизайн probe не определит
+  source-specific текстовое отображение.
 
-This stage changes no `KIND_RULES` entry and no generated control-schema byte.
+Этот этап не меняет ни одной записи `KIND_RULES` и ни одного байта
+сгенерированного control-schema.
 
 MANDATORY REAL-JSONSCHEMA RELEASE GATE: CLOSED.
 
-## Mandatory real-jsonschema release gate closure
+## Закрытие обязательного release-gate с реальным `jsonschema`
 
-Release/audit validation now fails closed unless a real installed
-`jsonschema.Draft202012Validator` is available.
+Release/audit validation теперь работает fail-closed, если недоступен реальный
+установленный `jsonschema.Draft202012Validator`.
 
-Closure evidence records the actual `jsonschema` distribution version used,
-schema/checker/differential-test hashes, matrix counts and active-control
-results. The full runtime↔real-validator matrix and emulator↔real-validator
-matrix must both have zero disagreements.
+Evidence закрытия фиксирует фактически использованную версию дистрибутива
+`jsonschema`, hash schema/checker/differential-test, размеры матрицы и
+результаты активных controls. Полная матрица runtime↔real-validator и матрица
+emulator↔real-validator обязаны иметь нулевое число расхождений.
 
-This is separate from Gate 0 generation parity.
+Это отдельное доказательство и не является Gate 0 generation parity.
 
 INDEX-GENERIC SOURCE SKELETON GENERATOR: CLOSED.
 
-## Index-generic source skeleton generator closure
+## Закрытие универсального по индексу генератора `source:`
 
-`tools/source_skeleton_generator.py` is now the canonical producer of
-`source:` for supported unit kinds.
+`tools/source_skeleton_generator.py` является каноническим производителем
+`source:` для поддерживаемых `unit_kind`.
 
-Current scope is deliberately narrow and measured:
+Текущая область намеренно узкая и измеримая:
 
-- source index: 349 rows / 13 unit kinds;
-- supported kind: `numbered-position` only;
-- rows in supported kind: 74;
-- exact extractions: 72;
-- refused rather than guessed: `SRC-0001`, `SRC-0133`;
-- current accepted controls reproduced byte-for-byte: 5/5.
+- source index: 349 строк / 13 типов `unit_kind`;
+- поддерживаемый тип: только `numbered-position`;
+- строк поддерживаемого типа: 74;
+- точных извлечений: 72;
+- отказ без угадывания: `SRC-0001`, `SRC-0133`;
+- текущие принятые controls воспроизводятся побайтово: 5/5.
 
-The generator accepts an explicit index path and consumes the common index
-field contract. It validates the normalizer, corpus manifests and normalized
-corpus hashes fail-closed.
+Генератор принимает явный путь к index и использует его общий контракт. Он
+fail-closed проверяет normalizer, corpus manifests и hash нормализованного
+корпуса.
 
-"Single writer" began as a normative authoring rule in step 5. Roadmap step 6
-now mechanically enforces it for committed controls through byte-for-byte
-regeneration parity.
+На этапе 5 «единственный производитель» был нормативным правилом авторинга.
+Этап 6 теперь обеспечивает его механически для закоммиченных controls через
+побайтовый паритет регенерации.
 
-This closure changes no controls and closes zero FSTEC source rows.
+Это закрытие не меняет controls и закрывает 0 строк FSTEC source index.
 
 SOURCE-BLOCK REGENERATION PARITY: CLOSED.
 
-## Source-block regeneration parity closure
+## Закрытие паритета регенерации блока `source:`
 
-`checker/source-parity-v1/source_block_regeneration_parity.py` now
-mechanically enforces the single-writer rule for every committed control.
+`checker/source-parity-v1/source_block_regeneration_parity.py` теперь
+механически обеспечивает правило единственного нормативного производителя для
+каждого закоммиченного control.
 
-Current closure result:
+Результат текущего закрытия:
 
 - controls: 5;
 - supported: 5;
-- byte-identical matches: 5;
+- побайтовых совпадений: 5;
 - unsupported: 0;
-- missing index rows: 0;
+- отсутствующих строк index: 0;
 - mismatches: 0;
 - errors: 0.
 
-A future control whose `unit_kind` is not yet supported is classified
-`UNSUPPORTED` and fails closed rather than bypassing parity.
+Будущий control, чей `unit_kind` ещё не поддерживается, классифицируется как
+`UNSUPPORTED` и приводит к fail-closed, а не обходит parity.
 
-Permanent negative fixtures cover edits to `quote`, `quote_sha256` and
-`locator`, plus unsupported kinds, missing index rows and malformed duplicate
-`source:` blocks.
+Постоянные отрицательные fixtures покрывают изменения `quote`,
+`quote_sha256`, `locator`, неподдерживаемые типы, отсутствующие строки index и
+некорректные дублированные блоки `source:`.
 
-This step changes no controls and closes zero FSTEC source rows.
+Этот этап не меняет controls и закрывает 0 строк FSTEC source index.
 
 NEXT: FSTEC + corporate index expansion / dispositions.
