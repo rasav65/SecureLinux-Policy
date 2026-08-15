@@ -21,9 +21,9 @@ the current default. The generator therefore consumes the common source-index
 contract rather than a FSTEC-only hard-coded index path.
 
 The generator is the **single normative producer** of `source:` for supported
-unit kinds. This step does not yet make a hand-edited committed block
-mechanically impossible. That enforcement belongs to the immediately following
-`SOURCE_BLOCK_REGENERATION_PARITY` step.
+unit kinds. Roadmap step 6 now enforces this mechanically: every committed
+control is regenerated and byte-compared by
+`checker/source-parity-v1/source_block_regeneration_parity.py`.
 
 ## Current extraction scope
 

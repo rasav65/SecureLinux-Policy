@@ -5,6 +5,22 @@
 
 ## [Unreleased]
 
+### Added — source-block regeneration parity
+
+- Added a permanent checker that regenerates the complete committed `source:`
+  block from the canonical index-generic generator and requires byte-for-byte
+  equality.
+- Current closure result is 5/5 controls matched, with zero unsupported rows,
+  missing index rows, mismatches or errors.
+- Unsupported `unit_kind` is an explicit fail-closed classification; it is
+  never silently skipped.
+- Added negative fixtures for edited `quote`, `quote_sha256`, `locator`,
+  unsupported kind, missing index row and duplicate/malformed `source:` block.
+- Roadmap step 6 is CLOSED; step 7
+  `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` is now NEXT.
+- No controls, source-index rows, source corpora, probes or Gate 1–6 semantics
+  changed; FSTEC progress remains 349 / 5 / 344.
+
 ### Added — index-generic source skeleton generator
 
 - Added canonical `tools/source_skeleton_generator.py` as the single normative

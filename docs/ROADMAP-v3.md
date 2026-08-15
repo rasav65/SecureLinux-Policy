@@ -17,7 +17,7 @@ roadmap is explicitly reviewed and changed.
 11. single distributable `securelinux-ng.sh`
 
 Non-negotiable rules:
-- Do not begin mass work on the 344 OPEN FSTEC rows before Gate 6, boolean/type cleanup and the skeleton generator are closed.
+- Do not begin mass work on the 344 OPEN FSTEC rows before Gate 6, boolean/type cleanup, the skeleton generator and source-block parity are closed.
 - Gate 6 proves evidence binding/integrity, not cryptographic origin from a VM.
 - The skeleton generator is index-generic and is the only writer of `source:`.
 - A parity gate regenerates `source:` and compares it to committed controls.
@@ -30,7 +30,7 @@ Non-negotiable rules:
 - Release/audit validation requires a real Draft 2020-12 validator and records its version.
 - Future git bundles must be actively verified and tree-compared to the project snapshot; they do not prove remote origin.
 
-CURRENT STATUS: roadmap steps 1–5 are CLOSED; step 6 source-block regeneration parity is NEXT.
+CURRENT STATUS: roadmap steps 1–6 are CLOSED; step 7 FSTEC + corporate index expansion / dispositions is NEXT.
 
 ## Engineering donor preservation rule
 
@@ -106,10 +106,36 @@ The generator accepts an explicit index path and consumes the common index
 field contract. It validates the normalizer, corpus manifests and normalized
 corpus hashes fail-closed.
 
-"Single writer" at this step is a normative authoring rule. Mechanical
-detection of a hand-edited committed `source:` block is the next roadmap step,
-`SOURCE_BLOCK_REGENERATION_PARITY`.
+"Single writer" began as a normative authoring rule in step 5. Roadmap step 6
+now mechanically enforces it for committed controls through byte-for-byte
+regeneration parity.
 
 This closure changes no controls and closes zero FSTEC source rows.
 
-NEXT: source-block regeneration parity.
+SOURCE-BLOCK REGENERATION PARITY: CLOSED.
+
+## Source-block regeneration parity closure
+
+`checker/source-parity-v1/source_block_regeneration_parity.py` now
+mechanically enforces the single-writer rule for every committed control.
+
+Current closure result:
+
+- controls: 5;
+- supported: 5;
+- byte-identical matches: 5;
+- unsupported: 0;
+- missing index rows: 0;
+- mismatches: 0;
+- errors: 0.
+
+A future control whose `unit_kind` is not yet supported is classified
+`UNSUPPORTED` and fails closed rather than bypassing parity.
+
+Permanent negative fixtures cover edits to `quote`, `quote_sha256` and
+`locator`, plus unsupported kinds, missing index rows and malformed duplicate
+`source:` blocks.
+
+This step changes no controls and closes zero FSTEC source rows.
+
+NEXT: FSTEC + corporate index expansion / dispositions.

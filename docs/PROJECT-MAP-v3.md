@@ -71,7 +71,8 @@ flowchart LR
         KIND --> DIFF
         SCHEMA --> DIFF --> SEMPAR --> REALJSON
         IDX --> SGEN["source skeleton generator<br/>step 5 CLOSED · numbered-position<br/>5/5 pilot"]:::closed
-        SGEN --> CTRL
+        SGEN --> SPAR["source-block parity<br/>step 6 CLOSED · 5/5"]:::closed
+        SPAR --> CTRL
         KIND --> CTRL
     end
 
@@ -165,7 +166,7 @@ flowchart TB
     CONTRACT --> INDEXES["layer-specific indexes<br/>FSTEC: source-v4 exists<br/>corporate: not built yet"]:::component
     INDEXES --> GENERATOR["index-generic<br/>source skeleton generator<br/>step 5 CLOSED"]:::component
     GENERATOR --> SOURCE["source:<br/>generator output<br/>single normative producer"]:::component
-    SOURCE --> PARITY["source-block<br/>regeneration parity<br/>NEXT"]:::future
+    SOURCE --> PARITY["source-block<br/>regeneration parity<br/>step 6 CLOSED"]:::closed
     PARITY --> SEM["requirement / parameter / expected<br/>semantic part of control"]:::future
     SEM --> CONTROLS["controls/<br/>layer + profile"]:::component
     CONTROLS --> CHECKER["checker / gates<br/>fail-closed"]:::component
@@ -174,6 +175,7 @@ flowchart TB
     INDEXES --> DISP2
     DISP2 --> CHECKER
 
+    classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
     classDef component fill:#dcecff,stroke:#3e6ea8,color:#111;
     classDef future fill:#eeeeee,stroke:#888,color:#444,stroke-dasharray: 5 5;
 ```
@@ -257,8 +259,8 @@ flowchart LR
     S3["type/boolean<br/>contract cleanup"]:::closed
     S4["mandatory real-jsonschema<br/>release gate"]:::closed
     S5["index-generic<br/>source skeleton generator"]:::closed
-    S6["МЫ ЗДЕСЬ<br/>source-block<br/>regeneration parity"]:::current
-    S7["FSTEC + corporate<br/>index expansion / dispositions"]:::future
+    S6["source-block<br/>regeneration parity"]:::closed
+    S7["МЫ ЗДЕСЬ<br/>FSTEC + corporate<br/>index expansion / dispositions"]:::current
     S8["apply/restore<br/>semantic contract"]:::future
     S9["implementation<br/>adapters"]:::future
     S10["deterministic<br/>build"]:::future

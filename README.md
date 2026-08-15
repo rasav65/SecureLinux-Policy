@@ -9,7 +9,7 @@
 
 ## Текущий статус
 
-Текущая активная стадия: **source-block regeneration parity**.
+Текущая активная стадия: **FSTEC + corporate index expansion / dispositions**.
 
 Состояние source index:
 
@@ -43,7 +43,7 @@ stored records is not established. Provenance is therefore stored record by
 record in `audit/step5-reference-vm-evidence-20260814/PROVENANCE.tsv`.
 
 Coverage is unchanged: 349 total / 5 controlled CLOSED / 344 OPEN.
-Step 5 provenance closure and Gate 6 `evidence_binding` are CLOSED. The mandatory real-jsonschema release gate and the index-generic source skeleton generator are CLOSED. The current authorized engineering step is `source-block regeneration parity`.
+Step 5 provenance closure and Gate 6 `evidence_binding` are CLOSED. The mandatory real-jsonschema release gate, the index-generic source skeleton generator and source-block regeneration parity are CLOSED. The current authorized engineering step is `FSTEC + corporate index expansion / dispositions`.
 
 The authoritative forward order is in `docs/ROADMAP-v3.md`.
 
@@ -495,8 +495,28 @@ Roadmap step 5 is CLOSED in a deliberately scoped form.
 - trust-chain corruption is covered by permanent negative tests.
 
 For supported kinds the generator is the single normative producer of
-`source:`. Step 6 will make committed hand-edits mechanically detectable by
-regeneration parity.
+`source:`. Roadmap step 6 now mechanically enforces that rule by regenerating
+every committed control block and requiring byte-for-byte parity.
+
+This closure changes no controls and closes zero FSTEC source rows.
+
+## Source-block regeneration parity closure
+
+Roadmap step 6 is CLOSED.
+
+- checker: `checker/source-parity-v1/source_block_regeneration_parity.py`;
+- current controls: 5;
+- supported: 5;
+- byte-identical matches: 5;
+- unsupported: 0;
+- missing index rows: 0;
+- mismatches: 0;
+- errors: 0.
+
+Unsupported `unit_kind` is an explicit fail-closed result, never a silent
+skip. Permanent negative fixtures cover edits to `quote`, `quote_sha256`,
+`locator`, unsupported kinds, missing index rows and malformed duplicate
+`source:` blocks.
 
 This closure changes no controls and closes zero FSTEC source rows.
 
@@ -512,6 +532,8 @@ index/source-v4/PROGRESS.txt
 index/source-v4/CLOSURE-CONTRACT.tsv
 index/source-v4/SHA256SUMS
 controls/fstec-core/linux-2022/SHA256SUMS
+checker/source-parity-v1/SHA256SUMS
+tests/source-parity-v1/SHA256SUMS
 probes/sysctl-v1/SHA256SUMS
 checker/gates-v2/SHA256SUMS
 tests/gates-v2/SHA256SUMS

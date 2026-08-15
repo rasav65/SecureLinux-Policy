@@ -10,7 +10,8 @@ assert text.count(":::current") == 1
 assert 'S3["type/boolean<br/>contract cleanup"]:::closed' in text
 assert 'S4["mandatory real-jsonschema<br/>release gate"]:::closed' in text
 assert 'S5["index-generic<br/>source skeleton generator"]:::closed' in text
-assert 'S6["МЫ ЗДЕСЬ<br/>source-block<br/>regeneration parity"]:::current' in text
+assert 'S6["source-block<br/>regeneration parity"]:::closed' in text
+assert 'S7["МЫ ЗДЕСЬ<br/>FSTEC + corporate<br/>index expansion / dispositions"]:::current' in text
 
 required = (
     "raw-pdftotext",
@@ -29,6 +30,8 @@ required = (
     "semantic parity regression",
     "Draft202012Validator",
     "source skeleton generator",
+    "source-block parity",
+    "step 6 CLOSED",
     "single normative producer",
     "5 sysctl controls",
     "1 reference VM",

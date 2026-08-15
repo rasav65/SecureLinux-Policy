@@ -1,0 +1,6 @@
+MATCH fstec-core/linux-2022/fstec-linux-2022-2.4.1-dmesg-restrict.yaml: SRC-0016 unit_kind=numbered-position
+MATCH fstec-core/linux-2022/fstec-linux-2022-2.4.2-kptr-restrict.yaml: SRC-0017 unit_kind=numbered-position
+MATCH fstec-core/linux-2022/fstec-linux-2022-2.4.8-bpf-jit-harden.yaml: SRC-0023 unit_kind=numbered-position
+MATCH fstec-core/linux-2022/fstec-linux-2022-2.5.2-perf-event-paranoid.yaml: SRC-0025 unit_kind=numbered-position
+MATCH fstec-core/linux-2022/fstec-linux-2022-2.5.4-kexec-load-disabled.yaml: SRC-0027 unit_kind=numbered-position
+SOURCE_BLOCK_REGENERATION_PARITY=PASS controls=5 supported=5 matched=5 unsupported=0 missing_index=0 mismatches=0 errors=0
