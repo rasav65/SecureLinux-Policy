@@ -495,3 +495,21 @@ tests/gates-v2/SHA256SUMS
 
 До перехода к следующему этапу результат каждого gate должен трактоваться
 fail-closed.
+
+## Engineering donor — adoption classification
+
+Engineering donor inventory is now explicitly classified for every indexed function.
+
+- donor script coverage: 18,928 / 18,928 lines;
+- functions classified: 310 / 310;
+- adoption classes: 19 `contracted`, 31 `candidate`, 53 `evidence-only`, 207 `pending-review`;
+- engineering contracts: 20;
+- registered donor sources: 6;
+- `restore-model.md` is registered as an input for the future apply/restore semantic contract;
+- donor `fstec-mapping.md` remains `engineering-donor-claimed-mapping-non-normative`;
+- this change closes 0 FSTEC source rows.
+
+`pending-review` means not yet reviewed for invariant adoption; it does not mean that no invariant exists.
+
+This parallel donor-classification work does not advance the normative roadmap.
+The current authorized stage remains `mandatory real-jsonschema release gate`.

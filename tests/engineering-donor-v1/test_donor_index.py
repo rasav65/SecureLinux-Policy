@@ -84,13 +84,71 @@ if len(raw) != 478:
 # Engineering contracts must point at real donor evidence and remain non-active.
 with (IDX / "ENGINEERING-CONTRACTS.tsv").open(encoding="utf-8", newline="") as f:
     contracts = list(csv.DictReader(f, delimiter="\t"))
-if len(contracts) != 15:
+if len(contracts) != 20:
     fail("CONTRACT_COUNT")
 for row in contracts:
     if row["v3_status"] != "PENDING_NOT_ACTIVE":
         fail("CONTRACT_STATUS")
     if row["evidence_marker"] not in source_text:
         fail("CONTRACT_MARKER:" + row["contract_id"])
+
+# Every donor function carries an explicit adoption class. The class is derived
+# from the other index tables, so the column can never drift away from them, and
+# "pending-review" is an explicit statement that the function has NOT been
+# reviewed - it is not a decision that no invariant is needed.
+ADOPTION_CLASSES = {"contracted", "candidate", "evidence-only", "pending-review"}
+NON_FUNCTION_ORIGINS = {
+    "TOPLEVEL",
+    "CRON_CRITICAL_TARGETS",
+    "FAILLOCK_CONF_STRICT",
+    "GRUB_KERNEL_REQUIRED_PARAMS",
+}
+contracted = {r["evidence_function"] for r in contracts if r["evidence_function"]}
+candidate = {r["source_function"] for r in candidates if r["source_function"]}
+evidence = {r["source_function"] for r in raw if r["source_function"]}
+function_names = {r["name"] for r in function_rows}
+stray = (contracted | candidate | evidence) - function_names - NON_FUNCTION_ORIGINS
+if stray:
+    fail("UNKNOWN_SOURCE_FUNCTION:" + ",".join(sorted(stray)))
+counts = {c: 0 for c in ADOPTION_CLASSES}
+for row in function_rows:
+    cls = row.get("adoption_class", "")
+    if cls not in ADOPTION_CLASSES:
+        fail("ADOPTION_CLASS:" + row["name"])
+    if not row.get("adoption_note", "").strip():
+        fail("ADOPTION_NOTE:" + row["name"])
+    name = row["name"]
+    expected = (
+        "contracted" if name in contracted
+        else "candidate" if name in candidate
+        else "evidence-only" if name in evidence
+        else "pending-review"
+    )
+    if cls != expected:
+        fail("ADOPTION_CLASS_DERIVATION:" + name)
+    counts[cls] += 1
+if sum(counts.values()) != 310:
+    fail("ADOPTION_CLASS_TOTAL")
+
+# Donor design documents are registered as pinned sources, not merely archived.
+with (IDX / "SOURCE.tsv").open(encoding="utf-8", newline="") as f:
+    sources = list(csv.DictReader(f, delimiter="\t"))
+REQUIRED_SOURCE_IDS = {
+    "DONOR-SCRIPT",
+    "FINAL-ARCH-REVIEW",
+    "DONOR-DOC-RESTORE-MODEL",
+    "DONOR-DOC-ARCHITECTURE",
+    "DONOR-DOC-COMPATIBILITY",
+    "DONOR-DOC-FSTEC-MAPPING",
+}
+if {r["artifact_id"] for r in sources} != REQUIRED_SOURCE_IDS:
+    fail("SOURCE_IDS")
+for row in sources:
+    p = ROOT / row["path"]
+    if not p.is_file():
+        fail("SOURCE_MISSING:" + row["artifact_id"])
+    if sha256_file(p) != row["sha256"]:
+        fail("SOURCE_SHA:" + row["artifact_id"])
 
 # Original architecture review preserved exactly.
 archive = REVIEW / "SecureLinux-NG-architecture-final-review-20260731-112906.tar.gz"
@@ -128,5 +186,10 @@ print("FUNCTION_ROWS=310")
 print("SOURCE_CHUNKS=190")
 print("SEMANTIC_CANDIDATES=141")
 print("RAW_EVIDENCE_ROWS=478")
-print("ENGINEERING_CONTRACTS=15")
+print("ENGINEERING_CONTRACTS=20")
+print("REGISTERED_SOURCES=6")
+print("FUNCTIONS_CONTRACTED=%d" % counts["contracted"])
+print("FUNCTIONS_CANDIDATE=%d" % counts["candidate"])
+print("FUNCTIONS_EVIDENCE_ONLY=%d" % counts["evidence-only"])
+print("FUNCTIONS_PENDING_REVIEW=%d" % counts["pending-review"])
 print("FSTEC_ROWS_CLOSED_BY_THIS_INDEX=0")

@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+### Added — engineering donor adoption classification
+
+- Classified all 310 indexed donor functions with explicit `adoption_class` and `adoption_note`.
+- Distribution: 19 `contracted`, 31 `candidate`, 53 `evidence-only`, 207 `pending-review`.
+- Registered four donor documentation sources by SHA-256; total registered donor sources: 6.
+- Registered `restore-model.md` for the future apply/restore semantic-contract stage.
+- Marked donor `fstec-mapping.md` explicitly non-normative.
+- Added engineering contracts ENG-016..ENG-020 for irreversible-change registry, preserve-stricter semantics, profile gating, created-file transaction semantics and order-sensitive faillock policy.
+- Strengthened donor-index validation so unknown `source_function` values fail closed.
+- No controls, source-v4 rows, checker semantics, probes, evidence or source PDFs changed; 0 FSTEC source rows were closed.
+
 ### Fixed — type/boolean observation contract cleanup
 
 - Removed accidental global `"true"` / `"false"` string-to-boolean coercion

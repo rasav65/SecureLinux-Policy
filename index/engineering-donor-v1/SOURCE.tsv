@@ -1,3 +1,7 @@
 artifact_id	path	sha256	lines_or_members	role
 DONOR-SCRIPT	archive/securelinux-ng.sh	f3be8723cd5a2be499e9e8e6370fad712bdec8afd68050f27af6a3e2d6fbc34b	18928	engineering-donor-non-normative
 FINAL-ARCH-REVIEW	archive/engineering-review-20260731/SecureLinux-NG-architecture-final-review-20260731-112906.tar.gz	7a62c1304a423e4431b08c34e999ed221777d63ecfb0aec180767fadf80759d2	6 files	engineering-review-evidence
+DONOR-DOC-RESTORE-MODEL	archive/engineering-donor-v16.2.11/snapshot/docs/restore-model.md	75ca00b0ab399b9c3835bfcc204e596df7438f164fd72757d556846701f8457f	249	engineering-donor-restore-semantics-source
+DONOR-DOC-ARCHITECTURE	archive/engineering-donor-v16.2.11/snapshot/docs/architecture.md	ae033e66060f87105f87e2eeb4e0157068796d326ffd37ebb4bdd236db7a98c0	592	engineering-donor-architecture-source
+DONOR-DOC-COMPATIBILITY	archive/engineering-donor-v16.2.11/snapshot/docs/compatibility.md	87cfe790cfc29e72810fb388d0d8144e29027cc07b79034356cb836704cbca44	274	engineering-donor-platform-support-source
+DONOR-DOC-FSTEC-MAPPING	archive/engineering-donor-v16.2.11/snapshot/docs/fstec-mapping.md	306be310afbc62450e22b6b53ad02eea2fff9e0b5ed0d71677245631107efab3	220	engineering-donor-claimed-mapping-non-normative
