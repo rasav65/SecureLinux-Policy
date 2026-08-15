@@ -86,7 +86,7 @@ flowchart LR
         G6["Gate 6 PASS — CURRENT EVIDENCE SCOPE<br/>one sysctl-v1 evidence directory"]:::closed
 
         CLOSURE["index/source-v4/<br/>CLOSURE-CONTRACT.tsv<br/>exact expected control set<br/>for controlled CLOSED rows"]:::component
-        DISP["second closure path:<br/>disposed CLOSED + disposition + reason<br/>currently 0 rows"]:::component
+        DISP["second closure path:<br/>disposed CLOSED + disposition + reason<br/>DISPOSITION-LEDGER.tsv required · 0 real rows"]:::component
 
         SCHEMA --> G0
         IDX --> G1
@@ -147,7 +147,8 @@ runtime/schema проверяет отдельная differential matrix. Roadma
 реальный `Draft202012Validator` обязательным для release/audit.
 
 Gate 2 имеет два допустимых пути закрытия строки: control coverage с точным
-`CLOSURE-CONTRACT.tsv` либо explicit disposition + reason.
+`CLOSURE-CONTRACT.tsv` либо explicit disposition + reason, подтверждённый
+ровно одной записью `DISPOSITION-LEDGER.tsv`. Реальных disposed-строк пока 0.
 
 ## 2. Слои политики и единый index-конвейер
 
@@ -171,7 +172,7 @@ flowchart TB
     SEM --> CONTROLS["controls/<br/>layer + profile"]:::component
     CONTROLS --> CHECKER["checker / gates<br/>fail-closed"]:::component
 
-    DISP2["explicit dispositions<br/>alternative closure route<br/>per index row"]:::component
+    DISP2["explicit dispositions<br/>DISPOSITION-LEDGER.tsv required<br/>alternative closure route"]:::component
     INDEXES --> DISP2
     DISP2 --> CHECKER
 

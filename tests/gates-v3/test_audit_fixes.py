@@ -91,12 +91,21 @@ class ContractTests(unittest.TestCase):
         )
         return p
 
+    def write_empty_ledger(self, root):
+        p=root/"DISPOSITION-LEDGER.tsv"
+        p.write_text(
+            "index_id\tdisposition\treason\tbasis\tdecided_by\tdecided_at\n",
+            encoding="utf-8",newline="\n"
+        )
+        return p
+
     def test_atomic_contract_exact_set_passes(self):
         with tempfile.TemporaryDirectory() as td:
             p=self.write_contract(Path(td),"atomic-single","CTRL-ONE")
+            ledger=self.write_empty_ledger(Path(td))
             rows=self.index_rows()
             g=mod.gate2(rows,{"SRC-0001":rows[0]},
-                [(Path("x"),base_record())],p)
+                [(Path("x"),base_record())],p,ledger)
             self.assertTrue(g["pass"],g["errors"])
 
     def test_missing_contract_fails(self):
@@ -106,17 +115,19 @@ class ContractTests(unittest.TestCase):
                 "index_id\tcoverage_mode\texpected_control_ids\tbasis\n",
                 encoding="utf-8",newline="\n"
             )
+            ledger=self.write_empty_ledger(Path(td))
             rows=self.index_rows()
             g=mod.gate2(rows,{"SRC-0001":rows[0]},
-                [(Path("x"),base_record())],p)
+                [(Path("x"),base_record())],p,ledger)
             self.assertFalse(g["pass"])
 
     def test_composite_contract_incomplete_actual_set_fails(self):
         with tempfile.TemporaryDirectory() as td:
             p=self.write_contract(Path(td),"exact-control-set","CTRL-ONE,CTRL-TWO")
+            ledger=self.write_empty_ledger(Path(td))
             rows=self.index_rows()
             g=mod.gate2(rows,{"SRC-0001":rows[0]},
-                [(Path("x"),base_record())],p)
+                [(Path("x"),base_record())],p,ledger)
             self.assertFalse(g["pass"])
 
 

@@ -11,6 +11,13 @@
 
 Текущая активная стадия: **FSTEC + corporate index expansion / dispositions**.
 
+Внутри этапа 7 первым обязательным подэтапом является
+`DISPOSITION CONTRACT / LEDGER HARDENING`. Он усиливает альтернативный путь
+закрытия строки source index до первого реального disposition: `CLOSED +
+disposition + reason` больше недостаточно без проверяемой записи
+`DISPOSITION-LEDGER.tsv`. Подэтап не меняет `SOURCE-INDEX.tsv` и не закрывает
+ни одной строки FSTEC.
+
 Состояние source index:
 
 - `TOTAL_INDEX_ROWS=349`

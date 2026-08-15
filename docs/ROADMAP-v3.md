@@ -157,4 +157,37 @@ SOURCE-BLOCK REGENERATION PARITY: CLOSED.
 
 Этот этап не меняет controls и закрывает 0 строк FSTEC source index.
 
+## Step 7A — усиление disposition contract / ledger
+
+Перед первым реальным disposition альтернативный путь Gate 2 обязан иметь
+проверяемый артефакт, симметричный по строгости с completeness contract для
+controlled-строк. Для этого используется соседний с index файл
+`DISPOSITION-LEDGER.tsv`.
+
+Минимальный контракт v1:
+
+- одна ledger-запись на `index_id`; дубликаты и orphan-ссылки запрещены;
+- disposed `CLOSED` без ledger-записи запрещён;
+- controlled row с ledger-записью запрещён;
+- `disposition` и `reason` должны совпадать с `SOURCE-INDEX.tsv`;
+- `basis` и `decided_by` обязательны;
+- `decided_at` имеет строгий UTC-формат `YYYY-MM-DDTHH:MM:SSZ` и реально
+  разбирается как календарная дата;
+- disposed row не может одновременно иметь `CLOSURE-CONTRACT.tsv`.
+
+Позитивная синтетическая фикстура впервые исполняет `disposed_closed=1`;
+реальный ledger source-v4 остаётся без записей. Архитектурное изменение
+закрывает 0 строк FSTEC, поэтому состояние остаётся `349 / 5 / 344`.
+
+Quote-anchor в ledger v1 не добавляется искусственно. Текущий generator умеет
+канонически извлекать не все `unit_kind`, а две строки поддержанного типа
+намеренно REFUSED. Пока невозможно машинно отличить все допустимые случаи
+отказа от integrity failure единым стабильным состоянием, обязательный hash
+создал бы ложную гарантию. Этот вопрос возвращается по мере расширения
+канонического generator.
+
+Multi-index/population descriptor не является частью 7A. Он вводится перед
+первым реальным corporate primary source, когда понадобится убрать hard-coded
+FSTEC source root и сохранить глобальный Gate 4.
+
 NEXT: FSTEC + corporate index expansion / dispositions.

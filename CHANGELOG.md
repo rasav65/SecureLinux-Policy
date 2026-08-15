@@ -5,6 +5,26 @@
 
 ## [Unreleased]
 
+### Добавлено — Step 7A: усиление disposition contract
+
+- Добавлен `index/source-v4/DISPOSITION-LEDGER.tsv` как обязательный
+  проверяемый артефакт альтернативного пути закрытия строки source index.
+- Gate 2 теперь требует ровно одну ledger-запись для каждого disposed `CLOSED`
+  и запрещает ledger-запись у строки, закрытой control coverage.
+- `disposition` и `reason` в ledger обязаны совпадать со значениями
+  `SOURCE-INDEX.tsv`; `basis` и `decided_by` обязательны, `decided_at`
+  проверяется как реальная UTC-дата формата `YYYY-MM-DDTHH:MM:SSZ`.
+- Добавлена синтетическая позитивная фикстура `disposed_closed=1` и набор
+  fail-closed отрицательных fixtures: enum, пустой reason, отсутствие ledger,
+  дубликат, orphan, control/disposition conflict, ledger у controlled row,
+  отсутствующий ledger-файл, completeness-contract у disposed row, mismatch
+  disposition/reason и некорректная дата.
+- Реальный disposition ledger остаётся пустым; `SOURCE-INDEX.tsv` не изменён,
+  прогресс FSTEC остаётся `349 / 5 / 344`.
+- Quote-anchor в ledger v1 намеренно не имитируется: канонический генератор
+  пока покрывает только часть unit kinds и имеет два deliberate-refusal случая.
+  До появления машинно-однозначного anchor-state фиктивный hash не вводится.
+
 ### Документация — первый проход на русском
 
 - Зафиксировано правило: пользовательская документация проекта ведётся на

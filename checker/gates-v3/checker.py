@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+from datetime import datetime
 import json
 import re
 import stat
@@ -28,6 +29,7 @@ LAYERS = set(LAYER_ORDER)
 PROFILES = set(PROFILE_ORDER)
 APPLICABILITY = set(APPLICABILITY_ORDER)
 DISPOSITIONS = {"not-technical","organizational","external","out-of-scope","informational"}
+DISPOSITION_LEDGER_FIELDS = ["index_id","disposition","reason","basis","decided_by","decided_at"]
 
 # Machine identifiers, locators and keys are single-line by contract.
 #
@@ -60,6 +62,8 @@ PAM_LINE_KEY_PATTERN = single_line(r"active_line::.+")
 ID_RE = re.compile(ID_PATTERN)
 SHA_RE = re.compile(SHA_PATTERN)
 INDEX_ID_RE = re.compile(INDEX_ID_PATTERN)
+DECIDED_BY_RE = re.compile(single_line(r"[A-Za-z0-9][A-Za-z0-9._@:-]{0,127}"))
+DECIDED_AT_RE = re.compile(single_line(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"))
 
 # Single source of truth for the per-kind parameter contract.
 #
@@ -740,7 +744,88 @@ def load_closure_contract(path: Path):
     return out
 
 
-def gate2(index_rows, index_by_id, records, closure_contract_path):
+def load_disposition_ledger(path: Path):
+    """Load the audited alternative-closure ledger fail-closed.
+
+    The ledger deliberately contains no synthetic quote anchor in v1. Current
+    canonical quote generation covers only part of the source index, and the
+    generator does not yet expose a stable machine distinction between
+    unsupported unit kinds, deliberate extraction refusals and integrity
+    failures. The v1 contract therefore uses the minimum machine-verifiable
+    assertions agreed for Step 7A: one row per index_id, exact disposition and
+    reason agreement with SOURCE-INDEX, an explicit decision basis/actor, and
+    a strictly parsed UTC timestamp.
+    """
+    validate_regular(path)
+    with path.open(encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        fields = list(reader.fieldnames or [])
+        rows = list(reader)
+    if fields != DISPOSITION_LEDGER_FIELDS:
+        raise ValueError(
+            f"unexpected disposition ledger fields: {fields}; "
+            f"expected {DISPOSITION_LEDGER_FIELDS}"
+        )
+    out = {}
+    for lineno, row in enumerate(rows, 2):
+        idx_raw = row["index_id"]
+        disp_raw = row["disposition"]
+        reason = row["reason"].strip()
+        basis = row["basis"].strip()
+        decided_by_raw = row["decided_by"]
+        decided_at_raw = row["decided_at"]
+
+        idx = idx_raw.strip()
+        disposition = disp_raw.strip()
+        decided_by = decided_by_raw.strip()
+        decided_at = decided_at_raw.strip()
+
+        if idx_raw != idx or not INDEX_ID_RE.fullmatch(idx):
+            raise ValueError(
+                f"disposition ledger line {lineno}: invalid index_id {idx_raw!r}"
+            )
+        if idx in out:
+            raise ValueError(
+                f"disposition ledger line {lineno}: duplicate index_id {idx}"
+            )
+        if disp_raw != disposition or disposition not in DISPOSITIONS:
+            raise ValueError(
+                f"disposition ledger line {lineno}: unsupported disposition {disp_raw!r}"
+            )
+        if not reason:
+            raise ValueError(
+                f"disposition ledger line {lineno}: reason is required"
+            )
+        if not basis:
+            raise ValueError(
+                f"disposition ledger line {lineno}: basis is required"
+            )
+        if decided_by_raw != decided_by or not DECIDED_BY_RE.fullmatch(decided_by):
+            raise ValueError(
+                f"disposition ledger line {lineno}: invalid decided_by {decided_by_raw!r}"
+            )
+        if decided_at_raw != decided_at or not DECIDED_AT_RE.fullmatch(decided_at):
+            raise ValueError(
+                f"disposition ledger line {lineno}: decided_at must be YYYY-MM-DDTHH:MM:SSZ"
+            )
+        try:
+            datetime.strptime(decided_at, "%Y-%m-%dT%H:%M:%SZ")
+        except ValueError as exc:
+            raise ValueError(
+                f"disposition ledger line {lineno}: invalid decided_at {decided_at!r}"
+            ) from exc
+
+        out[idx] = {
+            "disposition": disposition,
+            "reason": reason,
+            "basis": basis,
+            "decided_by": decided_by,
+            "decided_at": decided_at,
+        }
+    return out
+
+
+def gate2(index_rows, index_by_id, records, closure_contract_path, disposition_ledger_path):
     errors = []
     refs = defaultdict(set)
 
@@ -766,12 +851,32 @@ def gate2(index_rows, index_by_id, records, closure_contract_path):
             "disposed_closed_rows":0,
             "uncovered_rows":len(index_rows),
             "contract_rows":0,
+            "disposition_ledger_rows":0,
             "errors":[f"closure contract invalid: {exc}"],
+        }
+
+    try:
+        disposition_ledger = load_disposition_ledger(disposition_ledger_path)
+    except Exception as exc:
+        return {
+            "gate":2,
+            "name":"reverse_source_coverage",
+            "pass":False,
+            "total_index_rows":len(index_rows),
+            "controlled_closed_rows":0,
+            "disposed_closed_rows":0,
+            "uncovered_rows":len(index_rows),
+            "contract_rows":len(contracts),
+            "disposition_ledger_rows":0,
+            "errors":[f"disposition ledger invalid: {exc}"],
         }
 
     unknown_contracts = sorted(set(contracts) - set(index_by_id))
     for idx in unknown_contracts:
         errors.append(f"closure contract references unknown index row {idx}")
+    unknown_ledger = sorted(set(disposition_ledger) - set(index_by_id))
+    for idx in unknown_ledger:
+        errors.append(f"disposition ledger references unknown index row {idx}")
 
     controlled = 0
     disposed = 0
@@ -784,6 +889,7 @@ def gate2(index_rows, index_by_id, records, closure_contract_path):
         reason = row["reason"].strip()
         actual_ids = refs.get(idx, set())
         contract = contracts.get(idx)
+        ledger_entry = disposition_ledger.get(idx)
 
         if actual_ids:
             if status != "CLOSED":
@@ -794,6 +900,11 @@ def gate2(index_rows, index_by_id, records, closure_contract_path):
             if disposition or reason:
                 uncovered.append(
                     f"{idx}: controlled row must not carry disposition/reason"
+                )
+                continue
+            if ledger_entry is not None:
+                uncovered.append(
+                    f"{idx}: controlled row must not carry a disposition ledger entry"
                 )
                 continue
             if contract is None:
@@ -817,7 +928,29 @@ def gate2(index_rows, index_by_id, records, closure_contract_path):
                     f"{idx}: disposed CLOSED row must not carry a control completeness contract"
                 )
                 continue
+            if ledger_entry is None:
+                uncovered.append(
+                    f"{idx}: disposed CLOSED row has no disposition ledger entry"
+                )
+                continue
+            if ledger_entry["disposition"] != disposition:
+                uncovered.append(
+                    f"{idx}: disposition ledger mismatch "
+                    f"index={disposition!r} ledger={ledger_entry['disposition']!r}"
+                )
+                continue
+            if ledger_entry["reason"] != reason:
+                uncovered.append(
+                    f"{idx}: disposition ledger reason mismatch"
+                )
+                continue
             disposed += 1
+            continue
+
+        if ledger_entry is not None:
+            uncovered.append(
+                f"{idx}: disposition ledger entry exists but row is not a valid disposed CLOSED row"
+            )
             continue
 
         if contract is not None:
@@ -841,6 +974,7 @@ def gate2(index_rows, index_by_id, records, closure_contract_path):
         "disposed_closed_rows":disposed,
         "uncovered_rows":len(uncovered),
         "contract_rows":len(contracts),
+        "disposition_ledger_rows":len(disposition_ledger),
         "errors":errors,
     }
 
@@ -1198,13 +1332,17 @@ def run_all(project_root: Path, index_path: Path, controls_root: Path, probe_res
     index_rows, index_by_id = load_index(index_path)
     records, files = load_controls(controls_root)
     closure_contract_path = index_path.resolve().parent / "CLOSURE-CONTRACT.tsv"
+    disposition_ledger_path = index_path.resolve().parent / "DISPOSITION-LEDGER.tsv"
     schema_path = Path(__file__).resolve().parent / "CONTROL-SCHEMA.json"
     parity = schema_parity_errors(schema_path)
     gates = [
         {"gate": 0, "name": "schema_generation_parity", "pass": not parity,
          "schema_path": str(schema_path), "errors": parity},
         gate1(project_root.resolve(), index_by_id, records),
-        gate2(index_rows, index_by_id, records, closure_contract_path),
+        gate2(
+            index_rows, index_by_id, records,
+            closure_contract_path, disposition_ledger_path,
+        ),
         gate3(records),
         gate4(records),
         gate5(records, probe_results_path),
@@ -1215,6 +1353,7 @@ def run_all(project_root: Path, index_path: Path, controls_root: Path, probe_res
         "schema_path": str(schema_path),
         "index_path": str(index_path.resolve()),
         "closure_contract_path": str(closure_contract_path),
+        "disposition_ledger_path": str(disposition_ledger_path),
         "controls_root": str(controls_root.resolve()),
         "probe_results_path": None if probe_results_path is None else str(Path(probe_results_path).resolve()),
         "control_files": len(files),
