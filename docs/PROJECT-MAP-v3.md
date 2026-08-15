@@ -65,7 +65,7 @@ flowchart LR
         SCHEMA["CONTROL-SCHEMA.json<br/>generated from KIND_RULES"]:::component
         DIFF["tests/gates-v3/<br/>test_schema_runtime_parity.py<br/>50 records · 16 CR/LF cases<br/>pattern semantics"]:::component
         SEMPAR["schema ↔ runtime<br/>semantic parity regression"]:::component
-        REALJSON["roadmap step 4<br/>mandatory real Draft202012Validator<br/>for release/audit"]:::future
+        REALJSON["Release gate PASS<br/>real Draft202012Validator<br/>jsonschema 4.10.3 recorded in evidence"]:::closed
 
         KIND --> SCHEMA
         KIND --> DIFF
@@ -254,8 +254,8 @@ flowchart LR
     S1["Step 5<br/>audit provenance closure"]:::closed
     S2["Gate 6<br/>evidence_binding"]:::closed
     S3["type/boolean<br/>contract cleanup"]:::closed
-    S4["МЫ ЗДЕСЬ<br/>mandatory real-jsonschema<br/>release gate"]:::current
-    S5["index-generic<br/>source skeleton generator"]:::future
+    S4["mandatory real-jsonschema<br/>release gate"]:::closed
+    S5["МЫ ЗДЕСЬ<br/>index-generic<br/>source skeleton generator"]:::current
     S6["source-block<br/>regeneration parity"]:::future
     S7["FSTEC + corporate<br/>index expansion / dispositions"]:::future
     S8["apply/restore<br/>semantic contract"]:::future

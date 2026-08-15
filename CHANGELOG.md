@@ -5,6 +5,24 @@
 
 ## [Unreleased]
 
+### Added — mandatory real-jsonschema release gate
+
+- Added a fail-closed release/audit gate that requires the installed
+  `jsonschema` distribution and `Draft202012Validator`; missing dependency is
+  no longer skippable at release.
+- Records the exact `jsonschema` distribution version and Python version in
+  release evidence.
+- Runs Draft 2020-12 schema self-validation, Gate 0 generation parity, the full
+  schema/runtime differential matrix, emulator-vs-real parity and all active
+  controls through the real validator.
+- Requires at least 50 differential cases, 16 newline/CR boundary cases and
+  bidirectional accept/reject coverage for every current parameter kind.
+- Added a negative regression proving that a missing real validator fails
+  closed.
+- Advanced the roadmap to `index-generic source skeleton generator`.
+- No source-index rows were closed and no control/checker/probe semantics were
+  changed.
+
 ### Added — engineering donor adoption classification
 
 - Classified all 310 indexed donor functions with explicit `adoption_class` and `adoption_note`.

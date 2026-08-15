@@ -8,7 +8,8 @@ assert text.count("```mermaid") == 5
 assert text.count(":::current") == 1
 
 assert 'S3["type/boolean<br/>contract cleanup"]:::closed' in text
-assert 'S4["МЫ ЗДЕСЬ<br/>mandatory real-jsonschema<br/>release gate"]:::current' in text
+assert 'S4["mandatory real-jsonschema<br/>release gate"]:::closed' in text
+assert 'S5["МЫ ЗДЕСЬ<br/>index-generic<br/>source skeleton generator"]:::current' in text
 
 required = (
     "raw-pdftotext",

@@ -72,4 +72,18 @@ Current/forward observation contracts:
 
 This stage changes no `KIND_RULES` entry and no generated control-schema byte.
 
-NEXT: mandatory real-jsonschema release gate.
+MANDATORY REAL-JSONSCHEMA RELEASE GATE: CLOSED.
+
+## Mandatory real-jsonschema release gate closure
+
+Release/audit validation now fails closed unless a real installed
+`jsonschema.Draft202012Validator` is available.
+
+Closure evidence records the actual `jsonschema` distribution version used,
+schema/checker/differential-test hashes, matrix counts and active-control
+results. The full runtime↔real-validator matrix and emulator↔real-validator
+matrix must both have zero disagreements.
+
+This is separate from Gate 0 generation parity.
+
+NEXT: index-generic source skeleton generator.

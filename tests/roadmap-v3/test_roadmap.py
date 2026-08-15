@@ -22,7 +22,8 @@ expected = [
 assert [r["step_id"] for r in rows] == expected
 assert rows[0]["status"] == "CLOSED"
 assert rows[1]["status"] == "CLOSED"
-assert rows[2]["status"] == "CLOSED_BY_THIS_CHANGE"
-assert rows[3]["status"] == "NEXT"
-assert all(r["status"] == "BLOCKED_BY_PREVIOUS" for r in rows[4:])
+assert rows[2]["status"] == "CLOSED"
+assert rows[3]["status"] == "CLOSED_BY_THIS_CHANGE"
+assert rows[4]["status"] == "NEXT"
+assert all(r["status"] == "BLOCKED_BY_PREVIOUS" for r in rows[5:])
 print("ROADMAP_V3_ORDER=PASS")

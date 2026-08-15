@@ -9,7 +9,7 @@
 
 ## Текущий статус
 
-Текущая активная стадия: **mandatory real-jsonschema release gate**.
+Текущая активная стадия: **index-generic source skeleton generator**.
 
 Состояние source index:
 
@@ -43,7 +43,7 @@ stored records is not established. Provenance is therefore stored record by
 record in `audit/step5-reference-vm-evidence-20260814/PROVENANCE.tsv`.
 
 Coverage is unchanged: 349 total / 5 controlled CLOSED / 344 OPEN.
-Step 5 provenance closure and Gate 6 `evidence_binding` are CLOSED. The current authorized engineering step is `mandatory real-jsonschema release gate`.
+Step 5 provenance closure and Gate 6 `evidence_binding` are CLOSED. The mandatory real-jsonschema release gate is CLOSED. The current authorized engineering step is `index-generic source skeleton generator`.
 
 The authoritative forward order is in `docs/ROADMAP-v3.md`.
 
@@ -95,6 +95,10 @@ reference-VM evidence, policy layers, engineering donor и путь к
 
 `docs/ARCHITECTURE-DIAGRAMS.md` сохранён как отдельный **donor runtime
 reference**. Это не основная карта v3.
+
+## Release validation
+
+Release/audit closure requires a real `jsonschema.Draft202012Validator`; absence is a hard failure, not a skipped test. Current closure evidence records `jsonschema=4.10.3` in `checker/release-v1/RELEASE-EVIDENCE.json`. See `docs/release-validation.md`.
 
 ## Архитектура
 

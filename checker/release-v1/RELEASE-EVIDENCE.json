@@ -1,0 +1,60 @@
+{
+  "active_controls": {
+    "count": 5,
+    "real_schema_invalid": [],
+    "runtime_invalid": []
+  },
+  "checks": {
+    "active_controls_real_valid": true,
+    "active_controls_runtime_valid": true,
+    "all_kinds_bidirectional": true,
+    "draft202012_check_schema": true,
+    "emulator_real_parity": true,
+    "real_validator_required": true,
+    "runtime_real_parity": true,
+    "schema_generation_parity": true
+  },
+  "draft": "2020-12",
+  "draft_uri": "https://json-schema.org/draft/2020-12/schema",
+  "errors": [],
+  "inputs": {
+    "checker_sha256": "600a87ebf560060a4fc95d33686237b50a87ea7139d223269c61b8dc008cf092",
+    "control_schema_sha256": "faa6fad0754be36fcf2cbe7e44e9d366de12d643afe825df73abeb54cc47508b",
+    "parity_test_sha256": "ddf8c48fbb39957c1022ef5c980bb5ea2d66b66b3bd859eb1b501a59bf35fc2c",
+    "release_gate_sha256": "9a61282b8823b991b9ab4cb1a2928231ab851509019bbccdc37a2c4b807b149f"
+  },
+  "jsonschema_version": "4.10.3",
+  "matrix": {
+    "accepted_by_kind": {
+      "audit-rule": 1,
+      "file-kv": 1,
+      "file-mode-owner": 1,
+      "mount-option": 2,
+      "package-presence": 1,
+      "pam-line": 1,
+      "sysctl": 3,
+      "systemd-unit-state": 1
+    },
+    "emulator_real_disagreements": [],
+    "kind_count": 8,
+    "missing_kinds": [],
+    "newline_cases": 16,
+    "one_sided_kinds": [],
+    "rejected_by_kind": {
+      "audit-rule": 2,
+      "file-kv": 2,
+      "file-mode-owner": 3,
+      "mount-option": 4,
+      "package-presence": 3,
+      "pam-line": 5,
+      "sysctl": 16,
+      "systemd-unit-state": 3
+    },
+    "runtime_real_disagreements": [],
+    "total_cases": 50
+  },
+  "pass": true,
+  "python_version": "3.12.3",
+  "schema": "securelinux-policy-real-jsonschema-release-evidence/v1",
+  "validator_class": "Draft202012Validator"
+}
