@@ -229,11 +229,28 @@ with tempfile.TemporaryDirectory(prefix="slp-disposition-time-") as td:
     assert not g["pass"]
     assert any("invalid decided_at" in e for e in g["errors"]), g["errors"]
 
+# Negative 13: a data row may not carry more values than the closed schema.
+with tempfile.TemporaryDirectory(prefix="slp-disposition-extra-data-field-") as td:
+    root = Path(td)
+    extra = valid_ledger_line().rstrip("\n") + "\tUNDECLARED_EXTRA\n"
+    g = gate2_for(root, row(), ledger_body=extra)
+    assert not g["pass"]
+    assert any("expected 6 TSV fields, got 7" in e for e in g["errors"]), g["errors"]
+
+# Negative 14: a short data row is rejected explicitly by the closed schema.
+with tempfile.TemporaryDirectory(prefix="slp-disposition-short-data-row-") as td:
+    root = Path(td)
+    short = "\t".join(valid_ledger_line().rstrip("\n").split("\t")[:-1]) + "\n"
+    g = gate2_for(root, row(), ledger_body=short)
+    assert not g["pass"]
+    assert any("expected 6 TSV fields, got 5" in e for e in g["errors"]), g["errors"]
+
 print(
     "DISPOSITION_LEDGER_TESTS=PASS positive=1 "
     "negative_enum=1 negative_blank_reason=1 negative_missing_ledger=1 "
     "negative_duplicate=1 negative_orphan=1 negative_controlled_disposition=1 "
     "negative_controlled_ledger=1 negative_missing_ledger_file=1 "
     "negative_disposed_contract=1 negative_disposition_mismatch=1 "
-    "negative_reason_mismatch=1 negative_invalid_decided_at=1"
+    "negative_reason_mismatch=1 negative_invalid_decided_at=1 "
+    "negative_extra_data_field=1 negative_short_data_row=1"
 )

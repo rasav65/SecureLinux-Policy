@@ -190,4 +190,28 @@ Multi-index/population descriptor не является частью 7A. Он в
 первым реальным corporate primary source, когда понадобится убрать hard-coded
 FSTEC source root и сохранить глобальный Gate 4.
 
+### Step 7A R2 — исправление closed-schema после независимого аудита
+
+Аудит R1 перевёл Step 7A из предварительного `CLOSED` в `REVISE` из-за
+`S7A-R1-B01`: шестиколоночный header не гарантировал шестиколоночную строку
+данных. Лишнее седьмое значение попадало в `csv.DictReader` под ключ `None` и
+игнорировалось.
+
+R2 требует одновременно:
+
+- точный набор и порядок шести колонок header;
+- **ровно шесть TSV-значений в каждой data-row**;
+- fail-closed `7 fields` и `5 fields` fixtures;
+- сохранение всех прежних disposition negative fixtures;
+- полный прогон `tests/` до и после изменения без новых падений;
+- `349 / 5 / 344`, real ledger rows `0`.
+
+После реализации R2 статус Step 7A — `AWAITING_INDEPENDENT_REAUDIT`.
+Step 7B и первый реальный disposition до повторного аудита запрещены.
+
+Quote-anchor теперь имеет отдельный pre-real-disposition gate:
+`REQUIRE_BEFORE_FIRST_REAL_DISPOSITION`. Будущий generator API должен
+различать `EXACT`, `REFUSED`, `UNSUPPORTED`, а integrity failures должны
+оставаться исключениями.
+
 NEXT: FSTEC + corporate index expansion / dispositions.

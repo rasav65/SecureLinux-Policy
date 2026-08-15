@@ -758,16 +758,27 @@ def load_disposition_ledger(path: Path):
     """
     validate_regular(path)
     with path.open(encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f, delimiter="\t")
-        fields = list(reader.fieldnames or [])
-        rows = list(reader)
-    if fields != DISPOSITION_LEDGER_FIELDS:
-        raise ValueError(
-            f"unexpected disposition ledger fields: {fields}; "
-            f"expected {DISPOSITION_LEDGER_FIELDS}"
-        )
+        reader = csv.reader(f, delimiter="\t")
+        try:
+            fields = next(reader)
+        except StopIteration:
+            fields = []
+        if fields != DISPOSITION_LEDGER_FIELDS:
+            raise ValueError(
+                f"unexpected disposition ledger fields: {fields}; "
+                f"expected {DISPOSITION_LEDGER_FIELDS}"
+            )
+        rows = []
+        expected_arity = len(DISPOSITION_LEDGER_FIELDS)
+        for lineno, values in enumerate(reader, 2):
+            if len(values) != expected_arity:
+                raise ValueError(
+                    f"disposition ledger line {lineno}: expected "
+                    f"{expected_arity} TSV fields, got {len(values)}"
+                )
+            rows.append((lineno, dict(zip(DISPOSITION_LEDGER_FIELDS, values))))
     out = {}
-    for lineno, row in enumerate(rows, 2):
+    for lineno, row in rows:
         idx_raw = row["index_id"]
         disp_raw = row["disposition"]
         reason = row["reason"].strip()
