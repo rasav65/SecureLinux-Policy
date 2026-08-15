@@ -5,6 +5,24 @@
 
 ## [Unreleased]
 
+### Статус — Step 7A CLOSED после R3 re-audit
+
+- Несколько независимых R3-аудитов подтвердили исправление `S7A-R2-B01`;
+  новых блокеров `S7A-R3-Bxx` не выявлено.
+- Step 7A переведён в `CLOSED`.
+- Step 7B разрешён **только для FSTEC expansion**; real dispositions остаются
+  запрещены.
+- Реальный disposition ledger остаётся header-only; состояние FSTEC не
+  изменилось: `349 / 5 / 344`.
+- Первый real disposition по-прежнему блокирован до машинного quote-anchor
+  contract/API (`EXACT | REFUSED | UNSUPPORTED`), где integrity failures
+  остаются исключениями.
+- Corporate multi-index/descriptor остаётся отложен до первого реального
+  corporate primary source.
+- R3 non-blocking findings по NUL/Unicode line separators/CRLF и прежние
+  замечания disposition-контракта сохранены как backlog, но не расширяют
+  закрытый scope Step 7A задним числом.
+
 ### Исправлено — Step 7A R3: physical TSV без CSV quoting
 
 - Повторный аудит R2 выявил `S7A-R2-B01`: `csv.reader` сохранял CSV

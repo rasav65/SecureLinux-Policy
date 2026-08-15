@@ -9,25 +9,17 @@
 
 ## Текущий статус
 
-Текущая активная стадия: **FSTEC + corporate index expansion / dispositions**.
+Текущая активная стадия: **Step 7B — FSTEC expansion**.
 
-Внутри этапа 7 первым обязательным подэтапом является
-`DISPOSITION CONTRACT / LEDGER HARDENING`. Он усиливает альтернативный путь
-закрытия строки source index до первого реального disposition: `CLOSED +
-disposition + reason` больше недостаточно без проверяемой записи
-`DISPOSITION-LEDGER.tsv`. Подэтап не меняет `SOURCE-INDEX.tsv` и не закрывает
-ни одной строки FSTEC.
+Step 7A (`DISPOSITION CONTRACT / LEDGER HARDENING`) **CLOSED** после R3 и
+повторных независимых re-audit: `S7A-R2-B01` закрыт, новых блокеров
+`S7A-R3-Bxx` не выявлено. Disposition ledger закреплён как physical TSV без
+CSV quoting semantics (`quoting=csv.QUOTE_NONE`).
 
-Статус Step 7A: **REVISE**. R2 закрыл обычные ragged-row случаи
-`S7A-R1-B01`, но повторный независимый аудит нашёл `S7A-R2-B01`: стандартная
-CSV quoting-семантика позволяла скрыть `TAB` в свободнотекстовом поле и
-склеивать физические строки через quoted `CR/LF`.
-
-R3 переводит disposition ledger на physical TSV без CSV quoting semantics
-(`QUOTE_NONE`) и добавляет постоянные проверки `quoted_tab_basis`,
-`quoted_newline_basis`, `quoted_cr_basis` и `quoted_tab_reason`. После R3
-обязателен независимый re-audit. До его ACCEPT Step 7B и реальные dispositions
-не открываются.
+Текущий разрешённый подэтап — Step 7B: **FSTEC expansion** по source-first
+пути. Step 7B не разрешает реальные dispositions и не открывает corporate
+multi-index/descriptor. Состояние реального disposition ledger остаётся
+header-only.
 
 Отдельное решение аудита: `quote-anchor` обязателен **до первого реального
 disposition**. Он должен опираться на типизированный API generator
@@ -78,13 +70,10 @@ provenance указывает, что один reviewer участвовал в 
 
 Покрытие не изменилось: 349 всего / 5 controlled `CLOSED` / 344 `OPEN`.
 Закрыты provenance Step 5, Gate 6 `evidence_binding`, обязательный release-gate
-с реальным `jsonschema`, универсальный по индексу генератор `source:` и
-паритет регенерации `source:`. Текущий разрешённый инженерный этап —
-`FSTEC + corporate index expansion / dispositions`.
-
-<!-- Совместимость с текущим status-test:
-The current authorized engineering step is `FSTEC + corporate index expansion / dispositions`.
--->
+с реальным `jsonschema`, универсальный по индексу генератор `source:`, паритет
+регенерации `source:` и Step 7A disposition contract/ledger hardening.
+Текущий разрешённый инженерный подэтап — **Step 7B: FSTEC expansion**.
+Real dispositions и corporate multi-index/descriptor пока не разрешены.
 
 Обязательный порядок дальнейших работ зафиксирован в `docs/ROADMAP-v3.md`.
 

@@ -8,11 +8,11 @@ readme = (ROOT / "README.md").read_text(encoding="utf-8")
 roadmap = (ROOT / "docs/ROADMAP-v3.md").read_text(encoding="utf-8")
 pmap = (ROOT / "docs/PROJECT-MAP-v3.md").read_text(encoding="utf-8")
 
-assert "Текущая активная стадия: **FSTEC + corporate index expansion / dispositions**." in readme
-assert "The current authorized engineering step is `FSTEC + corporate index expansion / dispositions`." in readme
+assert "Текущая активная стадия: **Step 7B — FSTEC expansion**." in readme
+assert "Step 7A (`DISPOSITION CONTRACT / LEDGER HARDENING`) **CLOSED**" in readme
 assert "The next authorized engineering step is Gate 6 `evidence_binding`." not in readme
 assert "NEXT: Gate 6 `evidence_binding`." not in roadmap
-assert "NEXT: FSTEC + corporate index expansion / dispositions." in roadmap
+assert "NEXT: Step 7B — FSTEC expansion без real dispositions." in roadmap
 
 with (ROOT / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as f:
     rows = list(csv.DictReader(f, delimiter="\t"))
@@ -27,4 +27,4 @@ assert by_id["SOURCE_BLOCK_REGENERATION_PARITY"] == "CLOSED"
 assert by_id["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "NEXT"
 assert pmap.count(":::current") == 1
 
-print("CURRENT_STATUS_CONSISTENCY=PASS next=FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS")
+print("CURRENT_STATUS_CONSISTENCY=PASS next=STEP7B_FSTEC_EXPANSION")

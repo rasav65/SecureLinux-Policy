@@ -76,16 +76,14 @@ failures обязаны оставаться исключениями и не п
 
 ## Текущее состояние
 
-После повторного аудита R2 найден blocker `S7A-R2-B01`: стандартная CSV
-quoting-семантика позволяла скрыть TAB или склеить физические строки внутри
-кавычек. R3 отключает quoting и добавляет постоянные adversarial fixtures.
-До независимого re-audit R3 статус Step 7A остаётся `REVISE`.
+Повторные независимые R3-аудиты подтвердили исправление `S7A-R2-B01`.
+Статус Step 7A — `CLOSED`; новых блокеров `S7A-R3-Bxx` не выявлено.
 
 `index/source-v4/DISPOSITION-LEDGER.tsv` содержит только заголовок.
 
-Следовательно, архитектурные изменения не закрывают строки FSTEC:
+Следовательно, закрытие Step 7A не закрыло строки FSTEC:
 
 `349 total / 5 controlled CLOSED / 0 disposed CLOSED / 344 OPEN`.
 
-Step 7B и первый реальный disposition остаются заблокированы; для первого
-real disposition дополнительно обязателен отдельный quote-anchor contract/API.
+Step 7B разрешён для FSTEC expansion. Первый real disposition остаётся
+заблокирован до отдельного quote-anchor contract/API.

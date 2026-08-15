@@ -43,8 +43,10 @@ Step 5. Нельзя начинать более поздний этап, пок
   снимком проекта; сами по себе они не доказывают происхождение из конкретного
   remote.
 
-ТЕКУЩИЙ СТАТУС: этапы roadmap 1–6 `CLOSED`; этап 7
-FSTEC + corporate index expansion / dispositions имеет статус `NEXT`.
+ТЕКУЩИЙ СТАТУС: этапы roadmap 1–6 `CLOSED`; макроэтап 7
+FSTEC + corporate index expansion / dispositions остаётся `NEXT`. Внутри него
+Step 7A `CLOSED`, а текущий разрешённый подэтап — Step 7B: FSTEC expansion
+без real dispositions.
 
 ## Правило сохранения инженерного донора
 
@@ -227,13 +229,30 @@ Adversarial-методика: parser-level атаки проверяются п�
 Критерий — буквальное выполнение объявленного инварианта, а не отсутствие
 видимого вреда благодаря другой проверке.
 
-После реализации R3 статус Step 7A —
-`AWAITING_INDEPENDENT_REAUDIT_R3`. Step 7B и первый реальный disposition до
-ACCEPT повторного аудита запрещены.
+Повторные независимые R3-аудиты дали `ACCEPT`: `S7A-R2-B01` закрыт,
+новых блокеров `S7A-R3-Bxx` не выявлено. Статус Step 7A — `CLOSED`.
+
+### Step 7B — FSTEC expansion
+
+Step 7B разрешён только для расширения FSTEC по source-first пути:
+
+- новые технические controls должны проходить generator/parity/gates;
+- real disposition остаётся запрещён до quote-anchor contract/API;
+- corporate multi-index/descriptor остаётся отложен до появления первого
+  реального corporate primary source;
+- известное pre-existing падение `tests/roadmap-v3/test_donor_policy.py`
+  не считается регрессией R3 и разбирается отдельной housekeeping-задачей.
 
 Quote-anchor остаётся отдельным pre-real-disposition gate:
 `REQUIRE_BEFORE_FIRST_REAL_DISPOSITION`. Будущий generator API должен
 различать `EXACT`, `REFUSED`, `UNSUPPORTED`, а integrity failures должны
 оставаться исключениями.
 
-NEXT: FSTEC + corporate index expansion / dispositions.
+Carry-forward non-blocking findings R3: NUL, `U+2028/U+2029`, VT/FF и CRLF
+не запрещены текущим physical-TSV контрактом; их возможное ограничение —
+отдельное расширение контракта, а не незакрытый blocker R3. Прежние замечания
+по whitespace, future `decided_at`, силе `basis`, связи
+`source_role ↔ disposition`, multi-index ledger и устаревшим notes сохраняются
+в backlog и должны учитываться перед соответствующими изменениями.
+
+NEXT: Step 7B — FSTEC expansion без real dispositions.

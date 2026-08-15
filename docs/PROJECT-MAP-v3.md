@@ -261,7 +261,7 @@ flowchart LR
     S4["mandatory real-jsonschema<br/>release gate"]:::closed
     S5["index-generic<br/>source skeleton generator"]:::closed
     S6["source-block<br/>regeneration parity"]:::closed
-    S7["МЫ ЗДЕСЬ<br/>FSTEC + corporate<br/>index expansion / dispositions"]:::current
+    S7["МЫ ЗДЕСЬ<br/>Step 7B<br/>FSTEC expansion<br/>real dispositions blocked"]:::current
     S8["apply/restore<br/>semantic contract"]:::future
     S9["implementation<br/>adapters"]:::future
     S10["deterministic<br/>build"]:::future

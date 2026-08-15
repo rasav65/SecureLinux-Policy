@@ -11,7 +11,7 @@ assert 'S3["type/boolean<br/>contract cleanup"]:::closed' in text
 assert 'S4["mandatory real-jsonschema<br/>release gate"]:::closed' in text
 assert 'S5["index-generic<br/>source skeleton generator"]:::closed' in text
 assert 'S6["source-block<br/>regeneration parity"]:::closed' in text
-assert 'S7["МЫ ЗДЕСЬ<br/>FSTEC + corporate<br/>index expansion / dispositions"]:::current' in text
+assert 'S7["МЫ ЗДЕСЬ<br/>Step 7B<br/>FSTEC expansion<br/>real dispositions blocked"]:::current' in text
 
 required = (
     "raw-pdftotext",
