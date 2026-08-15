@@ -9,7 +9,7 @@
 
 ## Текущий статус
 
-Текущая активная стадия: **type/boolean contract cleanup**.
+Текущая активная стадия: **mandatory real-jsonschema release gate**.
 
 Состояние source index:
 
@@ -43,7 +43,7 @@ stored records is not established. Provenance is therefore stored record by
 record in `audit/step5-reference-vm-evidence-20260814/PROVENANCE.tsv`.
 
 Coverage is unchanged: 349 total / 5 controlled CLOSED / 344 OPEN.
-Step 5 provenance closure and Gate 6 `evidence_binding` are CLOSED. The current authorized engineering step is `type/boolean contract cleanup`.
+Step 5 provenance closure and Gate 6 `evidence_binding` are CLOSED. The current authorized engineering step is `mandatory real-jsonschema release gate`.
 
 The authoritative forward order is in `docs/ROADMAP-v3.md`.
 
@@ -311,9 +311,9 @@ Evidence хранится в
 На этой VM `net.core.bpf_jit_harden` имеет mode `0600 root:root`, поэтому
 полный read-only сбор этого параметра требует привилегированного чтения.
 
-## Поддерживаемые probe kinds
+## Parameter kinds и observation contracts
 
-Checker v1/v2 знает восемь базовых типов:
+Control schema знает восемь parameter kinds; текущий Gate 5 runner реализован только для `sysctl`:
 
 - `sysctl`
 - `file-kv`
@@ -326,6 +326,8 @@ Checker v1/v2 знает восемь базовых типов:
 
 GRUB token membership и UFW policy/rules намеренно не маскируются под
 неподходящие типы. Для них требуется отдельный probe design.
+
+Wire format probe observations задаётся отдельно от semantic `expected.type`. Для future `systemd-unit-state` и `package-presence` boolean VALUE зарезервирован JSON boolean; generic coercion строк `"true"`/`"false"` запрещён. См. `docs/observation-value-contract.md`.
 
 ## Step 5 pilot
 
@@ -367,7 +369,7 @@ checker/gates-v3/checker.py
 SHA-256:
 
 ```text
-4c6012b7541923a682b6bb78bf5d8ccf5b241da54ecaa601f2c9d5479eafb5a6
+600a87ebf560060a4fc95d33686237b50a87ea7139d223269c61b8dc008cf092
 ```
 
 `CONTROL-SCHEMA.json` в gates-v3 содержит полный закрытый nested contract и ограничения всех восьми parameter kinds.

@@ -253,8 +253,8 @@ that a commit originated from a particular remote.
 flowchart LR
     S1["Step 5<br/>audit provenance closure"]:::closed
     S2["Gate 6<br/>evidence_binding"]:::closed
-    S3["МЫ ЗДЕСЬ<br/>type/boolean<br/>contract cleanup"]:::current
-    S4["mandatory real-jsonschema<br/>release gate"]:::future
+    S3["type/boolean<br/>contract cleanup"]:::closed
+    S4["МЫ ЗДЕСЬ<br/>mandatory real-jsonschema<br/>release gate"]:::current
     S5["index-generic<br/>source skeleton generator"]:::future
     S6["source-block<br/>regeneration parity"]:::future
     S7["FSTEC + corporate<br/>index expansion / dispositions"]:::future

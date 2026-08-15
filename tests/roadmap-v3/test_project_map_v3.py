@@ -7,6 +7,9 @@ text = (root / "docs/PROJECT-MAP-v3.md").read_text(encoding="utf-8")
 assert text.count("```mermaid") == 5
 assert text.count(":::current") == 1
 
+assert 'S3["type/boolean<br/>contract cleanup"]:::closed' in text
+assert 'S4["МЫ ЗДЕСЬ<br/>mandatory real-jsonschema<br/>release gate"]:::current' in text
+
 required = (
     "raw-pdftotext",
     "10 документов",

@@ -14,3 +14,5 @@ scope/profile conflicts and active pilot fail-closed behavior.
 - parser invariant: a control character in a scalar is rejected at parse time;
 - when `jsonschema` is installed, the same matrix is also run against a real
   `Draft202012Validator`; otherwise those two tests are skipped explicitly.
+
+Observation-value contract tests ensure there is no generic boolean string coercion and reserve JSON-boolean wire values for future systemd/package runners.

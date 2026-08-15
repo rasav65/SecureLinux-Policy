@@ -55,4 +55,21 @@ It proves the binding:
 
 It does **not** prove cryptographic origin from the named VM.
 
-NEXT: type/boolean contract cleanup.
+TYPE/BOOLEAN CONTRACT CLEANUP: CLOSED.
+
+## Type/boolean contract cleanup closure
+
+The accidental generic `"true"` / `"false"` string coercion has been removed.
+
+Current/forward observation contracts:
+
+- sysctl: implemented runner; integer/string wire values are JSON strings;
+  boolean is not a valid sysctl control type;
+- systemd-unit-state: future runner must emit JSON boolean for boolean VALUE;
+- package-presence: future runner must emit JSON boolean for boolean VALUE;
+- file-kv boolean: explicitly deferred until its probe design defines
+  source-specific textual mapping.
+
+This stage changes no `KIND_RULES` entry and no generated control-schema byte.
+
+NEXT: mandatory real-jsonschema release gate.

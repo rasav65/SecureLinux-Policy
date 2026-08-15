@@ -5,6 +5,25 @@
 
 ## [Unreleased]
 
+### Fixed — type/boolean observation contract cleanup
+
+- Removed accidental global `"true"` / `"false"` string-to-boolean coercion
+  from `_expected_compliance`.
+- Separated control semantic `expected.type` from probe `VALUE.value` wire
+  encoding.
+- Preserved sysctl wire behavior: integer/string observations are JSON strings;
+  sysctl boolean remains forbidden by `KIND_RULES`.
+- Reserved exact future boolean wire format for `systemd-unit-state` and
+  `package-presence`: JSON boolean only, not quoted strings and not `0/1`.
+- Kept both future runners unimplemented; format definition does not claim
+  Gate 5 executability.
+- Marked file-kv boolean observation mapping explicitly deferred until a
+  file-kv probe design defines source-specific textual semantics.
+- `KIND_RULES` and generated `CONTROL-SCHEMA.json` are unchanged.
+- Added focused observation-contract regression tests.
+- Advanced the roadmap to the mandatory real-jsonschema release gate.
+- No source-index rows were closed.
+
 ### Fixed — project-map audit findings and clean-checkout manifests
 
 - Corrected the text-corpus graph: normal pdftotext/norm-v1 covers 10 pinned

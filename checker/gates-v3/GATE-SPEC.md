@@ -41,3 +41,22 @@ justification.
 
 ## Gate 5 — probe executability
 Semantics inherited from checker-v2. Current runtime runner: sysctl only.
+
+### Observation value encoding
+
+Control semantic types and probe wire values are separate contracts. Exact
+encoding rules are defined in `docs/observation-value-contract.md`.
+
+Current Gate 5 runner remains **sysctl only**:
+
+- sysctl integer/string observations arrive as JSON strings;
+- sysctl boolean is forbidden by `KIND_RULES`.
+
+Reserved formats for future runners:
+
+- `systemd-unit-state` boolean -> JSON boolean;
+- `package-presence` boolean -> JSON boolean.
+
+Quoted strings `"true"` / `"false"` and numeric `0/1` are not accepted as
+boolean observations. `file-kv` boolean observation mapping remains explicitly
+deferred until a file-kv probe design exists.

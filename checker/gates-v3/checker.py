@@ -124,6 +124,45 @@ KIND_RULES = {
 
 PARAMETER_KINDS = list(KIND_RULES)
 
+# Probe observation value contracts are separate from the control schema.
+#
+# `expected.type` describes the semantic policy value. `VALUE.value` describes
+# the JSON wire value emitted by a probe. Those are not interchangeable.
+#
+# There is deliberately no global "true"/"false" string coercion. Each probe
+# kind must define its own value encoding before a runner for that kind can be
+# admitted.
+OBSERVATION_VALUE_CONTRACTS = {
+    "sysctl": {
+        "runner_status": "implemented",
+        "encodings": {
+            "integer": "json-string-parse-int",
+            "string": "json-string-literal",
+        },
+    },
+    "systemd-unit-state": {
+        "runner_status": "not-implemented",
+        "encodings": {
+            "boolean": "json-boolean",
+        },
+    },
+    "package-presence": {
+        "runner_status": "not-implemented",
+        "encodings": {
+            "boolean": "json-boolean",
+        },
+    },
+}
+
+# file-kv may carry semantic booleans in a control, but a future file-kv probe
+# must define source-specific textual mapping before boolean observations are
+# executable. No generic boolean coercion is allowed in the meantime.
+DEFERRED_OBSERVATION_VALUE_CONTRACTS = {
+    "file-kv": {
+        "boolean": "UNDEFINED_UNTIL_FILE_KV_PROBE_DESIGN",
+    },
+}
+
 
 def constraint_ok(value, constraint) -> bool:
     """Evaluate one constraint with exactly the semantics the emitted JSON
@@ -963,25 +1002,49 @@ def load_probe_results(path: Path):
     return data
 
 
-def _expected_compliance(record, raw_value):
+def _typed_observation_value(record, raw_value):
+    """Decode one probe VALUE according to an explicit kind/type wire contract.
+
+    Returns (ok, typed_value). There is no generic string-to-boolean coercion.
+    """
+    kind = record["parameter"]["kind"]
     typ = record["expected"]["type"]
-    expected = record["expected"]["value"]
-    if typ == "integer":
+    contract = OBSERVATION_VALUE_CONTRACTS.get(kind)
+    if contract is None:
+        return False, None
+    encoding = contract["encodings"].get(typ)
+    if encoding is None:
+        return False, None
+
+    if encoding == "json-string-parse-int":
+        if not isinstance(raw_value, str):
+            return False, None
         try:
-            actual = int(raw_value)
+            return True, int(raw_value)
         except Exception:
-            return None
-    elif typ == "string":
-        actual = str(raw_value)
-    elif typ == "boolean":
-        if raw_value == "true":
-            actual = True
-        elif raw_value == "false":
-            actual = False
-        else:
-            return None
-    else:
+            return False, None
+
+    if encoding == "json-string-literal":
+        if not isinstance(raw_value, str):
+            return False, None
+        return True, raw_value
+
+    if encoding == "json-boolean":
+        # `type(x) is bool` intentionally rejects JSON numbers 0/1. In Python,
+        # bool is a subclass of int, so isinstance(x, bool) is too permissive
+        # for a wire-format boundary.
+        if type(raw_value) is not bool:
+            return False, None
+        return True, raw_value
+
+    raise ValueError(f"unsupported observation encoding {encoding!r}")
+
+
+def _expected_compliance(record, raw_value):
+    ok, actual = _typed_observation_value(record, raw_value)
+    if not ok:
         return None
+    expected = record["expected"]["value"]
     return "PASS" if actual == expected else "FAIL"
 
 
@@ -1094,14 +1157,12 @@ def gate5(records, probe_results_path):
         status = item["status"]
         if status == "VALUE":
             values += 1
-            if not isinstance(item["value"], str):
-                errors.append(f"{where}: VALUE requires string value")
-                continue
             expected_compliance = _expected_compliance(record, item["value"])
             if expected_compliance is None:
                 errors.append(
-                    f"{where}: probe value {item['value']!r} cannot be parsed "
-                    f"as {record['expected']['type']}"
+                    f"{where}: probe value {item['value']!r} violates observation "
+                    f"contract for kind={p['kind']!r} "
+                    f"expected.type={record['expected']['type']!r}"
                 )
                 continue
             if item["compliance"] != expected_compliance:
