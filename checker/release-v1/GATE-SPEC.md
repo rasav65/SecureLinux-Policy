@@ -54,3 +54,14 @@ No timestamp is emitted.
 
 This gate validates the current control schema/runtime contract. It does not
 change FSTEC source coverage, close Gate 2 rows, or implement new probe kinds.
+
+## Version floor
+
+Minimum supported `jsonschema` distribution version: **4.10.3**.
+
+The release gate accepts only stable `X.Y.Z` version strings and fails closed
+for an unparseable version or a version below 4.10.3.
+
+This floor is the lowest retained passing release evidence, not a claim that
+all older versions are known-bad. Compatibility evidence for 4.26.0 is
+retained under `audit/release-jsonschema-compat-20260815/`.

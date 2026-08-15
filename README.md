@@ -517,3 +517,14 @@ Engineering donor inventory is now explicitly classified for every indexed funct
 
 This parallel donor-classification work does not advance the normative roadmap.
 The current authorized stage remains `mandatory real-jsonschema release gate`.
+
+## JSON Schema release-version policy
+
+Release validation requires the real `jsonschema.Draft202012Validator` and
+enforces a minimum supported distribution version of `4.10.3`.
+
+Retained compatibility evidence covers both `jsonschema 4.10.3` and
+`jsonschema 4.26.0`. Both runs must show zero runtime↔real and emulator↔real
+disagreements and zero real-schema-invalid active controls.
+
+Dependency absence and a version below the minimum fail closed.

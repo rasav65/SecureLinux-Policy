@@ -21,7 +21,7 @@ by_id = {r["step_id"]: r["status"] for r in rows}
 assert by_id["STEP5_AUDIT_PROVENANCE_CLOSURE"] == "CLOSED"
 assert by_id["GATE6_EVIDENCE_BINDING"] == "CLOSED"
 assert by_id["TYPE_BOOLEAN_CONTRACT_CLEANUP"] == "CLOSED"
-assert by_id["MANDATORY_REAL_JSONSCHEMA_RELEASE_GATE"] == "CLOSED_BY_THIS_CHANGE"
+assert by_id["MANDATORY_REAL_JSONSCHEMA_RELEASE_GATE"] == "CLOSED"
 assert by_id["INDEX_GENERIC_SOURCE_SKELETON_GENERATOR"] == "NEXT"
 assert pmap.count(":::current") == 1
 

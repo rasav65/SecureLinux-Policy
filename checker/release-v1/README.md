@@ -12,3 +12,5 @@ python3 -B checker/release-v1/real_jsonschema_gate.py \
 ```
 
 `jsonschema` absence is a hard failure, never a skip.
+
+Minimum supported distribution version: `jsonschema 4.10.3`; lower or unparseable versions fail closed.

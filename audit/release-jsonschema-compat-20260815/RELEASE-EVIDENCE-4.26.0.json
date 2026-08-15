@@ -23,7 +23,7 @@
     "parity_test_sha256": "ddf8c48fbb39957c1022ef5c980bb5ea2d66b66b3bd859eb1b501a59bf35fc2c",
     "release_gate_sha256": "4f7da81ab3c51e5728fe8ff2e60de61e91eb511d191b7b4f25fc1796bad8de82"
   },
-  "jsonschema_version": "4.10.3",
+  "jsonschema_version": "4.26.0",
   "matrix": {
     "accepted_by_kind": {
       "audit-rule": 1,

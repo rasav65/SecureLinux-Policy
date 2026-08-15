@@ -43,3 +43,17 @@ gate. A later release may use a different version, but must rerun the gate and
 produce new evidence rather than treating an old PASS as timeless.
 
 Current closure used `jsonschema` distribution version `4.10.3`.
+
+## Version policy
+
+Minimum supported `jsonschema` release: `4.10.3`.
+
+System closure evidence is generated with 4.10.3. The same updated gate is
+also run under an explicitly supplied 4.26.0 compatibility interpreter.
+
+Both runs must use `Draft202012Validator`, pass the 50-case differential
+matrix including 16 newline cases, show zero runtime↔real and emulator↔real
+disagreements, and validate all five active controls.
+
+Dependency absence, an unparseable version, or a version below 4.10.3 fails
+closed.

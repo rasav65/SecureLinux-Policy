@@ -17,6 +17,8 @@ spec.loader.exec_module(gate)
 report = gate.run_gate(ROOT)
 assert report["pass"] is True, report
 assert report["jsonschema_version"]
+assert report["minimum_jsonschema_version"] == "4.10.3"
+assert gate.parse_jsonschema_release(report["jsonschema_version"]) >= (4, 10, 3)
 assert report["validator_class"] == "Draft202012Validator"
 assert report["draft"] == "2020-12"
 assert report["checks"]["draft202012_check_schema"] is True
@@ -49,8 +51,21 @@ assert any(
     for err in negative["errors"]
 )
 
+real_validator, _real_version = gate.require_real_jsonschema(ROOT)
+
+def below_minimum(_root):
+    return real_validator, "4.10.2"
+
+negative_version = gate.run_gate(ROOT, dependency_loader=below_minimum)
+assert negative_version["pass"] is False
+assert negative_version["jsonschema_version"] is None
+assert any(
+    "below minimum supported 4.10.3" in err
+    for err in negative_version["errors"]
+)
+
 print(
     "REAL_JSONSCHEMA_RELEASE_TESTS=PASS "
     f"version={report['jsonschema_version']} "
-    "positive=1 negative_missing_dependency=1"
+    "positive=1 negative_missing_dependency=1 negative_below_minimum=1"
 )

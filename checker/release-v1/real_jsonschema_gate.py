@@ -7,12 +7,15 @@ import importlib.metadata
 import importlib.util
 import json
 import platform
+import re
 from pathlib import Path
 
 EVIDENCE_SCHEMA = "securelinux-policy-real-jsonschema-release-evidence/v1"
 DRAFT_URI = "https://json-schema.org/draft/2020-12/schema"
 MIN_MATRIX_CASES = 50
 MIN_NEWLINE_CASES = 16
+MIN_JSONSCHEMA_VERSION = "4.10.3"
+MIN_JSONSCHEMA_RELEASE = (4, 10, 3)
 
 
 def sha256_file(path: Path) -> str:
@@ -32,6 +35,15 @@ def load_module(name: str, path: Path):
     return module
 
 
+def parse_jsonschema_release(version: str) -> tuple[int, int, int]:
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", version)
+    if not match:
+        raise RuntimeError(
+            f"unsupported jsonschema version format {version!r}; expected X.Y.Z"
+        )
+    return tuple(int(part) for part in match.groups())
+
+
 def require_real_jsonschema(project_root: Path):
     try:
         import jsonschema
@@ -47,6 +59,13 @@ def require_real_jsonschema(project_root: Path):
         ) from exc
     if not version:
         raise RuntimeError("empty jsonschema distribution version")
+
+    release = parse_jsonschema_release(version)
+    if release < MIN_JSONSCHEMA_RELEASE:
+        raise RuntimeError(
+            f"jsonschema {version} is below minimum supported "
+            f"{MIN_JSONSCHEMA_VERSION}"
+        )
 
     origin = Path(jsonschema.__file__).resolve()
     try:
@@ -70,6 +89,7 @@ def run_gate(project_root: Path, dependency_loader=require_real_jsonschema) -> d
         "draft_uri": DRAFT_URI,
         "validator_class": "Draft202012Validator",
         "jsonschema_version": None,
+        "minimum_jsonschema_version": MIN_JSONSCHEMA_VERSION,
         "python_version": platform.python_version(),
         "inputs": {},
         "matrix": {},
@@ -98,6 +118,12 @@ def run_gate(project_root: Path, dependency_loader=require_real_jsonschema) -> d
 
     try:
         Validator, version = dependency_loader(root)
+        release = parse_jsonschema_release(version)
+        if release < MIN_JSONSCHEMA_RELEASE:
+            raise RuntimeError(
+                f"jsonschema {version} is below minimum supported "
+                f"{MIN_JSONSCHEMA_VERSION}"
+            )
         report["jsonschema_version"] = version
     except Exception as exc:
         errors.append(str(exc))
@@ -261,6 +287,7 @@ def format_report(report: dict) -> str:
     lines = [
         f"REAL_JSONSCHEMA_RELEASE_GATE={status}",
         f"JSONSCHEMA_VERSION={report.get('jsonschema_version') or 'UNAVAILABLE'}",
+        f"MIN_JSONSCHEMA_VERSION={report.get('minimum_jsonschema_version')}",
         f"VALIDATOR={report.get('validator_class')}",
         f"DRAFT={report.get('draft')}",
         f"MATRIX_CASES={matrix.get('total_cases', 0)}",
