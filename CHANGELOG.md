@@ -10,41 +10,16 @@
 
 ## [Unreleased]
 
-### Step 7B.0 — допуск builder'а, состояние на 2026-08-19
+### Текущее незавершённое состояние
 
-- Build Contract прошёл версии v0.9.2 → v0.9.3 R4-FINAL → v0.9.4 → v0.9.5.
-  Принятая версия — `step7b0/BUILD-CONTRACT-v0.9.5.md`.
-- Phase A принята под v0.9.5: 16 статических предусловий, member/admission
-  записи взаимно связаны по SHA-256.
-- Item 9 (наблюдатель зависимостей сборки) закрыт: два взаимоисключающих пути
-  допуска события — `INVARIANT_ADMITTED` при полном покрытии инвариантами и
-  `POLICY_ADMITTED` по точному ключу из `reviewed_safe_events` с привязкой к
-  фикстуре; неизвестное событие даёт `REVIEW_REQUIRED`, а не отказ разбора.
-  Мета-события strace (`Process ... attached/detached`) и доставка сигналов
-  переведены в fail-closed.
-- Phase B: измерение кандидата выполнено; единственный нерешённый ключ
-  `(futex, null)` закрыт переводом `futex` в operation-sensitive события с
-  точным допуском `FUTEX_WAKE_PRIVATE` и scope `thread_synchronization_local`.
-  Разделяемый wake, wait и альтернативная текстовая форма остаются
-  `REVIEW_REQUIRED`.
-- Phase C, item 19 (host-state hermeticity) — **REVISE**, три подтверждённых по
-  байтам дефекта: маршрут `/proc/sys/crypto/fips_enabled` обнаружен измерением,
-  но не получил discovered descriptor; три `DENIED` назначены по отсутствию
-  вызова в трейсе, а не по реальной sandbox/runtime границе; `FIXED`
-  присвоен по совпадению двух прогонов на одном хосте, а не по механизму
-  фиксации значения. Отдельно: runtime-root требовал совпадения состава
-  внешнего `/usr/lib/python3.12` и потому не был переносим.
-- Cross-VM диагностика: при смене ядра, CPU flags и AUXV три выходных файла
-  builder'а остались побайтово идентичными. Это design evidence, а не
-  формальный допуск Phase C.
-- Черновик Build Contract v0.9.6 подготовлен, но **не принят и не установлен**.
-  Область правки заморожена тремя пунктами: `ordering_sensitive` определяется
-  доказанной exposure, а не типом канала; обнаруженный маршрут к host-state с
-  отсутствующим объектом обязан быть решён явно; определения `DENIED` и `FIXED`
-  не меняются.
-- Authoritative builder не признан, публикация не выполнялась,
-  APPLY/RESTORE не проектировались.
-- Эта работа закрыла 0 строк FSTEC source index.
+- `SRC-0005 / 2.3.1` остаётся `OPEN`: schema/runtime уже поддерживают
+  `file-mode-owner / bits-clear`, но read-only file-permission adapter,
+  три canonical controls и `exact-control-set` closure ещё не созданы.
+- Step 7B.0 остаётся незавершённым: Phase C, item 19
+  (host-state hermeticity) — `REVISE`; authoritative builder не признан,
+  публикация не выполнялась.
+- Build Contract v0.9.6 существует только как черновик: он не принят и не
+  установлен. Его возможное продолжение не является текущей product-line.
 
 ### Известные незакрытые замечания
 
@@ -54,21 +29,44 @@
   `kernel.unprivileged_bpf_disabled=2` при expected `1` и
   `kernel.perf_event_paranoid=4` при expected `3`. Текущие controls задним
   числом не меняются.
-- Отдельный будущий decision point: historical Phase-A serializer и
-  `securelinux-product-check-generator-v1` пока являются разными производителями
-  CHECK-артефактов. До дальнейшего развития обоих путей нужно определить
-  единственный будущий product generator и точку обратного схождения линий,
-  чтобы не поддерживать одинаковые исправления дважды.
-
-- P-01: при нечитаемом `/proc`-пути сгенерированный скрипт печатает корректную
-  запись `ERROR` и корректный RC, но редирект чтения дополнительно роняет в
-  stderr неструктурированное сообщение bash. Лечится в шаблоне адаптера,
-  контракт не затрагивает.
+- Внешний диагностический `securelinux-product-check-generator-v1` не является
+  tracked-файлом репозитория. Вместе с historical Phase-A serializer он
+  фактически создаёт вторую линию производства CHECK. До реализации
+  постоянной product-line нужно выбрать один tracked product generator и
+  определить точку схождения, чтобы не поддерживать одинаковые исправления
+  дважды.
+- P-01: при нечитаемом `/proc`-пути сгенерированный sysctl CHECK печатает
+  корректную запись `ERROR` и корректный RC, но редирект чтения дополнительно
+  выводит в stderr неструктурированное сообщение bash. Исправление относится
+  к будущему product generator/adapter и не меняет historical admitted bytes.
 - Устаревшее примечание `Gate-1 quote blocked ...` осталось в строках индекса,
   для которых восстановленный текстовый источник уже указан.
 - Две исторические фикстуры наблюдателя (`observer-adversarial-fitness-v2`,
   `observer-fitness-v1`) не входят в текущий Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
+
+## [0.0.8] — 2026-08-19
+
+### Документация — нормализация `[Unreleased]`
+
+- Исправлена структура CHANGELOG: из `[Unreleased]` перенесены уже завершённые
+  проверяемые факты Step 7B.0; наверху оставлены только реально незавершённые
+  состояния и открытые замечания.
+- Зафиксирована ранее завершённая последовательность Build Contract
+  v0.9.2 → v0.9.3 R4-FINAL → v0.9.4 → v0.9.5; принятой остаётся
+  `step7b0/BUILD-CONTRACT-v0.9.5.md`.
+- Зафиксировано ранее завершённое состояние Phase A под v0.9.5:
+  16 статических предусловий, SHA-bound member/admission; Item 9 закрыт
+  fail-closed observer policy.
+- Зафиксирован ранее выполненный Phase-B measurement: прежний
+  `(futex, null)` разрешён только как exact `FUTEX_WAKE_PRIVATE` с
+  `thread_synchronization_local`; shared/wait/альтернативные формы не получили
+  безусловного допуска.
+- Зафиксирована ранее выполненная Cross-VM диагностика: при изменении ядра,
+  CPU flags и AUXV три выходных файла builder'а остались побайтово идентичными;
+  это design evidence, а не acceptance Phase C.
+- Никакие historical Step7B0 bytes, controls, source index, checker semantics,
+  probes или runtime не изменены. Закрыто строк source index: **0**.
 
 ## [0.0.7] — 2026-08-19
 
