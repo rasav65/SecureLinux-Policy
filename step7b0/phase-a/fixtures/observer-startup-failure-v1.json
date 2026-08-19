@@ -1,0 +1,1 @@
+{"case_id":"startup_failure","expected_observer_result":"FAIL","expected_target_execution":false,"fixture_contract_version":"build-dependency-observer-startup-failure-fixture-v1","injection":{"kind":"observer_startup_failure","method":"trace-output-parent-absent-before-exec"}}

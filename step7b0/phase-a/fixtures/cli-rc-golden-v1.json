@@ -1,0 +1,1 @@
+{"cases":[{"argv":[],"class":"policy-run"},{"argv":["--provenance"],"rc":0},{"argv":["--build-info"],"rc":0},{"argv":["--help"],"rc":0},{"argv":["--apply"],"rc":2},{"argv":["--bogus"],"rc":2}],"noncompliance_rc":0,"unevaluated_rc":1,"unsupported_rc":3}

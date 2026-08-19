@@ -1,0 +1,6 @@
+binding_contract_version	control_id	operation	target_id	semantic_contract_id	adapter_id
+build-binding-v1	FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT	check	ubuntu-24.04-x86_64	check-semantic-v1	sysctl-check-v1
+build-binding-v1	FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT	check	ubuntu-24.04-x86_64	check-semantic-v1	sysctl-check-v1
+build-binding-v1	FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN	check	ubuntu-24.04-x86_64	check-semantic-v1	sysctl-check-v1
+build-binding-v1	FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID	check	ubuntu-24.04-x86_64	check-semantic-v1	sysctl-check-v1
+build-binding-v1	FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED	check	ubuntu-24.04-x86_64	check-semantic-v1	sysctl-check-v1

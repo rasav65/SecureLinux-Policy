@@ -1,0 +1,1 @@
+{"additional_properties":false,"required":["runtime_contract_version","runtime_sequence","runtime_phase","block_id","control_id"],"runtime_phase_enum":["target_preflight","control","aggregation"],"schema_id":"runtime-invocation-v1"}

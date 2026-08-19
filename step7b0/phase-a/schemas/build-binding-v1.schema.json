@@ -1,0 +1,1 @@
+{"additional_properties":false,"constants":{"adapter_id":"sysctl-check-v1","binding_contract_version":"build-binding-v1","operation":"check","semantic_contract_id":"check-semantic-v1","target_id":"ubuntu-24.04-x86_64"},"required":["binding_contract_version","control_id","operation","target_id","semantic_contract_id","adapter_id"],"schema_id":"build-binding-v1-schema"}
