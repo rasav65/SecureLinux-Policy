@@ -90,8 +90,23 @@ KIND_RULES = {
     "file-mode-owner": {
         "locator": {"pattern": ABSOLUTE_PATH_PATTERN},
         "key": {"enum": ["mode", "owner", "group", "owner_group"]},
-        "op": {"const": "eq"},
+        "op": {"enum": ["eq", "bits-clear"]},
         "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "bits-clear"}},
+                "then": {
+                    "parameter.key": {"const": "mode"},
+                    "expected.type": {"const": "string"},
+                    "expected.value": {
+                        "allOf": [
+                            {"pattern": r"^(?!.*[\r\n])[0-7]{4}$"},
+                            {"not": {"const": "0000"}},
+                        ],
+                    },
+                },
+            },
+        ],
     },
     "mount-option": {
         "locator": {"pattern": ABSOLUTE_PATH_PATTERN},
@@ -182,6 +197,10 @@ def constraint_ok(value, constraint) -> bool:
         return isinstance(value, str) and re.fullmatch(constraint["pattern"], value) is not None
     if "anyOf" in constraint:
         return any(constraint_ok(value, c) for c in constraint["anyOf"])
+    if "allOf" in constraint:
+        return all(constraint_ok(value, c) for c in constraint["allOf"])
+    if "not" in constraint:
+        return not constraint_ok(value, constraint["not"])
     raise ValueError(f"unsupported constraint {constraint!r}")
 
 
@@ -196,6 +215,10 @@ def describe_constraint(constraint) -> str:
         return f"must match {constraint['pattern']}"
     if "anyOf" in constraint:
         return " or ".join(describe_constraint(c) for c in constraint["anyOf"])
+    if "allOf" in constraint:
+        return " and ".join(describe_constraint(c) for c in constraint["allOf"])
+    if "not" in constraint:
+        return "must not satisfy (" + describe_constraint(constraint["not"]) + ")"
     raise ValueError(f"unsupported constraint {constraint!r}")
 
 
@@ -421,6 +444,12 @@ def validate_record_schema(record, where):
     return errors
 
 
+def kind_rule_field_value(record, dotted):
+    # Поле, на которое ссылается декларативное relation-правило KIND_RULES.
+    section, field = dotted.split(".", 1)
+    return record[section][field]
+
+
 def validate_parameter_closure(record, where):
     """Kind-specific closure. Driven entirely by KIND_RULES so that the
     published CONTROL-SCHEMA.json and this check cannot disagree."""
@@ -441,6 +470,20 @@ def validate_parameter_closure(record, where):
             errors.append(
                 f"{where}: {kind} {field} {describe_constraint(constraint)}"
             )
+
+    for relation in rules.get("relations", []):
+        predicates = relation.get("if", {})
+        if all(
+            constraint_ok(kind_rule_field_value(record, field), constraint)
+            for field, constraint in predicates.items()
+        ):
+            for field, constraint in relation.get("then", {}).items():
+                value = kind_rule_field_value(record, field)
+                if not constraint_ok(value, constraint):
+                    errors.append(
+                        f"{where}: {kind} {field} "
+                        f"{describe_constraint(constraint)}"
+                    )
     return errors
 
 
@@ -458,6 +501,18 @@ def build_control_schema():
             "type": "object",
         }
 
+    def dotted_constraint_schema(dotted, constraint):
+        section, field = dotted.split(".", 1)
+        return {
+            "properties": {
+                section: {
+                    "properties": {field: dict(constraint)},
+                    "required": [field],
+                }
+            },
+            "required": [section],
+        }
+
     kind_branches = []
     for kind, rules in KIND_RULES.items():
         parameter_props = {}
@@ -471,6 +526,26 @@ def build_control_schema():
         then = {"properties": {"expected": {"properties": expected_props}}}
         if parameter_props:
             then["properties"]["parameter"] = {"properties": parameter_props}
+
+        relation_branches = []
+        for relation in rules.get("relations", []):
+            relation_branches.append({
+                "if": {
+                    "allOf": [
+                        dotted_constraint_schema(field, constraint)
+                        for field, constraint in relation.get("if", {}).items()
+                    ]
+                },
+                "then": {
+                    "allOf": [
+                        dotted_constraint_schema(field, constraint)
+                        for field, constraint in relation.get("then", {}).items()
+                    ]
+                },
+            })
+        if relation_branches:
+            then["allOf"] = relation_branches
+
         kind_branches.append({
             "if": {"properties": {"parameter": {
                 "properties": {"kind": {"const": kind}},

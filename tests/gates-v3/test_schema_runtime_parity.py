@@ -43,7 +43,7 @@ SCHEMA = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
 def schema_errors(instance, schema):
     """Minimal evaluator for the keyword subset used by CONTROL-SCHEMA.json:
     type, const, enum, pattern, required, properties, additionalProperties,
-    anyOf, allOf, if/then/else. `pattern` uses search semantics, as in
+    anyOf, allOf, not, if/then/else. `pattern` uses search semantics, as in
     JSON Schema."""
     errors = []
     if "type" in schema:
@@ -85,6 +85,8 @@ def schema_errors(instance, schema):
                 errors.append(f"additional:{key}")
     if "anyOf" in schema and not any(not schema_errors(instance, s) for s in schema["anyOf"]):
         errors.append("anyOf")
+    if "not" in schema and not schema_errors(instance, schema["not"]):
+        errors.append("not")
     for sub in schema.get("allOf", []):
         errors.extend(schema_errors(instance, sub))
     if "if" in schema:
@@ -136,6 +138,15 @@ CASES = [
     ("file-kv accepted", record("file-kv", "/etc/ssh/sshd_config", "PermitRootLogin", "eq", "no", "string")),
     ("file-kv relative locator rejected", record("file-kv", "etc/f", "K", "eq", "v", "string")),
     ("file-mode-owner accepted", record("file-mode-owner", "/etc/shadow", "mode", "eq", "0640", "string")),
+    ("file-mode-owner bits-clear accepted", record("file-mode-owner", "/etc/shadow", "mode", "bits-clear", "0077", "string")),
+    ("file-mode-owner bits-clear zero mask rejected", record("file-mode-owner", "/etc/shadow", "mode", "bits-clear", "0000", "string")),
+    ("file-mode-owner bits-clear short mask rejected", record("file-mode-owner", "/etc/shadow", "mode", "bits-clear", "077", "string")),
+    ("file-mode-owner bits-clear non-octal rejected", record("file-mode-owner", "/etc/shadow", "mode", "bits-clear", "0080", "string")),
+    ("file-mode-owner bits-clear owner rejected", record("file-mode-owner", "/etc/shadow", "owner", "bits-clear", "0077", "string")),
+    ("file-mode-owner bits-clear group rejected", record("file-mode-owner", "/etc/shadow", "group", "bits-clear", "0077", "string")),
+    ("file-mode-owner bits-clear owner_group rejected", record("file-mode-owner", "/etc/shadow", "owner_group", "bits-clear", "0077", "string")),
+    ("file-mode-owner bits-clear wrong type rejected", record("file-mode-owner", "/etc/shadow", "mode", "bits-clear", 63, "integer")),
+    ("file-mode-owner op rejected", record("file-mode-owner", "/etc/shadow", "mode", "contains", "0077", "string")),
     ("file-mode-owner key rejected", record("file-mode-owner", "/etc/shadow", "perm", "eq", "0640", "string")),
     ("file-mode-owner type rejected", record("file-mode-owner", "/etc/shadow", "mode", "eq", 640, "integer")),
     ("mount-option fstype accepted", record("mount-option", "/tmp", "fstype", "eq", "tmpfs", "string")),
@@ -168,6 +179,19 @@ CASES = [
 # JSON Schema `pattern` searches, and in the Python regex engine `$` also
 # matches before a trailing newline. Without an explicit single-line
 # assertion the two sides disagree on every one of these.
+FILE_MODE_OWNER_BITS_CLEAR_EXPECTATIONS = {
+    "file-mode-owner accepted": True,
+    "file-mode-owner bits-clear accepted": True,
+    "file-mode-owner bits-clear zero mask rejected": False,
+    "file-mode-owner bits-clear short mask rejected": False,
+    "file-mode-owner bits-clear non-octal rejected": False,
+    "file-mode-owner bits-clear owner rejected": False,
+    "file-mode-owner bits-clear group rejected": False,
+    "file-mode-owner bits-clear owner_group rejected": False,
+    "file-mode-owner bits-clear wrong type rejected": False,
+    "file-mode-owner op rejected": False,
+}
+
 NEWLINE_CASES = [
     ("sysctl key with trailing LF", record("sysctl", "sysctl", "kernel.x\n", "eq", 1, "integer")),
     ("sysctl key with trailing CR", record("sysctl", "sysctl", "kernel.x\r", "eq", 1, "integer")),
@@ -240,6 +264,24 @@ class DifferentialAcceptanceTests(unittest.TestCase):
                     f"schema={'accept' if schema_accepts else 'reject'}"
                 )
         self.assertEqual(disagreements, [])
+
+    def test_file_mode_owner_bits_clear_verdicts_are_explicit(self):
+        by_name = dict(CASES)
+        for name, expected_accept in FILE_MODE_OWNER_BITS_CLEAR_EXPECTATIONS.items():
+            with self.subTest(name):
+                rec = by_name[name]
+                runtime_accepts = not runtime_errors(rec)
+                schema_accepts = not schema_errors(rec, SCHEMA)
+                self.assertEqual(
+                    runtime_accepts,
+                    expected_accept,
+                    f"{name}: unexpected runtime verdict",
+                )
+                self.assertEqual(
+                    schema_accepts,
+                    expected_accept,
+                    f"{name}: unexpected schema verdict",
+                )
 
     def test_matrix_exercises_all_kinds_in_both_directions(self):
         kinds = {rec["parameter"]["kind"] for _, rec in ALL_CASES}

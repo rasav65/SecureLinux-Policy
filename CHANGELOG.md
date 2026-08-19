@@ -48,6 +48,18 @@
 
 ### Известные незакрытые замечания
 
+- Отдельный будущий decision point: текущая `eq`-семантика sysctl следует
+  буквальному значению источника и поэтому может дать `FAIL` на более строгом
+  состоянии системы. На CHECK-8 это наблюдается для
+  `kernel.unprivileged_bpf_disabled=2` при expected `1` и
+  `kernel.perf_event_paranoid=4` при expected `3`. Текущие controls задним
+  числом не меняются.
+- Отдельный будущий decision point: historical Phase-A serializer и
+  `securelinux-product-check-generator-v1` пока являются разными производителями
+  CHECK-артефактов. До дальнейшего развития обоих путей нужно определить
+  единственный будущий product generator и точку обратного схождения линий,
+  чтобы не поддерживать одинаковые исправления дважды.
+
 - P-01: при нечитаемом `/proc`-пути сгенерированный скрипт печатает корректную
   запись `ERROR` и корректный RC, но редирект чтения дополнительно роняет в
   stderr неструктурированное сообщение bash. Лечится в шаблоне адаптера,
@@ -57,6 +69,41 @@
 - Две исторические фикстуры наблюдателя (`observer-adversarial-fitness-v2`,
   `observer-fitness-v1`) не входят в текущий Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
+
+## [0.0.7] — 2026-08-19
+
+### Проверено — отдельный product CHECK-8
+
+- Собран отдельный read-only product/corpus CHECK для всех восьми текущих
+  sysctl-controls со статусом `NON_RELEASE_DIAGNOSTIC_CANDIDATE`.
+- Он явно фиксирует
+  `STEP7B0_BUILD_CONTRACT_IDENTITY_USED=false`,
+  `PHASE_B_C_IDENTITY_USED=false`, `AUTHORITATIVE=false`,
+  `RELEASE=false`, `MUTATION_CAPABILITY=false`.
+- На Ubuntu 24.04.4 VM непривилегированный запуск дал
+  `TOTAL=8 PASS=1 FAIL=6 ERROR=1 POLICY_STATUS=UNEVALUATED`; запуск через
+  `sudo` — `TOTAL=8 PASS=1 FAIL=7 ERROR=0 POLICY_STATUS=NONCOMPLIANT`.
+  Семь `FAIL` описывают состояние VM, а не ошибку CHECK.
+- Снимки восьми sysctl до и после запусков побайтово совпали; CHECK не изменил
+  host state. Raw evidence сохранено отдельно, но формальный Gate 5
+  `probe-results` для восьми controls ещё не создан.
+
+### Изменено — closed schema `file-mode-owner`
+
+- Для `key=mode` добавлен `op=bits-clear`; существующий `op=eq` сохранён.
+- `bits-clear` разрешён только для `key=mode`, `type=string`, ненулевой
+  четырёхзначной octal-маски. `"0000"`, короткие/non-octal маски и
+  `owner|group|owner_group + bits-clear` fail-closed отклоняются.
+- Relation-правило находится в едином `KIND_RULES`; из него согласованно
+  выводятся runtime validation и `CONTROL-SCHEMA.json`.
+- Минимальный schema-emulator дополнен keyword `not`; 12 parity-tests прошли,
+  включая согласие runtime, emulator и реального `Draft202012Validator`.
+- После изменения: `GATE0 PASS`, `GATE1 PASS checked=8`, `GATE3 PASS`,
+  `GATE4 PASS`; `GATE2 FAIL` остаётся из-за 341 `OPEN`, `GATE5 FAIL` —
+  из-за отсутствия formal probe-results.
+- `SRC-0005` этим изменением не закрыт, file-permission CHECK-adapter и
+  canonical controls ещё не созданы. Закрыто строк source index: **0**.
+  Состояние корпуса остаётся `349 / 8 / 341`.
 
 ## [0.0.6] — 2026-08-19
 

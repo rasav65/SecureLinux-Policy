@@ -253,11 +253,103 @@
         }
       },
       "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "bits-clear"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "mode"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "type": {
+                          "const": "string"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "allOf": [
+                            {
+                              "pattern": "^(?!.*[\\r\\n])[0-7]{4}$"
+                            },
+                            {
+                              "not": {
+                                "const": "0000"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
         "properties": {
           "expected": {
             "properties": {
               "op": {
-                "const": "eq"
+                "enum": [
+                  "eq",
+                  "bits-clear"
+                ]
               },
               "type": {
                 "const": "string"

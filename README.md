@@ -69,10 +69,12 @@ OVERALL FAIL
 `OVERALL=FAIL` — конструктивное состояние, а не поломка: пока хотя бы одна из
 341 строки не закрыта, общий вердикт обязан быть отрицательным.
 
-Сгенерированный CHECK-скрипт существует и воспроизводим, но имеет статус
-`NON_RELEASE_MEASUREMENT_CANDIDATE`: диагностические запуски разрешены,
-публикация и признание authoritative — нет. Он собран из пяти контролей и
-пересборка на восьми ещё не выполнена.
+Отдельный product/corpus CHECK собран из всех восьми текущих sysctl-controls
+и проверен на Ubuntu 24.04.4 VM. Он имеет статус
+`NON_RELEASE_DIAGNOSTIC_CANDIDATE`, явно не использует identity Step 7B.0
+Build Contract / Phase B/C и не является authoritative или release. Снимки
+восьми sysctl до и после прогонов совпали, поэтому read-only свойство
+диагностического CHECK подтверждено фактическим запуском.
 
 Реальный disposition ledger пуст: `DISPOSITION-LEDGER.tsv` содержит только
 заголовок. Альтернативный путь закрытия строки (явный disposition вместо
@@ -129,8 +131,13 @@ python3 checker/gates-v3/checker.py \
 
 Схема знает восемь видов параметров — `sysctl`, `file-kv`, `file-mode-owner`,
 `mount-option`, `systemd-unit-state`, `package-presence`, `pam-line`,
-`audit-rule`. Runner реализован только для `sysctl`; остальные требуют
-отдельного проектирования probe и не маскируются под неподходящие типы.
+`audit-rule`. Для `file-mode-owner` реализована relation-семантика:
+`key=mode` разрешает `op=eq|bits-clear`; `bits-clear` принимает только
+ненулевую четырёхзначную octal-маску, а для `owner`, `group`, `owner_group`
+остаётся только `op=eq`. Runtime, сгенерированная Draft 2020-12 schema,
+минимальный schema-emulator и реальный `Draft202012Validator` дают одинаковые
+verdict на positive/negative fixtures. CHECK-adapter пока реализован только
+для `sysctl`; наличие schema-семантики не выдаётся за готовый file probe.
 
 ---
 
@@ -230,10 +237,14 @@ checker/gates-v3/SHA256SUMS
 ## Что не сделано
 
 - 341 строка корпуса остаётся `OPEN`;
-- реализован единственный тип адаптера — `sysctl`; проверки прав файлов и
-  содержимого конфигураций требуют новых адаптеров;
-- CHECK-скрипт не пересобран на восьми контролях;
-- Phase C не закрыта, authoritative builder не признан, публикации не было;
+- `file-mode-owner / bits-clear` уже реализован в closed schema/runtime, но
+  read-only CHECK-adapter для file permissions ещё не создан;
+- `SRC-0005 / 2.3.1` остаётся `OPEN`: canonical controls и
+  `exact-control-set` closure ещё не созданы;
+- raw CHECK-8 evidence сохранено отдельно, но формальный текущий
+  `Gate 5 --probe-results` для восьми controls ещё не создан;
+- Phase C Step 7B.0 не закрыта, authoritative builder не признан,
+  публикации не было;
 - APPLY и RESTORE не реализуются и не проектируются на этом этапе;
 - поддержан один `unit_kind` из тринадцати; остальные вводятся по одному со
   своим эталоном.
