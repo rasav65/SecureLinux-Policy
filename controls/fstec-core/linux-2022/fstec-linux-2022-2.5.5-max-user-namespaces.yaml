@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0028"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.5.5"
+  quote: "2.5.5. Ограничить использование user namespaces путём установки значения sysctl-опции user.max_user_namespaces=0. Если система на базе Linux не использует user namespaces для выполнения своей задачи, то данная настройка никак не повлияет на работу системы. Рекомендуется предварительно проверить реализацию данной рекомендации на тестовой системе."
+  quote_sha256: "77edbfb78e01426b6c40ccedca310ff6091870e235d4225ac488f4cd5d8c090c"
+  norm: "norm-v1"
+requirement:
+  stated: "2.5.5. Ограничить использование user namespaces путём установки значения sysctl-опции user.max_user_namespaces=0. Если система на базе Linux не использует user namespaces для выполнения своей задачи, то данная настройка никак не повлияет на работу системы. Рекомендуется предварительно проверить реализацию данной рекомендации на тестовой системе."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sysctl"
+  locator: "sysctl"
+  key: "user.max_user_namespaces"
+expected:
+  op: "eq"
+  value: 0
+  type: "integer"
+apply:
+  supported: false

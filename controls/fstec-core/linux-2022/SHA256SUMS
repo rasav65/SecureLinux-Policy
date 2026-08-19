@@ -1,7 +1,10 @@
-7be3247b957d575f5dee8abd851dc8a6138640fc0e25a58492f43e571887dc65  CONTROL-MANIFEST.tsv
+e85e1a6fe21e08cf8d505f495578506681abb2ea3fbf106dc323fb9e639d8f12  CONTROL-MANIFEST.tsv
 396ebb7f32bfa9a947696bc785f996f015c01825c2e001951abc19a814e01f5a  README.md
 51f99ed4b7c67eb30558176685885337c27a4d8c2047a8e667059dd2bbff07d9  fstec-linux-2022-2.4.1-dmesg-restrict.yaml
 ba25c49b237cf91b74afcda02e15fd872e81c08973abd9719a8f4c465513aa9a  fstec-linux-2022-2.4.2-kptr-restrict.yaml
 cfe64060a4d9829351c2c6f19c6f41b0e0697bd8be5b503a90ffe27a5f4c52ee  fstec-linux-2022-2.4.8-bpf-jit-harden.yaml
 b0eb7068712e20660c0d84871c271c6f3fdc542132cca1cf529910dcf7f85c0a  fstec-linux-2022-2.5.2-perf-event-paranoid.yaml
 6006fdfb164b8a8860b8f4ae6d4e2758799f25ed32d53e185916da0ef0b7ed01  fstec-linux-2022-2.5.4-kexec-load-disabled.yaml
+b13b0e0b47c820d396a9a4a8d044ffdfc4eb779c5def2347c072cbc9e3900f32  fstec-linux-2022-2.5.5-max-user-namespaces.yaml
+44423cf2e57eabddd637a973430a6633282f8eba658430a1290bfa610efe5b67  fstec-linux-2022-2.5.6-unprivileged-bpf-disabled.yaml
+2bc9bb0cb5372fb5738612ff3738526cad9adb831b0043cc5924f36d23e7ca37  fstec-linux-2022-2.6.1-ptrace-scope.yaml

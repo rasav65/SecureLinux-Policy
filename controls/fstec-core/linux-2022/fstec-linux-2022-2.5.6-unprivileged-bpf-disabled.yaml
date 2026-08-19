@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0029"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.5.6"
+  quote: "2.5.6. Запретить системный вызов bpf для непривилегированных пользователей путём установки значения sysctl-опции kernel.unprivileged_bpf_disabled=1. Если непривилегированные процессы в системе на базе Linux не используют BPF для выполнения своей задачи, данная настройка никак не повлияет на работу системы. Рекомендуется предварительно проверить реализацию данной рекомендации на тестовой системе."
+  quote_sha256: "1c320abae9872972364ef95685204f4968a2c84bc27ee9c2707907eac8c5823e"
+  norm: "norm-v1"
+requirement:
+  stated: "2.5.6. Запретить системный вызов bpf для непривилегированных пользователей путём установки значения sysctl-опции kernel.unprivileged_bpf_disabled=1. Если непривилегированные процессы в системе на базе Linux не используют BPF для выполнения своей задачи, данная настройка никак не повлияет на работу системы. Рекомендуется предварительно проверить реализацию данной рекомендации на тестовой системе."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sysctl"
+  locator: "sysctl"
+  key: "kernel.unprivileged_bpf_disabled"
+expected:
+  op: "eq"
+  value: 1
+  type: "integer"
+apply:
+  supported: false

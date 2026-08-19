@@ -4,3 +4,6 @@ SRC-0017	atomic-single	FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT	Full-clause review: 
 SRC-0023	atomic-single	FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN	Full-clause review: one independently observable sysctl parameter.
 SRC-0025	atomic-single	FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID	Full-clause review: one independently observable sysctl parameter.
 SRC-0027	atomic-single	FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED	Full-clause review: one independently observable sysctl parameter.
+SRC-0028	atomic-single	FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES	Full-clause review: one independently observable sysctl parameter; remaining sentences are advisory compatibility notes, not separate requirements.
+SRC-0029	atomic-single	FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED	Full-clause review: one independently observable sysctl parameter; remaining sentences are advisory compatibility notes, not separate requirements.
+SRC-0035	atomic-single	FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE	Full-clause review: one independently observable sysctl parameter.

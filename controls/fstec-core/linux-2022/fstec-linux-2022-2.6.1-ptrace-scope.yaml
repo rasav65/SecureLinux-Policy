@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0035"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.6.1"
+  quote: "2.6.1. Запретить подключение к другим процессам с помощью ptrace путём установки значения sysctl-опции kernel.yama.ptrace_scope=3."
+  quote_sha256: "7be4210587e64fe1864bfbf1b5e8f7cc3512434629eb17898ad487d50a9ae246"
+  norm: "norm-v1"
+requirement:
+  stated: "2.6.1. Запретить подключение к другим процессам с помощью ptrace путём установки значения sysctl-опции kernel.yama.ptrace_scope=3."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sysctl"
+  locator: "sysctl"
+  key: "kernel.yama.ptrace_scope"
+expected:
+  op: "eq"
+  value: 3
+  type: "integer"
+apply:
+  supported: false

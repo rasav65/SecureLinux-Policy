@@ -4,3 +4,6 @@ FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT	SRC-0017	2.4.2	kernel.kptr_restrict	2	fstec
 FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN	SRC-0023	2.4.8	net.core.bpf_jit_harden	2	fstec-linux-2022-2.4.8-bpf-jit-harden.yaml	cfe64060a4d9829351c2c6f19c6f41b0e0697bd8be5b503a90ffe27a5f4c52ee
 FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID	SRC-0025	2.5.2	kernel.perf_event_paranoid	3	fstec-linux-2022-2.5.2-perf-event-paranoid.yaml	b0eb7068712e20660c0d84871c271c6f3fdc542132cca1cf529910dcf7f85c0a
 FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED	SRC-0027	2.5.4	kernel.kexec_load_disabled	1	fstec-linux-2022-2.5.4-kexec-load-disabled.yaml	6006fdfb164b8a8860b8f4ae6d4e2758799f25ed32d53e185916da0ef0b7ed01
+FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES	SRC-0028	2.5.5	user.max_user_namespaces	0	fstec-linux-2022-2.5.5-max-user-namespaces.yaml	b13b0e0b47c820d396a9a4a8d044ffdfc4eb779c5def2347c072cbc9e3900f32
+FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED	SRC-0029	2.5.6	kernel.unprivileged_bpf_disabled	1	fstec-linux-2022-2.5.6-unprivileged-bpf-disabled.yaml	44423cf2e57eabddd637a973430a6633282f8eba658430a1290bfa610efe5b67
+FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE	SRC-0035	2.6.1	kernel.yama.ptrace_scope	3	fstec-linux-2022-2.6.1-ptrace-scope.yaml	2bc9bb0cb5372fb5738612ff3738526cad9adb831b0043cc5924f36d23e7ca37
