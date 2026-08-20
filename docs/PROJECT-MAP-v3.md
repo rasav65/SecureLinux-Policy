@@ -11,7 +11,7 @@
 > не закрывает source-index rows.
 
 <!-- BEGIN GENERATED MAP STATUS -->
-`source rows=349 · controlled CLOSED=9 · OPEN=340 · canonical controls=11 · adapters=2 · target=ubuntu-24.04-x86_64`
+`source rows=349 · controlled CLOSED=15 · OPEN=334 · canonical controls=17 · adapters=2 · target=ubuntu-24.04-x86_64`
 
 Точные таблицы покрытия: [`docs/fstec-coverage.md`](fstec-coverage.md).
 <!-- END GENERATED MAP STATUS -->
@@ -301,13 +301,14 @@ flowchart LR
     P3["DOCUMENTATION BASELINE<br/>machine-parity docs<br/>DONE"]:::closed
     P4["SRC-0005 / 2.3.1<br/>3 canonical file-mode controls<br/>DONE"]:::closed
     P5["CHECK-11<br/>regenerate + read-only run<br/>DONE"]:::closed
-    P6["МЫ ЗДЕСЬ<br/>systematic FSTEC expansion<br/>remaining OPEN rows"]:::current
-    P7["APPLY semantic contract<br/>NOT IMPLEMENTED"]:::future
-    P8["APPLY implementation<br/>future"]:::future
-    P9["RESTORE contract + implementation<br/>future"]:::future
-    P10["final distributable artifact<br/>future"]:::future
+    P6["sysctl exact-eq batch<br/>SRC-0030,0031,0036–0039 + CHECK-17<br/>DONE"]:::closed
+    P7["МЫ ЗДЕСЬ<br/>systematic FSTEC expansion<br/>remaining OPEN rows"]:::current
+    P8["APPLY semantic contract<br/>NOT IMPLEMENTED"]:::future
+    P9["APPLY implementation<br/>future"]:::future
+    P10["RESTORE contract + implementation<br/>future"]:::future
+    P11["final distributable artifact<br/>future"]:::future
 
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10 --> P11
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
     classDef current fill:#ffe2a8,stroke:#c77800,color:#111,stroke-width:4px;
@@ -315,8 +316,10 @@ flowchart LR
 ```
 
 `docs/ROADMAP-v3.tsv` по-прежнему хранит более крупный macro-roadmap: Step 7B
-остаётся общим этапом FSTEC expansion. Текущий product checkpoint внутри него — систематическое представление оставшихся
-`OPEN` source rows после закрытия `SRC-0005 / 2.3.1` и CHECK-11. Read-only `product-sysctl-check-v1`,
+остаётся общим этапом FSTEC expansion. Текущий product checkpoint внутри него —
+систематическое представление оставшихся `OPEN` source rows после закрытия
+`SRC-0005 / 2.3.1`, CHECK-11 и exact-eq sysctl batch `SRC-0030`, `SRC-0031`,
+`SRC-0036`–`SRC-0039` с CHECK-17. Read-only `product-sysctl-check-v1`,
 `product-file-mode-owner-check-v1`, `product/generate-product-check-v1.py` и
 generated CHECK уже реализованы и не относятся к будущему APPLY/RESTORE
 implementation track.

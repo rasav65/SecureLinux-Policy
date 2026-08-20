@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0037"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.6.3"
+  quote: "2.6.3. Ограничить небезопасные варианты работы с жесткими ссылками (hardlinks) путём установки значения sysctl-опции fs.protected_hardlinks=1. Данная настройка не влияет на нормальную функциональность userspace и блокирует только вредоносное поведение."
+  quote_sha256: "315736677a4e3192cde79d4badbf20809da81c8605785c8720fcd0fc3260fe97"
+  norm: "norm-v1"
+requirement:
+  stated: "2.6.3. Ограничить небезопасные варианты работы с жесткими ссылками (hardlinks) путём установки значения sysctl-опции fs.protected_hardlinks=1. Данная настройка не влияет на нормальную функциональность userspace и блокирует только вредоносное поведение."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sysctl"
+  locator: "sysctl"
+  key: "fs.protected_hardlinks"
+expected:
+  op: "eq"
+  value: 1
+  type: "integer"
+apply:
+  supported: false

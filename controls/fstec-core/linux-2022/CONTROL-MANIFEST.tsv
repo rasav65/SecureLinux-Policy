@@ -9,4 +9,10 @@ FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID	SRC-0025	2.5.2	kernel.perf_event_para
 FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED	SRC-0027	2.5.4	kernel.kexec_load_disabled	1	fstec-linux-2022-2.5.4-kexec-load-disabled.yaml	6006fdfb164b8a8860b8f4ae6d4e2758799f25ed32d53e185916da0ef0b7ed01
 FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES	SRC-0028	2.5.5	user.max_user_namespaces	0	fstec-linux-2022-2.5.5-max-user-namespaces.yaml	b13b0e0b47c820d396a9a4a8d044ffdfc4eb779c5def2347c072cbc9e3900f32
 FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED	SRC-0029	2.5.6	kernel.unprivileged_bpf_disabled	1	fstec-linux-2022-2.5.6-unprivileged-bpf-disabled.yaml	44423cf2e57eabddd637a973430a6633282f8eba658430a1290bfa610efe5b67
+FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD	SRC-0030	2.5.7	vm.unprivileged_userfaultfd	0	fstec-linux-2022-2.5.7-unprivileged-userfaultfd.yaml	3a5a2c1c560d688eeea441f4455297a86983c599745acf8963507f91b72c86f4
+FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD	SRC-0031	2.5.8	dev.tty.ldisc_autoload	0	fstec-linux-2022-2.5.8-ldisc-autoload.yaml	d6e4d8f63a5235ff32f3cb429c91caa7b7ff7864ba8ab90f8fd350362e8d3a69
 FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE	SRC-0035	2.6.1	kernel.yama.ptrace_scope	3	fstec-linux-2022-2.6.1-ptrace-scope.yaml	2bc9bb0cb5372fb5738612ff3738526cad9adb831b0043cc5924f36d23e7ca37
+FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS	SRC-0036	2.6.2	fs.protected_symlinks	1	fstec-linux-2022-2.6.2-protected-symlinks.yaml	b709581e94eb65e5a059d70ff4ec7aac7d248e6b664ffb42c502e23c88e2bbe8
+FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS	SRC-0037	2.6.3	fs.protected_hardlinks	1	fstec-linux-2022-2.6.3-protected-hardlinks.yaml	fc1fd0f1141cb6d78b5d322e6a04b2649f0264a5e8c4784c64116bed55d70ffa
+FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS	SRC-0038	2.6.4	fs.protected_fifos	2	fstec-linux-2022-2.6.4-protected-fifos.yaml	af3b312efb3d252c1752a9ee70da6248e2a8e86f2e29479388206afbfbcd453d
+FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR	SRC-0039	2.6.5	fs.protected_regular	2	fstec-linux-2022-2.6.5-protected-regular.yaml	677905dff8f0fa0db1c82008b7b3acc0456dd61c46db0008390ab99f89ef9d92

@@ -12,9 +12,9 @@ Step 5. Нельзя начинать более поздний этап, пок
 6. Gate паритета регенерации `source:`
 7. Расширение FSTEC + corporate index / dispositions
 8. Семантический контракт apply/restore
-9. Implementation adapters
-10. Детерминированная сборка
-11. Единый распространяемый `securelinux-ng.sh`
+9. APPLY/RESTORE implementation adapters
+10. Детерминированная финальная упаковка
+11. Единый распространяемый артефакт (имя не закреплено)
 
 Неизменяемые правила:
 
@@ -52,8 +52,9 @@ Step 7A `CLOSED`, а текущий разрешённый подэтап — St
 tracked deterministic CHECK generator ещё не реализованы: current product-line
 уже содержит оба adapters, `ADAPTER-REGISTRY.tsv`, generator и CHECK-8.
 Roadmap steps 8–11 относятся к будущему APPLY/RESTORE и финальной упаковке, а
-не к уже существующей CHECK product-line. `SRC-0005 / 2.3.1` закрыт
-`exact-control-set`, CHECK-11 выполнен; текущий product checkpoint внутри Step 7B —
+не к уже существующей CHECK product-line. `SRC-0005 / 2.3.1` и CHECK-11
+закрыты; затем закрыт exact-eq sysctl batch `SRC-0030`, `SRC-0031`,
+`SRC-0036`–`SRC-0039`. Текущий product checkpoint внутри Step 7B —
 систематическое представление оставшихся `OPEN` source rows.
 
 ## Правило сохранения инженерного донора

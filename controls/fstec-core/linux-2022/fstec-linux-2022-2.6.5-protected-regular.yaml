@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0039"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.6.5"
+  quote: "2.6.5. Включить защиту от непреднамеренной записи в файл путём установки значения sysctl-опции fs.protected_regular=2. Данная настройка не влияет на нормальную функциональность userspace и блокирует только вредоносное поведение."
+  quote_sha256: "0f1eea51ec98d254f230a48dfc4950cb060e11460e1f30be68fde3fb9439cb14"
+  norm: "norm-v1"
+requirement:
+  stated: "2.6.5. Включить защиту от непреднамеренной записи в файл путём установки значения sysctl-опции fs.protected_regular=2. Данная настройка не влияет на нормальную функциональность userspace и блокирует только вредоносное поведение."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sysctl"
+  locator: "sysctl"
+  key: "fs.protected_regular"
+expected:
+  op: "eq"
+  value: 2
+  type: "integer"
+apply:
+  supported: false

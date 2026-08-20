@@ -11,12 +11,12 @@
 <!-- BEGIN GENERATED CURRENT STATUS -->
 ```text
 TOTAL_INDEX_ROWS=349
-CONTROLLED_CLOSED_WITH_CONTRACT=9
+CONTROLLED_CLOSED_WITH_CONTRACT=15
 DISPOSED_CLOSED_ROWS=0
-OPEN_INDEX_ROWS=340
-CLOSURE_RATIO=9/349
-CANONICAL_CONTROLS=11
-CLOSURE_CONTRACT_ROWS=9
+OPEN_INDEX_ROWS=334
+CLOSURE_RATIO=15/349
+CANONICAL_CONTROLS=17
+CLOSURE_CONTRACT_ROWS=15
 ADAPTER_KINDS=2
 CHECK_TARGET=ubuntu-24.04-x86_64
 CHECK_STATUS=NON_RELEASE_PRODUCT_CANDIDATE
@@ -328,7 +328,8 @@ source-index row.
 - historical Step 7B.0 не является current product authority;
 - engineering donor не является нормативным доказательством.
 
-CHECK-11 строится по 11 canonical controls. После него текущий product-step —
+Generated CHECK всегда строится из текущей `CONTROL-MANIFEST.tsv`; точная
+population показана в machine-generated статусе выше. Текущий product-step —
 систематическое расширение оставшихся `OPEN` строк FSTEC core. Семантика
 `chmod go-rwx /etc/shadow` представлена как `mode bits-clear 0077` и не усилена
 до выдуманного `0600`.

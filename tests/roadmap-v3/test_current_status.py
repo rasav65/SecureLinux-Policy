@@ -69,6 +69,13 @@ assert not src0005_rows[0]["disposition"]
 src0005_controls = [row for row in controls if row["index_id"] == "SRC-0005"]
 assert len(src0005_controls) == 3
 
+by_index = {row["index_id"]: row for row in index_rows}
+for index_id in ("SRC-0030", "SRC-0031", "SRC-0036", "SRC-0037", "SRC-0038", "SRC-0039"):
+    assert by_index[index_id]["status"] == "CLOSED", index_id
+    assert not by_index[index_id]["disposition"], index_id
+for index_id in ("SRC-0033", "SRC-0034", "SRC-0040"):
+    assert by_index[index_id]["status"] == "OPEN", index_id
+
 adapter_kinds = {row["parameter_kind"] for row in adapters}
 assert {"sysctl", "file-mode-owner"} <= adapter_kinds
 assert (ROOT / "product/generate-product-check-v1.py").is_file()
@@ -80,6 +87,8 @@ assert current.count(":::current") == 1
 assert "SRC-0005 / 2.3.1" in current
 assert "3 canonical file-mode controls" in current
 assert "CHECK-11" in current
+assert "sysctl exact-eq batch" in current
+assert "CHECK-17" in current
 assert "systematic FSTEC expansion" in current
 assert "МЫ ЗДЕСЬ<br/>systematic FSTEC expansion" in current
 assert "МЫ ЗДЕСЬ<br/>Step 7B" not in current

@@ -12,7 +12,7 @@
 
 ### Текущее незавершённое состояние
 
-- После закрытия `SRC-0005 / 2.3.1` остаются `340` `OPEN` source rows; текущий
+- После exact-eq sysctl batch остаются `334` `OPEN` source rows; текущий
   product checkpoint — систематическое FSTEC expansion по machine source truth.
 - Formal `Gate 5 --probe-results` для current product population остаётся
   отдельным контрактным артефактом.
@@ -35,6 +35,51 @@
   `observer-fitness-v1`) не входят в current Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
 
+## [0.0.16] — 2026-08-20
+
+### Added — sysctl exact-eq expansion batch / CHECK-17
+
+- Шесть source rows представлены существующим read-only `sysctl eq` adapter без
+  расширения semantic contract:
+  - `SRC-0030 / 2.5.7` → `vm.unprivileged_userfaultfd = 0`;
+  - `SRC-0031 / 2.5.8` → `dev.tty.ldisc_autoload = 0`;
+  - `SRC-0036 / 2.6.2` → `fs.protected_symlinks = 1`;
+  - `SRC-0037 / 2.6.3` → `fs.protected_hardlinks = 1`;
+  - `SRC-0038 / 2.6.4` → `fs.protected_fifos = 2`;
+  - `SRC-0039 / 2.6.5` → `fs.protected_regular = 2`.
+- `SRC-0034 / 2.5.11` намеренно оставлен `OPEN`: фраза `после тестирования`
+  задаёт процедурное условие, которое один read-only runtime-value control не
+  доказывает.
+- `SRC-0033 / 2.5.10` остаётся `OPEN`: source требует `4096 или больше`, поэтому
+  существующий `eq` adapter не подменяет отношение `>=` равенством.
+- `SRC-0040 / 2.6.6` остаётся `OPEN`: текущий source-skeleton захватывает
+  разделительную строку после последнего numbered-position; сначала требуется
+  исправить границу извлечения, а не закреплять page furniture как quote.
+
+### Changed
+
+- Corpus state: `349 / 15 controlled CLOSED / 334 OPEN`; canonical controls: `17`.
+- Generated README/map/coverage перестроены из machine truth.
+- PRIMARY map сохраняет текущую точку `systematic FSTEC expansion`, но отдельно
+  фиксирует завершённый exact-eq batch и CHECK-17 как уже пройденный checkpoint.
+- `docs/ROADMAP-v3.md` и TSV больше не закрепляют имя будущего артефакта
+  `securelinux-ng.sh`; будущие steps 9–11 явно относятся к APPLY/RESTORE и
+  финальной упаковке, а не к уже существующим CHECK adapters/generator.
+- Документы source-skeleton/source-parity больше не содержат быстро устаревающие
+  ручные значения corpus progress; current population определяется из manifests.
+
+### Tested
+
+- Gate 1/3/4 проходят на 17 controls; Gate 2 ожидаемо `FAIL` только из-за 334
+  оставшихся `OPEN`; formal Gate 5 без `--probe-results` остаётся fail-closed.
+- Source-block regeneration parity: `controls=17 supported=17 matched=17`.
+- Source skeleton pilot verification: `controls=17 mismatches=0`.
+- Product generator regression закрепляет exact semantics всех шести controls
+  этого batch и сохраняет запрет на mutating shell tokens.
+- CHECK-17 выполняется read-only; host-specific вывод сохраняется как derived
+  evidence и не создаёт formal Gate 5 `probe-results`.
+- Закрыто строк source index этим шагом: **6**.
+
 ## [0.0.15] — 2026-08-20
 
 ### Fixed — TEST SHA256SUMS cache contamination errata
@@ -48,13 +93,6 @@
 - Product/corpus semantics не изменены: 11 canonical controls, 9 controlled
   CLOSED source rows, 340 OPEN; CHECK-11 evidence остаётся неизменным.
 - Закрыто строк source index: **0**.
-
-### Tested
-
-- Все tracked test-local `SHA256SUMS` проверяются на tracked regular targets
-  и совпадение SHA-256.
-- Root manifests сохраняют population `736/737`; изменение касается только
-  целостности test-local manifests и её regression.
 
 ## [0.0.14] — 2026-08-20
 

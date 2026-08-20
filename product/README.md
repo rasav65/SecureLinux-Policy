@@ -47,8 +47,11 @@ failure; `NOT_FOUND`/`ERROR` делают итог `UNEVALUATED`.
 существующий read-only `product-file-mode-owner-check-v1`; APPLY/RESTORE по-прежнему
 не реализованы.
 
-После CHECK-11 текущий product track переходит к систематическому представлению
-оставшихся `OPEN` source rows. Formal `Gate 5 --probe-results` остаётся отдельным
-контрактным артефактом и не подменяется выводом generated CHECK.
+После CHECK-11 product track перешёл к систематическому представлению
+оставшихся `OPEN` source rows. Текущий exact-eq batch дополнительно использует
+существующий `product-sysctl-check-v1` для `SRC-0030`, `SRC-0031`,
+`SRC-0036`–`SRC-0039`; новый adapter не создаётся. Exact current population
+всегда берётся из `CONTROL-MANIFEST.tsv`. Formal `Gate 5 --probe-results`
+остаётся отдельным контрактным артефактом и не подменяется выводом generated CHECK.
 
 Тесты: `tests/product-v1/`.

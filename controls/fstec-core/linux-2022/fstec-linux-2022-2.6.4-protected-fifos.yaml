@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0038"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.6.4"
+  quote: "2.6.4. Включить защиту от непреднамеренной записи в FIFO-объект путём установки значения sysctl-опции fs.protected_fifos=2. Данная настройка не влияет на нормальную функциональность userspace и блокирует только вредоносное поведение."
+  quote_sha256: "016aaaf884c10febb3e99a86acfcbe63eae04f05f5fcf35a00c59f03fb30a31b"
+  norm: "norm-v1"
+requirement:
+  stated: "2.6.4. Включить защиту от непреднамеренной записи в FIFO-объект путём установки значения sysctl-опции fs.protected_fifos=2. Данная настройка не влияет на нормальную функциональность userspace и блокирует только вредоносное поведение."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sysctl"
+  locator: "sysctl"
+  key: "fs.protected_fifos"
+expected:
+  op: "eq"
+  value: 2
+  type: "integer"
+apply:
+  supported: false

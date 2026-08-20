@@ -102,6 +102,8 @@ current_map = pmap.split("## 6. Где мы находимся", 1)[1].split(
 assert current_map.count(":::current") == 1
 assert "SRC-0005 / 2.3.1" in current_map
 assert "CHECK-11" in current_map
+assert "sysctl exact-eq batch" in current_map
+assert "CHECK-17" in current_map
 assert "МЫ ЗДЕСЬ<br/>systematic FSTEC expansion" in current_map
 for stale in (
     "МЫ ЗДЕСЬ<br/>Step 7B",

@@ -60,6 +60,28 @@ class GeneratorModel(unittest.TestCase):
                 ("/etc/shadow", "mode", "bits-clear", "0077"),
             },
         )
+        exact_eq_batch = {
+            c["index_id"]: (
+                c["parameter_locator"],
+                c["parameter_key"],
+                c["expected_op"],
+                c["expected_value"],
+            )
+            for c in controls
+            if c["index_id"] in {"SRC-0030", "SRC-0031", "SRC-0036", "SRC-0037", "SRC-0038", "SRC-0039"}
+        }
+        self.assertEqual(
+            exact_eq_batch,
+            {
+                "SRC-0030": ("sysctl", "vm.unprivileged_userfaultfd", "eq", 0),
+                "SRC-0031": ("sysctl", "dev.tty.ldisc_autoload", "eq", 0),
+                "SRC-0036": ("sysctl", "fs.protected_symlinks", "eq", 1),
+                "SRC-0037": ("sysctl", "fs.protected_hardlinks", "eq", 1),
+                "SRC-0038": ("sysctl", "fs.protected_fifos", "eq", 2),
+                "SRC-0039": ("sysctl", "fs.protected_regular", "eq", 2),
+            },
+        )
+        self.assertFalse(any(c["index_id"] == "SRC-0034" for c in controls))
         self.assertEqual(
             manifest_sha,
             sha256_file(ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"),

@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0036"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.6.2"
+  quote: "2.6.2. Ограничить небезопасные варианты прохода по символическим ссылкам (symlinks) путём установки значения sysctl-опции fs.protected_symlinks=1. Данная настройка не влияет на нормальную функциональность userspace и блокирует только вредоносное поведение."
+  quote_sha256: "ce09b5104160f3fe27f17f1d5e57a5fe81001adac3c362ed652552ccbc59571f"
+  norm: "norm-v1"
+requirement:
+  stated: "2.6.2. Ограничить небезопасные варианты прохода по символическим ссылкам (symlinks) путём установки значения sysctl-опции fs.protected_symlinks=1. Данная настройка не влияет на нормальную функциональность userspace и блокирует только вредоносное поведение."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sysctl"
+  locator: "sysctl"
+  key: "fs.protected_symlinks"
+expected:
+  op: "eq"
+  value: 1
+  type: "integer"
+apply:
+  supported: false

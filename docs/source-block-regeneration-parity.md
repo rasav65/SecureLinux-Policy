@@ -26,14 +26,14 @@ Parity-checker:
 
 ## Доказательства текущего закрытия
 
-Текущих controls: 11.
+Текущая control population читается непосредственно из
+`controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv`; checker не содержит
+ручного числа controls. На checkpoint этого batch результат:
 
-Текущий результат:
+`controls=17 supported=17 matched=17 unsupported=0 missing_index=0 mismatches=0 errors=0`
 
-`controls=11 supported=11 matched=11 unsupported=0 missing_index=0 mismatches=0 errors=0`
-
-Следовательно, для всех 11 current controls механически обеспечен паритет
-регенерации.
+Следовательно, для всей current manifest population механически обеспечен
+паритет регенерации.
 
 Сам генератор `source:` пока поддерживает один из тринадцати текущих
 `unit_kind` — `numbered-position`. Если закоммиченный control ссылается на
@@ -51,8 +51,7 @@ control никогда не пропускается молча.
 
 ## Граница ответственности
 
-Этот этап не создаёт controls, не изменяет source corpora, не меняет Gate 1–6
-и не закрывает строки source index. Прогресс FSTEC остаётся:
-349 всего / 8 controlled `CLOSED` / 341 `OPEN`.
-
-Следующий этап roadmap — расширение FSTEC + corporate index / dispositions.
+Сам parity-checker не создаёт controls, не изменяет source corpora, не меняет
+Gate 1–6 и не закрывает строки source index. Актуальный corpus progress не
+дублируется вручную в этом документе: его machine truth —
+`index/source-v4/PROGRESS.txt` и generated `docs/fstec-coverage.md`.
