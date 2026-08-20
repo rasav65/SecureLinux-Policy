@@ -12,11 +12,13 @@
 
 ### Текущее незавершённое состояние
 
-- `SRC-0005 / 2.3.1` остаётся `OPEN`: schema/runtime, отдельный product
-  semantic contract и read-only `file-mode-owner` adapter уже существуют и
-  проверены, но три canonical controls и `exact-control-set` closure ещё не
-  созданы.
-- Следующий элемент product-line ещё отсутствует: tracked generator.
+- `SRC-0005 / 2.3.1` остаётся `OPEN`: schema/runtime, product semantic
+  contract и read-only `file-mode-owner` adapter уже существуют и проверены,
+  но три canonical controls и `exact-control-set` closure ещё не созданы.
+- Следующий product-line gate: добавить три canonical controls `SRC-0005`,
+  получить CHECK-11 и только после полного closure перевести `SRC-0005`
+  из `OPEN`.
+- Formal `Gate 5 --probe-results` для текущего CHECK-8 ещё не создан.
 - Step 7B.0 остаётся незавершённым: Phase C, item 19
   (host-state hermeticity) — `REVISE`; authoritative builder не признан,
   публикация не выполнялась.
@@ -31,17 +33,43 @@
   `kernel.unprivileged_bpf_disabled=2` при expected `1` и
   `kernel.perf_event_paranoid=4` при expected `3`. Текущие controls задним
   числом не меняются.
-- Внешний диагностический `securelinux-product-check-generator-v1` не является
-  tracked-файлом репозитория. Вместе с historical Phase-A serializer он
-  фактически создаёт вторую линию производства CHECK. До реализации
-  постоянной product-line нужно выбрать один tracked product generator и
-  определить точку схождения, чтобы не поддерживать одинаковые исправления
-  дважды.
 - Устаревшее примечание `Gate-1 quote blocked ...` осталось в строках индекса,
   для которых восстановленный текстовый источник уже указан.
 - Две исторические фикстуры наблюдателя (`observer-adversarial-fitness-v2`,
   `observer-fitness-v1`) не входят в текущий Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
+
+## [0.0.11] — 2026-08-20
+
+### Добавлено — product-line Step 3
+
+- Создан tracked deterministic generator
+  `product/generate-product-check-v1.py`.
+- Generator читает `CONTROL-MANIFEST.tsv` и единственный
+  `product/ADAPTER-REGISTRY.tsv`, проверяет SHA semantic contract, binding и
+  implementation и fail-closed выбирает adapter по `parameter.kind`.
+- `dist/` добавлен в `.gitignore`: generated CHECK является derived output и
+  не входит в tracked tree/root manifests.
+- Добавлен `tests/product-v1/test_product_generator.py`.
+
+### Проверено — CHECK-8 regression
+
+- `product-v1`: 40 тестов, итог `OK`.
+- Generator SHA-256: `cc75c216e685c792e5dd14a1b056e9f8f6602f772bc8622f04be95bc88d501d3`.
+- Adapter registry SHA-256: `e1fabfad1cd66770783b4096f7cdaebe562b5861e43d71e9f9bc55df0dcbbc2f`.
+- Generated CHECK SHA-256: `cc58acae18a79b92c7d4b234dc0505bb065a42209392d7c7541e21ea328511d5`.
+- Deterministic rebuild дал те же bytes; sidecar SHA совпал; `bash -n`,
+  `--help`, `--build-info`, `--provenance` для восьми controls и usage-RC
+  прошли.
+- Реальный read-only запуск на target-хосте: `SLP-SUMMARY-V1	TOTAL=8	PASS=2	FAIL=5	NOT_FOUND=0	ERROR=1	POLICY_STATUS=UNEVALUATED`, RC=1.
+  Policy result описывает состояние хоста и не является ошибкой generator.
+- Неструктурированный stderr отсутствовал; P-01 не воспроизвёлся.
+- Снимки наблюдаемых sysctl до/после совпали; CHECK host state не изменил.
+- Historical `step7b0/`, controls, source index и checker не изменялись.
+- Post-Step3 gates сохраняют ожидаемое состояние: `GATE0 PASS`,
+  `GATE1 PASS checked=8`, `GATE3 PASS`, `GATE4 PASS`; `GATE2 FAIL` из-за
+  341 `OPEN`, `GATE5 FAIL` из-за отсутствующего formal `probe-results`.
+- Закрыто строк source index: **0**.
 
 ## [0.0.10] — 2026-08-20
 

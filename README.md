@@ -144,32 +144,41 @@ verdict на positive/negative fixtures.
 `step7b0/phase-a/adapter/sysctl-check-adapter-v1.py` не изменён и current
 product authority не является. `product/ADAPTER-REGISTRY.tsv` — единственный
 tracked mapping `parameter_kind → adapter/contract/implementation → SHA-256`.
-Tracked product generator ещё не создан.
+Tracked generator `product/generate-product-check-v1.py` создан и использует
+этот registry для fail-closed dispatch. Generated CHECK является derived
+output в gitignored `dist/`, а не вторым tracked источником истины.
+
+Последний локальный CHECK-8 regression прошёл механически: `SLP-SUMMARY-V1	TOTAL=8	PASS=2	FAIL=5	NOT_FOUND=0	ERROR=1	POLICY_STATUS=UNEVALUATED`,
+RC=1. Это состояние проверяемого хоста, а не изменение нормативных
+ожиданий controls.
 
 ---
 
 ## Сборка CHECK-скрипта
 
-Tracked generator текущей product-line ещё не создан — это следующий шаг.
-Ниже описана historical assurance-line Step 7B.0; она не является текущим
-product generator.
+Текущий product CHECK собирается tracked generator
+`product/generate-product-check-v1.py` из `CONTROL-MANIFEST.tsv`,
+canonical YAML и единственного `product/ADAPTER-REGISTRY.tsv`. Registry
+пинует semantic contract, adapter binding и implementation по SHA-256.
+Generated artifact пишется в gitignored `dist/`; APPLY/RESTORE в нём нет.
 
-Скрипт не пишется руками. Historical builder собирает его из принятых входов,
-а порядок допуска builder'а описан в Build Contract
-(`step7b0/BUILD-CONTRACT-v0.9.5.md`).
-Модель этапов: Phase A — статические предусловия, Phase B — измерение
-зависимостей кандидата под наблюдателем, Phase C — динамические предусловия,
-Phase D — authoritative admission.
+CHECK-8 regression текущих восьми controls: `SLP-SUMMARY-V1	TOTAL=8	PASS=2	FAIL=5	NOT_FOUND=0	ERROR=1	POLICY_STATUS=UNEVALUATED`, RC=1;
+`bash -n`, build-info, provenance, deterministic rebuild, sidecar SHA,
+отсутствие неструктурированного stderr и неизменность наблюдаемых sysctl
+до/после проверки подтверждены.
 
-Текущий фактический статус: Phase A принята под v0.9.5; Phase C открыта,
-item 19 (host-state hermeticity) находится в состоянии REVISE; authoritative
-builder не признан, публикация не выполнялась.
+Ниже historical assurance-line Step 7B.0. Она сохранена отдельно и не является
+текущим product generator.
 
-Целевой артефакт — один файл на один `target_id`. Текущий target —
-`ubuntu-24.04-x86_64`. На неподдерживаемой платформе скрипт обязан завершиться
-с RC=3, не выполнив ни одной проверки.
+Historical builder собирает скрипт из принятых входов, а порядок его допуска
+описан в Build Contract (`step7b0/BUILD-CONTRACT-v0.9.5.md`). Phase A принята
+под v0.9.5; Phase C открыта, item 19 (host-state hermeticity) — `REVISE`;
+authoritative builder не признан, публикация не выполнялась.
 
-Коды возврата скрипта:
+Текущий target product CHECK — `ubuntu-24.04-x86_64`. На неподдерживаемой
+платформе скрипт завершает работу с RC=3 до проверок.
+
+Коды возврата product CHECK:
 
 | RC | Значение |
 |---:|---|
@@ -192,7 +201,8 @@ controls/   принятые записи контролей
 probes/     read-only наблюдение
 checker/    гейты
 tools/      генератор source-блоков, пересборка корневых манифестов
-product/    текущая product-line: semantic contracts и read-only adapters
+product/    product-line: contracts, adapter registry, adapters, tracked generator
+dist/       derived generated CHECK; gitignored, в root manifests не входит
 step7b0/    Build Contract и артефакты допуска builder'а
 tests/      позитивные и негативные фикстуры
 archive/    исторические материалы и инженерный донор
@@ -250,13 +260,14 @@ checker/gates-v3/SHA256SUMS
 ## Что не сделано
 
 - 341 строка корпуса остаётся `OPEN`;
-- semantic contracts и read-only product adapters для `file-mode-owner` и
-  `sysctl` созданы и проверены; единый `ADAPTER-REGISTRY.tsv` создан;
-  tracked generator ещё не создан;
+- semantic contracts, read-only adapters, единый `ADAPTER-REGISTRY.tsv` и
+  tracked generator созданы и проверены; текущий CHECK-8 regression PASS;
 - `SRC-0005 / 2.3.1` остаётся `OPEN`: три canonical controls и
-  `exact-control-set` closure ещё не созданы; Step 1 закрыл строк source index: **0**;
-- raw CHECK-8 evidence сохранено отдельно, но формальный текущий
-  `Gate 5 --probe-results` для восьми controls ещё не создан;
+  `exact-control-set` closure ещё не созданы; product-line Steps 1–3 закрыли
+  строк source index: **0**;
+- formal `Gate 5 --probe-results` для текущих восьми controls ещё не создан;
+  generated `dist/securelinux-policy-check.sh` является derived regression
+  artifact и не подменяет formal probe-results;
 - Phase C Step 7B.0 не закрыта, authoritative builder не признан,
   публикации не было;
 - APPLY и RESTORE не реализуются и не проектируются на этом этапе;

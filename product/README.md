@@ -22,7 +22,15 @@
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind
   на semantic contract, adapter binding и implementation вместе с SHA-256.
 
-Ещё не создан и создаётся отдельным шагом: tracked generator product CHECK.
+- `generate-product-check-v1.py` — tracked deterministic generator product CHECK.
+  Он читает `CONTROL-MANIFEST.tsv` и `ADAPTER-REGISTRY.tsv`, проверяет SHA
+  contract/binding/implementation и fail-closed выбирает adapter по
+  `parameter.kind`.
+- Generated CHECK является derived output и в Git не входит; для него
+  зарезервирован игнорируемый каталог `dist/`.
+
+Следующий отдельный gate после установки generator: CHECK-8 regression на
+восьми текущих canonical controls.
 
 Принцип классификации отсутствия: `NOT_FOUND` только при доказанном
 отсутствии имени в проходимом родительском каталоге. Всё, что нельзя
