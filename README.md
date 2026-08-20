@@ -136,8 +136,14 @@ python3 checker/gates-v3/checker.py \
 ненулевую четырёхзначную octal-маску, а для `owner`, `group`, `owner_group`
 остаётся только `op=eq`. Runtime, сгенерированная Draft 2020-12 schema,
 минимальный schema-emulator и реальный `Draft202012Validator` дают одинаковые
-verdict на positive/negative fixtures. CHECK-adapter пока реализован только
-для `sysctl`; наличие schema-семантики не выдаётся за готовый file probe.
+verdict на positive/negative fixtures.
+
+Текущая product-line уже содержит отдельный semantic contract
+`product/contracts/file-mode-owner-check-semantic-v1.json` и read-only adapter
+`product-file-mode-owner-check-v1`. Adapter реализует только `key=mode` с
+`op=eq|bits-clear`; `owner`, `group`, `owner_group` fail-closed отклоняются.
+Новый product sysctl adapter, `ADAPTER-REGISTRY.tsv` и tracked generator ещё
+не созданы. Historical `step7b0/phase-a` этим шагом не изменялся.
 
 ---
 
@@ -180,6 +186,7 @@ controls/   принятые записи контролей
 probes/     read-only наблюдение
 checker/    гейты
 tools/      генератор source-блоков, пересборка корневых манифестов
+product/    текущая product-line: semantic contracts и read-only adapters
 step7b0/    Build Contract и артефакты допуска builder'а
 tests/      позитивные и негативные фикстуры
 archive/    исторические материалы и инженерный донор
@@ -237,10 +244,11 @@ checker/gates-v3/SHA256SUMS
 ## Что не сделано
 
 - 341 строка корпуса остаётся `OPEN`;
-- `file-mode-owner / bits-clear` уже реализован в closed schema/runtime, но
-  read-only CHECK-adapter для file permissions ещё не создан;
-- `SRC-0005 / 2.3.1` остаётся `OPEN`: canonical controls и
-  `exact-control-set` closure ещё не созданы;
+- semantic contract и read-only product adapter для `file-mode-owner` созданы
+  и проверены, но product sysctl adapter, `ADAPTER-REGISTRY.tsv` и tracked
+  generator ещё не созданы;
+- `SRC-0005 / 2.3.1` остаётся `OPEN`: три canonical controls и
+  `exact-control-set` closure ещё не созданы; Step 1 закрыл строк source index: **0**;
 - raw CHECK-8 evidence сохранено отдельно, но формальный текущий
   `Gate 5 --probe-results` для восьми controls ещё не создан;
 - Phase C Step 7B.0 не закрыта, authoritative builder не признан,

@@ -12,9 +12,12 @@
 
 ### Текущее незавершённое состояние
 
-- `SRC-0005 / 2.3.1` остаётся `OPEN`: schema/runtime уже поддерживают
-  `file-mode-owner / bits-clear`, но read-only file-permission adapter,
-  три canonical controls и `exact-control-set` closure ещё не созданы.
+- `SRC-0005 / 2.3.1` остаётся `OPEN`: schema/runtime, отдельный product
+  semantic contract и read-only `file-mode-owner` adapter уже существуют и
+  проверены, но три canonical controls и `exact-control-set` closure ещё не
+  созданы.
+- Следующие элементы product-line ещё отсутствуют: product sysctl adapter,
+  `ADAPTER-REGISTRY.tsv` и tracked generator.
 - Step 7B.0 остаётся незавершённым: Phase C, item 19
   (host-state hermeticity) — `REVISE`; authoritative builder не признан,
   публикация не выполнялась.
@@ -44,6 +47,34 @@
 - Две исторические фикстуры наблюдателя (`observer-adversarial-fitness-v2`,
   `observer-fitness-v1`) не входят в текущий Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
+
+## [0.0.9] — 2026-08-20
+
+### Добавлено — product-line Step 1
+
+- Создан отдельный semantic contract
+  `product/contracts/file-mode-owner-check-semantic-v1.json`.
+- Создан отдельный read-only adapter
+  `product/adapters/product-file-mode-owner-check-v1.py` с собственной
+  identity `product-file-mode-owner-check-v1` и JSON binding.
+- Adapter поддерживает только `key=mode`, `op=eq|bits-clear`; поля
+  `owner`, `group`, `owner_group` fail-closed отклоняются.
+- Добавлены `tests/product-v1`: 19 тестов, итог `OK`, без пропусков.
+- Отдельная adversarial-проба механизма перед фиксацией контракта:
+  25/25 `PASS`, запуск от обычного пользователя, без mutation.
+- Добавлены каталожные `product/SHA256SUMS` и `tests/product-v1/SHA256SUMS`.
+
+### Проверено
+
+- Корневые манифесты после Step 1: `PROJECT_FILES_ENTRIES=714`,
+  `SHA256SUMS_ENTRIES=715`, `--check=PASS`.
+- Post-Step1 gates: `GATE0 PASS`, `GATE1 PASS checked=8`,
+  `GATE3 PASS`, `GATE4 PASS`; `GATE2 FAIL` ожидаемо из-за 341 `OPEN`,
+  `GATE5 FAIL` ожидаемо из-за отсутствующего formal `probe-results`.
+- Historical `step7b0/`, controls, source index и checker не изменялись.
+- Product sysctl adapter, `ADAPTER-REGISTRY.tsv`, tracked generator и
+  canonical controls `SRC-0005` этим шагом не создавались.
+- Закрыто строк source index: **0**.
 
 ## [0.0.8] — 2026-08-19
 
