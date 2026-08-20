@@ -138,19 +138,25 @@ python3 checker/gates-v3/checker.py \
 минимальный schema-emulator и реальный `Draft202012Validator` дают одинаковые
 verdict на positive/negative fixtures.
 
-Текущая product-line уже содержит отдельный semantic contract
-`product/contracts/file-mode-owner-check-semantic-v1.json` и read-only adapter
-`product-file-mode-owner-check-v1`. Adapter реализует только `key=mode` с
-`op=eq|bits-clear`; `owner`, `group`, `owner_group` fail-closed отклоняются.
-Новый product sysctl adapter, `ADAPTER-REGISTRY.tsv` и tracked generator ещё
-не созданы. Historical `step7b0/phase-a` этим шагом не изменялся.
+Текущая product-line содержит отдельные semantic contracts и read-only
+адаптеры для `file-mode-owner` и `sysctl`. Sysctl product adapter имеет
+собственную identity `product-sysctl-check-v1`; historical
+`step7b0/phase-a/adapter/sysctl-check-adapter-v1.py` не изменён и current
+product authority не является. `product/ADAPTER-REGISTRY.tsv` — единственный
+tracked mapping `parameter_kind → adapter/contract/implementation → SHA-256`.
+Tracked product generator ещё не создан.
 
 ---
 
 ## Сборка CHECK-скрипта
 
-Скрипт не пишется руками. Его собирает builder из принятых входов, а порядок
-допуска builder'а описан в Build Contract (`step7b0/BUILD-CONTRACT-v0.9.5.md`).
+Tracked generator текущей product-line ещё не создан — это следующий шаг.
+Ниже описана historical assurance-line Step 7B.0; она не является текущим
+product generator.
+
+Скрипт не пишется руками. Historical builder собирает его из принятых входов,
+а порядок допуска builder'а описан в Build Contract
+(`step7b0/BUILD-CONTRACT-v0.9.5.md`).
 Модель этапов: Phase A — статические предусловия, Phase B — измерение
 зависимостей кандидата под наблюдателем, Phase C — динамические предусловия,
 Phase D — authoritative admission.
@@ -244,9 +250,9 @@ checker/gates-v3/SHA256SUMS
 ## Что не сделано
 
 - 341 строка корпуса остаётся `OPEN`;
-- semantic contract и read-only product adapter для `file-mode-owner` созданы
-  и проверены, но product sysctl adapter, `ADAPTER-REGISTRY.tsv` и tracked
-  generator ещё не созданы;
+- semantic contracts и read-only product adapters для `file-mode-owner` и
+  `sysctl` созданы и проверены; единый `ADAPTER-REGISTRY.tsv` создан;
+  tracked generator ещё не создан;
 - `SRC-0005 / 2.3.1` остаётся `OPEN`: три canonical controls и
   `exact-control-set` closure ещё не созданы; Step 1 закрыл строк source index: **0**;
 - raw CHECK-8 evidence сохранено отдельно, но формальный текущий

@@ -15,3 +15,16 @@
 - целевой файл не изменяется.
 
 Два теста непроходимого родителя пропускаются, если тесты запущены от root.
+
+`test_sysctl_adapter.py` — механические тесты
+`product/adapters/product-sysctl-check-v1.py` и `product/ADAPTER-REGISTRY.tsv`:
+
+- отдельная product identity, historical `sysctl-check-v1` не изменяется;
+- только `parameter.kind=sysctl`, `locator=sysctl`, `op=eq`,
+  `expected.type=integer`;
+- dotted sysctl key преобразуется в `/proc/sys/...`;
+- целое значение нормализуется как signed base10 без ведущих нулей;
+- VALUE/PASS, VALUE/FAIL, NOT_FOUND и ERROR;
+- ошибка чтения не создаёт неструктурированный stderr (P-01);
+- registry содержит ровно одну строку для `sysctl` и одну для
+  `file-mode-owner`, все contract/binding/implementation SHA совпадают.

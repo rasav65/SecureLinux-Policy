@@ -11,12 +11,18 @@
 
 - `contracts/file-mode-owner-check-semantic-v1.json` — семантика чтения
   режима файла; statuses `VALUE` / `NOT_FOUND` / `ERROR`;
-- `adapters/product-file-mode-owner-check-v1.py` — read-only эмиттер bash;
-- `adapters/product-file-mode-owner-check-v1.json` — контракт адаптера,
-  пинует SHA-256 реализации и семантического контракта.
+- `adapters/product-file-mode-owner-check-v1.py` — read-only file-mode emitter;
+- `adapters/product-file-mode-owner-check-v1.json` — binding file adapter;
+- `contracts/sysctl-check-semantic-v1.json` — отдельная product-семантика
+  read-only sysctl CHECK; historical `step7b0/.../check-semantic-v1.json`
+  current product authority не является;
+- `adapters/product-sysctl-check-v1.py` — read-only sysctl emitter с
+  собственной identity `product-sysctl-check-v1`;
+- `adapters/product-sysctl-check-v1.json` — binding sysctl adapter;
+- `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind
+  на semantic contract, adapter binding и implementation вместе с SHA-256.
 
-Ещё не создано и создаётся отдельными шагами: `ADAPTER-REGISTRY.tsv`,
-product-копия sysctl-адаптера, генератор product CHECK.
+Ещё не создан и создаётся отдельным шагом: tracked generator product CHECK.
 
 Принцип классификации отсутствия: `NOT_FOUND` только при доказанном
 отсутствии имени в проходимом родительском каталоге. Всё, что нельзя

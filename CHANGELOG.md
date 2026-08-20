@@ -16,8 +16,7 @@
   semantic contract и read-only `file-mode-owner` adapter уже существуют и
   проверены, но три canonical controls и `exact-control-set` closure ещё не
   созданы.
-- Следующие элементы product-line ещё отсутствуют: product sysctl adapter,
-  `ADAPTER-REGISTRY.tsv` и tracked generator.
+- Следующий элемент product-line ещё отсутствует: tracked generator.
 - Step 7B.0 остаётся незавершённым: Phase C, item 19
   (host-state hermeticity) — `REVISE`; authoritative builder не признан,
   публикация не выполнялась.
@@ -38,15 +37,44 @@
   постоянной product-line нужно выбрать один tracked product generator и
   определить точку схождения, чтобы не поддерживать одинаковые исправления
   дважды.
-- P-01: при нечитаемом `/proc`-пути сгенерированный sysctl CHECK печатает
-  корректную запись `ERROR` и корректный RC, но редирект чтения дополнительно
-  выводит в stderr неструктурированное сообщение bash. Исправление относится
-  к будущему product generator/adapter и не меняет historical admitted bytes.
 - Устаревшее примечание `Gate-1 quote blocked ...` осталось в строках индекса,
   для которых восстановленный текстовый источник уже указан.
 - Две исторические фикстуры наблюдателя (`observer-adversarial-fitness-v2`,
   `observer-fitness-v1`) не входят в текущий Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
+
+## [0.0.10] — 2026-08-20
+
+### Добавлено — product-line Step 2
+
+- Создан отдельный product semantic contract
+  `product/contracts/sysctl-check-semantic-v1.json`.
+- Создан read-only sysctl adapter
+  `product/adapters/product-sysctl-check-v1.py` с собственной identity
+  `product-sysctl-check-v1` и отдельным JSON binding.
+- Создан `product/ADAPTER-REGISTRY.tsv` — единственный tracked mapping для
+  `file-mode-owner` и `sysctl`, связывающий parameter kind, adapter identity,
+  semantic contract, binding, implementation и их SHA-256.
+- Добавлен `tests/product-v1/test_sysctl_adapter.py`.
+
+### Исправлено
+
+- P-01 закрыт в текущей product-line: ошибка чтения sysctl теперь даёт
+  структурированный `ERROR` без неструктурированного stderr bash.
+- Historical `step7b0/phase-a` и внешний диагностический CHECK-8 не изменялись.
+
+### Проверено
+
+- `product-v1`: 30 тестов, итог `OK`.
+- Sysctl adapter self-test: `PASS`.
+- Корневые манифесты после Step 2:
+  `PROJECT_FILES_ENTRIES=719`, `SHA256SUMS_ENTRIES=720`, `--check=PASS`.
+- Post-Step2 gates: `GATE0 PASS`, `GATE1 PASS checked=8`,
+  `GATE3 PASS`, `GATE4 PASS`; `GATE2 FAIL` ожидаемо из-за 341 `OPEN`,
+  `GATE5 FAIL` ожидаемо из-за отсутствующего formal `probe-results`.
+- Controls, source index, checker и historical Step 7B.0 не изменялись.
+- Tracked product generator и canonical controls `SRC-0005` ещё не созданы.
+- Закрыто строк source index: **0**.
 
 ## [0.0.9] — 2026-08-20
 
