@@ -10,73 +10,107 @@
 
 ## [Unreleased]
 
-### Added — TEST BASELINE
-
-- Добавлен tracked `tests/run-all.py` как единая точка запуска всех tracked
-  `tests/*/test_*.py`.
-- Тестовая популяция разделена на `DEV=20` и `RELEASE=1`;
-  `requirements-release.txt` фиксирует `jsonschema>=4.10.3`.
-- Добавлен `tests/run-all-selftest.py`, проверяющий коды runner `0/1/2/3`.
-- DEV runner требует не только `RC=0`, но и доказательство фактического
-  выполнения теста; нетрекнутые `test_*.py` и `ResourceWarning` считаются ошибкой.
-- Политика внутренних skip стала исполняемой: разрешены только заранее
-  объявленные environment/root случаи с точным ожидаемым количеством.
-
-### Fixed — TEST BASELINE
-
-- Три regression-набора больше не пинуют историческое число `5` controls:
-  ожидаемая популяция берётся из текущего machine truth.
-- `source-skeleton` больше не пинует исторические `74/72`; поддерживаемая и
-  точная популяция вычисляются во время прогона.
-- Четыре `roadmap-v3` regression проверяют семантические инварианты и
-  machine truth вместо точных русских status-фраз и числа Mermaid-блоков.
-- `docs/PROJECT-MAP-v3.md` синхронизирован с текущими `349 / 8 / 341`,
-  current CHECK adapters/registry/generator и отдельным historical VM scope.
-- Устранены четыре `ResourceWarning` в file-mode-owner regression.
-- Закрыто строк source index: **0**.
-
-### Tested — TEST BASELINE
-
-- DEV должен завершаться `20/20 PASS`; RELEASE выполняется отдельно и при
-  отсутствии `jsonschema>=4.10.3` возвращает `BLOCKED_ENVIRONMENT`.
-- CHECK-8 attribution выполняется до tracked mutation и сохраняет отдельный
-  ignored evidence; диагностическая неатрибутированность не оставляет
-  полумутированный repository state.
-
-### Docs — TEST BASELINE
-
-- README актуализирован для текущей product-line и явно различает primary
-  `PROJECT-MAP-v3.md` и donor `ARCHITECTURE-DIAGRAMS.md`.
-- `CHANGELOG.md` сохраняет отдельный раздел `Известные незакрытые замечания`.
-
 ### Текущее незавершённое состояние
 
 - `SRC-0005 / 2.3.1` остаётся `OPEN`: schema/runtime, product semantic
   contract и read-only `file-mode-owner` adapter уже существуют и проверены,
   но три canonical controls и `exact-control-set` closure ещё не созданы.
-- Следующий product-line gate: добавить три canonical controls `SRC-0005`,
-  получить CHECK-11 и только после полного closure перевести `SRC-0005`
-  из `OPEN`.
-- Formal `Gate 5 --probe-results` для текущего CHECK-8 ещё не создан.
-- Step 7B.0 остаётся незавершённым: Phase C, item 19
-  (host-state hermeticity) — `REVISE`; authoritative builder не признан,
-  публикация не выполнялась.
-- Build Contract v0.9.6 существует только как черновик: он не принят и не
-  установлен. Его возможное продолжение не является текущей product-line.
+- Следующий product expansion point — представить `/etc/passwd=0644`,
+  `/etc/group=0644` и `chmod go-rwx /etc/shadow` без усиления shadow до
+  выдуманного `0600`, затем пересобрать CHECK по расширенной manifest population.
+- Formal `Gate 5 --probe-results` для current product population остаётся
+  отдельным контрактным артефактом.
+- Step 7B.0 остаётся historical assurance line: Phase C item 19 — `REVISE`;
+  authoritative builder не признан, публикация не выполнялась.
+- Build Contract v0.9.6 существует только как черновик и не является current
+  product authority.
 
 ### Известные незакрытые замечания
 
 - Отдельный будущий decision point: текущая `eq`-семантика sysctl следует
   буквальному значению источника и поэтому может дать `FAIL` на более строгом
-  состоянии системы. На CHECK-8 это наблюдается для
+  состоянии системы. На CHECK-8 это наблюдалось для
   `kernel.unprivileged_bpf_disabled=2` при expected `1` и
   `kernel.perf_event_paranoid=4` при expected `3`. Текущие controls задним
   числом не меняются.
 - Устаревшее примечание `Gate-1 quote blocked ...` осталось в строках индекса,
   для которых восстановленный текстовый источник уже указан.
-- Две исторические фикстуры наблюдателя (`observer-adversarial-fitness-v2`,
-  `observer-fitness-v1`) не входят в текущий Phase-A набор и под действующей
+- Две historical observer fixtures (`observer-adversarial-fitness-v2`,
+  `observer-fitness-v1`) не входят в current Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
+
+## [0.0.12] — 2026-08-20
+
+### Added — TEST BASELINE
+
+- Добавлен tracked `tests/run-all.py` как canonical точка запуска tracked
+  Python regressions.
+- Test population разделена на DEV и RELEASE; release dependency объявлена в
+  `requirements-release.txt` как `jsonschema>=4.10.3`.
+- Добавлен `tests/run-all-selftest.py`, проверяющий runner RC `0/1/2/3`.
+- Runner требует доказательство фактического выполнения test-file, запрещает
+  неожиданные skip, `ResourceWarning` и untracked `test_*.py`.
+
+### Fixed — TEST BASELINE
+
+- Удалены historical numeric pins на `controls=5` и `74/72`; ожидаемые
+  populations берутся из current machine truth.
+- Четыре roadmap regressions больше не пинуют exact русские status-фразы и
+  число Mermaid blocks.
+- Устранены четыре `ResourceWarning` в file-mode-owner regression.
+- `PROJECT-MAP-v3.md` синхронизирован с current product CHECK line.
+- Закрыто строк source index: **0**.
+
+### Added — DOCUMENTATION BASELINE
+
+- Добавлен `docs/README.md`, который классифицирует документы как PRODUCT,
+  ENGINEERING, ROADMAP и DONOR-REFERENCE.
+- `docs/PROJECT-MAP-v3.md` закреплён как единственная PRIMARY current project
+  map; `ARCHITECTURE-DIAGRAMS.md` остаётся donor/future runtime reference.
+- Добавлены `docs/policy-layers.md` и явный инвариант
+  `FSTEC core ≠ recommended ≠ corporate standard ≠ firewall`.
+- Добавлен `docs/compatibility.md` с раздельными статусами SUPPORTED / TESTED /
+  UNSUPPORTED.
+- Добавлен stdlib-only `tools/render-current-docs.py`. Он формирует
+  machine-owned current-status blocks README/PROJECT-MAP и generated
+  `docs/fstec-coverage.md` из source index, closure contract, control manifest
+  и adapter registry.
+- Добавлен focused regression `tests/documentation-v1/`, требующий exact
+  documentation parity и полноту docs index.
+
+### Changed — DOCUMENTATION BASELINE
+
+- Root README перестроен в product-facing форму: назначение, generated current
+  status, quick start, гарантии с проверками, policy layers, coverage,
+  compatibility, architecture, test model, integrity, boundaries и docs index.
+- Current numeric coverage удалён из вручную поддерживаемых Mermaid nodes;
+  текущие числа находятся только в machine-owned blocks/generated coverage.
+- `product/README.md`, controls README, `tests/README.md` и
+  `docs/testing-strategy.md` актуализированы под current product/test model.
+- Закрыто строк source index: **0**.
+
+### Tested
+
+- TEST BASELINE A1 на development host: DEV `20/20 PASS`, RELEASE `PASS`;
+  release interpreter использовал `jsonschema 4.10.3`.
+- A1 local CHECK-8 diagnostic воспроизвёл ровно один execution `ERROR`:
+  `FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN`,
+  `/proc/sys/net/core/bpf_jit_harden`, mode `0600`, read `EACCES`/errno 13.
+  Это host evaluability observation, не defect canonical control и не
+  compatibility evidence.
+- Documentation renderer проходит `--write → --check`; documentation regression
+  проверяет exact parity и отсутствие известных stale product-status strings.
+- Documentation Baseline добавляет один DEV test-file; успешный commit требует
+  полного current DEV PASS и RELEASE PASS.
+
+### Docs
+
+- README является human entry point, но machine-readable registries остаются
+  источниками истины для counts/status.
+- `fstec-coverage.md` не редактируется вручную и после расширения controls
+  должен регенерироваться до DEV run.
+- `compatibility.md` не повышает один локальный запуск до общего `TESTED`;
+  TESTED требует конкретного evidence exact product population/target.
 
 ## [0.0.11] — 2026-08-20
 

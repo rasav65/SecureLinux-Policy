@@ -1,297 +1,364 @@
 # SecureLinux-Policy v3
 
-Проверяемая политика безопасной настройки Linux, построенная от первоисточника.
-
-Каждая активная запись контроля связана с конкретным местом документа ФСТЭК,
-несёт дословную цитату и её SHA-256, описывает ровно один наблюдаемый параметр
-и проходит машинные гейты. Массовый перенос старого корпуса запрещён.
-
----
-
-## Что это по существу
-
-Цепочка, которую строит проект:
-
-```text
-первоисточник ФСТЭК (pinned PDF)
-  → нормализованный корпус (norm-v1, при повреждённом слое — glyph recovery)
-  → source index (одна строка = одно нормативное место)
-  → quote anchor (дословная цитата + SHA-256)
-  → canonical control (один наблюдаемый параметр)
-  → адаптер проверки
-  → сгенерированный read-only скрипт
-  → прогон на целевой системе
-```
-
-Проект намеренно разделяет **проверку** (CHECK) и **изменение** системы
-(APPLY/RESTORE). Реализуется только CHECK. APPLY и RESTORE — отдельный будущий
-этап со своими контрактами: precondition, postcondition, rollback,
-идемпотентность, evidence.
-
----
+> Система нормативной прослеживаемости и машинно-проверяемой политики
+> безопасной настройки Linux, построенная от закреплённых первоисточников.
+>
+> Текущий product CHECK работает только по уже представленным требованиям и
+> **не является заявлением о полном соответствии требованиям ФСТЭК**.
 
 ## Текущее состояние
 
-Корпус первоисточника:
-
+<!-- BEGIN GENERATED CURRENT STATUS -->
 ```text
 TOTAL_INDEX_ROWS=349
-CLOSED_INDEX_ROWS=8
+CONTROLLED_CLOSED_WITH_CONTRACT=8
+DISPOSED_CLOSED_ROWS=0
 OPEN_INDEX_ROWS=341
 CLOSURE_RATIO=8/349
+CANONICAL_CONTROLS=8
+CLOSURE_CONTRACT_ROWS=8
+ADAPTER_KINDS=2
+CHECK_TARGET=ubuntu-24.04-x86_64
+CHECK_STATUS=NON_RELEASE_PRODUCT_CANDIDATE
+CHECK=IMPLEMENTED_READ_ONLY
+APPLY=NOT_IMPLEMENTED
+RESTORE=NOT_IMPLEMENTED
+FULL_FSTEC_COMPLIANCE_CLAIM=false
 ```
 
-Активные контроли — восемь sysctl-мер из `fstec-linux-2022`:
+CHECK охватывает только требования, представленные текущими canonical controls. Этот статус не является заявлением о полном соответствии требованиям ФСТЭК.
+<!-- END GENERATED CURRENT STATUS -->
 
-| Локатор | Параметр | Ожидание |
-|---|---|---:|
-| 2.4.1 | `kernel.dmesg_restrict` | `1` |
-| 2.4.2 | `kernel.kptr_restrict` | `2` |
-| 2.4.8 | `net.core.bpf_jit_harden` | `2` |
-| 2.5.2 | `kernel.perf_event_paranoid` | `3` |
-| 2.5.4 | `kernel.kexec_load_disabled` | `1` |
-| 2.5.5 | `user.max_user_namespaces` | `0` |
-| 2.5.6 | `kernel.unprivileged_bpf_disabled` | `1` |
-| 2.6.1 | `kernel.yama.ptrace_scope` | `3` |
+Полная машинно формируемая карта текущего покрытия:
+[`docs/fstec-coverage.md`](docs/fstec-coverage.md).
 
-Гейты v3 на текущем дереве:
+---
+
+## Назначение
+
+SecureLinux-Policy строит проверяемую цепочку от первоисточника до исполняемой
+read-only проверки:
 
 ```text
-GATE0 PASS  schema_generation_parity
-GATE1 PASS  checked=8
-GATE2 FAIL  controlled_closed=8 disposed_closed=0 uncovered=341 contracts=8
-GATE3 PASS  checked=8
-GATE4 PASS  checked=8
-GATE5 FAIL  требует probe-results (прогон на VM выполняется отдельно)
-OVERALL FAIL
+закреплённый PDF ФСТЭК
+  → проверенное текстовое представление
+  → source index
+  → quote anchor
+  → canonical control
+  → semantic contract
+  → adapter registry
+  → read-only adapter
+  → deterministic generator
+  → generated CHECK
+  → structured result
 ```
 
-`OVERALL=FAIL` — конструктивное состояние, а не поломка: пока хотя бы одна из
-341 строки не закрыта, общий вердикт обязан быть отрицательным.
+Каждый controlled source row должен иметь проверяемый source-anchor и закрываться
+ровно тем набором canonical controls, который указан в
+`index/source-v4/CLOSURE-CONTRACT.tsv`. Простого наличия похожей проверки
+недостаточно.
 
-Текущая product-line имеет отдельные semantic contracts, два read-only
-adapter (`sysctl`, `file-mode-owner`), единый `ADAPTER-REGISTRY.tsv` и tracked
-generator `product/generate-product-check-v1.py`. Generated CHECK имеет статус
-`NON_RELEASE_PRODUCT_CANDIDATE`, не использует identity historical Step 7B.0
-Build Contract / Phase B/C и не является authoritative или release. CHECK-8
-regression подтвердил deterministic build, provenance, пустой
-неструктурированный stderr и неизменность наблюдаемых sysctl до/после запуска.
+CHECK и изменение системы разделены принципиально. На текущей стадии реализован
+только CHECK. APPLY и RESTORE относятся к будущему отдельному этапу и не
+подразумеваются текущими гарантиями.
 
-Реальный disposition ledger пуст: `DISPOSITION-LEDGER.tsv` содержит только
-заголовок. Альтернативный путь закрытия строки (явный disposition вместо
-контроля) пока не использован ни разу.
+---
 
-Основная архитектурная карта текущего проекта:
+## Быстрый старт CHECK
+
+Сначала рекомендуется проверить DEV baseline:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B \
+  tests/run-all.py --dev
+```
+
+Для release-validation отдельно запускается:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B \
+  tests/run-all.py --release
+```
+
+Сгенерировать текущий CHECK:
+
+```bash
+mkdir -p dist
+
+PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B \
+  product/generate-product-check-v1.py \
+  --repo . \
+  --out dist/securelinux-policy-check.sh
+
+cd dist
+sha256sum -c securelinux-policy-check.sh.sha256
+cd ..
+```
+
+Посмотреть build metadata и provenance:
+
+```bash
+dist/securelinux-policy-check.sh --build-info
+dist/securelinux-policy-check.sh --provenance
+```
+
+Выполнить read-only проверку текущих controls:
+
+```bash
+dist/securelinux-policy-check.sh
+```
+
+Generated CHECK не содержит APPLY/RESTORE и не должен изменять проверяемое
+состояние хоста.
+
+---
+
+## Надёжность текущей product-line
+
+| Гарантия | Статус | Чем проверяется |
+|---|---|---|
+| CHECK не содержит mutation capability | PASS | product generator regression + forbidden-token checks |
+| Детерминированная генерация CHECK | PASS | `tests/product-v1/test_product_generator.py` |
+| Adapter/contract bytes закреплены SHA-256 | PASS | `ADAPTER-REGISTRY.tsv` + product regressions |
+| CHECK provenance доступен машинно | PASS | generator regression / `--provenance` |
+| Sysctl read-error не уходит в неструктурированный stderr | PASS | sysctl adapter regression |
+| Неподдерживаемая target-платформа завершается до проверки | PASS | product generator regression, RC=3 |
+| DEV test population имеет единую точку запуска | PASS | `tests/run-all.py` + `tests/run-all-selftest.py` |
+| Реальный Draft 2020-12 валидатор обязателен для RELEASE | PASS | `tests/release-v1/test_real_jsonschema_gate.py` |
+| APPLY | NOT IMPLEMENTED | — |
+| RESTORE | NOT IMPLEMENTED | — |
+
+Гарантии относятся только к текущему scope. Конкретный policy-result CHECK
+описывает состояние проверяемого хоста и не является свойством самого generator.
+
+---
+
+## Слои политики
+
+Проект не смешивает происхождение и назначение требований:
+
+```text
+FSTEC core ≠ recommended ≠ corporate standard ≠ firewall
+```
+
+- **FSTEC core** — только требования с проверяемым якорем в первичном
+  нормативном/техническом источнике ФСТЭК.
+- **recommended** — рекомендации вне FSTEC core.
+- **corporate standard** — внутренние требования и ужесточения; будущие
+  `baseline / strict / paranoid` относятся только к этому слою.
+- **firewall** — отдельная role-specific policy. UFW, nftables и iptables —
+  реализации firewall-policy, а не автоматически требования FSTEC core.
+
+Подробно: [`docs/policy-layers.md`](docs/policy-layers.md).
+
+---
+
+## Покрытие FSTEC core
+
+Точные числа, закрытые source rows, canonical controls, parameter kinds и
+CHECK-adapters формируются автоматически:
+[`docs/fstec-coverage.md`](docs/fstec-coverage.md).
+
+Важно различать:
+
+- число source rows;
+- число controlled CLOSED rows;
+- число canonical controls;
+- число controls, которые уже исполнимы текущими CHECK adapters.
+
+Одна source row может закрываться набором из нескольких controls, поэтому эти
+счётчики не обязаны совпадать.
+
+Полный source corpus остаётся в `index/source-v4/SOURCE-INDEX.tsv`; generated
+coverage document не дублирует вручную все строки индекса.
+
+---
+
+## Архитектура
+
+Главная карта текущего проекта:
 [`docs/PROJECT-MAP-v3.md`](docs/PROJECT-MAP-v3.md).
-[`docs/ARCHITECTURE-DIAGRAMS.md`](docs/ARCHITECTURE-DIAGRAMS.md) — только
-donor/future runtime reference и не является источником текущего статуса.
 
-## TEST BASELINE
-
-Tracked `tests/run-all.py` разделяет 21 текущий Python regression на
-`DEV=20` и `RELEASE=1`. DEV выполняется stdlib-only и обязан быть зелёным;
-RELEASE отдельно требует зависимости из `requirements-release.txt`.
-Отсутствие release-зависимости означает `BLOCKED_ENVIRONMENT`, а не
-project PASS.
-
----
-
-## Как закрывается одна строка корпуса
-
-Пять обязательных шагов, каждый проверяется машинно:
-
-1. **Quote anchor.** `tools/source_skeleton_generator.py` извлекает дословную
-   цитату из проверенного корпуса и вычисляет её SHA-256. Поддержан один
-   `unit_kind` из тринадцати — `numbered-position`: 74 строки, 72 точных
-   извлечения, два принципиальных отказа (`SRC-0001`, `SRC-0133`, обрыв на
-   номере страницы). Отказ — корректный результат, подгонка запрещена.
-2. **Canonical control** в `controls/<layer>/<doc>/` — один параметр, блок
-   `source` с якорем, `expected` с операцией и типом.
-3. **Регистрация** в `CONTROL-MANIFEST.tsv` и, для контролей текущего
-   сборочного набора, в `step7b0/phase-a/STEP7B0-CONTROL-SET.lock`.
-4. **Статус** строки в `SOURCE-INDEX.tsv` переводится в `CLOSED`; поля
-   `disposition` и `reason` у controlled-строки обязаны остаться пустыми.
-5. **Completeness contract** в `CLOSURE-CONTRACT.tsv`: `atomic-single` —
-   ровно один полный контроль, `exact-control-set` — точный набор из двух и
-   более. Наличие произвольного контроля само по себе строку не закрывает.
-
-Пропуск любого шага виден в Gate 2 как отдельная ошибка.
-
----
-
-## Гейты
-
-| Гейт | Что проверяет |
-|---|---|
-| 0 | байтовое равенство закоммиченной и порождённой `CONTROL-SCHEMA.json` |
-| 1 | source identity, SHA закреплённого PDF, локатор, `norm-v1`, дословное присутствие цитаты в корпусе |
-| 2 | обратное покрытие: каждая строка индекса закрыта контролем либо явным disposition |
-| 3 | закрытая схема записи и совместимость `kind / locator / key / op / type` |
-| 4 | глобальная уникальность `id`, конфликты внутри `(layer, profile, kind, locator, key)`, cross-layer расхождения fail-closed |
-| 5 | исполнимость probe: `VALUE` / `NOT_FOUND` / `ERROR`; несоответствие значения — не ошибка исполнимости |
-
-Запуск:
-
-```sh
-python3 checker/gates-v3/checker.py \
-  --project-root . \
-  --index index/source-v4/SOURCE-INDEX.tsv \
-  --controls controls/fstec-core/linux-2022
-```
-
-`CONTROL-SCHEMA.json` не редактируется руками: она порождается из таблицы
-`KIND_RULES` в `checker.py` через `--emit-schema`, а Gate 0 падает при любом
-расхождении байтов.
-
-Схема знает восемь видов параметров — `sysctl`, `file-kv`, `file-mode-owner`,
-`mount-option`, `systemd-unit-state`, `package-presence`, `pam-line`,
-`audit-rule`. Для `file-mode-owner` реализована relation-семантика:
-`key=mode` разрешает `op=eq|bits-clear`; `bits-clear` принимает только
-ненулевую четырёхзначную octal-маску, а для `owner`, `group`, `owner_group`
-остаётся только `op=eq`. Runtime, сгенерированная Draft 2020-12 schema,
-минимальный schema-emulator и реальный `Draft202012Validator` дают одинаковые
-verdict на positive/negative fixtures.
-
-Текущая product-line содержит отдельные semantic contracts и read-only
-адаптеры для `file-mode-owner` и `sysctl`. Sysctl product adapter имеет
-собственную identity `product-sysctl-check-v1`; historical
-`step7b0/phase-a/adapter/sysctl-check-adapter-v1.py` не изменён и current
-product authority не является. `product/ADAPTER-REGISTRY.tsv` — единственный
-tracked mapping `parameter_kind → adapter/contract/implementation → SHA-256`.
-Tracked generator `product/generate-product-check-v1.py` создан и использует
-этот registry для fail-closed dispatch. Generated CHECK является derived
-output в gitignored `dist/`, а не вторым tracked источником истины.
-
-Последний локальный CHECK-8 regression прошёл механически: `SLP-SUMMARY-V1	TOTAL=8	PASS=2	FAIL=5	NOT_FOUND=0	ERROR=1	POLICY_STATUS=UNEVALUATED`,
-RC=1. Это состояние проверяемого хоста, а не изменение нормативных
-ожиданий controls.
-
----
-
-## Сборка CHECK-скрипта
-
-Текущий product CHECK собирается tracked generator
-`product/generate-product-check-v1.py` из `CONTROL-MANIFEST.tsv`,
-canonical YAML и единственного `product/ADAPTER-REGISTRY.tsv`. Registry
-пинует semantic contract, adapter binding и implementation по SHA-256.
-Generated artifact пишется в gitignored `dist/`; APPLY/RESTORE в нём нет.
-
-CHECK-8 regression текущих восьми controls: `SLP-SUMMARY-V1	TOTAL=8	PASS=2	FAIL=5	NOT_FOUND=0	ERROR=1	POLICY_STATUS=UNEVALUATED`, RC=1;
-`bash -n`, build-info, provenance, deterministic rebuild, sidecar SHA,
-отсутствие неструктурированного stderr и неизменность наблюдаемых sysctl
-до/после проверки подтверждены.
-
-Ниже historical assurance-line Step 7B.0. Она сохранена отдельно и не является
-текущим product generator.
-
-Historical builder собирает скрипт из принятых входов, а порядок его допуска
-описан в Build Contract (`step7b0/BUILD-CONTRACT-v0.9.5.md`). Phase A принята
-под v0.9.5; Phase C открыта, item 19 (host-state hermeticity) — `REVISE`;
-authoritative builder не признан, публикация не выполнялась.
-
-Текущий target product CHECK — `ubuntu-24.04-x86_64`. На неподдерживаемой
-платформе скрипт завершает работу с RC=3 до проверок.
-
-Коды возврата product CHECK:
-
-| RC | Значение |
-|---:|---|
-| 0 | все параметры прочитаны, вердикт `COMPLIANT` или `NONCOMPLIANT` |
-| 1 | есть `NOT_FOUND` или `ERROR`, вердикт `UNEVALUATED` |
-| 2 | неверный аргумент или арность |
-| 3 | неподдерживаемая платформа |
-
-Несоответствие контроля само по себе RC не повышает: это результат проверки, а
-не сбой.
-
----
-
-## Структура
+Она показывает:
 
 ```text
-sources/    закреплённые первоисточники и проверенные текстовые представления
+sources
+  → corpus
+  → source index
+  → canonical controls / disposition
+  → gates
+  → semantic contracts
+  → ADAPTER-REGISTRY.tsv
+  → read-only adapters
+  → tracked generator
+  → generated CHECK
+```
+
+[`docs/ARCHITECTURE-DIAGRAMS.md`](docs/ARCHITECTURE-DIAGRAMS.md) сохранён как
+**donor/future runtime reference** для будущего APPLY/RESTORE и не является
+источником текущего product status.
+
+Индекс всей документации и её ролей:
+[`docs/README.md`](docs/README.md).
+
+---
+
+## Совместимость
+
+Текущий target product CHECK задаётся самим generator и adapter contracts.
+Документ совместимости разделяет три разных понятия:
+
+- `SUPPORTED` — target, разрешённый текущим product contract;
+- `TESTED` — среда, для которой имеется конкретное соответствующее evidence;
+- `UNSUPPORTED` — target, который current CHECK обязан отклонить.
+
+Подробно: [`docs/compatibility.md`](docs/compatibility.md).
+
+Недостаточные права чтения системного параметра не превращаются в
+`NOT_FOUND`: такая ситуация классифицируется как `ERROR`, чтобы CHECK не
+выдавал ложную оценку.
+
+---
+
+## Тестовая модель
+
+Tracked [`tests/run-all.py`](tests/run-all.py) — единая точка запуска всех
+tracked Python regressions.
+
+**DEV**:
+
+- stdlib-only;
+- должен быть полностью зелёным;
+- проверяет фактическое выполнение тестов, а не только RC=0;
+- неожиданные skip и `ResourceWarning` являются ошибкой.
+
+**RELEASE**:
+
+- сначала требует DEV PASS;
+- использует зависимости из `requirements-release.txt`;
+- отсутствие обязательной зависимости даёт `BLOCKED_ENVIRONMENT`, а не
+  ложный project PASS.
+
+Подробно: [`tests/README.md`](tests/README.md) и
+[`docs/testing-strategy.md`](docs/testing-strategy.md).
+
+---
+
+## Структура проекта
+
+```text
+sources/    pinned source documents и проверенные text representations
 index/      source index, closure contract, disposition ledger
-controls/   принятые записи контролей
-probes/     read-only наблюдение
-checker/    гейты
-tools/      генератор source-блоков, пересборка корневых манифестов
-product/    product-line: contracts, adapter registry, adapters, tracked generator
-dist/       derived generated CHECK; gitignored, в root manifests не входит
-step7b0/    Build Contract и артефакты допуска builder'а
-tests/      позитивные и негативные фикстуры
-archive/    исторические материалы и инженерный донор
-docs/       карта проекта, roadmap, отдельные политики
+controls/   canonical policy controls
+checker/    schema и gates
+tools/      project generators и integrity helpers
+product/    semantic contracts, adapter registry, adapters, CHECK generator
+dist/       derived generated CHECK; gitignored
+probes/     read-only probe infrastructure и historical/reference evidence line
+tests/      DEV/RELEASE regression suites
+docs/       product, engineering, donor-reference и roadmap documentation
+step7b0/    historical assurance line; не current product authority
+archive/    historical audit material и engineering donor
 ```
-
-Слой (`layer`) определяет происхождение требования, профиль — применимость
-внутри слоя. Классы ФСТЭК K1/K2/K3 не являются профилями `baseline/strict/paranoid`.
 
 ---
 
-## Проверка целостности
+## Целостность
 
-Точные значения хранятся в манифестах, а не в этом файле — здесь они устарели
-бы при первом же изменении:
+Корневые манифесты:
 
-```text
-SHA256SUMS                      корневой манифест
-PROJECT-FILES.sha256            популяция проекта
-sources/fstec/SHA256SUMS
-sources/extracted/SHA256SUMS
-sources/recovered-v1/SHA256SUMS
-index/source-v4/SHA256SUMS
-controls/fstec-core/linux-2022/SHA256SUMS
-checker/gates-v3/SHA256SUMS
+- `PROJECT-FILES.sha256` — canonical project population;
+- `SHA256SUMS` — SHA-256 файлов этой population.
+
+Проверка:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B \
+  tools/rebuild-root-manifests.py \
+  --project-root . \
+  --check
 ```
 
-Популяция корневых манифестов строится из видимых git файлов — отслеживаемых
-плюс неигнорируемых неотслеживаемых. Исключения проекта живут в версионируемом
-`.gitignore`, а не в локальном `.git/info/exclude`, иначе результат
-`tools/rebuild-root-manifests.py --check` не воспроизводится в свежем клоне.
+Machine-owned documentation blocks и coverage также проверяются отдельно:
 
-Валидация релиза требует установленного `jsonschema` не ниже `4.10.3` и
-реального `Draft202012Validator`. Отсутствие зависимости — жёсткая ошибка, а не
-пропущенная проверка.
+```bash
+PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B \
+  tools/render-current-docs.py \
+  --project-root . \
+  --check
+```
+
+После изменения source index, controls, closure contract или adapter registry
+канонический порядок такой:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B \
+  tools/render-current-docs.py --project-root . --write
+
+PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B \
+  tests/run-all.py --dev
+```
 
 ---
 
 ## Инженерный донор
 
-`securelinux-ng.sh` v16.2.11 (18 928 строк, SHA-256
-`f3be8723cd5a2be499e9e8e6370fad712bdec8afd68050f27af6a3e2d6fbc34b`) сохранён
-как **инженерный донор**, а не как нормативный источник. Проверенные механизмы
-переносятся только через явное решение `REUSE | ADAPT | REJECT | DEFER`.
+SecureLinux-NG v16.2.11 сохранён как **engineering donor**, а не нормативный
+источник. Донорская логика может попасть в v3 только через явное решение
+`REUSE | ADAPT | REJECT | DEFER`.
 
-Его прослеживаемость до документа неполна: из 148 функций `check_`/`apply_`/
-`restore_` локатор ФСТЭК заявлен у 32, и заявлен он в тексте лог-сообщений, а
-не в проверяемых полях. Все 23 заявленных локатора присутствуют в корпусе, что
-и делает донора полезным источником заявок на расширение.
+Donor mapping сам по себе не создаёт FSTEC controls и не закрывает ни одной
+source-index row.
 
-Донор не создаёт контролей и не закрывает строк индекса.
+См. [`docs/DONOR-V3-ADOPTION-POLICY.md`](docs/DONOR-V3-ADOPTION-POLICY.md) и
+[`docs/engineering-donor.md`](docs/engineering-donor.md).
 
 ---
 
-## Что не сделано
+## Границы текущего состояния
 
-- 341 строка корпуса остаётся `OPEN`;
-- semantic contracts, read-only adapters, единый `ADAPTER-REGISTRY.tsv` и
-  tracked generator созданы и проверены; текущий CHECK-8 regression PASS;
-- `SRC-0005 / 2.3.1` остаётся `OPEN`: три canonical controls и
-  `exact-control-set` closure ещё не созданы; product-line Steps 1–3 закрыли
-  строк source index: **0**;
-- formal `Gate 5 --probe-results` для текущих восьми controls ещё не создан;
-  generated `dist/securelinux-policy-check.sh` является derived regression
-  artifact и не подменяет formal probe-results;
-- Phase C Step 7B.0 не закрыта, authoritative builder не признан,
-  публикации не было;
-- APPLY и RESTORE не реализуются и не проектируются на этом этапе;
-- поддержан один `unit_kind` из тринадцати; остальные вводятся по одному со
-  своим эталоном.
+На текущем этапе:
+
+- полный FSTEC corpus **не закрыт**;
+- current CHECK охватывает только represented controls;
+- formal Gate 5 `--probe-results` для текущей product population остаётся
+  отдельным контрактным артефактом;
+- `SRC-0005 / 2.3.1` остаётся следующим product expansion point;
+- APPLY и RESTORE не реализованы;
+- historical Step 7B.0 не является current product authority;
+- engineering donor не является нормативным доказательством.
+
+Следующий технический product-step после Documentation Baseline — три canonical
+controls для `SRC-0005` (`/etc/passwd`, `/etc/group`, `/etc/shadow`) и пересборка
+CHECK по расширенной manifest population без усиления `chmod go-rwx /etc/shadow` до выдуманного
+`0600`.
 
 ---
 
-## Язык
+## Источники истины
 
-Пользовательская документация ведётся на русском. Без перевода остаются имена
-файлов и CLI, идентификаторы гейтов и roadmap, enum, поля схем, API и
-проверяемые машиной строки статуса — они являются частью контракта.
+| Область | Канонический источник |
+|---|---|
+| source population/status | `index/source-v4/SOURCE-INDEX.tsv` |
+| completeness closure | `index/source-v4/CLOSURE-CONTRACT.tsv` |
+| dispositions | `index/source-v4/DISPOSITION-LEDGER.tsv` |
+| canonical controls | `controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv` + YAML |
+| parameter schema | `checker/gates-v3/checker.py` → generated `CONTROL-SCHEMA.json` |
+| CHECK adapter mapping | `product/ADAPTER-REGISTRY.tsv` |
+| CHECK generator | `product/generate-product-check-v1.py` |
+| macro-roadmap | `docs/ROADMAP-v3.tsv` |
+| generated current docs | `tools/render-current-docs.py` |
+
+README является входной точкой для человека, но не заменяет эти machine-readable
+источники истины.
+
+---
+
+## Документация
+
+Начинать с [`docs/README.md`](docs/README.md): там каждый документ помечен как
+`PRODUCT`, `ENGINEERING`, `DONOR-REFERENCE`, `ROADMAP` или `FUTURE/HISTORICAL`.
+
+Пользовательская документация ведётся на русском. Имена файлов/CLI,
+идентификаторы gates, enums, schema fields и machine-status strings остаются в
+контрактном виде.

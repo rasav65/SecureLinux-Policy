@@ -80,4 +80,5 @@ This adoption does not:
 - provide reference-VM evidence;
 - implement apply or restore.
 
-Current FSTEC pilot remains 349 total / 5 CLOSED / 344 OPEN.
+Donor adoption itself closes zero FSTEC source rows. Current live coverage is
+owned by `SOURCE-INDEX.tsv` and generated `docs/fstec-coverage.md`.

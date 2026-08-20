@@ -1,6 +1,8 @@
 # Тестовая модель SecureLinux-Policy
 
 `tests/run-all.py` — единая точка запуска tracked Python regressions.
+Популяция определяется через Git в момент запуска; число test-файлов здесь не
+пинуется вручную.
 
 ## DEV
 
@@ -25,6 +27,9 @@ regression обязан иметь непустой stdout и либо executabl
   только при запуске DEV от root.
 
 Любой другой или дополнительный skip, а также любой `ResourceWarning`, делает DEV красным.
+
+Documentation baseline входит в DEV через `tests/documentation-v1/` и требует
+exact parity machine-owned README/map/coverage с `tools/render-current-docs.py`.
 
 ## RELEASE
 

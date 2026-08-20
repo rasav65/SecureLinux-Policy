@@ -1,19 +1,40 @@
-# Testing strategy inherited from SecureLinux-NG engineering evidence
+# Testing strategy
 
-The v16.2.11 donor contains 38 test files and 36 focused regression suites.
-SecureLinux-Policy v3 adopts their **engineering invariants**, not the old
-normative mapping.
+SecureLinux-Policy использует собственный current test baseline и сохраняет
+проверенные инженерные invariants из SecureLinux-NG donor. Нормативная модель
+старого проекта не наследуется.
+
+## Current runner
+
+Tracked `tests/run-all.py` — canonical точка запуска Python regressions.
+Популяция test-файлов определяется из Git в момент запуска.
+
+- DEV — stdlib-only, все project regressions кроме `release-v1`;
+- RELEASE — DEV PASS + объявленные внешние зависимости и release gates.
+
+RC=0 без доказательства фактического выполнения теста недостаточен. Unexpected
+skip, `ResourceWarning`, untracked `test_*.py` и project failure делают DEV
+красным.
 
 ## Test layers
 
 1. Source/schema/unit tests — deterministic and host-independent.
 2. Differential tests — compare two implementations of one contract directly.
-3. Failure/crash-injection tests — exercise transaction boundaries before and
-   after mutation.
-4. VM acceptance — the only place where host/runtime behavior can close a VM
-   execution gate.
+3. Documentation parity — machine-owned current blocks must reproduce exactly.
+4. Failure/crash-injection — future mutation transaction boundaries.
+5. VM acceptance — host/runtime evidence for конкретного target и exact bytes.
 
 Synthetic evidence never substitutes reference-VM evidence.
+
+## Documentation parity
+
+Current counts/status must come from machine truth, not from historical literals
+inside tests. `tools/render-current-docs.py` derives README current status,
+PROJECT-MAP current status and `docs/fstec-coverage.md` from source index,
+closure contract, control manifest and adapter registry.
+
+Regression compares expected and committed bytes. Changing `5 → 8 → 11` must
+not require editing a test merely to replace one hardcoded count with another.
 
 ## Mandatory transaction test pattern for future apply/restore
 
@@ -41,10 +62,9 @@ Policy noncompliance and execution failure are distinct. A non-compliant check
 may still execute successfully, while internal/preflight/report failures must
 propagate a non-zero execution RC.
 
-## Registry
+## Donor registry
 
 See `index/engineering-tests-v1/TEST-CONTRACTS.tsv` for the machine-readable
-32-contract donor registry and `TEST-INVENTORY.tsv` for every preserved test.
-
+32-contract donor registry and `TEST-INVENTORY.tsv` for preserved donor tests.
 Legacy donor tests that assert the old mixed FSTEC mapping remain historical
 evidence only.

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import csv
 
 root = Path(__file__).resolve().parents[2]
 text = (root / "docs/PROJECT-MAP-v3.md").read_text(encoding="utf-8")
@@ -8,27 +7,14 @@ readme = (root / "README.md").read_text(encoding="utf-8")
 
 assert "основная архитектурная карта текущего SecureLinux-Policy v3" in text
 assert "engineering donor" in text
+assert "<!-- BEGIN GENERATED MAP STATUS -->" in text
+assert "docs/fstec-coverage.md" in text
+assert "docs/policy-layers.md" in text
+assert "docs/compatibility.md" in text
 
-with (root / "index/source-v4/SOURCE-INDEX.tsv").open(
-    encoding="utf-8", newline=""
-) as stream:
-    index_rows = list(csv.DictReader(stream, delimiter="\t"))
-with (root / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv").open(
-    encoding="utf-8", newline=""
-) as stream:
-    controls = list(csv.DictReader(stream, delimiter="\t"))
-
-total = len(index_rows)
-closed = sum(
-    row["status"] == "CLOSED" and not row["disposition"] for row in index_rows
-)
-open_rows = sum(row["status"] == "OPEN" for row in index_rows)
-
+# Structural branches worth preserving. Diagram count, exact labels and current
+# numeric population are intentionally not contractual here.
 for marker in (
-    f"{total} rows",
-    f"{closed} controlled CLOSED",
-    f"{open_rows} OPEN",
-    f"{len(controls)} current controls",
     "raw-pdftotext",
     "raw-glyph-recovered",
     "sources/recovered-v1/norm-v1",
@@ -47,17 +33,8 @@ for marker in (
 ):
     assert marker in text, marker
 
-# There is one macro-roadmap current node. Diagram count and exact node labels
-# are intentionally not contractual.
 assert text.count(":::current") == 1
-
-# Gate 0 remains generation parity, not semantic parity.
 assert "Gate 0 PASS" in text
 assert "только byte-generation parity" in text
-
 assert "docs/PROJECT-MAP-v3.md" in readme
-print(
-    "PROJECT_MAP_V3=PASS "
-    f"source_rows={total} closed={closed} open={open_rows} "
-    f"controls={len(controls)} current_nodes=1"
-)
+print("PROJECT_MAP_V3=PASS primary=1 current_nodes=1 machine_status_block=1")

@@ -81,9 +81,9 @@ failures обязаны оставаться исключениями и не п
 
 `index/source-v4/DISPOSITION-LEDGER.tsv` содержит только заголовок.
 
-Следовательно, закрытие Step 7A не закрыло строки FSTEC:
-
-`349 total / 5 controlled CLOSED / 0 disposed CLOSED / 344 OPEN`.
+Следовательно, закрытие Step 7A само по себе не закрывает строки FSTEC.
+Текущая live population не дублируется здесь вручную и берётся из
+`SOURCE-INDEX.tsv` / generated `docs/fstec-coverage.md`.
 
 Step 7B разрешён для FSTEC expansion. Первый real disposition остаётся
 заблокирован до отдельного quote-anchor contract/API.

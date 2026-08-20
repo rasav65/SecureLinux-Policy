@@ -10,6 +10,16 @@
 > runtime-архитектура не является нормативной архитектурой v3 и сама по себе
 > не закрывает source-index rows.
 
+<!-- BEGIN GENERATED MAP STATUS -->
+`source rows=349 · controlled CLOSED=8 · OPEN=341 · canonical controls=8 · adapters=2 · target=ubuntu-24.04-x86_64`
+
+Точные таблицы покрытия: [`docs/fstec-coverage.md`](fstec-coverage.md).
+<!-- END GENERATED MAP STATUS -->
+
+Продуктовые правила слоёв: [`docs/policy-layers.md`](policy-layers.md).
+Machine-generated coverage: [`docs/fstec-coverage.md`](fstec-coverage.md).
+Текущая target-совместимость: [`docs/compatibility.md`](compatibility.md).
+
 ## Легенда
 
 - зелёный — PASS/CLOSED **в явно указанном текущем scope**;
@@ -51,16 +61,16 @@ flowchart LR
     end
 
     subgraph INDEX["4. SOURCE INDEX"]
-        IDX["index/source-v4<br/>349 rows"]:::component
-        CLOSED["8 controlled CLOSED"]:::closed
-        OPEN["341 OPEN"]:::component
+        IDX["index/source-v4<br/>machine source truth"]:::component
+        CLOSED["controlled CLOSED<br/>machine-rendered status"]:::closed
+        OPEN["OPEN rows<br/>machine-rendered status"]:::component
         QUALITY --> IDX
         IDX --> CLOSED
         IDX --> OPEN
     end
 
     subgraph CONTROL["5. CONTROL RECORDS / SCHEMA"]
-        CTRL["controls/<br/>8 current controls"]:::component
+        CTRL["controls/<br/>manifest-driven current population"]:::component
         KIND["KIND_RULES<br/>canonical parameter-kind contract"]:::component
         SCHEMA["CONTROL-SCHEMA.json<br/>generated from KIND_RULES"]:::component
         DIFF["tests/gates-v3/<br/>test_schema_runtime_parity.py<br/>50 records · 16 CR/LF cases<br/>pattern semantics"]:::component
@@ -70,18 +80,18 @@ flowchart LR
         KIND --> SCHEMA
         KIND --> DIFF
         SCHEMA --> DIFF --> SEMPAR --> REALJSON
-        IDX --> SGEN["source skeleton generator<br/>step 5 CLOSED · numbered-position<br/>current controls 8/8"]:::closed
-        SGEN --> SPAR["source-block parity<br/>step 6 CLOSED · current controls 8/8"]:::closed
+        IDX --> SGEN["source skeleton generator<br/>step 5 CLOSED · numbered-position<br/>manifest-driven population"]:::closed
+        SGEN --> SPAR["source-block parity<br/>step 6 CLOSED · manifest-driven population"]:::closed
         SPAR --> CTRL
         KIND --> CTRL
     end
 
     subgraph GATES["6. MACHINE GATES"]
         G0["Gate 0 PASS<br/>schema_generation_parity<br/>только byte-generation parity"]:::closed
-        G1["Gate 1 PASS<br/>source/quote anchor<br/>current 8 controls"]:::closed
-        G2["Gate 2 FAIL<br/>reverse source coverage<br/>341 uncovered"]:::component
-        G3["Gate 3 PASS<br/>parameter closure<br/>current 8 controls"]:::closed
-        G4["Gate 4 PASS<br/>uniqueness/conflicts<br/>current 8 controls"]:::closed
+        G1["Gate 1 PASS<br/>source/quote anchor<br/>current manifest population"]:::closed
+        G2["Gate 2 FAIL<br/>reverse source coverage<br/>OPEN rows remain"]:::component
+        G3["Gate 3 PASS<br/>parameter closure<br/>current manifest population"]:::closed
+        G4["Gate 4 PASS<br/>uniqueness/conflicts<br/>current manifest population"]:::closed
         G5["Gate 5 historical admitted pilot<br/>5 sysctl controls · 1 reference VM<br/>current no-probe invocation FAIL-closed"]:::component
         G6["Gate 6 PASS — CURRENT EVIDENCE SCOPE<br/>one sysctl-v1 evidence directory"]:::closed
 
@@ -185,12 +195,12 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    CTRLNOW["8 canonical controls<br/>fstec-core"]:::component
+    CTRLNOW["canonical controls<br/>manifest-driven fstec-core population"]:::component
     REG["product/ADAPTER-REGISTRY.tsv<br/>single tracked adapter mapping"]:::component
     SYS["product-sysctl-check-v1<br/>read-only"]:::closed
     FILE["product-file-mode-owner-check-v1<br/>read-only"]:::closed
     GEN["product/generate-product-check-v1.py<br/>tracked deterministic generator"]:::closed
-    CHECK["generated CHECK-8<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
+    CHECK["generated CHECK<br/>current manifest population<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
 
     CTRLNOW --> REG
     REG --> SYS
@@ -303,7 +313,7 @@ flowchart LR
 
 Текущий orange node обозначает macro-roadmap Step 7B, а не утверждает, что
 внутри него не существует завершённых product checkpoints. На текущем HEAD
-read-only product-line Steps 1–3 и CHECK-8 уже реализованы; APPLY/RESTORE
+read-only product-line Steps 1–3 и исторический checkpoint CHECK-8 уже реализованы; APPLY/RESTORE
 по-прежнему не открыты.
 
 ## Что является источником истины

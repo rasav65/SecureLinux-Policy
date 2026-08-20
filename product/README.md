@@ -1,40 +1,52 @@
-# product line
+# Product CHECK line
 
-Постоянная product-линия SecureLinux-Policy v3.
+Постоянная read-only product-line SecureLinux-Policy v3.
 
-Отделена от `step7b0/`. `step7b0/` — historical assurance-line
-(Build Contract v0.9.5, Phase A принята, Phase C item 19 = REVISE);
-её adapter id `sysctl-check-v1` и её admitted bytes здесь не используются
-и не изменяются.
+Она отделена от historical `step7b0/`: admitted bytes и historical adapter id
+`sysctl-check-v1` не являются current product authority и здесь не изменяются.
 
-Состав на текущем шаге:
+## Текущий состав
 
-- `contracts/file-mode-owner-check-semantic-v1.json` — семантика чтения
-  режима файла; statuses `VALUE` / `NOT_FOUND` / `ERROR`;
-- `adapters/product-file-mode-owner-check-v1.py` — read-only file-mode emitter;
-- `adapters/product-file-mode-owner-check-v1.json` — binding file adapter;
-- `contracts/sysctl-check-semantic-v1.json` — отдельная product-семантика
-  read-only sysctl CHECK; historical `step7b0/.../check-semantic-v1.json`
-  current product authority не является;
-- `adapters/product-sysctl-check-v1.py` — read-only sysctl emitter с
-  собственной identity `product-sysctl-check-v1`;
-- `adapters/product-sysctl-check-v1.json` — binding sysctl adapter;
-- `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind
-  на semantic contract, adapter binding и implementation вместе с SHA-256.
+- `contracts/file-mode-owner-check-semantic-v1.json` — read-only semantic
+  contract для `file-mode-owner`;
+- `contracts/sysctl-check-semantic-v1.json` — read-only semantic contract для
+  `sysctl`;
+- `adapters/product-file-mode-owner-check-v1.py` + JSON binding;
+- `adapters/product-sysctl-check-v1.py` + JSON binding;
+- `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
+  semantic contract / binding / implementation с SHA-256;
+- `generate-product-check-v1.py` — tracked deterministic generator current
+  product CHECK;
+- `dist/` — derived gitignored output, не источник истины.
 
-- `generate-product-check-v1.py` — tracked deterministic generator product CHECK.
-  Он читает `CONTROL-MANIFEST.tsv` и `ADAPTER-REGISTRY.tsv`, проверяет SHA
-  contract/binding/implementation и fail-closed выбирает adapter по
-  `parameter.kind`.
-- Generated CHECK является derived output и в Git не входит; для него
-  зарезервирован игнорируемый каталог `dist/`.
+Generator читает текущий `CONTROL-MANIFEST.tsv`, проверяет canonical YAML и
+registry SHA bindings и fail-closed выбирает adapter по `parameter.kind`.
 
-Следующий отдельный gate после установки generator: CHECK-8 regression на
-восьми текущих canonical controls.
+## Текущий статус
 
-Принцип классификации отсутствия: `NOT_FOUND` только при доказанном
-отсутствии имени в проходимом родительском каталоге. Всё, что нельзя
-доказать как отсутствие (нечитаемый путь, висячая ссылка, цикл ссылок,
-отсутствие `stat`), классифицируется как `ERROR`.
+CHECK по current manifest population реализован и regression-tested. Generated
+artifact имеет статус `NON_RELEASE_PRODUCT_CANDIDATE` и target
+`ubuntu-24.04-x86_64`.
+
+CHECK не содержит APPLY/RESTORE. Policy noncompliance не равен execution
+failure; `NOT_FOUND`/`ERROR` делают итог `UNEVALUATED`.
+
+Принцип отсутствия — `proven-absence-only`: `NOT_FOUND` допустим только при
+доказанном отсутствии имени. Нечитаемый объект, dangling symlink, symlink loop
+или отсутствие обязательного observation tool классифицируются как `ERROR`.
+
+## Следующий product expansion point
+
+`SRC-0005 / 2.3.1` остаётся `OPEN`. File-mode semantic contract и adapter уже
+готовы; следующий технический шаг — три canonical controls:
+
+- `/etc/passwd` → `mode eq 0644`;
+- `/etc/group` → `mode eq 0644`;
+- `/etc/shadow` → `mode bits-clear 0077`.
+
+`/etc/shadow = 0600` из этого source anchor не выводится.
+
+После добавления controls выполняется CHECK по расширенной manifest population и
+только затем source closure через `exact-control-set`.
 
 Тесты: `tests/product-v1/`.
