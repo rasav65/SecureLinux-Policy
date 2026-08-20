@@ -48,6 +48,14 @@ FSTEC + corporate index expansion / dispositions остаётся `NEXT`. Вну
 Step 7A `CLOSED`, а текущий разрешённый подэтап — Step 7B: FSTEC expansion
 без real dispositions.
 
+Это **macro-roadmap status**. Он не означает, что read-only CHECK adapters или
+tracked deterministic CHECK generator ещё не реализованы: current product-line
+уже содержит оба adapters, `ADAPTER-REGISTRY.tsv`, generator и CHECK-8.
+Roadmap steps 8–11 относятся к будущему APPLY/RESTORE и финальной упаковке, а
+не к уже существующей CHECK product-line. Текущий product checkpoint внутри
+Step 7B — `SRC-0005 / 2.3.1`; следующий контрольный результат после его
+представления — `CHECK-11`.
+
 ## Правило сохранения инженерного донора
 
 Сохранённый проект SecureLinux-NG v16.2.11 остаётся **инженерным донором**, а

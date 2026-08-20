@@ -7,3 +7,5 @@ Focused regression для Documentation Baseline.
 compatibility terminology и отсутствие известных stale product-status строк.
 
 Тест входит в DEV автоматически через tracked `tests/*/test_*.py` population.
+
+Errata 0.0.13: regression также проверяет, что PRIMARY current map не показывает historical Step 7B node как текущий product checkpoint и не переносит имя donor `securelinux-ng.sh` на будущий distributable artifact.

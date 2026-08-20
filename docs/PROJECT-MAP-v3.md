@@ -4,7 +4,7 @@
 >
 > Карта показывает действующие источники истины, текстовые корпуса, source
 > index, controls, механические gates, reference-VM evidence, audit provenance,
-> policy layers, engineering donor и путь к конечному `securelinux-ng.sh`.
+> policy layers, engineering donor, текущую read-only CHECK product-line и путь к будущему distributable artifact.
 >
 > Старый SecureLinux-NG присутствует только как **engineering donor**. Его
 > runtime-архитектура не является нормативной архитектурой v3 и сама по себе
@@ -178,7 +178,7 @@ flowchart TB
     INDEXES --> GENERATOR["index-generic<br/>source skeleton generator<br/>step 5 CLOSED"]:::component
     GENERATOR --> SOURCE["source:<br/>generator output<br/>single normative producer"]:::component
     SOURCE --> PARITY["source-block<br/>regeneration parity<br/>step 6 CLOSED"]:::closed
-    PARITY --> SEM["requirement / parameter / expected<br/>semantic part of control"]:::future
+    PARITY --> SEM["requirement / parameter / expected<br/>semantic part of current FSTEC controls"]:::component
     SEM --> CONTROLS["controls/<br/>layer + profile"]:::component
     CONTROLS --> CHECKER["checker / gates<br/>fail-closed"]:::component
 
@@ -232,7 +232,7 @@ flowchart LR
     APPLY["apply/restore<br/>semantic contract"]:::future
     ADAPTERS["future APPLY implementation adapters"]:::future
     BUILD["future final distributable build"]:::future
-    SCRIPT["securelinux-ng.sh<br/>single distributable artifact"]:::future
+    SCRIPT["future final<br/>distributable artifact"]:::future
 
     OLD --> ARCHIVE
     ARCHIVE --> DONOR_INDEX
@@ -290,41 +290,47 @@ Git bundle — внешний артефакт для аудита и handoff, �
 
 ## 6. Где мы находимся
 
+Эта схема показывает **текущий product checkpoint внутри макроэтапа Step 7B**.
+Она не повторяет историческую последовательность gates и не изображает уже
+реализованные CHECK adapters/generator как будущую работу.
+
 ```mermaid
 flowchart LR
-    S1["Step 5<br/>audit provenance closure"]:::closed
-    S2["Gate 6<br/>evidence_binding"]:::closed
-    S3["type/boolean<br/>contract cleanup"]:::closed
-    S4["mandatory real-jsonschema<br/>release gate"]:::closed
-    S5["index-generic<br/>source skeleton generator"]:::closed
-    S6["source-block<br/>regeneration parity"]:::closed
-    S7["МЫ ЗДЕСЬ<br/>Step 7B<br/>FSTEC expansion<br/>real dispositions blocked"]:::current
-    S8["apply/restore<br/>semantic contract"]:::future
-    S9["implementation<br/>adapters"]:::future
-    S10["deterministic<br/>build"]:::future
-    S11["single distributable<br/>securelinux-ng.sh"]:::future
+    P1["CHECK-8 product-line<br/>2 read-only adapters + tracked generator<br/>DONE"]:::closed
+    P2["TEST BASELINE<br/>DEV / RELEASE runner<br/>DONE"]:::closed
+    P3["DOCUMENTATION BASELINE<br/>machine-parity docs<br/>DONE"]:::closed
+    P4["МЫ ЗДЕСЬ<br/>SRC-0005 / 2.3.1<br/>3 canonical file-mode controls"]:::current
+    P5["CHECK-11<br/>regenerate + read-only run"]:::future
+    P6["systematic FSTEC expansion<br/>remaining OPEN rows"]:::future
+    P7["APPLY semantic contract<br/>NOT IMPLEMENTED"]:::future
+    P8["APPLY implementation<br/>future"]:::future
+    P9["RESTORE contract + implementation<br/>future"]:::future
+    P10["final distributable artifact<br/>future"]:::future
 
-    S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9 --> S10 --> S11
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
     classDef current fill:#ffe2a8,stroke:#c77800,color:#111,stroke-width:4px;
     classDef future fill:#eeeeee,stroke:#888,color:#444,stroke-dasharray: 5 5;
 ```
 
-Текущий orange node обозначает macro-roadmap Step 7B, а не утверждает, что
-внутри него не существует завершённых product checkpoints. На текущем HEAD
-read-only product-line Steps 1–3 и исторический checkpoint CHECK-8 уже реализованы; APPLY/RESTORE
-по-прежнему не открыты.
+`docs/ROADMAP-v3.tsv` по-прежнему хранит более крупный macro-roadmap: Step 7B
+остаётся общим этапом FSTEC expansion. Текущий product checkpoint внутри него —
+`SRC-0005 / 2.3.1`. Read-only `product-sysctl-check-v1`,
+`product-file-mode-owner-check-v1`, `product/generate-product-check-v1.py` и
+generated CHECK уже реализованы и не относятся к будущему APPLY/RESTORE
+implementation track.
 
 ## Что является источником истины
 
-Финальный `securelinux-ng.sh` не редактируется вручную. Он должен получаться
-детерминированной сборкой из проверенных нормативных controls, инженерных
-semantic contracts, implementation adapters и tests.
+Финальный distributable artifact пока не реализован и его имя не закреплено
+как current product contract. В будущем он должен получаться детерминированной
+сборкой из проверенных нормативных controls, инженерных semantic contracts,
+implementation adapters и tests.
 
 Направление проекта:
 
-`source → text corpus → index → control/disposition → gates → semantic contract → adapter → deterministic build → script`
+`source → text corpus → index → control/disposition → gates → semantic contract → read-only adapter → generated CHECK → future APPLY/RESTORE → distributable artifact`
 
 а не:
 

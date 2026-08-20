@@ -39,6 +39,34 @@
   `observer-fitness-v1`) не входят в current Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
 
+## [0.0.13] — 2026-08-20
+
+### Fixed — DOCUMENTATION BASELINE ERRATA
+
+- Исправлена PRIMARY `docs/PROJECT-MAP-v3.md`: раздел «Где мы находимся»
+  теперь показывает текущий product checkpoint `SRC-0005 / 2.3.1`, а уже
+  реализованные read-only adapters, tracked generator и CHECK-8 находятся до
+  current node, не в future.
+- Следующий checkpoint на карте — `CHECK-11`; systematic FSTEC expansion и
+  будущие APPLY/RESTORE этапы идут после него.
+- Убрано утверждение, что конечный артефакт v3 уже обязан называться
+  `securelinux-ng.sh`; имя будущего distributable artifact пока не закреплено.
+- В macro-roadmap явно разъяснено, что будущие roadmap steps 8–11 относятся к
+  APPLY/RESTORE/final packaging и не описывают уже существующую CHECK line.
+- Semantic часть current FSTEC controls больше не помечена на PRIMARY map как
+  future.
+- Закрыто строк source index: **0**.
+
+### Tested
+
+- Roadmap regression проверяет порядок
+  `CHECK-8 → TEST BASELINE → DOCUMENTATION BASELINE → SRC-0005 → CHECK-11`.
+- Current-status regression требует, чтобы на этом checkpoint `SRC-0005`
+  оставался `OPEN`, ещё не имел canonical controls, при этом
+  `file-mode-owner` adapter и tracked generator уже существовали.
+- Documentation regression запрещает прежний current-node Step 7B и future
+  labels для уже реализованных CHECK adapters/generator.
+
 ## [0.0.12] — 2026-08-20
 
 ### Added — TEST BASELINE

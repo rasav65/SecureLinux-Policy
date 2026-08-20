@@ -62,6 +62,26 @@ for path in (
 ):
     assert path in readme, path
 
+src0005_rows = [row for row in index_rows if row["index_id"] == "SRC-0005"]
+assert len(src0005_rows) == 1
+assert src0005_rows[0]["status"] == "OPEN"
+assert not src0005_rows[0]["disposition"]
+src0005_controls = [row for row in controls if row["index_id"] == "SRC-0005"]
+assert src0005_controls == []
+
+adapter_kinds = {row["parameter_kind"] for row in adapters}
+assert {"sysctl", "file-mode-owner"} <= adapter_kinds
+assert (ROOT / "product/generate-product-check-v1.py").is_file()
+
+current = pmap.split("## 6. Где мы находимся", 1)[1].split(
+    "## Что является источником истины", 1
+)[0]
+assert current.count(":::current") == 1
+assert "SRC-0005 / 2.3.1" in current
+assert "3 canonical file-mode controls" in current
+assert "CHECK-11" in current
+assert "МЫ ЗДЕСЬ<br/>Step 7B" not in current
+
 with (ROOT / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream:
     rows = list(csv.DictReader(stream, delimiter="\t"))
 by_id = {row["step_id"]: row["status"] for row in rows}

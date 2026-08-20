@@ -96,6 +96,22 @@ assert readme.count("<!-- END GENERATED CURRENT STATUS -->") == 1
 assert pmap.count("<!-- BEGIN GENERATED MAP STATUS -->") == 1
 assert pmap.count("<!-- END GENERATED MAP STATUS -->") == 1
 
+current_map = pmap.split("## 6. Где мы находимся", 1)[1].split(
+    "## Что является источником истины", 1
+)[0]
+assert current_map.count(":::current") == 1
+assert "SRC-0005 / 2.3.1" in current_map
+assert "CHECK-11" in current_map
+for stale in (
+    "МЫ ЗДЕСЬ<br/>Step 7B",
+    'implementation<br/>adapters"]:::future',
+    'deterministic<br/>build"]:::future',
+    "single distributable<br/>securelinux-ng.sh",
+):
+    assert stale not in current_map, stale
+assert "путь к конечному `securelinux-ng.sh`" not in pmap
+assert "Финальный `securelinux-ng.sh`" not in pmap
+
 print(
     "DOCUMENTATION_BASELINE=PASS "
     f"docs_indexed={len(doc_names)} generated_files=3 primary_map=1"

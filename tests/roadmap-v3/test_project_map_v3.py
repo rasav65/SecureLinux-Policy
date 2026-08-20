@@ -12,8 +12,6 @@ assert "docs/fstec-coverage.md" in text
 assert "docs/policy-layers.md" in text
 assert "docs/compatibility.md" in text
 
-# Structural branches worth preserving. Diagram count, exact labels and current
-# numeric population are intentionally not contractual here.
 for marker in (
     "raw-pdftotext",
     "raw-glyph-recovered",
@@ -33,8 +31,67 @@ for marker in (
 ):
     assert marker in text, marker
 
-assert text.count(":::current") == 1
+# Current product CHECK components are implemented in the dedicated product line.
+product_line = text.split("## 3. Текущая read-only product-line CHECK", 1)[1].split(
+    "## 4. Инженерный донор", 1
+)[0]
+for marker in (
+    'product-sysctl-check-v1<br/>read-only"]:::closed',
+    'product-file-mode-owner-check-v1<br/>read-only"]:::closed',
+    'tracked deterministic generator"]:::closed',
+    'generated CHECK<br/>current manifest population<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed',
+):
+    assert marker in product_line, marker
+
+# "Где мы" is a product checkpoint, not a replay of old macro-roadmap labels.
+current = text.split("## 6. Где мы находимся", 1)[1].split(
+    "## Что является источником истины", 1
+)[0]
+assert current.count(":::current") == 1
+for marker in (
+    "CHECK-8 product-line",
+    "TEST BASELINE",
+    "DOCUMENTATION BASELINE",
+    "SRC-0005 / 2.3.1",
+    "3 canonical file-mode controls",
+    "CHECK-11",
+    "systematic FSTEC expansion",
+    "APPLY semantic contract",
+    "APPLY implementation",
+    "RESTORE contract + implementation",
+    "final distributable artifact",
+):
+    assert marker in current, marker
+
+positions = [current.index(marker) for marker in (
+    "CHECK-8 product-line",
+    "TEST BASELINE",
+    "DOCUMENTATION BASELINE",
+    "SRC-0005 / 2.3.1",
+    "CHECK-11",
+    "systematic FSTEC expansion",
+    "APPLY semantic contract",
+    "APPLY implementation",
+    "RESTORE contract + implementation",
+    "final distributable artifact",
+)]
+assert positions == sorted(positions)
+
+for stale in (
+    "МЫ ЗДЕСЬ<br/>Step 7B",
+    'implementation<br/>adapters"]:::future',
+    'deterministic<br/>build"]:::future',
+    "single distributable<br/>securelinux-ng.sh",
+):
+    assert stale not in current, stale
+
+assert "путь к конечному `securelinux-ng.sh`" not in text
+assert "Финальный `securelinux-ng.sh`" not in text
+assert "future final<br/>distributable artifact" in text
 assert "Gate 0 PASS" in text
 assert "только byte-generation parity" in text
 assert "docs/PROJECT-MAP-v3.md" in readme
-print("PROJECT_MAP_V3=PASS primary=1 current_nodes=1 machine_status_block=1")
+print(
+    "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=SRC-0005 "
+    "implemented_check_line=1 future_apply_restore=1"
+)
