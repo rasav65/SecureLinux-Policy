@@ -69,16 +69,30 @@ OVERALL FAIL
 `OVERALL=FAIL` — конструктивное состояние, а не поломка: пока хотя бы одна из
 341 строки не закрыта, общий вердикт обязан быть отрицательным.
 
-Отдельный product/corpus CHECK собран из всех восьми текущих sysctl-controls
-и проверен на Ubuntu 24.04.4 VM. Он имеет статус
-`NON_RELEASE_DIAGNOSTIC_CANDIDATE`, явно не использует identity Step 7B.0
-Build Contract / Phase B/C и не является authoritative или release. Снимки
-восьми sysctl до и после прогонов совпали, поэтому read-only свойство
-диагностического CHECK подтверждено фактическим запуском.
+Текущая product-line имеет отдельные semantic contracts, два read-only
+adapter (`sysctl`, `file-mode-owner`), единый `ADAPTER-REGISTRY.tsv` и tracked
+generator `product/generate-product-check-v1.py`. Generated CHECK имеет статус
+`NON_RELEASE_PRODUCT_CANDIDATE`, не использует identity historical Step 7B.0
+Build Contract / Phase B/C и не является authoritative или release. CHECK-8
+regression подтвердил deterministic build, provenance, пустой
+неструктурированный stderr и неизменность наблюдаемых sysctl до/после запуска.
 
 Реальный disposition ledger пуст: `DISPOSITION-LEDGER.tsv` содержит только
 заголовок. Альтернативный путь закрытия строки (явный disposition вместо
 контроля) пока не использован ни разу.
+
+Основная архитектурная карта текущего проекта:
+[`docs/PROJECT-MAP-v3.md`](docs/PROJECT-MAP-v3.md).
+[`docs/ARCHITECTURE-DIAGRAMS.md`](docs/ARCHITECTURE-DIAGRAMS.md) — только
+donor/future runtime reference и не является источником текущего статуса.
+
+## TEST BASELINE
+
+Tracked `tests/run-all.py` разделяет 21 текущий Python regression на
+`DEV=20` и `RELEASE=1`. DEV выполняется stdlib-only и обязан быть зелёным;
+RELEASE отдельно требует зависимости из `requirements-release.txt`.
+Отсутствие release-зависимости означает `BLOCKED_ENVIRONMENT`, а не
+project PASS.
 
 ---
 

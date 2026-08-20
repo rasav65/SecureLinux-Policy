@@ -26,13 +26,13 @@ Parity-checker:
 
 ## Доказательства текущего закрытия
 
-Текущих controls: 5.
+Текущих controls: 8.
 
 Текущий результат:
 
-`controls=5 supported=5 matched=5 unsupported=0 missing_index=0 mismatches=0 errors=0`
+`controls=8 supported=8 matched=8 unsupported=0 missing_index=0 mismatches=0 errors=0`
 
-Следовательно, для всех пяти controls механически обеспечен паритет
+Следовательно, для всех восьми controls механически обеспечен паритет
 регенерации.
 
 Сам генератор `source:` пока поддерживает один из тринадцати текущих
@@ -53,6 +53,6 @@ control никогда не пропускается молча.
 
 Этот этап не создаёт controls, не изменяет source corpora, не меняет Gate 1–6
 и не закрывает строки source index. Прогресс FSTEC остаётся:
-349 всего / 5 controlled `CLOSED` / 344 `OPEN`.
+349 всего / 8 controlled `CLOSED` / 341 `OPEN`.
 
 Следующий этап roadmap — расширение FSTEC + corporate index / dispositions.

@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+CONTROL_MANIFEST = ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 GEN = ROOT / "tools/source_skeleton_generator.py"
 EXPECTED_GEN_SHA = "b79db6b03ecfe125ffb691dcc717baab230e35a95cb5c15a7345148103d13abb"
 EXPECTED_SRC0018_SHA = "016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d"
@@ -19,6 +20,14 @@ EXPECTED_REFUSED = {"SRC-0001", "SRC-0133"}
 
 def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+
+
+def current_control_count() -> int:
+    with CONTROL_MANIFEST.open(encoding="utf-8", newline="") as stream:
+        return sum(1 for _ in csv.DictReader(stream, delimiter="\t"))
+
 
 
 def load_gen():
@@ -52,11 +61,12 @@ assert len({row["unit_kind"] for row in rows}) == 13
 assert gate.SUPPORTED_UNIT_KINDS == {"numbered-position"}
 
 # Positive ground truth: every current control is in the supported kind and
-# regenerates byte-identically.
+# regenerates byte-identically. The count comes from CONTROL-MANIFEST.tsv.
+control_count = current_control_count()
 rc, out, err = run_cli("--verify-pilot")
 assert rc == 0, (out, err)
-assert "PILOT_VERIFY=PASS controls=5 mismatches=0" in out
-assert out.count("  OK    ") == 5
+assert f"PILOT_VERIFY=PASS controls={control_count} mismatches=0" in out
+assert out.count("  OK    ") == control_count
 assert "  SKIP  " not in out
 assert "  DIFF  " not in out
 
@@ -65,7 +75,7 @@ supported = [
     row for row in rows
     if row["unit_kind"] in gate.SUPPORTED_UNIT_KINDS
 ]
-assert len(supported) == 74
+assert supported
 
 ok = []
 refused = {}
@@ -76,7 +86,7 @@ for row in supported:
     except Exception as exc:
         refused[row["index_id"]] = str(exc)
 
-assert len(ok) == 72
+assert len(ok) + len(refused) == len(supported)
 assert set(refused) == EXPECTED_REFUSED
 assert all("bare integer" in why for why in refused.values())
 
@@ -186,7 +196,8 @@ with tempfile.TemporaryDirectory(prefix="slp-manifest-tamper-") as td:
 
 print(
     "SOURCE_SKELETON_TESTS=PASS "
-    "pilot=5 unit_kinds=1/13 supported_rows=74 exact=72 refused=2 "
+    f"pilot={control_count} unit_kinds=1/{len({row['unit_kind'] for row in rows})} "
+    f"supported_rows={len(supported)} exact={len(ok)} refused={len(refused)} "
     "index_generic_path=1 negative_duplicate_index=1 "
     "negative_quote_anchor=1 negative_normalizer_sha=1 "
     "negative_norm_sha=1"

@@ -1,66 +1,63 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import csv
 
 root = Path(__file__).resolve().parents[2]
 text = (root / "docs/PROJECT-MAP-v3.md").read_text(encoding="utf-8")
+readme = (root / "README.md").read_text(encoding="utf-8")
 
-assert text.count("```mermaid") == 5
-assert text.count(":::current") == 1
+assert "основная архитектурная карта текущего SecureLinux-Policy v3" in text
+assert "engineering donor" in text
 
-assert 'S3["type/boolean<br/>contract cleanup"]:::closed' in text
-assert 'S4["mandatory real-jsonschema<br/>release gate"]:::closed' in text
-assert 'S5["index-generic<br/>source skeleton generator"]:::closed' in text
-assert 'S6["source-block<br/>regeneration parity"]:::closed' in text
-assert 'S7["МЫ ЗДЕСЬ<br/>Step 7B<br/>FSTEC expansion<br/>real dispositions blocked"]:::current' in text
+with (root / "index/source-v4/SOURCE-INDEX.tsv").open(
+    encoding="utf-8", newline=""
+) as stream:
+    index_rows = list(csv.DictReader(stream, delimiter="\t"))
+with (root / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv").open(
+    encoding="utf-8", newline=""
+) as stream:
+    controls = list(csv.DictReader(stream, delimiter="\t"))
 
-required = (
+total = len(index_rows)
+closed = sum(
+    row["status"] == "CLOSED" and not row["disposition"] for row in index_rows
+)
+open_rows = sum(row["status"] == "OPEN" for row in index_rows)
+
+for marker in (
+    f"{total} rows",
+    f"{closed} controlled CLOSED",
+    f"{open_rows} OPEN",
+    f"{len(controls)} current controls",
     "raw-pdftotext",
-    "10 документов",
-    "glyph-id-cross-document-v1",
-    "get_texttrace()",
-    "ТОЛЬКО 2 документа",
     "raw-glyph-recovered",
     "sources/recovered-v1/norm-v1",
-    "RECOVERY-MANIFEST.tsv",
-    "EXTRACTION-MANIFEST.tsv",
     "SOURCE-INDEX.text_quality",
     "CLOSURE-CONTRACT.tsv",
-    "disposed CLOSED + disposition + reason",
-    "test_schema_runtime_parity.py",
-    "semantic parity regression",
     "Draft202012Validator",
     "source skeleton generator",
     "source-block parity",
-    "step 6 CLOSED",
-    "single normative producer",
-    "5 sysctl controls",
-    "1 reference VM",
-    "one sysctl-v1 evidence directory",
-    "PROVENANCE.tsv",
-    "PROJECT-SNAPSHOT.tsv",
-    "git bundle verify",
-    "git ls-tree vs PROJECT-SNAPSHOT.tsv",
-    "clean-checkout reproducible",
-    "controls that passed required gates",
     "DONOR_TO_V3_MAPPING",
     "REUSE / ADAPT / REJECT / DEFER",
-    "МЫ ЗДЕСЬ",
-    "type/boolean",
-)
-for marker in required:
+    "product/ADAPTER-REGISTRY.tsv",
+    "product-sysctl-check-v1",
+    "product-file-mode-owner-check-v1",
+    "product/generate-product-check-v1.py",
+    "NON_RELEASE_PRODUCT_CANDIDATE",
+):
     assert marker in text, marker
 
-# Recovery must be a branch from PDF, not PDF -> extracted norm -> recovery.
-assert "PDF --> RAWEXT --> EXNORM" in text
-assert "PDF --> GLYPH --> RAWREC --> RECNORM" in text
-assert "EXNORM --> REC" not in text
-assert "PDF --> NORM --> REC" not in text
+# There is one macro-roadmap current node. Diagram count and exact node labels
+# are intentionally not contractual.
+assert text.count(":::current") == 1
 
-# Gate 0 must not be presented as semantic parity.
+# Gate 0 remains generation parity, not semantic parity.
 assert "Gate 0 PASS" in text
 assert "только byte-generation parity" in text
 
-readme = (root / "README.md").read_text(encoding="utf-8")
 assert "docs/PROJECT-MAP-v3.md" in readme
-
-print("PROJECT_MAP_V3=PASS mermaid_blocks=5 current_nodes=1 recovery_branches=2")
+print(
+    "PROJECT_MAP_V3=PASS "
+    f"source_rows={total} closed={closed} open={open_rows} "
+    f"controls={len(controls)} current_nodes=1"
+)

@@ -10,6 +10,45 @@
 
 ## [Unreleased]
 
+### Added — TEST BASELINE
+
+- Добавлен tracked `tests/run-all.py` как единая точка запуска всех tracked
+  `tests/*/test_*.py`.
+- Тестовая популяция разделена на `DEV=20` и `RELEASE=1`;
+  `requirements-release.txt` фиксирует `jsonschema>=4.10.3`.
+- Добавлен `tests/run-all-selftest.py`, проверяющий коды runner `0/1/2/3`.
+- DEV runner требует не только `RC=0`, но и доказательство фактического
+  выполнения теста; нетрекнутые `test_*.py` и `ResourceWarning` считаются ошибкой.
+- Политика внутренних skip стала исполняемой: разрешены только заранее
+  объявленные environment/root случаи с точным ожидаемым количеством.
+
+### Fixed — TEST BASELINE
+
+- Три regression-набора больше не пинуют историческое число `5` controls:
+  ожидаемая популяция берётся из текущего machine truth.
+- `source-skeleton` больше не пинует исторические `74/72`; поддерживаемая и
+  точная популяция вычисляются во время прогона.
+- Четыре `roadmap-v3` regression проверяют семантические инварианты и
+  machine truth вместо точных русских status-фраз и числа Mermaid-блоков.
+- `docs/PROJECT-MAP-v3.md` синхронизирован с текущими `349 / 8 / 341`,
+  current CHECK adapters/registry/generator и отдельным historical VM scope.
+- Устранены четыре `ResourceWarning` в file-mode-owner regression.
+- Закрыто строк source index: **0**.
+
+### Tested — TEST BASELINE
+
+- DEV должен завершаться `20/20 PASS`; RELEASE выполняется отдельно и при
+  отсутствии `jsonschema>=4.10.3` возвращает `BLOCKED_ENVIRONMENT`.
+- CHECK-8 attribution выполняется до tracked mutation и сохраняет отдельный
+  ignored evidence; диагностическая неатрибутированность не оставляет
+  полумутированный repository state.
+
+### Docs — TEST BASELINE
+
+- README актуализирован для текущей product-line и явно различает primary
+  `PROJECT-MAP-v3.md` и donor `ARCHITECTURE-DIAGRAMS.md`.
+- `CHANGELOG.md` сохраняет отдельный раздел `Известные незакрытые замечания`.
+
 ### Текущее незавершённое состояние
 
 - `SRC-0005 / 2.3.1` остаётся `OPEN`: schema/runtime, product semantic

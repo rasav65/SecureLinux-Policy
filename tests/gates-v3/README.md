@@ -1,7 +1,7 @@
 # gates-v3 tests
 
 `test_audit_fixes.py` — focused tests for completeness-contract, full schema,
-scope/profile conflicts and active pilot fail-closed behavior.
+scope/profile conflicts and active-tree fail-closed behavior. Current population counts are derived from source/index contracts rather than pinned.
 
 `test_schema_runtime_parity.py` — B-R1-01 and B-R2-01 regression:
 

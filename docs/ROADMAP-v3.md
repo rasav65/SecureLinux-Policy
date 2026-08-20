@@ -18,7 +18,7 @@ Step 5. Нельзя начинать более поздний этап, пок
 
 Неизменяемые правила:
 
-- нельзя начинать массовую работу по 344 строкам FSTEC со статусом `OPEN` до
+- нельзя начинать массовую работу по текущим строкам FSTEC со статусом `OPEN` до
   закрытия Gate 6, очистки boolean/type, генератора `source:` и паритета
   регенерации;
 - Gate 6 доказывает привязку и целостность evidence, но не криптографическое
@@ -113,14 +113,13 @@ INDEX-GENERIC SOURCE SKELETON GENERATOR: CLOSED.
 `tools/source_skeleton_generator.py` является каноническим производителем
 `source:` для поддерживаемых `unit_kind`.
 
-Текущая область намеренно узкая и измеримая:
+Текущая область намеренно узкая и измеримая. Числа supported/exact
+вычисляются regression-тестом из текущего index, а не являются roadmap-pin:
 
 - source index: 349 строк / 13 типов `unit_kind`;
 - поддерживаемый тип: только `numbered-position`;
-- строк поддерживаемого типа: 74;
-- точных извлечений: 72;
 - отказ без угадывания: `SRC-0001`, `SRC-0133`;
-- текущие принятые controls воспроизводятся побайтово: 5/5.
+- текущие принятые controls воспроизводятся побайтово: 8/8.
 
 Генератор принимает явный путь к index и использует его общий контракт. Он
 fail-closed проверяет normalizer, corpus manifests и hash нормализованного
@@ -140,15 +139,10 @@ SOURCE-BLOCK REGENERATION PARITY: CLOSED.
 механически обеспечивает правило единственного нормативного производителя для
 каждого закоммиченного control.
 
-Результат текущего закрытия:
-
-- controls: 5;
-- supported: 5;
-- побайтовых совпадений: 5;
-- unsupported: 0;
-- отсутствующих строк index: 0;
-- mismatches: 0;
-- errors: 0.
+Результат на текущем HEAD вычисляется из `CONTROL-MANIFEST.tsv`, а не
+пинуется числом исторического pilot: все 8 current controls поддержаны и
+побайтово совпадают; `unsupported=0`, `missing_index=0`, `mismatches=0`,
+`errors=0`.
 
 Будущий control, чей `unit_kind` ещё не поддерживается, классифицируется как
 `UNSUPPORTED` и приводит к fail-closed, а не обходит parity.
@@ -240,8 +234,8 @@ Step 7B разрешён только для расширения FSTEC по sou
 - real disposition остаётся запрещён до quote-anchor contract/API;
 - corporate multi-index/descriptor остаётся отложен до появления первого
   реального corporate primary source;
-- известное pre-existing падение `tests/roadmap-v3/test_donor_policy.py`
-  не считается регрессией R3 и разбирается отдельной housekeeping-задачей.
+- roadmap/documentation regressions обязаны проверять machine truth и
+  семантические инварианты, а не исторические точные фразы.
 
 Quote-anchor остаётся отдельным pre-real-disposition gate:
 `REQUIRE_BEFORE_FIRST_REAL_DISPOSITION`. Будущий generator API должен

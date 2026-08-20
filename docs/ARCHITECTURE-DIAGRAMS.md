@@ -124,12 +124,11 @@ flowchart TB
     LIMITS --> REPORT
 ```
 
-## Текущее место в roadmap
+## Текущее место в проекте
 
-- Step 5 audit provenance closure — CLOSED
-- Gate 6 `evidence_binding` — CLOSED
-- **NEXT: type/boolean contract cleanup**
-- далее — строго по `docs/ROADMAP-v3.md`.
+Эти donor runtime diagrams не являются источником текущего статуса.
+Актуальная primary-карта — [`PROJECT-MAP-v3.md`](PROJECT-MAP-v3.md), а
+машинный macro-roadmap — `ROADMAP-v3.tsv`.
 
-До шага `apply/restore semantic contract` третья диаграмма остаётся целевой
-архитектурой, а не заявлением о готовой реализации v3.
+До открытия `apply/restore semantic contract` показанные apply/restore ветви
+остаются donor/future reference, а не заявлением о готовой реализации v3.

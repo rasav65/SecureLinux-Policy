@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PARITY = ROOT / "checker/source-parity-v1/source_block_regeneration_parity.py"
 INDEX = ROOT / "index/source-v4/SOURCE-INDEX.tsv"
 CONTROLS = ROOT / "controls"
+CONTROL_MANIFEST = ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 EXPECTED_PARITY_SHA = "f62ed3b2d0da629a8adc11b50637d23b7595014078994eb6b17a27be7c9d13cb"
 
 def sha(path: Path) -> str:
@@ -50,9 +51,20 @@ def load_parity():
     return module
 
 
+def current_control_count():
+    with CONTROL_MANIFEST.open(encoding="utf-8", newline="") as stream:
+        rows = list(csv.DictReader(stream, delimiter="\t"))
+    files = {row["file"] for row in rows}
+    actual = {
+        path.name for path in (ROOT / "controls/fstec-core/linux-2022").glob("*.yaml")
+    }
+    assert files == actual, (files, actual)
+    return len(rows)
+
+
 def first_control():
     controls = sorted(CONTROLS.rglob("*.yaml"))
-    assert len(controls) == 5
+    assert len(controls) == current_control_count()
     path = controls[0]
     text = path.read_text(encoding="utf-8")
     module = load_parity()
@@ -85,15 +97,18 @@ def mutate_source_field(text: str, field: str, mutate):
     return "\n".join(lines)
 
 
-# Positive current tree: all five controls are supported and byte-identical.
+# Positive current tree: the exact manifest population is supported and
+# byte-identical. No historical numeric pin is allowed here.
+expected_controls = current_control_count()
 rc, out, err = run()
 assert rc == 0, (out, err)
 assert (
     "SOURCE_BLOCK_REGENERATION_PARITY=PASS "
-    "controls=5 supported=5 matched=5 unsupported=0 "
+    f"controls={expected_controls} supported={expected_controls} "
+    f"matched={expected_controls} unsupported=0 "
     "missing_index=0 mismatches=0 errors=0"
 ) in out
-assert out.count("MATCH ") == 5
+assert out.count("MATCH ") == expected_controls
 
 control_path, original, index_id = first_control()
 

@@ -2,8 +2,9 @@
 
 Permanent regression for roadmap step 6.
 
-Positive coverage requires all five current controls to regenerate
-byte-for-byte.
+Positive coverage requires the complete current control population from
+`CONTROL-MANIFEST.tsv` to regenerate byte-for-byte. The regression must not
+pin a historical control count.
 
 Negative fixtures prove fail-closed behavior for:
 

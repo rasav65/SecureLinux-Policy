@@ -52,16 +52,16 @@ flowchart LR
 
     subgraph INDEX["4. SOURCE INDEX"]
         IDX["index/source-v4<br/>349 rows"]:::component
-        C5["5 controlled CLOSED"]:::closed
-        OPEN["344 OPEN"]:::component
+        CLOSED["8 controlled CLOSED"]:::closed
+        OPEN["341 OPEN"]:::component
         QUALITY --> IDX
-        IDX --> C5
+        IDX --> CLOSED
         IDX --> OPEN
     end
 
     subgraph CONTROL["5. CONTROL RECORDS / SCHEMA"]
-        CTRL["controls/<br/>5 pilot controls"]:::component
-        KIND["KIND_RULES<br/>single runtime kind contract"]:::component
+        CTRL["controls/<br/>8 current controls"]:::component
+        KIND["KIND_RULES<br/>canonical parameter-kind contract"]:::component
         SCHEMA["CONTROL-SCHEMA.json<br/>generated from KIND_RULES"]:::component
         DIFF["tests/gates-v3/<br/>test_schema_runtime_parity.py<br/>50 records · 16 CR/LF cases<br/>pattern semantics"]:::component
         SEMPAR["schema ↔ runtime<br/>semantic parity regression"]:::component
@@ -70,19 +70,19 @@ flowchart LR
         KIND --> SCHEMA
         KIND --> DIFF
         SCHEMA --> DIFF --> SEMPAR --> REALJSON
-        IDX --> SGEN["source skeleton generator<br/>step 5 CLOSED · numbered-position<br/>5/5 pilot"]:::closed
-        SGEN --> SPAR["source-block parity<br/>step 6 CLOSED · 5/5"]:::closed
+        IDX --> SGEN["source skeleton generator<br/>step 5 CLOSED · numbered-position<br/>current controls 8/8"]:::closed
+        SGEN --> SPAR["source-block parity<br/>step 6 CLOSED · current controls 8/8"]:::closed
         SPAR --> CTRL
         KIND --> CTRL
     end
 
     subgraph GATES["6. MACHINE GATES"]
         G0["Gate 0 PASS<br/>schema_generation_parity<br/>только byte-generation parity"]:::closed
-        G1["Gate 1 PASS<br/>source/quote anchor<br/>current 5 controls"]:::closed
-        G2["Gate 2 FAIL<br/>reverse source coverage<br/>344 uncovered"]:::component
-        G3["Gate 3 PASS<br/>parameter closure<br/>current 5 controls"]:::closed
-        G4["Gate 4 PASS<br/>uniqueness/conflicts<br/>current 5 controls"]:::closed
-        G5["Gate 5 PASS — PILOT SCOPE<br/>5 sysctl controls<br/>1 reference VM"]:::closed
+        G1["Gate 1 PASS<br/>source/quote anchor<br/>current 8 controls"]:::closed
+        G2["Gate 2 FAIL<br/>reverse source coverage<br/>341 uncovered"]:::component
+        G3["Gate 3 PASS<br/>parameter closure<br/>current 8 controls"]:::closed
+        G4["Gate 4 PASS<br/>uniqueness/conflicts<br/>current 8 controls"]:::closed
+        G5["Gate 5 historical admitted pilot<br/>5 sysctl controls · 1 reference VM<br/>current no-probe invocation FAIL-closed"]:::component
         G6["Gate 6 PASS — CURRENT EVIDENCE SCOPE<br/>one sysctl-v1 evidence directory"]:::closed
 
         CLOSURE["index/source-v4/<br/>CLOSURE-CONTRACT.tsv<br/>exact expected control set<br/>for controlled CLOSED rows"]:::component
@@ -181,7 +181,34 @@ flowchart TB
     classDef future fill:#eeeeee,stroke:#888,color:#444,stroke-dasharray: 5 5;
 ```
 
-## 3. Инженерный донор → будущий runtime
+## 3. Текущая read-only product-line CHECK
+
+```mermaid
+flowchart LR
+    CTRLNOW["8 canonical controls<br/>fstec-core"]:::component
+    REG["product/ADAPTER-REGISTRY.tsv<br/>single tracked adapter mapping"]:::component
+    SYS["product-sysctl-check-v1<br/>read-only"]:::closed
+    FILE["product-file-mode-owner-check-v1<br/>read-only"]:::closed
+    GEN["product/generate-product-check-v1.py<br/>tracked deterministic generator"]:::closed
+    CHECK["generated CHECK-8<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
+
+    CTRLNOW --> REG
+    REG --> SYS
+    REG --> FILE
+    SYS --> GEN
+    FILE --> GEN
+    CTRLNOW --> GEN --> CHECK
+
+    classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
+    classDef component fill:#dcecff,stroke:#3e6ea8,color:#111;
+```
+
+Эта product-line отделена от historical Step 7B.0. `ADAPTER-REGISTRY.tsv`
+пинует semantic contract, adapter binding и implementation по SHA-256.
+Generated `dist/` является derived output и не входит в root manifests.
+APPLY/RESTORE здесь отсутствуют.
+
+## 4. Инженерный донор → будущий APPLY/RESTORE runtime
 
 ```mermaid
 flowchart LR
@@ -193,8 +220,8 @@ flowchart LR
 
     MAP["DONOR_TO_V3_MAPPING<br/>REUSE / ADAPT / REJECT / DEFER"]:::future
     APPLY["apply/restore<br/>semantic contract"]:::future
-    ADAPTERS["implementation adapters"]:::future
-    BUILD["deterministic build"]:::future
+    ADAPTERS["future APPLY implementation adapters"]:::future
+    BUILD["future final distributable build"]:::future
     SCRIPT["securelinux-ng.sh<br/>single distributable artifact"]:::future
 
     OLD --> ARCHIVE
@@ -220,7 +247,7 @@ flowchart LR
     classDef note fill:#fff8d8,stroke:#9d8730,color:#111;
 ```
 
-## 4. Provenance, Git checkpoint и воспроизводимость дерева
+## 5. Provenance, Git checkpoint и воспроизводимость дерева
 
 ```mermaid
 flowchart LR
@@ -251,7 +278,7 @@ Git bundle — внешний артефакт для аудита и handoff, �
 внутреннюю согласованность commit/tree и позволяет независимо сравнить дерево,
 но не доказывает, что commit был получен из конкретного remote.
 
-## 5. Где мы находимся
+## 6. Где мы находимся
 
 ```mermaid
 flowchart LR
@@ -273,6 +300,11 @@ flowchart LR
     classDef current fill:#ffe2a8,stroke:#c77800,color:#111,stroke-width:4px;
     classDef future fill:#eeeeee,stroke:#888,color:#444,stroke-dasharray: 5 5;
 ```
+
+Текущий orange node обозначает macro-roadmap Step 7B, а не утверждает, что
+внутри него не существует завершённых product checkpoints. На текущем HEAD
+read-only product-line Steps 1–3 и CHECK-8 уже реализованы; APPLY/RESTORE
+по-прежнему не открыты.
 
 ## Что является источником истины
 

@@ -4,11 +4,15 @@ Permanent regression for roadmap step 5.
 
 It proves the current scoped generator contract:
 
-- one supported `unit_kind` out of 13 (`numbered-position`);
-- 74 rows in the supported kind;
-- 72 exact extractions and 2 explicit refusals;
-- all five current controls regenerate byte-identically;
+- one supported `unit_kind` (`numbered-position`);
+- supported/exact population is derived from the current source index;
+- explicit refused identities remain fail-closed;
+- every current control from `CONTROL-MANIFEST.tsv` regenerates byte-identically;
 - alternate index path works;
 - trust-chain corruption fails closed.
 
-This is not the step-6 committed-block parity gate. Step 6 is next.
+Historical numeric pins such as `pilot=5`, `supported=74`, `exact=72` are not
+test contracts. The current values may still equal measured historical counts,
+but they are calculated during the run.
+
+This is distinct from the step-6 committed-block parity gate.

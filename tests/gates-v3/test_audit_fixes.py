@@ -7,6 +7,7 @@ import json
 import shutil
 import tempfile
 import unittest
+import csv
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -155,11 +156,25 @@ class ActivePilotTests(unittest.TestCase):
             None,
         )
         by={g["gate"]:g for g in r["gates"]}
+        with (PROJECT/"index/source-v4/SOURCE-INDEX.tsv").open(
+            encoding="utf-8", newline=""
+        ) as stream:
+            index_rows=list(csv.DictReader(stream, delimiter="\t"))
+        with (PROJECT/"index/source-v4/CLOSURE-CONTRACT.tsv").open(
+            encoding="utf-8", newline=""
+        ) as stream:
+            contract_rows=list(csv.DictReader(stream, delimiter="\t"))
+        controlled=sum(
+            row["status"]=="CLOSED" and not row["disposition"]
+            for row in index_rows
+        )
+        open_rows=sum(row["status"]=="OPEN" for row in index_rows)
+
         self.assertTrue(by[1]["pass"])
         self.assertFalse(by[2]["pass"])
-        self.assertEqual(by[2]["controlled_closed_rows"],5)
-        self.assertEqual(by[2]["uncovered_rows"],344)
-        self.assertEqual(by[2]["contract_rows"],5)
+        self.assertEqual(by[2]["controlled_closed_rows"], controlled)
+        self.assertEqual(by[2]["uncovered_rows"], open_rows)
+        self.assertEqual(by[2]["contract_rows"], len(contract_rows))
         self.assertTrue(by[3]["pass"])
         self.assertTrue(by[4]["pass"])
         self.assertFalse(by[5]["pass"])
