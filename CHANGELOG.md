@@ -35,6 +35,35 @@
   `observer-fitness-v1`) не входят в current Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
 
+## [0.0.17] — 2026-08-20
+
+### Fixed — local SHA256SUMS / ACTIVE checker evidence errata
+
+- Исправлен stale SHA `product/README.md` в `product/SHA256SUMS`; product bytes
+  и source/canonical semantics этим исправлением не меняются.
+- `ACTIVE-CHECKER-V3-NO-VM.txt` и
+  `checker/gates-v3/ACTIVE-NO-VM-EVIDENCE.txt` перестраиваются из фактического
+  current checker run и больше не содержат историческое состояние 5/344.
+- `tests/project-integrity-v1/test_root_manifests.py` расширен с
+  `tests/**/SHA256SUMS` на repository-wide current nested manifests; ровно две
+  historical donor runtime entries разрешены только как pinned exceptions с
+  точными manifest/path/SHA; отдельно требуется byte-exact freshness обоих
+  gates-v3 `ACTIVE` snapshots.
+- Corpus остаётся `349 / 15 controlled CLOSED / 334 OPEN`; canonical controls:
+  `17`; закрыто строк source index этим шагом: **0**.
+
+### Tested
+
+- До mutation repository-wide local-manifest scan обязан находить ровно известный
+  stale `product/SHA256SUMS -> README.md`, иначе шаг fail-closed останавливается.
+- После исправления current local-manifest scan: 0 ошибок; historical donor
+  exception population: ровно 2 pinned entries.
+- Оба `ACTIVE` snapshots побайтово равны свежему gates-v3 checker stdout для
+  текущего состояния 17/15/334.
+- DEV baseline: 21/21 PASS; RELEASE baseline: PASS.
+- Root manifests: 742/743 PASS; Gate 2 и Gate 5 остаются ожидаемо FAIL по
+  текущим контрактным причинам.
+
 ## [0.0.16] — 2026-08-20
 
 ### Added — sysctl exact-eq expansion batch / CHECK-17

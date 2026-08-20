@@ -125,6 +125,8 @@ Generated CHECK не содержит APPLY/RESTORE и не должен изм�
 | Неподдерживаемая target-платформа завершается до проверки | PASS | product generator regression, RC=3 |
 | DEV test population имеет единую точку запуска | PASS | `tests/run-all.py` + `tests/run-all-selftest.py` |
 | Реальный Draft 2020-12 валидатор обязателен для RELEASE | PASS | `tests/release-v1/test_real_jsonschema_gate.py` |
+| Current nested `SHA256SUMS` валидны; 2 historical donor runtime entries пинованы как исключения | PASS | `tests/project-integrity-v1/test_root_manifests.py` |
+| Gates-v3 evidence с маркировкой `ACTIVE` совпадает со свежим checker run | PASS | `tests/project-integrity-v1/test_root_manifests.py` |
 | APPLY | NOT IMPLEMENTED | — |
 | RESTORE | NOT IMPLEMENTED | — |
 
