@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.3.1-GROUP-MODE"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0005"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.3.1"
+  quote: "2.3.1. Установить корректные права доступа к файлам настройки пользователей, а именно к файлам с перечнями пользовательских идентификаторов (/etc/passwd) и групп (/etc/group), либо хранилищам хешей паролей (в операционных системах GNU/Linux, Solaris, HP-UX: /etc/shadow, AIX: /etc/security/passwd), с помощью команд: chmod 644 /etc/passwd; chmod 644 /etc/group; chmod go-rwx /etc/shadow."
+  quote_sha256: "9ff1921e56eb10d64d5a4bd66ed41a79923f1ef2600826cf96f99540d8dcbf66"
+  norm: "norm-v1"
+requirement:
+  stated: "2.3.1. Установить корректные права доступа к файлам настройки пользователей, а именно к файлам с перечнями пользовательских идентификаторов (/etc/passwd) и групп (/etc/group), либо хранилищам хешей паролей (в операционных системах GNU/Linux, Solaris, HP-UX: /etc/shadow, AIX: /etc/security/passwd), с помощью команд: chmod 644 /etc/passwd; chmod 644 /etc/group; chmod go-rwx /etc/shadow."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "file-mode-owner"
+  locator: "/etc/group"
+  key: "mode"
+expected:
+  op: "eq"
+  value: "0644"
+  type: "string"
+apply:
+  supported: false

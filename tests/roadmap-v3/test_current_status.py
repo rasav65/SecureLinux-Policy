@@ -64,10 +64,10 @@ for path in (
 
 src0005_rows = [row for row in index_rows if row["index_id"] == "SRC-0005"]
 assert len(src0005_rows) == 1
-assert src0005_rows[0]["status"] == "OPEN"
+assert src0005_rows[0]["status"] == "CLOSED"
 assert not src0005_rows[0]["disposition"]
 src0005_controls = [row for row in controls if row["index_id"] == "SRC-0005"]
-assert src0005_controls == []
+assert len(src0005_controls) == 3
 
 adapter_kinds = {row["parameter_kind"] for row in adapters}
 assert {"sysctl", "file-mode-owner"} <= adapter_kinds
@@ -80,6 +80,8 @@ assert current.count(":::current") == 1
 assert "SRC-0005 / 2.3.1" in current
 assert "3 canonical file-mode controls" in current
 assert "CHECK-11" in current
+assert "systematic FSTEC expansion" in current
+assert "МЫ ЗДЕСЬ<br/>systematic FSTEC expansion" in current
 assert "МЫ ЗДЕСЬ<br/>Step 7B" not in current
 
 with (ROOT / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream:

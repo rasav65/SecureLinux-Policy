@@ -6,10 +6,10 @@
 
 ```text
 TOTAL_INDEX_ROWS=349
-CONTROLLED_CLOSED_WITH_CONTRACT=8
+CONTROLLED_CLOSED_WITH_CONTRACT=9
 DISPOSED_CLOSED_ROWS=0
-OPEN_INDEX_ROWS=341
-CANONICAL_CONTROLS=8
+OPEN_INDEX_ROWS=340
+CANONICAL_CONTROLS=11
 ```
 
 Число canonical controls и число закрытых source rows — разные величины: одна строка источника может требовать `exact-control-set` из нескольких controls.
@@ -18,6 +18,7 @@ CANONICAL_CONTROLS=8
 
 | Source row | Locator | Coverage mode | Canonical controls | Parameter kind | CHECK adapter |
 |---|---|---|---|---|---|
+| SRC-0005 | 2.3.1 | exact-control-set | `FSTEC-LINUX-2022-2.3.1-GROUP-MODE`<br>`FSTEC-LINUX-2022-2.3.1-PASSWD-MODE`<br>`FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX` | `file-mode-owner` | `product-file-mode-owner-check-v1` |
 | SRC-0016 | 2.4.1 | atomic-single | `FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT` | `sysctl` | `product-sysctl-check-v1` |
 | SRC-0017 | 2.4.2 | atomic-single | `FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT` | `sysctl` | `product-sysctl-check-v1` |
 | SRC-0023 | 2.4.8 | atomic-single | `FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN` | `sysctl` | `product-sysctl-check-v1` |
@@ -35,11 +36,11 @@ CANONICAL_CONTROLS=8
 
 | Parameter kind | Adapter | Read-only | Canonical controls сейчас |
 |---|---|---:|---:|
-| `file-mode-owner` | `product-file-mode-owner-check-v1` | yes | 0 |
+| `file-mode-owner` | `product-file-mode-owner-check-v1` | yes | 3 |
 | `sysctl` | `product-sysctl-check-v1` | yes | 8 |
 
 ## Открытая часть корпуса
 
-`341` source rows остаются `OPEN`. Полный перечень и их source metadata находятся в `index/source-v4/SOURCE-INDEX.tsv`; этот документ не дублирует 349 строк вручную.
+`340` source rows остаются `OPEN`. Полный перечень и их source metadata находятся в `index/source-v4/SOURCE-INDEX.tsv`; этот документ не дублирует 349 строк вручную.
 
 Наличие adapter или canonical control само по себе не закрывает source row: закрытие определяется source status и `CLOSURE-CONTRACT.tsv` либо explicit disposition.

@@ -31,11 +31,11 @@
 
 `test_product_generator.py` — тесты tracked generator:
 
-- current `CONTROL-MANIFEST.tsv` замкнут на восемь YAML и проверяется по SHA;
+- current `CONTROL-MANIFEST.tsv` определяет population динамически и проверяется по SHA;
 - `ADAPTER-REGISTRY.tsv` является единственным источником выбора adapter;
 - registry SHA для semantic contract / binding / implementation проверяются;
 - deterministic render одинаковых входов даёт одинаковые bytes;
-- текущие восемь controls маршрутизируются через product sysctl adapter;
+- current controls маршрутизируются по `parameter.kind` через tracked `ADAPTER-REGISTRY.tsv`;
 - synthetic `file-mode-owner` подтверждает dispatch через второй adapter;
 - unknown kind отклоняется fail-closed;
 - generated CHECK проходит `bash -n`, `--help`, `--build-info`,

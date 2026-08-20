@@ -25,6 +25,13 @@ def load_generator():
 GEN = load_generator()
 
 
+def load_current():
+    rows, manifest_sha = GEN.load_manifest(ROOT)
+    adapters, registry_sha = GEN.load_registry(ROOT)
+    controls = [GEN.load_control(ROOT, row) for row in rows]
+    return rows, manifest_sha, adapters, registry_sha, controls
+
+
 def sha256_file(path):
     h = hashlib.sha256()
     with path.open("rb") as f:
@@ -35,17 +42,24 @@ def sha256_file(path):
 
 class GeneratorModel(unittest.TestCase):
     def load_current(self):
-        rows, manifest_sha = GEN.load_manifest(ROOT)
-        adapters, registry_sha = GEN.load_registry(ROOT)
-        controls = [GEN.load_control(ROOT, row) for row in rows]
-        return rows, manifest_sha, adapters, registry_sha, controls
+        return load_current()
 
     def test_current_population_and_registry(self):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
-        self.assertEqual(len(rows), 8)
-        self.assertEqual(len(controls), 8)
+        self.assertEqual(len(rows), len(controls))
+        self.assertGreaterEqual(len(controls), 8)
         self.assertEqual(set(adapters), {"sysctl", "file-mode-owner"})
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl"})
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner"})
+        src0005 = [c for c in controls if c["index_id"] == "SRC-0005"]
+        self.assertEqual(len(src0005), 3)
+        self.assertEqual(
+            {(c["parameter_locator"], c["parameter_key"], c["expected_op"], c["expected_value"]) for c in src0005},
+            {
+                ("/etc/passwd", "mode", "eq", "0644"),
+                ("/etc/group", "mode", "eq", "0644"),
+                ("/etc/shadow", "mode", "bits-clear", "0077"),
+            },
+        )
         self.assertEqual(
             manifest_sha,
             sha256_file(ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"),
@@ -58,7 +72,7 @@ class GeneratorModel(unittest.TestCase):
         one = GEN.render_script(controls, adapters, manifest_sha, registry_sha, generator_sha)
         two = GEN.render_script(controls, adapters, manifest_sha, registry_sha, generator_sha)
         self.assertEqual(one, two)
-        self.assertIn(b"CONTROL_COUNT=8", one)
+        self.assertIn(f"CONTROL_COUNT={len(controls)}".encode("ascii"), one)
         self.assertIn(b"ADAPTER_COUNT=2", one)
         self.assertIn(b"TOTAL=%d", one)
         for c in controls:
@@ -144,7 +158,8 @@ class GeneratedArtifact(unittest.TestCase):
         )
 
     def test_generator_cli_and_sidecar(self):
-        self.assertIn("CONTROL_COUNT=8\n", self.generator_stdout)
+        rows, _, _, _, _ = load_current()
+        self.assertIn(f"CONTROL_COUNT={len(rows)}\n", self.generator_stdout)
         self.assertIn("ADAPTER_COUNT=2\n", self.generator_stdout)
         self.assertIn("RESULT=PASS\n", self.generator_stdout)
         side = self.out.with_name(self.out.name + ".sha256")
@@ -170,7 +185,8 @@ class GeneratedArtifact(unittest.TestCase):
         self.assertEqual(cp.returncode, 0)
         self.assertEqual(cp.stderr, "")
         self.assertIn("GENERATOR_ID=product-check-generator-v1\n", cp.stdout)
-        self.assertIn("CONTROL_COUNT=8\n", cp.stdout)
+        rows, _, _, _, _ = load_current()
+        self.assertIn(f"CONTROL_COUNT={len(rows)}\n", cp.stdout)
         self.assertIn("ADAPTER_COUNT=2\n", cp.stdout)
         self.assertIn("MUTATING_MODES=NONE\n", cp.stdout)
 
@@ -178,12 +194,13 @@ class GeneratedArtifact(unittest.TestCase):
         cp = self.run_check("--provenance")
         self.assertEqual(cp.returncode, 0)
         lines = cp.stdout.splitlines()
-        self.assertEqual(len(lines), 8)
+        rows, _, _, _, controls = load_current()
+        self.assertEqual(len(lines), len(rows))
         objs = [json.loads(line) for line in lines]
         ids = [obj["control_id"] for obj in objs]
-        self.assertEqual(len(set(ids)), 8)
+        self.assertEqual(len(set(ids)), len(rows))
+        self.assertEqual({obj["parameter_kind"] for obj in objs}, {c["parameter_kind"] for c in controls})
         for obj in objs:
-            self.assertEqual(obj["parameter_kind"], "sysctl")
             self.assertEqual(len(obj["quote_sha256"]), 64)
             self.assertEqual(len(obj["registry_sha256"]), 64)
         one = self.run_check("--provenance", ids[0])

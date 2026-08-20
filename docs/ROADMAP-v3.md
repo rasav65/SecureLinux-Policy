@@ -52,9 +52,9 @@ Step 7A `CLOSED`, а текущий разрешённый подэтап — St
 tracked deterministic CHECK generator ещё не реализованы: current product-line
 уже содержит оба adapters, `ADAPTER-REGISTRY.tsv`, generator и CHECK-8.
 Roadmap steps 8–11 относятся к будущему APPLY/RESTORE и финальной упаковке, а
-не к уже существующей CHECK product-line. Текущий product checkpoint внутри
-Step 7B — `SRC-0005 / 2.3.1`; следующий контрольный результат после его
-представления — `CHECK-11`.
+не к уже существующей CHECK product-line. `SRC-0005 / 2.3.1` закрыт
+`exact-control-set`, CHECK-11 выполнен; текущий product checkpoint внутри Step 7B —
+систематическое представление оставшихся `OPEN` source rows.
 
 ## Правило сохранения инженерного донора
 

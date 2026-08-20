@@ -26,13 +26,13 @@ Parity-checker:
 
 ## Доказательства текущего закрытия
 
-Текущих controls: 8.
+Текущих controls: 11.
 
 Текущий результат:
 
-`controls=8 supported=8 matched=8 unsupported=0 missing_index=0 mismatches=0 errors=0`
+`controls=11 supported=11 matched=11 unsupported=0 missing_index=0 mismatches=0 errors=0`
 
-Следовательно, для всех восьми controls механически обеспечен паритет
+Следовательно, для всех 11 current controls механически обеспечен паритет
 регенерации.
 
 Сам генератор `source:` пока поддерживает один из тринадцати текущих

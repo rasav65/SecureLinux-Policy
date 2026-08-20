@@ -9,3 +9,5 @@ compatibility terminology и отсутствие известных stale produ
 Тест входит в DEV автоматически через tracked `tests/*/test_*.py` population.
 
 Errata 0.0.13: regression также проверяет, что PRIMARY current map не показывает historical Step 7B node как текущий product checkpoint и не переносит имя donor `securelinux-ng.sh` на будущий distributable artifact.
+
+SRC-0005 closure: product docs must render 9/349 controlled CLOSED, 11 canonical controls and the post-CHECK-11 systematic expansion checkpoint.

@@ -35,18 +35,20 @@ failure; `NOT_FOUND`/`ERROR` делают итог `UNEVALUATED`.
 доказанном отсутствии имени. Нечитаемый объект, dangling symlink, symlink loop
 или отсутствие обязательного observation tool классифицируются как `ERROR`.
 
-## Следующий product expansion point
+## Текущее расширение FSTEC core
 
-`SRC-0005 / 2.3.1` остаётся `OPEN`. File-mode semantic contract и adapter уже
-готовы; следующий технический шаг — три canonical controls:
+`SRC-0005 / 2.3.1` закрыт через `exact-control-set` из трёх canonical controls:
 
 - `/etc/passwd` → `mode eq 0644`;
 - `/etc/group` → `mode eq 0644`;
 - `/etc/shadow` → `mode bits-clear 0077`.
 
-`/etc/shadow = 0600` из этого source anchor не выводится.
+`/etc/shadow = 0600` из source anchor не выводится. Все три controls используют
+существующий read-only `product-file-mode-owner-check-v1`; APPLY/RESTORE по-прежнему
+не реализованы.
 
-После добавления controls выполняется CHECK по расширенной manifest population и
-только затем source closure через `exact-control-set`.
+После CHECK-11 текущий product track переходит к систематическому представлению
+оставшихся `OPEN` source rows. Formal `Gate 5 --probe-results` остаётся отдельным
+контрактным артефактом и не подменяется выводом generated CHECK.
 
 Тесты: `tests/product-v1/`.

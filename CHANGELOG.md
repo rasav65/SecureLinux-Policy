@@ -12,12 +12,8 @@
 
 ### Текущее незавершённое состояние
 
-- `SRC-0005 / 2.3.1` остаётся `OPEN`: schema/runtime, product semantic
-  contract и read-only `file-mode-owner` adapter уже существуют и проверены,
-  но три canonical controls и `exact-control-set` closure ещё не созданы.
-- Следующий product expansion point — представить `/etc/passwd=0644`,
-  `/etc/group=0644` и `chmod go-rwx /etc/shadow` без усиления shadow до
-  выдуманного `0600`, затем пересобрать CHECK по расширенной manifest population.
+- После закрытия `SRC-0005 / 2.3.1` остаются `340` `OPEN` source rows; текущий
+  product checkpoint — систематическое FSTEC expansion по machine source truth.
 - Formal `Gate 5 --probe-results` для current product population остаётся
   отдельным контрактным артефактом.
 - Step 7B.0 остаётся historical assurance line: Phase C item 19 — `REVISE`;
@@ -38,6 +34,41 @@
 - Две historical observer fixtures (`observer-adversarial-fitness-v2`,
   `observer-fitness-v1`) не входят в current Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
+
+## [0.0.14] — 2026-08-20
+
+### Added — SRC-0005 / CHECK-11
+
+- `SRC-0005 / 2.3.1` представлен `exact-control-set` из трёх canonical controls:
+  - `FSTEC-LINUX-2022-2.3.1-PASSWD-MODE` → `/etc/passwd`, `mode eq 0644`;
+  - `FSTEC-LINUX-2022-2.3.1-GROUP-MODE` → `/etc/group`, `mode eq 0644`;
+  - `FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX` → `/etc/shadow`, `mode bits-clear 0077`.
+- Все три controls используют существующий read-only
+  `product-file-mode-owner-check-v1`; новый adapter не создавался.
+- `chmod go-rwx /etc/shadow` намеренно не усилен до неследующего из source anchor
+  равенства `/etc/shadow = 0600`.
+
+### Changed
+
+- `SRC-0005` переведён `OPEN → CLOSED`; прогресс корпуса теперь `349 / 9 / 340`.
+- `CONTROL-MANIFEST.tsv` содержит 11 canonical controls; closure contract содержит
+  9 controlled source rows.
+- Generated README/map/coverage перестроены из machine truth; CHECK-11 завершает
+  этот точечный expansion step, после чего current checkpoint — systematic FSTEC expansion.
+
+### Tested
+
+- Gate 1/3/4 проходят на 11 controls; Gate 2 остаётся ожидаемо красным только из-за
+  340 оставшихся `OPEN`; formal Gate 5 без `--probe-results` остаётся fail-closed.
+- Source-block regeneration parity: `controls=11 supported=11 matched=11`.
+- Source skeleton pilot verification: `controls=11 mismatches=0`.
+- Product generator regression больше не пинует историческое число 8 и отдельно
+  проверяет exact SRC-0005 file-mode semantics.
+- Historical gates-v1 regression теперь явно требует fail-closed на новом
+  `file-mode-owner/bits-clear`, вместо ложного требования принять current v3 corpus.
+- CHECK-11 выполняется read-only на target host; host-specific summary сохраняется
+  только как derived evidence и не подменяет formal Gate 5 `probe-results`.
+- Закрыто строк source index этим шагом: **1**.
 
 ## [0.0.13] — 2026-08-20
 

@@ -11,12 +11,12 @@
 <!-- BEGIN GENERATED CURRENT STATUS -->
 ```text
 TOTAL_INDEX_ROWS=349
-CONTROLLED_CLOSED_WITH_CONTRACT=8
+CONTROLLED_CLOSED_WITH_CONTRACT=9
 DISPOSED_CLOSED_ROWS=0
-OPEN_INDEX_ROWS=341
-CLOSURE_RATIO=8/349
-CANONICAL_CONTROLS=8
-CLOSURE_CONTRACT_ROWS=8
+OPEN_INDEX_ROWS=340
+CLOSURE_RATIO=9/349
+CANONICAL_CONTROLS=11
+CLOSURE_CONTRACT_ROWS=9
 ADAPTER_KINDS=2
 CHECK_TARGET=ubuntu-24.04-x86_64
 CHECK_STATUS=NON_RELEASE_PRODUCT_CANDIDATE
@@ -323,15 +323,15 @@ source-index row.
 - current CHECK охватывает только represented controls;
 - formal Gate 5 `--probe-results` для текущей product population остаётся
   отдельным контрактным артефактом;
-- `SRC-0005 / 2.3.1` остаётся следующим product expansion point;
+- `SRC-0005 / 2.3.1` закрыт exact-control-set из трёх file-mode controls;
 - APPLY и RESTORE не реализованы;
 - historical Step 7B.0 не является current product authority;
 - engineering donor не является нормативным доказательством.
 
-Следующий технический product-step после Documentation Baseline — три canonical
-controls для `SRC-0005` (`/etc/passwd`, `/etc/group`, `/etc/shadow`) и пересборка
-CHECK по расширенной manifest population без усиления `chmod go-rwx /etc/shadow` до выдуманного
-`0600`.
+CHECK-11 строится по 11 canonical controls. После него текущий product-step —
+систематическое расширение оставшихся `OPEN` строк FSTEC core. Семантика
+`chmod go-rwx /etc/shadow` представлена как `mode bits-clear 0077` и не усилена
+до выдуманного `0600`.
 
 ---
 

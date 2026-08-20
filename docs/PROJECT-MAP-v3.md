@@ -11,7 +11,7 @@
 > не закрывает source-index rows.
 
 <!-- BEGIN GENERATED MAP STATUS -->
-`source rows=349 · controlled CLOSED=8 · OPEN=341 · canonical controls=8 · adapters=2 · target=ubuntu-24.04-x86_64`
+`source rows=349 · controlled CLOSED=9 · OPEN=340 · canonical controls=11 · adapters=2 · target=ubuntu-24.04-x86_64`
 
 Точные таблицы покрытия: [`docs/fstec-coverage.md`](fstec-coverage.md).
 <!-- END GENERATED MAP STATUS -->
@@ -299,9 +299,9 @@ flowchart LR
     P1["CHECK-8 product-line<br/>2 read-only adapters + tracked generator<br/>DONE"]:::closed
     P2["TEST BASELINE<br/>DEV / RELEASE runner<br/>DONE"]:::closed
     P3["DOCUMENTATION BASELINE<br/>machine-parity docs<br/>DONE"]:::closed
-    P4["МЫ ЗДЕСЬ<br/>SRC-0005 / 2.3.1<br/>3 canonical file-mode controls"]:::current
-    P5["CHECK-11<br/>regenerate + read-only run"]:::future
-    P6["systematic FSTEC expansion<br/>remaining OPEN rows"]:::future
+    P4["SRC-0005 / 2.3.1<br/>3 canonical file-mode controls<br/>DONE"]:::closed
+    P5["CHECK-11<br/>regenerate + read-only run<br/>DONE"]:::closed
+    P6["МЫ ЗДЕСЬ<br/>systematic FSTEC expansion<br/>remaining OPEN rows"]:::current
     P7["APPLY semantic contract<br/>NOT IMPLEMENTED"]:::future
     P8["APPLY implementation<br/>future"]:::future
     P9["RESTORE contract + implementation<br/>future"]:::future
@@ -315,8 +315,8 @@ flowchart LR
 ```
 
 `docs/ROADMAP-v3.tsv` по-прежнему хранит более крупный macro-roadmap: Step 7B
-остаётся общим этапом FSTEC expansion. Текущий product checkpoint внутри него —
-`SRC-0005 / 2.3.1`. Read-only `product-sysctl-check-v1`,
+остаётся общим этапом FSTEC expansion. Текущий product checkpoint внутри него — систематическое представление оставшихся
+`OPEN` source rows после закрытия `SRC-0005 / 2.3.1` и CHECK-11. Read-only `product-sysctl-check-v1`,
 `product-file-mode-owner-check-v1`, `product/generate-product-check-v1.py` и
 generated CHECK уже реализованы и не относятся к будущему APPLY/RESTORE
 implementation track.

@@ -12,3 +12,5 @@ PROJECT-MAP содержат machine-owned blocks, которые формиру
 order и согласованность текущего product status.
 
 Errata 0.0.13: `test_project_map_v3.py` дополнительно запрещает изображать уже реализованные CHECK adapters/generator как future и проверяет current product checkpoint `SRC-0005 → CHECK-11`; `test_current_status.py` связывает этот checkpoint с current SOURCE-INDEX/CONTROL-MANIFEST/ADAPTER-REGISTRY.
+
+SRC-0005 closure: current checkpoint regression requires SRC-0005 and CHECK-11 to be DONE before systematic FSTEC expansion becomes current.

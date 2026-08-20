@@ -50,7 +50,12 @@ class GatesV1Tests(unittest.TestCase):
         self.assertTrue(self.gate(r,1)["pass"])
         self.assertFalse(self.gate(r,2)["pass"])
         self.assertEqual(self.gate(r,2)["uncovered_rows"],349)
-        self.assertTrue(self.gate(r,3)["pass"])
+        # Historical gates-v1 is not current product authority: the current corpus
+        # now contains file-mode-owner/bits-clear semantics added in gates-v3.
+        # It must fail closed rather than silently accept that newer kind.
+        g3 = self.gate(r,3)
+        self.assertFalse(g3["pass"])
+        self.assertTrue(any("file-mode-owner" in e for e in g3["errors"]))
         self.assertTrue(self.gate(r,4)["pass"])
 
 if __name__ == "__main__":
