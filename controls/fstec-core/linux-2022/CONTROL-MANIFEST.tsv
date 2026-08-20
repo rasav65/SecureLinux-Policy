@@ -16,3 +16,4 @@ FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS	SRC-0036	2.6.2	fs.protected_symlinks	1
 FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS	SRC-0037	2.6.3	fs.protected_hardlinks	1	fstec-linux-2022-2.6.3-protected-hardlinks.yaml	fc1fd0f1141cb6d78b5d322e6a04b2649f0264a5e8c4784c64116bed55d70ffa
 FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS	SRC-0038	2.6.4	fs.protected_fifos	2	fstec-linux-2022-2.6.4-protected-fifos.yaml	af3b312efb3d252c1752a9ee70da6248e2a8e86f2e29479388206afbfbcd453d
 FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR	SRC-0039	2.6.5	fs.protected_regular	2	fstec-linux-2022-2.6.5-protected-regular.yaml	677905dff8f0fa0db1c82008b7b3acc0456dd61c46db0008390ab99f89ef9d92
+FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE	SRC-0040	2.6.6	fs.suid_dumpable	0	fstec-linux-2022-2.6.6-suid-dumpable.yaml	35c1fe8f6a4591fdf5b7d25f4dff6b244b868fbc1514498a7b55f9a321ddda8f

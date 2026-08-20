@@ -48,10 +48,14 @@ failure; `NOT_FOUND`/`ERROR` делают итог `UNEVALUATED`.
 не реализованы.
 
 После CHECK-11 product track перешёл к систематическому представлению
-оставшихся `OPEN` source rows. Текущий exact-eq batch дополнительно использует
-существующий `product-sysctl-check-v1` для `SRC-0030`, `SRC-0031`,
-`SRC-0036`–`SRC-0039`; новый adapter не создаётся. Exact current population
-всегда берётся из `CONTROL-MANIFEST.tsv`. Formal `Gate 5 --probe-results`
-остаётся отдельным контрактным артефактом и не подменяется выводом generated CHECK.
+оставшихся `OPEN` source rows. Exact-eq batch использует существующий
+`product-sysctl-check-v1` для `SRC-0030`, `SRC-0031`, `SRC-0036`–`SRC-0039`.
+Следующий точечный шаг закрывает `SRC-0040 / 2.6.6` тем же read-only adapter:
+`fs.suid_dumpable = 0`. Перед этим source-skeleton исключает только точный
+конечный горизонтальный разделитель закреплённого PDF; нормативный quote
+заканчивается фразой `вредоносное поведение.`, а не page furniture. Новый
+adapter не создаётся. Exact current population всегда берётся из
+`CONTROL-MANIFEST.tsv`. Formal `Gate 5 --probe-results` остаётся отдельным
+контрактным артефактом и не подменяется выводом generated CHECK.
 
 Тесты: `tests/product-v1/`.

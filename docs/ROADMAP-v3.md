@@ -54,8 +54,10 @@ tracked deterministic CHECK generator ещё не реализованы: curren
 Roadmap steps 8–11 относятся к будущему APPLY/RESTORE и финальной упаковке, а
 не к уже существующей CHECK product-line. `SRC-0005 / 2.3.1` и CHECK-11
 закрыты; затем закрыт exact-eq sysctl batch `SRC-0030`, `SRC-0031`,
-`SRC-0036`–`SRC-0039`. Текущий product checkpoint внутри Step 7B —
-систематическое представление оставшихся `OPEN` source rows.
+`SRC-0036`–`SRC-0039`, а `SRC-0040 / 2.6.6` закрыт после точечного
+исправления terminal page-furniture boundary и CHECK-18. Текущий product
+checkpoint внутри Step 7B — систематическое представление оставшихся `OPEN`
+source rows.
 
 ## Правило сохранения инженерного донора
 

@@ -13,8 +13,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CONTROL_MANIFEST = ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 GEN = ROOT / "tools/source_skeleton_generator.py"
-EXPECTED_GEN_SHA = "b79db6b03ecfe125ffb691dcc717baab230e35a95cb5c15a7345148103d13abb"
+EXPECTED_GEN_SHA = "fbe07a12ed64438fc7f2847eb3898c228611b8a5bd97931d3c767a79effe0161"
 EXPECTED_SRC0018_SHA = "016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d"
+EXPECTED_SRC0040_SHA = "f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d"
 EXPECTED_REFUSED = {"SRC-0001", "SRC-0133"}
 
 
@@ -96,6 +97,30 @@ assert block["quote_sha256"] == EXPECTED_SRC0018_SHA
 rendered = gate.render_source_block(block)
 assert rendered.startswith('source:\n  index_id: "SRC-0018"\n')
 assert '  norm: "norm-v1"\n' in rendered
+
+# Exact terminal-unit boundary: the horizontal rule visible at the bottom of
+# the pinned PDF page is page furniture, not part of numbered position 2.6.6.
+block40 = gate.build_source_block(ROOT, by_id["SRC-0040"], normalize_text)
+assert block40["quote_sha256"] == EXPECTED_SRC0040_SHA
+assert block40["quote"].endswith("вредоносное поведение.")
+assert "________________________" not in block40["quote"]
+raw40 = gate.extract_unit(
+    gate.resolve_corpus(ROOT, by_id["SRC-0040"]).read_text(encoding="utf-8").rstrip("\n"),
+    "2.6.6",
+)
+assert raw40.endswith(" ________________________")
+
+# Fail-closed negative: the token is removed only at exact EOF for the pinned
+# source_id. Moving it away from EOF or changing source_id must preserve bytes.
+fixture_row = dict(by_id["SRC-0040"])
+fixture_corpus = "2.6.6. fixture ________________________"
+assert gate.strip_terminal_page_furniture(
+    fixture_corpus + " tail", fixture_corpus, fixture_row
+) == fixture_corpus
+fixture_row["source_id"] = "other-source"
+assert gate.strip_terminal_page_furniture(
+    fixture_corpus, fixture_corpus, fixture_row
+) == fixture_corpus
 
 # Index-generic path: the same common-contract index can be supplied from a
 # different path. The generator must not depend on index/source-v4 as a
@@ -200,5 +225,5 @@ print(
     f"supported_rows={len(supported)} exact={len(ok)} refused={len(refused)} "
     "index_generic_path=1 negative_duplicate_index=1 "
     "negative_quote_anchor=1 negative_normalizer_sha=1 "
-    "negative_norm_sha=1"
+    "negative_norm_sha=1 terminal_footer_exact=1 terminal_footer_negative=2"
 )

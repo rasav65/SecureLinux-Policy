@@ -30,7 +30,7 @@ Parity-checker:
 `controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv`; checker не содержит
 ручного числа controls. На checkpoint этого batch результат:
 
-`controls=17 supported=17 matched=17 unsupported=0 missing_index=0 mismatches=0 errors=0`
+`controls=18 supported=18 matched=18 unsupported=0 missing_index=0 mismatches=0 errors=0`
 
 Следовательно, для всей current manifest population механически обеспечен
 паритет регенерации.

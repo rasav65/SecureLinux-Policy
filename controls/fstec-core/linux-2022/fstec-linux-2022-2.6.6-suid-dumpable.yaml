@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0040"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.6.6"
+  quote: "2.6.6. Запретить создание core dump для некоторых исполняемых файлов путём установки значения sysctl-опции fs.suid_dumpable=0. Данная настройка не влияет на нормальную функциональность userspace и блокирует только вредоносное поведение."
+  quote_sha256: "f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d"
+  norm: "norm-v1"
+requirement:
+  stated: "2.6.6. Запретить создание core dump для некоторых исполняемых файлов путём установки значения sysctl-опции fs.suid_dumpable=0. Данная настройка не влияет на нормальную функциональность userspace и блокирует только вредоносное поведение."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sysctl"
+  locator: "sysctl"
+  key: "fs.suid_dumpable"
+expected:
+  op: "eq"
+  value: 0
+  type: "integer"
+apply:
+  supported: false

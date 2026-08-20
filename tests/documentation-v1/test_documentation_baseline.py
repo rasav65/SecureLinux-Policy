@@ -104,6 +104,8 @@ assert "SRC-0005 / 2.3.1" in current_map
 assert "CHECK-11" in current_map
 assert "sysctl exact-eq batch" in current_map
 assert "CHECK-17" in current_map
+assert "SRC-0040 / 2.6.6" in current_map
+assert "CHECK-18" in current_map
 assert "МЫ ЗДЕСЬ<br/>systematic FSTEC expansion" in current_map
 for stale in (
     "МЫ ЗДЕСЬ<br/>Step 7B",

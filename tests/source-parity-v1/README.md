@@ -2,9 +2,13 @@
 
 Permanent regression for roadmap step 6.
 
-Positive coverage requires the complete current control population from
-`CONTROL-MANIFEST.tsv` to regenerate byte-for-byte. The regression must not
-pin a historical control count.
+Production coverage выводится из полной current population
+`CONTROL-MANIFEST.tsv` и обязана регенерироваться byte-for-byte. Историческое
+число controls не пинуется.
+
+Поле `positive=5` в `TEST-RESULTS.txt` относится только к фиксированному
+fixture harness. Оно НЕ является числом canonical controls. Полная production
+parity проверяется отдельно по фактической current control population.
 
 Negative fixtures prove fail-closed behavior for:
 

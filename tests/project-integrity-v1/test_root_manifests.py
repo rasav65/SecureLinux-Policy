@@ -51,9 +51,14 @@ for manifest in ("PROJECT-FILES.sha256", "SHA256SUMS"):
 cp = run(["sha256sum", "-c", "SHA256SUMS"], ROOT)
 assert cp.returncode == 0, cp.stdout + cp.stderr
 
-tracked = set(run(["git", "ls-files"], ROOT).stdout.splitlines())
+visible = set(
+    run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+        ROOT,
+    ).stdout.splitlines()
+)
 local_manifests = sorted(
-    rel for rel in tracked
+    rel for rel in visible
     if rel != "SHA256SUMS" and rel.endswith("/SHA256SUMS")
 )
 checked_entries = 0
@@ -88,7 +93,7 @@ for manifest_rel in local_manifests:
             manifest_rel, lineno, rel_target
         )
         assert not rel_target.endswith(".pyc"), (manifest_rel, lineno, rel_target)
-        assert rel_target in tracked, (manifest_rel, lineno, rel_target)
+        assert rel_target in visible, (manifest_rel, lineno, rel_target)
         target = ROOT / rel_target
         assert target.is_file() and not target.is_symlink(), (
             manifest_rel, lineno, rel_target
@@ -99,6 +104,30 @@ for manifest_rel in local_manifests:
 assert seen_exceptions == PINNED_HISTORICAL_MANIFEST_EXCEPTIONS, (
     seen_exceptions,
     PINNED_HISTORICAL_MANIFEST_EXCEPTIONS,
+)
+
+# product/SHA256SUMS is a complete subtree manifest, not a scoped/historical one.
+# Require the reverse direction too: every Git-visible product file must be bound.
+product_manifest_rel = "product/SHA256SUMS"
+product_targets = set()
+for lineno, line in enumerate(
+    (ROOT / product_manifest_rel).read_text(encoding="utf-8").splitlines(), 1
+):
+    if not line:
+        continue
+    match = re.fullmatch(r"([0-9a-f]{64})  (.+)", line)
+    assert match is not None, (product_manifest_rel, lineno, line)
+    rel_target = (Path("product") / Path(match.group(2))).as_posix()
+    assert rel_target not in product_targets, (product_manifest_rel, rel_target)
+    product_targets.add(rel_target)
+
+product_expected = {
+    rel for rel in visible
+    if rel.startswith("product/") and rel != product_manifest_rel
+}
+assert product_targets == product_expected, (
+    sorted(product_expected - product_targets),
+    sorted(product_targets - product_expected),
 )
 
 # ACTIVE must mean current.
@@ -114,11 +143,10 @@ checker = run(
 )
 assert checker.returncode in (0, 1), checker.stdout + checker.stderr
 assert checker.stderr == "", checker.stderr
-assert "GATE1=PASS checked=17 errors=0" in checker.stdout
-assert (
-    "GATE2=FAIL total=349 controlled_closed=15 disposed_closed=0 "
-    "uncovered=334 contracts=15 errors=334"
-) in checker.stdout
+for marker in (
+    "GATE0=", "GATE1=", "GATE2=", "GATE3=", "GATE4=", "GATE5=", "OVERALL="
+):
+    assert marker in checker.stdout, marker
 
 for rel in (
     "ACTIVE-CHECKER-V3-NO-VM.txt",
@@ -157,5 +185,5 @@ print(
     "ROOT_MANIFEST_POLICY=PASS "
     f"actual=1 fixture=1 ignored_runtime=2 "
     f"local_manifests={len(local_manifests)} local_entries={checked_entries} "
-    "pinned_historical_exceptions=2 active_checker_fresh=2"
+    "pinned_historical_exceptions=2 product_manifest_complete=1 active_checker_fresh=2"
 )

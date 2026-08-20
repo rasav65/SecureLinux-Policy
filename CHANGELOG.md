@@ -12,7 +12,7 @@
 
 ### Текущее незавершённое состояние
 
-- После exact-eq sysctl batch остаются `334` `OPEN` source rows; текущий
+- После SRC-0040 / CHECK-18 остаются `333` `OPEN` source rows; текущий
   product checkpoint — систематическое FSTEC expansion по machine source truth.
 - Formal `Gate 5 --probe-results` для current product population остаётся
   отдельным контрактным артефактом.
@@ -34,6 +34,40 @@
 - Две historical observer fixtures (`observer-adversarial-fitness-v2`,
   `observer-fitness-v1`) не входят в current Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
+
+## [0.0.18] — 2026-08-20
+
+### Fixed — terminal source boundary / SRC-0040
+
+- `fstec-linux-2022` source-skeleton удаляет точный terminal token
+  `________________________` только как exact EOF page furniture после `2.6.6`.
+- `SRC-0040 / 2.6.6` переведён `OPEN → CLOSED`; canonical quote имеет SHA-256
+  `f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d`.
+
+### Added — SRC-0040 / CHECK-18
+
+- Добавлен `FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE`:
+  `sysctl / fs.suid_dumpable / eq / 0`.
+- Используется существующий read-only sysctl adapter без расширения semantic contract.
+- Corpus: `349 / 16 controlled CLOSED / 333 OPEN`; controls: `18`.
+
+### Fixed — regression semantics
+
+- Project-integrity больше не пинует исторические числа `17 / 15 / 334`.
+- `product/SHA256SUMS` получил обратную проверку полноты.
+- Local-manifest target population согласована с root-manifest policy:
+  tracked + nonignored untracked, чтобы новый control проверялся до commit.
+- Source-parity fixture report сохраняет фактическое `positive=5`; production
+  parity проверяется отдельно `18/18`.
+
+### Tested
+
+- Source-skeleton verify: `18/18`.
+- Production source-block regeneration parity: `18/18`; fixture harness `positive=5`.
+- Gate 1/3/4 PASS; Gate 2 ожидаемо FAIL из-за 333 OPEN; Gate 5 остаётся fail-closed.
+- Project-integrity, DEV 21/21, RELEASE и root manifests PASS.
+- CHECK-18 выполняется read-only; formal Gate5 probe-results не создаются.
+- Закрыто строк source index этим шагом: **1**.
 
 ## [0.0.17] — 2026-08-20
 

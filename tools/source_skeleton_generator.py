@@ -30,9 +30,11 @@ The norm-v1 corpus of these documents is a single line. A unit begins at its
 locator marker ``<locator>. `` and ends immediately before the next such
 marker at the same or a shallower depth, or at end of document. Markers are
 matched only when not preceded by a digit or a dot, so ``2.4.1`` inside a
-sentence cannot start a unit. The extracted span is stripped of surrounding
-whitespace, then re-normalized with norm-v1 and required to be unchanged --
-if normalization would alter the span, the row is refused rather than guessed.
+sentence cannot start a unit. The extracted span is stripped of surrounding whitespace. A source-specific
+terminal footer token may then be removed only when that exact token is the
+final token of both the pinned normalized corpus and the extracted final unit.
+The result is re-normalized with norm-v1 and required to be unchanged -- if
+normalization would alter the span, the row is refused rather than guessed.
 
 Output is refused, never approximated. A row that cannot be extracted exactly
 is reported and skipped; it is not emitted with a best-effort quote. The
@@ -54,6 +56,14 @@ from pathlib import Path
 NORM_VERSION = "norm-v1"
 NORMALIZER_SHA256 = "fdf11e5abc24c966e7b9c9abe318259fd29c06de026addf54cf3710cc937639a"
 SUPPORTED_UNIT_KINDS = {"numbered-position"}
+
+# Source-specific terminal page furniture that is visibly present in the pinned
+# PDF but is not part of the normative numbered position. The rule is narrow:
+# it applies only when the exact token is at end-of-corpus, so an underscore
+# sequence inside normative text is never removed.
+TERMINAL_PAGE_FURNITURE = {
+    "fstec-linux-2022": "________________________",
+}
 INDEX_FIELDS = {
     "index_id", "source_id", "source_file", "source_sha256", "source_role",
     "unit_kind", "locator", "raw_match_line", "text_quality",
@@ -244,6 +254,22 @@ def extract_unit(corpus: str, locator: str):
     return corpus[begin:end].strip()
 
 
+def strip_terminal_page_furniture(corpus: str, quote: str, row) -> str:
+    """Remove only a pinned source-specific terminal footer token.
+
+    The token must be the exact final token of both the normalized corpus and
+    the extracted unit. This makes the rule fail-closed and prevents generic
+    punctuation/underscore stripping.
+    """
+    token = TERMINAL_PAGE_FURNITURE.get(row["source_id"])
+    if token is None:
+        return quote
+    suffix = " " + token
+    if corpus.endswith(suffix) and quote.endswith(suffix):
+        return quote[:-len(suffix)].rstrip()
+    return quote
+
+
 def build_source_block(project_root: Path, row, normalize_text):
     if row["quote_anchor_ready"] != "YES":
         raise ValueError("index quote_anchor_ready != YES")
@@ -251,6 +277,7 @@ def build_source_block(project_root: Path, row, normalize_text):
     if corpus.endswith("\n"):
         corpus = corpus[:-1]
     quote = extract_unit(corpus, row["locator"])
+    quote = strip_terminal_page_furniture(corpus, quote, row)
 
     # A unit that runs across a page break ends with the page number, which is
     # page furniture rather than normative text. Stripping it would be a guess

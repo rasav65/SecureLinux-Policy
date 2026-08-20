@@ -81,6 +81,17 @@ class GeneratorModel(unittest.TestCase):
                 "SRC-0039": ("sysctl", "fs.protected_regular", "eq", 2),
             },
         )
+        src0040 = [c for c in controls if c["index_id"] == "SRC-0040"]
+        self.assertEqual(len(src0040), 1)
+        self.assertEqual(
+            (
+                src0040[0]["parameter_locator"],
+                src0040[0]["parameter_key"],
+                src0040[0]["expected_op"],
+                src0040[0]["expected_value"],
+            ),
+            ("sysctl", "fs.suid_dumpable", "eq", 0),
+        )
         self.assertFalse(any(c["index_id"] == "SRC-0034" for c in controls))
         self.assertEqual(
             manifest_sha,

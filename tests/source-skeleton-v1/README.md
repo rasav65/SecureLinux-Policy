@@ -16,3 +16,5 @@ test contracts. The current values may still equal measured historical counts,
 but they are calculated during the run.
 
 This is distinct from the step-6 committed-block parity gate.
+
+- terminal page-furniture boundary для `SRC-0040 / 2.6.6`: exact EOF rule + negative fixtures.

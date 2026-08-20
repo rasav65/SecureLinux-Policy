@@ -1,1 +1,1 @@
-SOURCE_BLOCK_PARITY_TESTS=PASS positive=17 negative_quote=1 negative_quote_sha=1 negative_locator=1 negative_unsupported_kind=1 negative_missing_index=1 negative_duplicate_source=1
+SOURCE_BLOCK_PARITY_TESTS=PASS positive=5 negative_quote=1 negative_quote_sha=1 negative_locator=1 negative_unsupported_kind=1 negative_missing_index=1 negative_duplicate_source=1

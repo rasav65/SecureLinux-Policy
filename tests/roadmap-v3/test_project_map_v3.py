@@ -51,7 +51,8 @@ assert current.count(":::current") == 1
 assert 'P4["SRC-0005 / 2.3.1<br/>3 canonical file-mode controls<br/>DONE"]:::closed' in current
 assert 'P5["CHECK-11<br/>regenerate + read-only run<br/>DONE"]:::closed' in current
 assert 'P6["sysctl exact-eq batch<br/>SRC-0030,0031,0036–0039 + CHECK-17<br/>DONE"]:::closed' in current
-assert 'P7["МЫ ЗДЕСЬ<br/>systematic FSTEC expansion<br/>remaining OPEN rows"]:::current' in current
+assert 'P7["SRC-0040 / 2.6.6<br/>terminal source-boundary fix + CHECK-18<br/>DONE"]:::closed' in current
+assert 'P8["МЫ ЗДЕСЬ<br/>systematic FSTEC expansion<br/>remaining OPEN rows"]:::current' in current
 for marker in (
     "CHECK-8 product-line",
     "TEST BASELINE",
@@ -61,6 +62,8 @@ for marker in (
     "CHECK-11",
     "sysctl exact-eq batch",
     "CHECK-17",
+    "SRC-0040 / 2.6.6",
+    "CHECK-18",
     "systematic FSTEC expansion",
     "APPLY semantic contract",
     "APPLY implementation",
@@ -77,6 +80,8 @@ positions = [current.index(marker) for marker in (
     "CHECK-11",
     "sysctl exact-eq batch",
     "CHECK-17",
+    "SRC-0040 / 2.6.6",
+    "CHECK-18",
     "systematic FSTEC expansion",
     "APPLY semantic contract",
     "APPLY implementation",
@@ -101,5 +106,6 @@ assert "только byte-generation parity" in text
 assert "docs/PROJECT-MAP-v3.md" in readme
 print(
     "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=systematic-expansion "
-    "src0005_check11_done=1 exact_eq_check17_done=1 future_apply_restore=1"
+    "src0005_check11_done=1 exact_eq_check17_done=1 src0040_check18_done=1 "
+    "future_apply_restore=1"
 )
