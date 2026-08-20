@@ -29,6 +29,39 @@ for manifest in ("PROJECT-FILES.sha256", "SHA256SUMS"):
 cp = run(["sha256sum", "-c", "SHA256SUMS"], ROOT)
 assert cp.returncode == 0, cp.stdout + cp.stderr
 
+# Every tracked test-local SHA256SUMS entry must resolve to a tracked regular
+# file with matching bytes. Ignored runtime/cache files must never leak into
+# current test manifests.
+tracked = set(
+    run(["git", "ls-files"], ROOT).stdout.splitlines()
+)
+for manifest_rel in sorted(
+    rel for rel in tracked
+    if rel.startswith("tests/") and rel.endswith("/SHA256SUMS")
+):
+    manifest_path = ROOT / manifest_rel
+    for lineno, line in enumerate(
+        manifest_path.read_text(encoding="utf-8").splitlines(), 1
+    ):
+        if not line:
+            continue
+        match = __import__("re").fullmatch(r"([0-9a-f]{64})  (.+)", line)
+        assert match is not None, (manifest_rel, lineno, line)
+        rel_target = str(
+            (Path(manifest_rel).parent / match.group(2)).as_posix()
+        )
+        assert "__pycache__/" not in rel_target, (manifest_rel, lineno, rel_target)
+        assert rel_target in tracked, (manifest_rel, lineno, rel_target)
+        target = ROOT / rel_target
+        assert target.is_file() and not target.is_symlink(), (
+            manifest_rel, lineno, rel_target
+        )
+        cp = run(["sha256sum", rel_target], ROOT)
+        assert cp.returncode == 0, cp.stdout + cp.stderr
+        assert cp.stdout.split()[0] == match.group(1), (
+            manifest_rel, lineno, rel_target
+        )
+
 
 # Synthetic nested .gitignore fixture.
 with tempfile.TemporaryDirectory(prefix="slp-root-manifest-") as td:

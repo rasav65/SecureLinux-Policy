@@ -35,6 +35,27 @@
   `observer-fitness-v1`) не входят в current Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
 
+## [0.0.15] — 2026-08-20
+
+### Fixed — TEST SHA256SUMS cache contamination errata
+
+- Удалены четыре ошибочные `__pycache__/*.pyc` записи из tracked test-local
+  `SHA256SUMS`; сами cache-файлы не являются tracked project bytes.
+- `tests/project-integrity-v1/test_root_manifests.py` теперь fail-closed
+  проверяет все tracked `tests/**/SHA256SUMS`: target должен существовать,
+  быть tracked regular file, не находиться в `__pycache__` и иметь совпадающий
+  SHA-256.
+- Product/corpus semantics не изменены: 11 canonical controls, 9 controlled
+  CLOSED source rows, 340 OPEN; CHECK-11 evidence остаётся неизменным.
+- Закрыто строк source index: **0**.
+
+### Tested
+
+- Все tracked test-local `SHA256SUMS` проверяются на tracked regular targets
+  и совпадение SHA-256.
+- Root manifests сохраняют population `736/737`; изменение касается только
+  целостности test-local manifests и её regression.
+
 ## [0.0.14] — 2026-08-20
 
 ### Added — SRC-0005 / CHECK-11
