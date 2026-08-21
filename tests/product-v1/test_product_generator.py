@@ -174,10 +174,10 @@ class GeneratorModel(unittest.TestCase):
                 "FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET": ("SRC-0021", "/proc/cmdline", "randomize_kstack_offset", "eq", "1"),
                 "FSTEC-LINUX-2022-2.4.7-MITIGATIONS": ("SRC-0022", "/proc/cmdline", "mitigations", "eq", "auto,nosmt"),
                 "FSTEC-LINUX-2022-2.5.1-VSYSCALL": ("SRC-0024", "/proc/cmdline", "vsyscall", "eq", "none"),
+                "FSTEC-LINUX-2022-2.5.3-DEBUGFS": ("SRC-0026", "/proc/cmdline", "debugfs", "one-of", "off|no-mount"),
                 "FSTEC-LINUX-2022-2.5.9-TSX": ("SRC-0032", "/proc/cmdline", "tsx", "eq", "off"),
             },
         )
-        self.assertFalse(any(c["index_id"] == "SRC-0026" for c in controls))
         self.assertEqual(
             manifest_sha,
             sha256_file(ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"),
@@ -222,7 +222,7 @@ class GeneratorModel(unittest.TestCase):
         self.assertIn(b'"parameter_kind":"file-mode-owner"', rendered)
 
     def test_kernel_cmdline_adapter_selftest_and_render(self):
-        adapter_path = ROOT / "product/adapters/product-kernel-cmdline-check-v1.py"
+        adapter_path = ROOT / "product/adapters/product-kernel-cmdline-check-v2.py"
         cp = subprocess.run(
             [os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", str(adapter_path)],
             stdout=subprocess.PIPE,
@@ -245,6 +245,37 @@ class GeneratorModel(unittest.TestCase):
         self.assertIn(b"/proc/cmdline", rendered)
         self.assertIn(b"read -r -a _slp_tokens", rendered)
         self.assertIn(b'"parameter_kind":"kernel-cmdline"', rendered)
+
+        one = next(c for c in controls if c["index_id"] == "SRC-0026")
+        rendered_one = GEN.render_script(
+            [one], adapters, manifest_sha, registry_sha, sha256_file(GEN_PATH)
+        )
+        self.assertIn(b"IFS='|' read -r -a _slp_choices", rendered_one)
+        self.assertIn(b"off|no-mount", rendered_one)
+
+    def test_kernel_cmdline_v2_preserves_v1_eq_present_model(self):
+        def load_adapter(name, filename):
+            path = ROOT / "product" / "adapters" / filename
+            spec = importlib.util.spec_from_file_location(name, path)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+
+        v1 = load_adapter("slp_kernel_cmdline_v1", "product-kernel-cmdline-check-v1.py")
+        v2 = load_adapter("slp_kernel_cmdline_v2", "product-kernel-cmdline-check-v2.py")
+        cases = [
+            (["init_on_alloc=1"], "init_on_alloc", "eq", "1"),
+            (["init_on_alloc=0"], "init_on_alloc", "eq", "1"),
+            ([], "init_on_alloc", "eq", "1"),
+            (["iommu=force", "iommu=force"], "iommu", "eq", "force"),
+            (["iommu=force", "iommu=pt"], "iommu", "eq", "force"),
+            (["iommu", "iommu=force"], "iommu", "eq", "force"),
+            (["slab_nomerge"], "slab_nomerge", "present", True),
+            ([], "slab_nomerge", "present", True),
+            (["slab_nomerge=1"], "slab_nomerge", "present", True),
+        ]
+        for case in cases:
+            self.assertEqual(v2._model(*case), v1._model(*case), case)
 
     def test_unknown_kind_fails_closed(self):
         _, manifest_sha, adapters, registry_sha, controls = self.load_current()

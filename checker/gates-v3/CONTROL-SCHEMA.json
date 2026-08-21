@@ -383,6 +383,67 @@
                 }
               ]
             }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "one-of"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "type": {
+                          "const": "string"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "pattern": "^(?![\\s\\S]*[\\r\\n])[A-Za-z0-9_.,:+/-]+(?:\\|[A-Za-z0-9_.,:+/-]+)+$"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
           }
         ],
         "properties": {
@@ -391,7 +452,8 @@
               "op": {
                 "enum": [
                   "eq",
-                  "present"
+                  "present",
+                  "one-of"
                 ]
               },
               "type": {

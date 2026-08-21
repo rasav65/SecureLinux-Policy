@@ -59,6 +59,7 @@ MOUNT_OPTION_KEY_PATTERN = single_line(r"option::.+")
 PAM_LINE_KEY_PATTERN = single_line(r"active_line::.+")
 KERNEL_CMDLINE_KEY_PATTERN = single_line(r"[A-Za-z0-9_.-]+")
 KERNEL_CMDLINE_VALUE_PATTERN = single_line(r"[A-Za-z0-9_.,:+/-]+")
+KERNEL_CMDLINE_ONE_OF_PATTERN = single_line(r"[A-Za-z0-9_.,:+/-]+(?:\|[A-Za-z0-9_.,:+/-]+)+")
 
 
 ID_RE = re.compile(ID_PATTERN)
@@ -92,7 +93,7 @@ KIND_RULES = {
     "kernel-cmdline": {
         "locator": {"const": "/proc/cmdline"},
         "key": {"pattern": KERNEL_CMDLINE_KEY_PATTERN},
-        "op": {"enum": ["eq", "present"]},
+        "op": {"enum": ["eq", "present", "one-of"]},
         "type": {"enum": ["string", "boolean"]},
         "relations": [
             {
@@ -107,6 +108,13 @@ KIND_RULES = {
                 "then": {
                     "expected.type": {"const": "boolean"},
                     "expected.value": {"const": True},
+                },
+            },
+            {
+                "if": {"expected.op": {"const": "one-of"}},
+                "then": {
+                    "expected.type": {"const": "string"},
+                    "expected.value": {"pattern": KERNEL_CMDLINE_ONE_OF_PATTERN},
                 },
             },
         ],

@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.5.3-DEBUGFS"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0026"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.5.3"
+  quote: "2.5.3. Отключить монтирование виртуальной файловой системы debugfs путём установки значения опции загрузки ядра debugfs=no-mount (по возможности off)."
+  quote_sha256: "10391c151e6a53e91d637a11bc0f87a05a1ca7fdd408f9493dd27b366da46184"
+  norm: "norm-v1"
+requirement:
+  stated: "2.5.3. Отключить монтирование виртуальной файловой системы debugfs путём установки значения опции загрузки ядра debugfs=no-mount (по возможности off)."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "kernel-cmdline"
+  locator: "/proc/cmdline"
+  key: "debugfs"
+expected:
+  op: "one-of"
+  value: "off|no-mount"
+  type: "string"
+apply:
+  supported: false

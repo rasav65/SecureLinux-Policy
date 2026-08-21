@@ -10,6 +10,11 @@
 
 ## [Unreleased]
 
+### Added — SRC-0026 / 2.5.3 debugfs kernel-cmdline CHECK
+
+- Закрыт `SRC-0026 / 2.5.3`: `debugfs=no-mount (по возможности off)` представлен одним `kernel-cmdline` control с `op=one-of` и ordered value `off|no-mount`; `off` сохраняется как preferred, оба source-разрешённых значения дают PASS.
+- `kernel-cmdline` product adapter/semantic contract подняты до v2: `eq`/`present` совместимы с v1, добавлен read-only `one-of`, конфликтующие дубли остаются `ERROR`, APPLY/RESTORE не добавлены.
+
 ### Added — SRC-0034 / 2.5.11 ASLR sysctl CHECK
 
 - `SRC-0034` переводится `OPEN → CLOSED` одним существующим `sysctl` control.
