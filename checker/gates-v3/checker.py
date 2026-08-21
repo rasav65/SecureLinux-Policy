@@ -191,6 +191,28 @@ KIND_RULES = {
             },
         ],
     },
+    "suid-sgid-applications": {
+        "locator": {"const": "/proc/self/mountinfo"},
+        "key": {"enum": ["mode", "approved-set"]},
+        "op": {"enum": ["bits-clear", "subset-of-file"]},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "bits-clear"}},
+                "then": {
+                    "parameter.key": {"const": "mode"},
+                    "expected.value": {"const": "0022"},
+                },
+            },
+            {
+                "if": {"expected.op": {"const": "subset-of-file"}},
+                "then": {
+                    "parameter.key": {"const": "approved-set"},
+                    "expected.value": {"const": "/etc/securelinux-policy/suid-sgid.allowlist-v1"},
+                },
+            },
+        ],
+    },
     "local-account-password-state": {
         "locator": {"const": "/etc/shadow"},
         "key": {"const": "password-field"},

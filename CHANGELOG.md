@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+### Добавлено — SRC-0013 / 2.3.9: аудит SUID/SGID-приложений
+
+- `SRC-0013` переводится `OPEN → CLOSED` через exact-control-set из двух controls одного read-only kind `suid-sgid-applications`.
+- `SUID-SGID-MODE` охватывает всю effective SUID/SGID regular-file population по mounted filesystems без `nosuid` и требует точное source-отношение `mode & 0022 == 0` (`chmod go-w`); scan/stat/mountinfo ambiguity даёт fail-closed `ERROR`.
+- `SUID-SGID-ALLOWLIST` представляет отдельное требование об отсутствии «лишних» приложений как `population ⊆ approved set`. Источник не задаёт универсального критерия «лишний», поэтому current CHECK читает только явный локальный authority `/etc/securelinux-policy/suid-sgid.allowlist-v1`; его отсутствие/нечитаемость/неоднозначность даёт `ERROR`, а не ложный `PASS`.
+- Donor condition `SUID owner != root` не переносится: источник подчёркивает повышенный риск root-owned SUID, но не требует универсального `owner=root`.
+- VM evidence v2 собрано одним batch на Ubuntu 22 `FULL`, Ubuntu 24 `MINIMIZED/FULL`, Ubuntu 26 `MINIMIZED/FULL`, Debian 12 `SERVER`, Debian 13 `GNOME`. Во всех семи runs `GO_W=0`, scan errors `0`; число effective SUID/SGID regular files различается по составу установки.
+- После batch: `349 / 31 controlled CLOSED / 318 OPEN`; canonical controls `41`; current adapters `8`. CHECK остаётся read-only; APPLY/RESTORE и formal Gate5 probe-results не создаются.
+
 ### Добавлено — SRC-0012 / 2.3.8: проверка стандартных системных путей
 
 - `SRC-0012` переводится `OPEN → CLOSED` одним aggregate control `standard-system-paths-mode`.

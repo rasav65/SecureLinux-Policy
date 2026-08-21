@@ -16,6 +16,7 @@ FILESET_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-optional-file-ro
 SHADOW_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-local-account-password-state-check-v1.py"
 USER_CRON_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-user-cron-files-mode-check-v1.py"
 STANDARD_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-standard-system-paths-mode-check-v1.py"
+SUID_SGID_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-suid-sgid-applications-check-v1.py"
 BASH = shutil.which("bash")
 
 
@@ -62,6 +63,14 @@ def load_standard_paths_adapter():
 
 STANDARD_PATHS = load_standard_paths_adapter()
 
+def load_suid_sgid_adapter():
+    spec = importlib.util.spec_from_file_location("slp_suid_sgid_adapter", SUID_SGID_ADAPTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+SUID_SGID = load_suid_sgid_adapter()
+
 
 def load_current():
     rows, manifest_sha = GEN.load_manifest(ROOT)
@@ -86,8 +95,8 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode"} <= set(adapters))
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications"})
         src0001 = [c for c in controls if c["index_id"] == "SRC-0001"]
         self.assertEqual(len(src0001), 1)
         self.assertEqual(
@@ -113,6 +122,15 @@ class GeneratorModel(unittest.TestCase):
         self.assertEqual(
             (src0012[0]["parameter_kind"], src0012[0]["parameter_locator"], src0012[0]["parameter_key"], src0012[0]["expected_op"], src0012[0]["expected_value"]),
             ("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|/lib|/lib64|/usr/lib|/usr/lib64|/lib/modules/<uname-r>", "mode", "bits-clear", "0022"),
+        )
+        src0013 = [c for c in controls if c["index_id"] == "SRC-0013"]
+        self.assertEqual(len(src0013), 2)
+        self.assertEqual(
+            {(c["parameter_kind"], c["parameter_locator"], c["parameter_key"], c["expected_op"], c["expected_value"]) for c in src0013},
+            {
+                ("suid-sgid-applications", "/proc/self/mountinfo", "mode", "bits-clear", "0022"),
+                ("suid-sgid-applications", "/proc/self/mountinfo", "approved-set", "subset-of-file", "/etc/securelinux-policy/suid-sgid.allowlist-v1"),
+            },
         )
         src0005 = [c for c in controls if c["index_id"] == "SRC-0005"]
         self.assertEqual(len(src0005), 3)
@@ -574,6 +592,97 @@ class StandardSystemPathsModeFixtures(unittest.TestCase):
             with self.subTest(args=args):
                 with self.assertRaises(ValueError):
                     STANDARD_PATHS.shell_function(*args)
+
+
+@unittest.skipIf(BASH is None, "bash not available")
+class SuidSgidApplicationsFixtures(unittest.TestCase):
+    def make_mountinfo(self, base: Path):
+        mountinfo = base / "mountinfo"
+        mountinfo.write_text(
+            f"1 0 0:1 / {base} rw,relatime - ext4 /dev/test rw\n",
+            encoding="utf-8",
+        )
+        return mountinfo
+
+    def run_fixture(self, base: Path, key: str, op: str, expected: str):
+        mountinfo = self.make_mountinfo(base)
+        source = SUID_SGID._shell_function_for_fixture(
+            "TEST-SUID-SGID", key, op, expected, str(mountinfo)
+        )
+        return subprocess.run(
+            [BASH, "-c", "set -u\n" + source + "\nslp_check_TEST_SUID_SGID"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+    def test_mode_pass_and_fail(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            app = base / "app"; app.write_text("x\n", encoding="utf-8")
+            os.chmod(app, 0o4755)
+            cp = self.run_fixture(base, "mode", "bits-clear", "0022")
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            self.assertEqual(cp.stderr, "")
+            self.assertIn("checked=1;violations=0\tPASS", cp.stdout)
+            os.chmod(app, 0o4775)
+            cp = self.run_fixture(base, "mode", "bits-clear", "0022")
+            self.assertIn("checked=1;violations=1\tFAIL", cp.stdout)
+
+    def test_allowlist_pass_and_extra_fail(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            app = base / "app"; app.write_text("x\n", encoding="utf-8"); os.chmod(app, 0o4755)
+            allow = base / "allowlist"
+            allow.write_text(str(app) + "\n", encoding="utf-8")
+            cp = self.run_fixture(base, "approved-set", "subset-of-file", str(allow))
+            self.assertEqual(cp.stderr, "")
+            self.assertIn("checked=1;extras=0\tPASS", cp.stdout)
+            extra = base / "extra"; extra.write_text("x\n", encoding="utf-8"); os.chmod(extra, 0o2755)
+            cp = self.run_fixture(base, "approved-set", "subset-of-file", str(allow))
+            self.assertIn("checked=2;extras=1\tFAIL", cp.stdout)
+
+    def test_missing_or_malformed_allowlist_is_error(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            app = base / "app"; app.write_text("x\n", encoding="utf-8"); os.chmod(app, 0o4755)
+            missing = base / "missing"
+            cp = self.run_fixture(base, "approved-set", "subset-of-file", str(missing))
+            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SUID-SGID\tERROR\t-\tERROR")
+            allow = base / "allowlist"
+            allow.write_text("relative/path\n", encoding="utf-8")
+            cp = self.run_fixture(base, "approved-set", "subset-of-file", str(allow))
+            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SUID-SGID\tERROR\t-\tERROR")
+
+    def test_nosuid_mount_is_excluded(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            app = base / "app"; app.write_text("x\n", encoding="utf-8"); os.chmod(app, 0o4777)
+            mountinfo = base / "mountinfo"
+            mountinfo.write_text(
+                f"1 0 0:1 / {base} rw,nosuid,relatime - ext4 /dev/test rw\n",
+                encoding="utf-8",
+            )
+            source = SUID_SGID._shell_function_for_fixture(
+                "TEST-SUID-SGID", "mode", "bits-clear", "0022", str(mountinfo)
+            )
+            cp = subprocess.run(
+                [BASH, "-c", "set -u\n" + source + "\nslp_check_TEST_SUID_SGID"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            )
+            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SUID-SGID\tERROR\t-\tERROR")
+
+    def test_generation_rejects_wrong_contract_fields(self):
+        for args in (
+            ("TEST", "/proc/mounts", "mode", "bits-clear", "0022"),
+            ("TEST", "/proc/self/mountinfo", "owner", "bits-clear", "0022"),
+            ("TEST", "/proc/self/mountinfo", "mode", "eq", "0022"),
+            ("TEST", "/proc/self/mountinfo", "mode", "bits-clear", "0033"),
+            ("TEST", "/proc/self/mountinfo", "approved-set", "subset-of-file", "/tmp/list"),
+        ):
+            with self.subTest(args=args):
+                with self.assertRaises(ValueError):
+                    SUID_SGID.shell_function(*args)
 
 
 @unittest.skipIf(BASH is None, "bash not available")

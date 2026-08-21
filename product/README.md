@@ -16,6 +16,7 @@
 - `contracts/optional-file-root-files-mode-check-semantic-v1.json` — read-only contract для optional system-cron root + direct regular files; missing root = `VALUE/PASS`, неоднозначный nested/symlink/special population = `ERROR`;
 - `contracts/local-account-password-state-check-semantic-v1.json` — read-only aggregate contract для локальных `/etc/passwd` accounts + source-anchored `/etc/shadow`; empty password field = `FAIL`, неполная/неоднозначная mapping = `ERROR`;
 - `contracts/standard-system-paths-mode-check-semantic-v1.json` — read-only aggregate contract SRC-0012 для standard executable/library/current-kernel-module population с merged-`/usr` aliases, target deduplication и fail-closed observation errors;
+- `contracts/suid-sgid-applications-check-semantic-v1.json` — read-only contract SRC-0013: effective SUID/SGID population, `go-w` mode check и отдельная allowlist-authority проверка отсутствия лишних приложений;
 - `adapters/product-file-mode-owner-check-v1.py` + JSON binding;
 - `adapters/product-sysctl-check-v2.py` + JSON binding (v1 сохранён как предыдущая product identity);
 - `adapters/product-kernel-cmdline-check-v2.py` + JSON binding; только чтение
@@ -23,6 +24,7 @@
 - `adapters/product-optional-file-root-files-mode-check-v1.py` + JSON binding; только `stat/find/sort`, без chmod/chown/APPLY;
 - `adapters/product-local-account-password-state-check-v1.py` + JSON binding; только чтение `/etc/passwd` и `/etc/shadow`, без passwd/usermod/APPLY;
 - `adapters/product-standard-system-paths-mode-check-v1.py` + JSON binding; только `uname/readlink/find/sort/stat`, без chmod/chown/APPLY;
+- `adapters/product-suid-sgid-applications-check-v1.py` + JSON binding; только чтение mountinfo/allowlist и `find/sort/stat`, без chmod/chown/remount/APPLY;
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
   semantic contract / binding / implementation с SHA-256;
 - `generate-product-check-v1.py` — tracked deterministic generator current
@@ -109,3 +111,14 @@ Formal `Gate 5 --probe-results` остаётся отдельным контра
 2.3.8 требует «анализа корректности прав», но не задаёт точный mode. Current operational criterion — `bits-clear 0022`: системный executable/library/module target не должен быть writable для group/other. Это минимальная инженерная интерпретация, согласованная с pinned donor и соседними 2.3.2/2.3.9; owner/group и более строгие mode значения не добавляются. Проверка parent directories из donor намеренно не переносится, потому что источник явно требует её в 2.3.2, но не в 2.3.8.
 
 `$PATH` непривилегированного процесса generated CHECK не используется как authority для root PATH. Семь VM-наблюдений подтвердили, что fixed canonical executable roots входят в privileged root PATH на Ubuntu 22/24/26 и Debian 12/13; `/usr/local/*` и `/snap/bin` остаются вне current OS-owned population.
+
+
+## SRC-0013 / 2.3.9
+
+Два controls одного kind `suid-sgid-applications` представляют обе части исходной рекомендации отдельно.
+
+`SUID-SGID-MODE` читает `/proc/self/mountinfo`, исключает pseudo/virtual filesystems и mounts с `nosuid`, затем выполняет xdev-поиск regular files с SUID/SGID bits на каждом оставшемся mount root. Один underlying file дедуплицируется по `dev:inode`. Для каждого найденного приложения требуется `bits-clear 0022`; нулевая полностью определённая population допустима, а неполный обход/stat/mountinfo ambiguity даёт `ERROR`.
+
+`SUID-SGID-ALLOWLIST` использует ту же population, но проверяет только `population ⊆ approved set`. Источник требует убедиться, что нет «лишних» SUID/SGID-приложений, но не задаёт универсальный машинный критерий необходимости. Поэтому generated CHECK не угадывает его: authority — явный локальный read-only список `/etc/securelinux-policy/suid-sgid.allowlist-v1`, по одному exact absolute path на строку; comments `#` и пустые строки разрешены. Отсутствующий, symlink, нечитаемый или malformed список означает `ERROR`, а unlisted detected application — `VALUE/FAIL`. Сам путь allowlist является механизмом current product, а не дополнительным требованием ФСТЭК.
+
+Pinned donor использован только как precedent для `mode & 0022`. Его автоматическая трактовка SUID non-root owner как нарушения отклонена: 2.3.9 такого универсального owner rule не устанавливает. Семь privileged VM runs подтвердили, что mode condition штатно имеет `GO_W=0`, а population зависит от состава ОС и установленных пакетов.

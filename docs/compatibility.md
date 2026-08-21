@@ -88,3 +88,22 @@ CHECK с RC=3 до выполнения policy checks.
 | Debian 13 (trixie) | **GNOME** | `6.12.74+deb13+1-amd64` | `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` | 13760 | 0 |
 
 Вывод для semantics: canonical OS executable roots текущего control — `/bin`, `/sbin`, `/usr/bin`, `/usr/sbin`. Они входят и в fixed donor defaults, и во все наблюдавшиеся privileged root PATH. `/usr/local/*` и `/snap/bin` не включаются в current OS-owned population: это local/admin и application paths, а не фиксированные пути файлов ОС текущего target contract. Library roots — `/lib`, `/lib64`, `/usr/lib`, `/usr/lib64`; current-kernel module root определяется через `uname -r`.
+
+
+## VM-наблюдения для SRC-0013
+
+Это **не** расширение `SUPPORTED` target и не acceptance полного product CHECK. Evidence v2 снималось привилегированным read-only batch; основной ПК пользователя не использовался для privileged проверки.
+
+Population определялась по mounted filesystems, на которых SUID/SGID semantics не отключена `nosuid`; pseudo/virtual filesystems исключались. На Ubuntu 22 FULL в population также попали SUID/SGID-файлы read-only snap squashfs mounts, что подтвердило недостаточность сканирования только root filesystem.
+
+| ОС | Тип установки | SUID/SGID regular | SUID | SGID | `GO_W` | Scan errors |
+|---|---|---:|---:|---:|---:|---:|
+| Ubuntu 22.04.5 LTS | **FULL** | 38 | 26 | 12 | 0 | 0 |
+| Ubuntu 24.04.4 LTS | **MINIMIZED** | 18 | 13 | 5 | 0 | 0 |
+| Ubuntu 24.04.4 LTS | **FULL** | 19 | 13 | 6 | 0 | 0 |
+| Ubuntu 26.04 LTS | **MINIMIZED** | 18 | 13 | 5 | 0 | 0 |
+| Ubuntu 26.04 LTS | **FULL** | 20 | 14 | 6 | 0 | 0 |
+| Debian 12 (bookworm) | **SERVER** | 17 | 11 | 6 | 0 | 0 |
+| Debian 13 (trixie) | **GNOME** | 18 | 11 | 7 | 0 | 0 |
+
+Вывод для semantics: численный состав SUID/SGID population нельзя фиксировать как нормативный baseline — он зависит от пакетов и installation class. Универсальная часть 2.3.9 — отсутствие group/other write. Решение о том, какое найденное приложение является «лишним», требует отдельного локального authority и не выводится автоматически из package ownership или из этой VM-матрицы.

@@ -926,6 +926,176 @@
           "parameter": {
             "properties": {
               "kind": {
+                "const": "suid-sgid-applications"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "bits-clear"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "mode"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "0022"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "subset-of-file"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "approved-set"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "/etc/securelinux-policy/suid-sgid.allowlist-v1"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "enum": [
+                  "bits-clear",
+                  "subset-of-file"
+                ]
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "enum": [
+                  "mode",
+                  "approved-set"
+                ]
+              },
+              "locator": {
+                "const": "/proc/self/mountinfo"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
                 "const": "local-account-password-state"
               }
             },
@@ -1279,6 +1449,7 @@
             "optional-file-root-files-mode",
             "user-cron-files-mode",
             "standard-system-paths-mode",
+            "suid-sgid-applications",
             "local-account-password-state",
             "mount-option",
             "systemd-unit-state",
