@@ -30,9 +30,9 @@ The norm-v1 corpus of these documents is a single line. A unit begins at its
 locator marker ``<locator>. `` and ends immediately before the next such
 marker at the same or a shallower depth, or at end of document. Markers are
 matched only when not preceded by a digit or a dot, so ``2.4.1`` inside a
-sentence cannot start a unit. The extracted span is stripped of surrounding whitespace. A source-specific
-terminal footer token may then be removed only when that exact token is the
-final token of both the pinned normalized corpus and the extracted final unit.
+sentence cannot start a unit. The extracted span is stripped of surrounding whitespace. Source-specific
+page furniture may then be removed only by exact pinned rules: a terminal
+footer token at corpus EOF, or an index-specific trailing page-number token.
 The result is re-normalized with norm-v1 and required to be unchanged -- if
 normalization would alter the span, the row is refused rather than guessed.
 
@@ -63,6 +63,12 @@ SUPPORTED_UNIT_KINDS = {"numbered-position"}
 # sequence inside normative text is never removed.
 TERMINAL_PAGE_FURNITURE = {
     "fstec-linux-2022": "________________________",
+}
+
+# Internal page-number furniture is never stripped generically. Each exception
+# is pinned to one exact index row and one exact trailing token.
+INDEX_TRAILING_PAGE_FURNITURE = {
+    "SRC-0001": "3",
 }
 INDEX_FIELDS = {
     "index_id", "source_id", "source_file", "source_sha256", "source_role",
@@ -270,6 +276,23 @@ def strip_terminal_page_furniture(corpus: str, quote: str, row) -> str:
     return quote
 
 
+def strip_index_trailing_page_furniture(quote: str, row) -> str:
+    """Remove one exact trailing page-number token for a pinned index row.
+
+    A configured row must actually end with its pinned token; mismatch is an
+    error rather than a reason to guess. Unlisted rows are unchanged.
+    """
+    token = INDEX_TRAILING_PAGE_FURNITURE.get(row["index_id"])
+    if token is None:
+        return quote
+    suffix = " " + token
+    if not quote.endswith(suffix):
+        raise ValueError(
+            f"pinned trailing page furniture mismatch for {row['index_id']}"
+        )
+    return quote[:-len(suffix)].rstrip()
+
+
 def build_source_block(project_root: Path, row, normalize_text):
     if row["quote_anchor_ready"] != "YES":
         raise ValueError("index quote_anchor_ready != YES")
@@ -278,11 +301,11 @@ def build_source_block(project_root: Path, row, normalize_text):
         corpus = corpus[:-1]
     quote = extract_unit(corpus, row["locator"])
     quote = strip_terminal_page_furniture(corpus, quote, row)
+    quote = strip_index_trailing_page_furniture(quote, row)
 
-    # A unit that runs across a page break ends with the page number, which is
-    # page furniture rather than normative text. Stripping it would be a guess
-    # about which trailing integers are furniture, so the row is refused and
-    # reported instead.
+    # An unpinned unit that runs across a page break ends with a page number,
+    # which is page furniture rather than normative text. Stripping it
+    # generically would be a guess, so every unpinned row is refused.
     if re.search(r"\s\d{1,3}$", quote):
         raise ValueError(
             "extracted span ends with a bare integer (page number across a "

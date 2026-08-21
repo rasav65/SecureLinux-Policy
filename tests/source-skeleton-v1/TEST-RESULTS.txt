@@ -1,1 +1,1 @@
-SOURCE_SKELETON_TESTS=PASS pilot=28 unit_kinds=1/13 supported_rows=74 exact=72 refused=2 index_generic_path=1 negative_duplicate_index=1 negative_quote_anchor=1 negative_normalizer_sha=1 negative_norm_sha=1 terminal_footer_exact=1 terminal_footer_negative=2
+SOURCE_SKELETON_TESTS=PASS pilot=34 unit_kinds=1/13 supported_rows=74 exact=73 refused=1 index_generic_path=1 negative_duplicate_index=1 negative_quote_anchor=1 negative_normalizer_sha=1 negative_norm_sha=1 internal_page_exact=1 internal_page_negative=2 terminal_footer_exact=1 terminal_footer_negative=2

@@ -17,4 +17,5 @@ but they are calculated during the run.
 
 This is distinct from the step-6 committed-block parity gate.
 
-- terminal page-furniture boundary для `SRC-0040 / 2.6.6`: exact EOF rule + negative fixtures.
+- terminal page-furniture boundary для `SRC-0040 / 2.6.6`: exact EOF rule + negative fixtures;
+- internal page-furniture boundary для `SRC-0001 / 2.1.1`: только exact pinned trailing token `3`; generic bare-integer stripping по-прежнему запрещён.

@@ -13,10 +13,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CONTROL_MANIFEST = ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 GEN = ROOT / "tools/source_skeleton_generator.py"
-EXPECTED_GEN_SHA = "fbe07a12ed64438fc7f2847eb3898c228611b8a5bd97931d3c767a79effe0161"
+EXPECTED_GEN_SHA = "2451b67aed71a534e849f612cec7916dfdbacfb9a0237a439455ec3d03d85607"
 EXPECTED_SRC0018_SHA = "016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d"
 EXPECTED_SRC0040_SHA = "f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d"
-EXPECTED_REFUSED = {"SRC-0001", "SRC-0133"}
+EXPECTED_SRC0001_SHA = "799b85637928264e6f43d5e32d8cc6b48af6694e30f6fbf5e4c6ddef3a207f3b"
+EXPECTED_REFUSED = {"SRC-0133"}
 
 
 def sha(path: Path) -> str:
@@ -90,6 +91,30 @@ for row in supported:
 assert len(ok) + len(refused) == len(supported)
 assert set(refused) == EXPECTED_REFUSED
 assert all("bare integer" in why for why in refused.values())
+
+# Exact pinned internal page boundary for SRC-0001. The recovered corpus
+# contains the page number "3" immediately before 2.1.2; only this exact
+# index/token pair is admitted as page furniture.
+block1 = gate.build_source_block(ROOT, by_id["SRC-0001"], normalize_text)
+assert block1["quote_sha256"] == EXPECTED_SRC0001_SHA
+assert block1["quote"].endswith("файл /etc/shadow.")
+assert not block1["quote"].endswith(" 3")
+raw1 = gate.extract_unit(
+    gate.resolve_corpus(ROOT, by_id["SRC-0001"]).read_text(encoding="utf-8").rstrip("\n"),
+    "2.1.1",
+)
+assert raw1.endswith("файл /etc/shadow. 3")
+
+fixture_row1 = dict(by_id["SRC-0001"])
+assert gate.strip_index_trailing_page_furniture("fixture 3", fixture_row1) == "fixture"
+try:
+    gate.strip_index_trailing_page_furniture("fixture 4", fixture_row1)
+except ValueError as exc:
+    assert "pinned trailing page furniture mismatch" in str(exc)
+else:
+    raise AssertionError("mismatched pinned page token was accepted")
+fixture_row1["index_id"] = "SRC-0018"
+assert gate.strip_index_trailing_page_furniture("fixture 3", fixture_row1) == "fixture 3"
 
 # Exact known example.
 block = gate.build_source_block(ROOT, by_id["SRC-0018"], normalize_text)
@@ -225,5 +250,6 @@ print(
     f"supported_rows={len(supported)} exact={len(ok)} refused={len(refused)} "
     "index_generic_path=1 negative_duplicate_index=1 "
     "negative_quote_anchor=1 negative_normalizer_sha=1 "
-    "negative_norm_sha=1 terminal_footer_exact=1 terminal_footer_negative=2"
+    "negative_norm_sha=1 internal_page_exact=1 internal_page_negative=2 "
+    "terminal_footer_exact=1 terminal_footer_negative=2"
 )

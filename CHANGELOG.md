@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+### Fixed — SRC-0001 source quote boundary
+
+- `source_skeleton_generator.py` получил одну exact pinned exception для `SRC-0001`: trailing page token `3` после `/etc/shadow.` удаляется как page furniture только для этой строки.
+- Generic удаление bare integers по-прежнему запрещено; `SRC-0133` остаётся fail-closed `REFUSED`.
+- Canonical quote SHA-256 для `SRC-0001 / 2.1.1` после удаления page furniture: `799b85637928264e6f43d5e32d8cc6b48af6694e30f6fbf5e4c6ddef3a207f3b`.
+- `tests/source-skeleton-v1/TEST-RESULTS.txt` синхронизирован с current regression (`pilot=34`, `exact=73`, `refused=1`).
+- Coverage не меняется: `349 / 25 controlled CLOSED / 324 OPEN`, controls `34`.
+
 ### Added — SRC-0010 / 2.3.6 system cron file-set CHECK
 
 - `SRC-0010` переводится `OPEN → CLOSED` через exact-control-set из шести source-listed roots.
