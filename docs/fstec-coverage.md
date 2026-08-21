@@ -6,10 +6,10 @@
 
 ```text
 TOTAL_INDEX_ROWS=349
-CONTROLLED_CLOSED_WITH_CONTRACT=29
+CONTROLLED_CLOSED_WITH_CONTRACT=30
 DISPOSED_CLOSED_ROWS=0
-OPEN_INDEX_ROWS=320
-CANONICAL_CONTROLS=38
+OPEN_INDEX_ROWS=319
+CANONICAL_CONTROLS=39
 ```
 
 Число canonical controls и число закрытых source rows — разные величины: одна строка источника может требовать `exact-control-set` из нескольких controls.
@@ -22,6 +22,7 @@ CANONICAL_CONTROLS=38
 | SRC-0005 | 2.3.1 | exact-control-set | `FSTEC-LINUX-2022-2.3.1-GROUP-MODE`<br>`FSTEC-LINUX-2022-2.3.1-PASSWD-MODE`<br>`FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX` | `file-mode-owner` | `product-file-mode-owner-check-v1` |
 | SRC-0010 | 2.3.6 | exact-control-set | `FSTEC-LINUX-2022-2.3.6-CRONTAB`<br>`FSTEC-LINUX-2022-2.3.6-CRON-D`<br>`FSTEC-LINUX-2022-2.3.6-CRON-HOURLY`<br>`FSTEC-LINUX-2022-2.3.6-CRON-DAILY`<br>`FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY`<br>`FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY` | `optional-file-root-files-mode` | `product-optional-file-root-files-mode-check-v1` |
 | SRC-0011 | 2.3.7 | atomic-single | `FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE` | `user-cron-files-mode` | `product-user-cron-files-mode-check-v1` |
+| SRC-0012 | 2.3.8 | atomic-single | `FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE` | `standard-system-paths-mode` | `product-standard-system-paths-mode-check-v1` |
 | SRC-0016 | 2.4.1 | atomic-single | `FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT` | `sysctl` | `product-sysctl-check-v2` |
 | SRC-0017 | 2.4.2 | atomic-single | `FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT` | `sysctl` | `product-sysctl-check-v2` |
 | SRC-0018 | 2.4.3 | atomic-single | `FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC` | `kernel-cmdline` | `product-kernel-cmdline-check-v2` |
@@ -60,6 +61,7 @@ CANONICAL_CONTROLS=38
 | `kernel-cmdline` | `product-kernel-cmdline-check-v2` | yes | 10 |
 | `local-account-password-state` | `product-local-account-password-state-check-v1` | yes | 1 |
 | `optional-file-root-files-mode` | `product-optional-file-root-files-mode-check-v1` | yes | 6 |
+| `standard-system-paths-mode` | `product-standard-system-paths-mode-check-v1` | yes | 1 |
 | `sysctl` | `product-sysctl-check-v2` | yes | 17 |
 | `user-cron-files-mode` | `product-user-cron-files-mode-check-v1` | yes | 1 |
 
@@ -68,7 +70,7 @@ CANONICAL_CONTROLS=38
 | Source document | Total rows | Controlled CLOSED | Disposed CLOSED | OPEN | Canonical controls |
 |---|---:|---:|---:|---:|---:|
 | fstec-configuration-2026 | 49 | 0 | 0 | 49 | 0 |
-| fstec-linux-2022 | 40 | 29 | 0 | 11 | 38 |
+| fstec-linux-2022 | 40 | 30 | 0 | 10 | 39 |
 | fstec-logging-2025 | 14 | 0 | 0 | 14 | 0 |
 | fstec-perimeter-2026 | 35 | 0 | 0 | 35 | 0 |
 | fstec-security-update-testing-2022 | 70 | 0 | 0 | 70 | 0 |
@@ -80,6 +82,6 @@ CANONICAL_CONTROLS=38
 
 ## Открытая часть корпуса
 
-`320` source rows остаются `OPEN`. Полный перечень и их source metadata находятся в `index/source-v4/SOURCE-INDEX.tsv`; этот документ не дублирует 349 строк вручную.
+`319` source rows остаются `OPEN`. Полный перечень и их source metadata находятся в `index/source-v4/SOURCE-INDEX.tsv`; этот документ не дублирует 349 строк вручную.
 
 Наличие adapter или canonical control само по себе не закрывает source row: закрытие определяется source status и `CLOSURE-CONTRACT.tsv` либо explicit disposition.

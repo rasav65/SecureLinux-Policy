@@ -15,12 +15,14 @@
   для фактической загрузочной строки `/proc/cmdline`; `one-of` кодирует ordered alternatives через `|`, где первое значение preferred, но все перечисленные значения compliant; v1 сохранён как предыдущая product identity;
 - `contracts/optional-file-root-files-mode-check-semantic-v1.json` — read-only contract для optional system-cron root + direct regular files; missing root = `VALUE/PASS`, неоднозначный nested/symlink/special population = `ERROR`;
 - `contracts/local-account-password-state-check-semantic-v1.json` — read-only aggregate contract для локальных `/etc/passwd` accounts + source-anchored `/etc/shadow`; empty password field = `FAIL`, неполная/неоднозначная mapping = `ERROR`;
+- `contracts/standard-system-paths-mode-check-semantic-v1.json` — read-only aggregate contract SRC-0012 для standard executable/library/current-kernel-module population с merged-`/usr` aliases, target deduplication и fail-closed observation errors;
 - `adapters/product-file-mode-owner-check-v1.py` + JSON binding;
 - `adapters/product-sysctl-check-v2.py` + JSON binding (v1 сохранён как предыдущая product identity);
 - `adapters/product-kernel-cmdline-check-v2.py` + JSON binding; только чтение
   `/proc/cmdline`, без GRUB/APPLY/RESTORE; v1 сохранён как предыдущая product identity;
 - `adapters/product-optional-file-root-files-mode-check-v1.py` + JSON binding; только `stat/find/sort`, без chmod/chown/APPLY;
 - `adapters/product-local-account-password-state-check-v1.py` + JSON binding; только чтение `/etc/passwd` и `/etc/shadow`, без passwd/usermod/APPLY;
+- `adapters/product-standard-system-paths-mode-check-v1.py` + JSON binding; только `uname/readlink/find/sort/stat`, без chmod/chown/APPLY;
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
   semantic contract / binding / implementation с SHA-256;
 - `generate-product-check-v1.py` — tracked deterministic generator current
@@ -98,3 +100,12 @@ Formal `Gate 5 --probe-results` остаётся отдельным контра
 Один aggregate control `user-cron-files-mode` проверяет только пользовательские cron-файлы под двумя donor-подтверждёнными optional discovery roots: `/var/spool/cron` и `/var/spool/cron/crontabs`. Обычные файлы обнаруживаются рекурсивно, пересечение roots дедуплицируется по абсолютному пути, а вложенные каталоги служат только контейнерами population. Точное source-отношение `chmod go-w` представлено как `mode bits-clear 0022`; требования к owner/group или к режиму root-каталогов не добавляются.
 
 Пустая population compliant: на Ubuntu 24/26 `MINIMIZED` пакет `cron` отсутствовал вместе с обоими roots; на Ubuntu 22 `FULL`, Ubuntu 24 `FULL`, Ubuntu 26 `FULL`, Debian 12 `SERVER` и Debian 13 `GNOME` roots присутствовали, но regular cron-файлов на момент диагностики не было. Эти VM-факты подтверждают layout assumptions, но не расширяют current product target. Symlink/special object, traversal/stat error или неоднозначность population дают `ERROR`; молчаливые donor-skips не переносятся.
+## SRC-0012 / 2.3.8
+
+Один aggregate control `standard-system-paths-mode` проверяет системные executable roots `/bin`, `/sbin`, `/usr/bin`, `/usr/sbin`, library roots `/lib`, `/lib64`, `/usr/lib`, `/usr/lib64` и current-kernel root `/lib/modules/<uname-r>`. merged-`/usr` root aliases разрешаются и дедуплицируются по `dev:inode`; regular symlink targets также дедуплицируются.
+
+Для executable roots любой non-directory entry является candidate и должен разрешаться в regular target. Для library roots candidate-name ограничен `*.so`, `*.so.*`, `*.a`; для kernel modules — `*.ko`, `*.ko.*`. Это не превращает package metadata под `/usr/lib` или `/lib/modules` в дополнительные policy requirements. Candidate dangling/special target, incomplete traversal или stat/readlink ambiguity дают `ERROR`.
+
+2.3.8 требует «анализа корректности прав», но не задаёт точный mode. Current operational criterion — `bits-clear 0022`: системный executable/library/module target не должен быть writable для group/other. Это минимальная инженерная интерпретация, согласованная с pinned donor и соседними 2.3.2/2.3.9; owner/group и более строгие mode значения не добавляются. Проверка parent directories из donor намеренно не переносится, потому что источник явно требует её в 2.3.2, но не в 2.3.8.
+
+`$PATH` непривилегированного процесса generated CHECK не используется как authority для root PATH. Семь VM-наблюдений подтвердили, что fixed canonical executable roots входят в privileged root PATH на Ubuntu 22/24/26 и Debian 12/13; `/usr/local/*` и `/snap/bin` остаются вне current OS-owned population.

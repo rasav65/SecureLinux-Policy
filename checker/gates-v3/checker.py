@@ -179,6 +179,18 @@ KIND_RULES = {
             },
         ],
     },
+    "standard-system-paths-mode": {
+        "locator": {"const": "/bin|/sbin|/usr/bin|/usr/sbin|/lib|/lib64|/usr/lib|/usr/lib64|/lib/modules/<uname-r>"},
+        "key": {"const": "mode"},
+        "op": {"const": "bits-clear"},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "bits-clear"}},
+                "then": {"expected.value": {"const": "0022"}},
+            },
+        ],
+    },
     "local-account-password-state": {
         "locator": {"const": "/etc/shadow"},
         "key": {"const": "password-field"},

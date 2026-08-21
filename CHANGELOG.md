@@ -10,6 +10,16 @@
 
 ## [Unreleased]
 
+### Добавлено — SRC-0012 / 2.3.8: проверка стандартных системных путей
+
+- `SRC-0012` переводится `OPEN → CLOSED` одним aggregate control `standard-system-paths-mode`.
+- Canonical population охватывает `/bin`, `/sbin`, `/usr/bin`, `/usr/sbin`, `/lib`, `/lib64`, `/usr/lib`, `/usr/lib64` и `/lib/modules/<текущее-ядро>` с поддержкой merged-`/usr` aliases и дедупликацией underlying targets.
+- Для executable roots проверяются regular targets всех non-directory entries; для библиотек — `*.so`, `*.so.*`, `*.a`; для модулей ядра — `*.ko`, `*.ko.*`.
+- Источник 2.3.8 не задаёт числовой mode; минимальный operational criterion `mode & 0022 == 0` зафиксирован как инженерная интерпретация, согласованная с pinned donor и соседними 2.3.2/2.3.9. Более строгие owner/group/mode требования не добавлены.
+- Parent-directory condition из donor не переносится: оно явно содержится в 2.3.2, но отсутствует в 2.3.8. Traversal/stat/readlink ambiguity даёт fail-closed `ERROR`.
+- VM layout evidence собрано отдельно для Ubuntu 22 `FULL`, Ubuntu 24 `MINIMIZED/FULL`, Ubuntu 26 `MINIMIZED/FULL`, Debian 12 `SERVER` и Debian 13 `GNOME`; это evidence assumptions, а не расширение `SUPPORTED` target.
+- После batch: `349 / 30 controlled CLOSED / 319 OPEN`; canonical controls `39`; current adapters `7`. CHECK остаётся read-only; APPLY/RESTORE и formal Gate5 probe-results не создаются.
+
 ### Изменено — русский язык актуальной v3-документации
 
 - Человекочитаемый текст действующего контура `checker/gates-v3`, контракта значений наблюдений и соответствующего README тестов переведён на русский язык.

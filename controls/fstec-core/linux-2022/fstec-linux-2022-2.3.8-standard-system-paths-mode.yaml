@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0012"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.3.8"
+  quote: "2.3.8. Установить корректные права доступа к исполняемым файлам и библиотекам операционной системы путём анализа корректности прав доступа к утилитам и системным библиотекам, расположенным по стандартным путям (/bin, /usr/bin, /lib, /lib64 и другим путям), а также к модулям ядра (для Linux: /lib/modules/версия-текущего-ядра). Местоположение большинства стандартных исполняемых файлов указано в переменной $PATH пользователя root."
+  quote_sha256: "c14203a718160e12100efac4e8e4f748cdf7517bba948d7ee66d8811f2e462e3"
+  norm: "norm-v1"
+requirement:
+  stated: "2.3.8. Установить корректные права доступа к исполняемым файлам и библиотекам операционной системы путём анализа корректности прав доступа к утилитам и системным библиотекам, расположенным по стандартным путям (/bin, /usr/bin, /lib, /lib64 и другим путям), а также к модулям ядра (для Linux: /lib/modules/версия-текущего-ядра). Местоположение большинства стандартных исполняемых файлов указано в переменной $PATH пользователя root."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "standard-system-paths-mode"
+  locator: "/bin|/sbin|/usr/bin|/usr/sbin|/lib|/lib64|/usr/lib|/usr/lib64|/lib/modules/<uname-r>"
+  key: "mode"
+expected:
+  op: "bits-clear"
+  value: "0022"
+  type: "string"
+apply:
+  supported: false

@@ -1,4 +1,4 @@
-740c5d31a485ae18b010c3cf81686d8de6d1ac669c0f2ee39d367fe98a8d2cf0  CONTROL-MANIFEST.tsv
+dc7ba4523da571f8a3931da585804c8242df62800214bbfe286646e647c05307  CONTROL-MANIFEST.tsv
 f4a5b8bd257ea36af176d031c6e43aea1bf73793839d67e8e8d8b26ff9ac4aec  README.md
 82d8121586664ee803efec1f1b4bb93a248ce1f302bdf90a2561468ead86d802  fstec-linux-2022-2.1.1-local-account-password-state.yaml
 719123c6ab9e5a26bd261a67aa2340ad1cf388ca3749db9c05b23f3079584a81  fstec-linux-2022-2.3.1-group-mode.yaml
@@ -11,6 +11,7 @@ ca59fb02687823c843038099bd5698d42cd7d3cd402a22b4f0126bd89da42433  fstec-linux-20
 62383ceb2d82745bdfeee36b424136c351b12d17ba430bf48b1706338a7c35e5  fstec-linux-2022-2.3.6-cron-weekly.yaml
 043329e8aff8fa44762e5a2a22f6688c03bd30399dc78acb30821748d81d4fda  fstec-linux-2022-2.3.6-crontab.yaml
 9ec427f2f8fe4fd76ae91e4a0b276a98eddf2c95949feca8a43035008f575360  fstec-linux-2022-2.3.7-user-cron-files-mode.yaml
+ba4c3310e62afdb05e7d3cba0f2ba086c77389574565d5f0d34abe3bd0e86962  fstec-linux-2022-2.3.8-standard-system-paths-mode.yaml
 51f99ed4b7c67eb30558176685885337c27a4d8c2047a8e667059dd2bbff07d9  fstec-linux-2022-2.4.1-dmesg-restrict.yaml
 ba25c49b237cf91b74afcda02e15fd872e81c08973abd9719a8f4c465513aa9a  fstec-linux-2022-2.4.2-kptr-restrict.yaml
 68b4a5d37e9addc54b6c8d9316e1a9e47e4eda7cb0683b2df99c4be911c7ea5c  fstec-linux-2022-2.4.3-init-on-alloc.yaml

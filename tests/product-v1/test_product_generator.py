@@ -15,6 +15,7 @@ GEN_PATH = ROOT / "product" / "generate-product-check-v1.py"
 FILESET_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-optional-file-root-files-mode-check-v1.py"
 SHADOW_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-local-account-password-state-check-v1.py"
 USER_CRON_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-user-cron-files-mode-check-v1.py"
+STANDARD_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-standard-system-paths-mode-check-v1.py"
 BASH = shutil.which("bash")
 
 
@@ -53,6 +54,14 @@ def load_user_cron_adapter():
 
 USER_CRON = load_user_cron_adapter()
 
+def load_standard_paths_adapter():
+    spec = importlib.util.spec_from_file_location("slp_standard_paths_adapter", STANDARD_PATHS_ADAPTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+STANDARD_PATHS = load_standard_paths_adapter()
+
 
 def load_current():
     rows, manifest_sha = GEN.load_manifest(ROOT)
@@ -77,8 +86,8 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode"} <= set(adapters))
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode"})
         src0001 = [c for c in controls if c["index_id"] == "SRC-0001"]
         self.assertEqual(len(src0001), 1)
         self.assertEqual(
@@ -98,6 +107,12 @@ class GeneratorModel(unittest.TestCase):
         self.assertEqual(
             (src0011[0]["parameter_kind"], src0011[0]["parameter_locator"], src0011[0]["parameter_key"], src0011[0]["expected_op"], src0011[0]["expected_value"]),
             ("user-cron-files-mode", "/var/spool/cron|/var/spool/cron/crontabs", "mode", "bits-clear", "0022"),
+        )
+        src0012 = [c for c in controls if c["index_id"] == "SRC-0012"]
+        self.assertEqual(len(src0012), 1)
+        self.assertEqual(
+            (src0012[0]["parameter_kind"], src0012[0]["parameter_locator"], src0012[0]["parameter_key"], src0012[0]["expected_op"], src0012[0]["expected_value"]),
+            ("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|/lib|/lib64|/usr/lib|/usr/lib64|/lib/modules/<uname-r>", "mode", "bits-clear", "0022"),
         )
         src0005 = [c for c in controls if c["index_id"] == "SRC-0005"]
         self.assertEqual(len(src0005), 3)
@@ -451,6 +466,114 @@ class UserCronFilesModeFixtures(unittest.TestCase):
             with self.subTest(args=args):
                 with self.assertRaises(ValueError):
                     USER_CRON.shell_function(*args)
+
+
+@unittest.skipIf(BASH is None, "bash not available")
+class StandardSystemPathsModeFixtures(unittest.TestCase):
+    def run_standard(self, exec_roots, lib_roots, module_root):
+        source = STANDARD_PATHS._shell_function_for_layout(
+            "TEST-STANDARD-PATHS",
+            [str(x) for x in exec_roots],
+            [str(x) for x in lib_roots],
+            str(module_root),
+        )
+        return subprocess.run(
+            [BASH, "-c", "set -u\n" + source + "\nslp_check_TEST_STANDARD_PATHS"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+    def make_layout(self, base):
+        exe = base / "usr-bin"; exe.mkdir()
+        lib = base / "usr-lib"; lib.mkdir()
+        mod = base / "modules"; mod.mkdir()
+        tool = exe / "tool"; tool.write_text("x\n", encoding="utf-8"); os.chmod(tool, 0o755)
+        library = lib / "libdemo.so.1"; library.write_text("x\n", encoding="utf-8"); os.chmod(library, 0o644)
+        module = mod / "demo.ko.zst"; module.write_text("x\n", encoding="utf-8"); os.chmod(module, 0o644)
+        return exe, lib, mod, tool, library, module
+
+    def test_pass_and_merged_root_alias_deduplication(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            exe, lib, mod, *_ = self.make_layout(base)
+            exe_alias = base / "bin"; exe_alias.symlink_to(exe, target_is_directory=True)
+            lib_alias = base / "lib"; lib_alias.symlink_to(lib, target_is_directory=True)
+            cp = self.run_standard([exe_alias, exe], [lib_alias, lib], mod)
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            self.assertEqual(cp.stderr, "")
+            self.assertIn("roots_present=5;roots_absent=0;aliases=2;exec=1;libraries=1;modules=1;checked=3;violations=0\tPASS", cp.stdout)
+
+    def test_each_role_violation_is_fail(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            exe, lib, mod, tool, library, module = self.make_layout(base)
+            for path in (tool, library, module):
+                original = path.stat().st_mode & 0o7777
+                os.chmod(path, original | 0o020)
+                cp = self.run_standard([exe], [lib], mod)
+                self.assertEqual(cp.stderr, "")
+                self.assertIn("violations=1\tFAIL", cp.stdout)
+                os.chmod(path, original)
+
+    def test_library_and_module_population_filters_non_candidates(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            exe, lib, mod, *_ = self.make_layout(base)
+            data = lib / "package-data.conf"; data.write_text("x\n", encoding="utf-8"); os.chmod(data, 0o666)
+            meta = mod / "modules.dep"; meta.write_text("x\n", encoding="utf-8"); os.chmod(meta, 0o666)
+            cp = self.run_standard([exe], [lib], mod)
+            self.assertEqual(cp.stderr, "")
+            self.assertIn("libraries=1;modules=1;checked=3;violations=0\tPASS", cp.stdout)
+
+    def test_candidate_symlink_target_is_checked_and_dangling_fails_closed(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            exe, lib, mod, *_ = self.make_layout(base)
+            outside = base / "outside.so"; outside.write_text("x\n", encoding="utf-8"); os.chmod(outside, 0o664)
+            link = lib / "liboutside.so"; link.symlink_to(outside)
+            cp = self.run_standard([exe], [lib], mod)
+            self.assertEqual(cp.stderr, "")
+            self.assertIn("violations=1\tFAIL", cp.stdout)
+            link.unlink(); link.symlink_to(base / "missing.so")
+            cp = self.run_standard([exe], [lib], mod)
+            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-STANDARD-PATHS\tERROR\t-\tERROR")
+
+    def test_missing_role_and_candidate_special_fail_closed(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            exe, lib, mod, *_ = self.make_layout(base)
+            empty_mod = base / "empty-mod"; empty_mod.mkdir()
+            cp = self.run_standard([exe], [lib], empty_mod)
+            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-STANDARD-PATHS\tERROR\t-\tERROR")
+            if hasattr(os, "mkfifo"):
+                os.mkfifo(exe / "pipe")
+                cp = self.run_standard([exe], [lib], mod)
+                self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-STANDARD-PATHS\tERROR\t-\tERROR")
+
+    def test_traversal_error_fail_closed_for_ordinary_user(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            exe, lib, mod, *_ = self.make_layout(base)
+            locked = lib / "locked"; locked.mkdir(); os.chmod(locked, 0)
+            try:
+                cp = self.run_standard([exe], [lib], mod)
+                if os.geteuid() != 0:
+                    self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-STANDARD-PATHS\tERROR\t-\tERROR")
+            finally:
+                os.chmod(locked, 0o700)
+
+    def test_generation_rejects_wrong_contract_fields(self):
+        good = "/bin|/sbin|/usr/bin|/usr/sbin|/lib|/lib64|/usr/lib|/usr/lib64|/lib/modules/<uname-r>"
+        for args in (
+            ("TEST", "/bin", "mode", "bits-clear", "0022"),
+            ("TEST", good, "owner", "bits-clear", "0022"),
+            ("TEST", good, "mode", "eq", "0022"),
+            ("TEST", good, "mode", "bits-clear", "0033"),
+        ):
+            with self.subTest(args=args):
+                with self.assertRaises(ValueError):
+                    STANDARD_PATHS.shell_function(*args)
 
 
 @unittest.skipIf(BASH is None, "bash not available")
