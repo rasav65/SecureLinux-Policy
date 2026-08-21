@@ -11,7 +11,7 @@
 > не закрывает source-index rows.
 
 <!-- BEGIN GENERATED MAP STATUS -->
-`source rows=349 · controlled CLOSED=32 · OPEN=317 · canonical controls=42 · adapters=9 · target=ubuntu-24.04-x86_64`
+`source rows=349 · controlled CLOSED=33 · OPEN=316 · canonical controls=43 · adapters=10 · target=ubuntu-24.04-x86_64`
 
 Точные таблицы покрытия: [`docs/fstec-coverage.md`](fstec-coverage.md).
 <!-- END GENERATED MAP STATUS -->

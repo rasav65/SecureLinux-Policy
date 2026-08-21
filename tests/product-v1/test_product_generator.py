@@ -18,6 +18,7 @@ USER_CRON_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-user-cron-file
 STANDARD_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-standard-system-paths-mode-check-v1.py"
 SUID_SGID_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-suid-sgid-applications-check-v1.py"
 HOME_SENSITIVE_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-home-sensitive-files-mode-check-v1.py"
+HOME_DIRECTORIES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-home-directories-mode-check-v1.py"
 BASH = shutil.which("bash")
 
 
@@ -80,6 +81,14 @@ def load_home_sensitive_adapter():
 
 HOME_SENSITIVE = load_home_sensitive_adapter()
 
+def load_home_directories_adapter():
+    spec = importlib.util.spec_from_file_location("slp_home_directories_adapter", HOME_DIRECTORIES_ADAPTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+HOME_DIRECTORIES = load_home_directories_adapter()
+
 
 def load_current():
     rows, manifest_sha = GEN.load_manifest(ROOT)
@@ -104,8 +113,8 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode"} <= set(adapters))
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode"})
         src0001 = [c for c in controls if c["index_id"] == "SRC-0001"]
         self.assertEqual(len(src0001), 1)
         self.assertEqual(
@@ -146,6 +155,12 @@ class GeneratorModel(unittest.TestCase):
         self.assertEqual(
             (src0014[0]["parameter_kind"], src0014[0]["parameter_locator"], src0014[0]["parameter_key"], src0014[0]["expected_op"], src0014[0]["expected_value"]),
             ("home-sensitive-files-mode", "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "bits-clear", "0077"),
+        )
+        src0015 = [c for c in controls if c["index_id"] == "SRC-0015"]
+        self.assertEqual(len(src0015), 1)
+        self.assertEqual(
+            (src0015[0]["parameter_kind"], src0015[0]["parameter_locator"], src0015[0]["parameter_key"], src0015[0]["expected_op"], src0015[0]["expected_value"]),
+            ("home-directories-mode", "/etc/passwd|/etc/login.defs", "mode", "eq", "0700"),
         )
         src0005 = [c for c in controls if c["index_id"] == "SRC-0005"]
         self.assertEqual(len(src0005), 3)
@@ -823,6 +838,45 @@ class HomeSensitiveFilesAdapterFixtures(unittest.TestCase):
         (self.user_home / ".bashrc").symlink_to(outside)
         cp=self.run_check()
         self.assertIn("\tERROR\t-\tERROR", cp.stdout)
+
+@unittest.skipIf(BASH is None, "bash not available")
+class HomeDirectoriesModeAdapterFixtures(unittest.TestCase):
+    def setUp(self):
+        if BASH is None:
+            self.skipTest("bash unavailable")
+        self.tmp = tempfile.TemporaryDirectory()
+        self.base = Path(self.tmp.name)
+        self.passwd = self.base / "passwd"
+        self.login_defs = self.base / "login.defs"
+        self.root_home = self.base / "root"
+        self.user_home = self.base / "user"
+        self.root_home.mkdir(); self.user_home.mkdir()
+        os.chmod(self.root_home, 0o700); os.chmod(self.user_home, 0o700)
+        self.login_defs.write_text("UID_MIN 1000\n", encoding="utf-8")
+        self.passwd.write_text(
+            f"root:x:0:0:root:{self.root_home}:/bin/bash\n"
+            f"daemon:x:1:1:daemon:{self.base / 'daemon'}:/usr/sbin/nologin\n"
+            f"user:x:1000:1000:user:{self.user_home}:/bin/bash\n",
+            encoding="utf-8",
+        )
+    def tearDown(self): self.tmp.cleanup()
+    def run_check(self):
+        block = HOME_DIRECTORIES._shell_function_for_fixture("TEST.HOME.DIR", str(self.passwd), str(self.login_defs))
+        script = self.base / "check-home-dir.sh"
+        script.write_text(block + "\nslp_check_TEST_HOME_DIR\n", encoding="utf-8")
+        return subprocess.run([BASH, str(script)], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    def test_positive_and_service_account_excluded(self):
+        cp=self.run_check(); self.assertEqual(cp.returncode,0); self.assertEqual(cp.stderr,""); self.assertIn("accounts=2;homes=2;violations=0\tPASS",cp.stdout)
+    def test_non_0700_fails(self):
+        os.chmod(self.user_home,0o750); cp=self.run_check(); self.assertIn("accounts=2;homes=2;violations=1\tFAIL",cp.stdout)
+    def test_absent_selected_home_is_outside_mode_population(self):
+        self.user_home.rmdir(); cp=self.run_check(); self.assertIn("accounts=2;homes=1;violations=0\tPASS",cp.stdout)
+    def test_symlink_home_fails_closed(self):
+        self.user_home.rmdir(); self.user_home.symlink_to(self.root_home,target_is_directory=True); cp=self.run_check(); self.assertIn("\tERROR\t-\tERROR",cp.stdout)
+    def test_generation_rejects_wrong_contract_fields(self):
+        for args in (("TEST","/etc/passwd","mode","eq","0700"),("TEST",HOME_DIRECTORIES.CANONICAL_LOCATOR,"owner","eq","0700"),("TEST",HOME_DIRECTORIES.CANONICAL_LOCATOR,"mode","bits-clear","0700"),("TEST",HOME_DIRECTORIES.CANONICAL_LOCATOR,"mode","eq","0750")):
+            with self.subTest(args=args):
+                with self.assertRaises(ValueError): HOME_DIRECTORIES.shell_function(*args)
 
 class GeneratedArtifact(unittest.TestCase):
     @classmethod

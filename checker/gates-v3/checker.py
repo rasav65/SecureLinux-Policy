@@ -213,6 +213,18 @@ KIND_RULES = {
             },
         ],
     },
+    "home-directories-mode": {
+        "locator": {"const": "/etc/passwd|/etc/login.defs"},
+        "key": {"const": "mode"},
+        "op": {"const": "eq"},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "eq"}},
+                "then": {"expected.value": {"const": "0700"}},
+            },
+        ],
+    },
     "home-sensitive-files-mode": {
         "locator": {"const": "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1"},
         "key": {"const": "mode"},

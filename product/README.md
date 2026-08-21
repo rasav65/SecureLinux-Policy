@@ -130,3 +130,10 @@ Pinned donor использован только как precedent для `mode &
 - Source `и т. п.` не урезается до восьми примеров: `/etc/securelinux-policy/home-sensitive-files-v1` — обязательный локальный inventory относительных sensitive paths; он обязан содержать восемь явно названных source entries и может/должен расширяться локально.
 - Отсутствующий/malformed inventory, symlink/ambiguous path или неполный доступ дают `ERROR`; present regular members с group/other rwx дают `VALUE/FAIL`.
 - Owner/group не проверяются: это не требование 2.3.10. Режим самой home directory `0700` относится к `SRC-0015`. APPLY/RESTORE не создаются.
+
+## SRC-0015 / 2.3.11 — режим домашних директорий пользователей
+
+- `home-directories-mode` — read-only aggregate CHECK exact source-команды `chmod 700 домашняя_директория`, то есть строгого `mode == 0700`.
+- Population пользователей совпадает с уже принятой для SRC-0014: локальный `/etc/passwd`, `root` плюс normal interactive accounts по `UID_MIN` из `/etc/login.defs`; это избегает donor `/home`-only restriction и не превращает service-account state directories в human homes.
+- Отсутствующий home path пропускается: 2.3.11 регулирует права существующей home directory, а не её обязательное наличие. Existing symlink/non-directory/stat ambiguity даёт `ERROR`.
+- Owner/group не проверяются. Sensitive-file modes не дублируются: они принадлежат SRC-0014. APPLY/RESTORE не создаются.

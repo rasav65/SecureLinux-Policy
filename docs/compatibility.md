@@ -113,3 +113,11 @@ Population определялась по mounted filesystems, на которы�
 Перед closure выполнен privileged read-only evidence batch на 7 installation classes. Во всех runs selector `root OR UID>=UID_MIN`, interactive shell и absolute home дал 2 candidate accounts; `HOME_SCAN_ERRORS=0`, host mutation отсутствовала. Source-exact present entries / `go-rwx` violations: Ubuntu 22.04.5 FULL `6/5`; Ubuntu 24.04.4 MINIMIZED `7/5`, FULL `7/5`; Ubuntu 26.04 MINIMIZED `5/5`, FULL `6/5`; Debian 12 SERVER `7/5`; Debian 13 GNOME `6/5`. Эти observed modes не являются normative baseline: нормативное отношение берётся только из source (`bits-clear 0077`).
 
 Открытые `и т. п.` выражены обязательным локальным inventory `/etc/securelinux-policy/home-sensitive-files-v1`; без него CHECK даёт `ERROR`, а не делает ложный вывод о полноте восьми примеров. NSS/network-only accounts v1 не включены в current local-account population и требуют отдельной authority model до расширения product scope.
+
+## SRC-0015 / 2.3.11 — mode home directory
+
+Current CHECK использует тот же локальный account selector, что и SRC-0014: `root` плюс normal interactive local accounts по `UID_MIN` из `/etc/login.defs`. Это инженерная operationalization source-термина «пользователей», а не расширение target support.
+
+Для каждого существующего selected home требуется exact `0700`, потому что source приводит именно `chmod 700`. Отсутствие home path не объявляется нарушением существования; symlink/non-directory/stat ambiguity даёт `ERROR`. Ownership не добавляется.
+
+Семь privileged read-only VM runs подтвердили layout assumptions: Debian 12 `SERVER` и Debian 13 `GNOME` имели `/root` и `/home/user` mode `0700`; Ubuntu 22 `FULL`, Ubuntu 24 `MINIMIZED/FULL` и Ubuntu 26 `MINIMIZED/FULL` имели `/root=0700`, `/home/user=0750`. Эти наблюдения не расширяют current product target и не заменяют source-exact expected `0700`.

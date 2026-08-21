@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0015"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.3.11"
+  quote: "2.3.11. Установить корректные права доступа к домашним директориям пользователей с помощью команды chmod 700 домашняя_директория."
+  quote_sha256: "2a65505db54ec27a6fec5682d2d2eb71e33b441dffad14c9dcc2d43a7c4b3c8d"
+  norm: "norm-v1"
+requirement:
+  stated: "2.3.11. Установить корректные права доступа к домашним директориям пользователей с помощью команды chmod 700 домашняя_директория."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "home-directories-mode"
+  locator: "/etc/passwd|/etc/login.defs"
+  key: "mode"
+expected:
+  op: "eq"
+  value: "0700"
+  type: "string"
+apply:
+  supported: false

@@ -1,10 +1,11 @@
-23259e09fd0cc0be8646007f0c9d19590210de27815e6d31512defa4d9c1cde5  CONTROL-MANIFEST.tsv
+f00ee053188c1af5b4554ebbb5193a2e5cab1b3253b295dba46c048524f4a448  CONTROL-MANIFEST.tsv
 f4a5b8bd257ea36af176d031c6e43aea1bf73793839d67e8e8d8b26ff9ac4aec  README.md
 82d8121586664ee803efec1f1b4bb93a248ce1f302bdf90a2561468ead86d802  fstec-linux-2022-2.1.1-local-account-password-state.yaml
 719123c6ab9e5a26bd261a67aa2340ad1cf388ca3749db9c05b23f3079584a81  fstec-linux-2022-2.3.1-group-mode.yaml
 93faa0e6920c07e2f8e12b8326131e9dc52cf9b6145eafda75943d0eef1278b1  fstec-linux-2022-2.3.1-passwd-mode.yaml
 62efde1e39f219e843193c7bc5a2d539d685ab79c33094c05a70e3d21873e03f  fstec-linux-2022-2.3.1-shadow-go-rwx.yaml
 1343b6983ddfff62222a03db98023417abbe8ad9c4236a67231debac09793aed  fstec-linux-2022-2.3.10-home-sensitive-files-mode.yaml
+ac070436aa49c1b78cc45972d1fdb41bb8462c4c40c5fcb26ec814ee45f84aed  fstec-linux-2022-2.3.11-home-directories-mode.yaml
 d1dd9b4af5c49732ec93ac350d82fb138cb1fdc967396dda25062d59ff77527a  fstec-linux-2022-2.3.6-cron-d.yaml
 a6c928414a1091aa8bf7291eee2e7574c9ad5f204831930d39a8536700f1731a  fstec-linux-2022-2.3.6-cron-daily.yaml
 882eec0779eac5f5942f10e6670b2812f8000bf8f3e7600ba1c264362a8f4dce  fstec-linux-2022-2.3.6-cron-hourly.yaml

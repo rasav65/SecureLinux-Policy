@@ -10,6 +10,16 @@
 
 ## [Unreleased]
 
+### Added — SRC-0015 / 2.3.11 user home-directory mode CHECK
+
+- `SRC-0015` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE`.
+- Exact source command `chmod 700 домашняя_директория` представлен как строгий `mode == 0700`; `0750`, special bits и другие mode значения не считаются эквивалентными.
+- Population пользователей повторно использует уже принятую для соседнего SRC-0014 трактовку той же фразы «домашним директориям пользователей»: локальный `/etc/passwd`, `root` плюс normal interactive local accounts по `UID_MIN` из `/etc/login.defs`; service-account state directories исключены.
+- Отсутствующий home path не объявляется нарушением mode: 2.3.11 не требует создания home directory. Existing symlink/non-directory/stat ambiguity даёт fail-closed `ERROR`.
+- Owner/group и sensitive-file modes не добавляются: первое отсутствует в 2.3.11, второе уже относится к SRC-0014.
+- Семь privileged read-only VM runs подтверждают selector/layout assumptions: Debian 12 `SERVER` и Debian 13 `GNOME` имели оба selected homes `0700`; Ubuntu 22/24/26 в проверенных установках имели `/root=0700`, `/home/user=0750`. Observed modes являются evidence, а normative expected остаётся exact `0700` из source.
+- После шага: `349 / 33 controlled CLOSED / 316 OPEN`; canonical controls `43`; adapters `10`. Formal Gate5 probe-results, APPLY и RESTORE не создаются.
+
 ### Added — SRC-0014 / 2.3.10 sensitive user-home files CHECK
 
 - `SRC-0014` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE`.
