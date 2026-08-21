@@ -1,62 +1,60 @@
 # Gates 1–5 — checker-v3
 
-## Gate 1 — live source / quote anchor
-Semantics inherited from checker-v2.
+## Gate 1 — действующий источник / якорь цитаты
 
-## Gate 2 — reverse source coverage + completeness contract
-A controlled CLOSED source row is valid only when:
-1. at least one active control references its `index_id`;
-2. the row is `CLOSED`;
-3. disposition/reason are empty;
-4. `CLOSURE-CONTRACT.tsv` has exactly one contract for that row;
-5. the actual set of control IDs is exactly the set declared by the contract.
+Семантика наследуется от checker-v2.
+
+## Gate 2 — обратное покрытие источника + контракт полноты
+
+Управляемая строка источника со статусом `CLOSED` допустима только когда:
+
+1. хотя бы один активный контроль ссылается на её `index_id`;
+2. строка имеет статус `CLOSED`;
+3. `disposition` и `reason` пусты;
+4. `CLOSURE-CONTRACT.tsv` содержит ровно один контракт для этой строки;
+5. фактическое множество ID контролей в точности равно множеству, объявленному контрактом.
 
 `coverage_mode`:
-- `atomic-single` — exactly one control is the complete semantic coverage;
-- `exact-control-set` — two or more controls are jointly required.
 
-A disposition-closed row must not have a control completeness contract.
+- `atomic-single` — один контроль полностью покрывает семантику строки;
+- `exact-control-set` — совместно обязательны два или более контролей.
 
-This prevents “one arbitrary control closes a composite source clause”.
+Строка, закрытая через disposition, не должна иметь контракт полноты контролей.
 
-## Gate 3 — closed schema / parameter closure
-Runtime semantics are unchanged, but `CONTROL-SCHEMA.json` is now a complete
-nested contract for all required fields, derived/justification rules,
-layer/profile rule, expected value typing and all 8 parameter kinds.
+Это не позволяет «закрыть составной пункт источника одним произвольным контролем».
 
-## Gate 4 — scoped uniqueness and explicit cross-scope semantics
-Hard same-scope identity:
+## Gate 3 — закрытая схема / замыкание параметров
+
+Runtime-семантика не изменена, но `CONTROL-SCHEMA.json` теперь является полным вложенным контрактом для всех обязательных полей, правил `derived/justification`, правила `layer/profile`, типизации ожидаемых значений и всех 8 видов параметров.
+
+## Gate 4 — уникальность в scope и явная межscope-семантика
+
+Жёсткая идентичность внутри одного scope:
 
 `(layer, profile, kind, locator, key)`
 
-Divergent expectations inside one scope fail.
+Расходящиеся ожидания внутри одного scope приводят к ошибке.
 
-Corporate `baseline/strict/paranoid` may intentionally have different values
-for the same physical parameter; those are counted as `profile_variants`.
+Корпоративные профили `baseline/strict/paranoid` могут намеренно задавать разные значения одного физического параметра; такие случаи учитываются как `profile_variants`.
 
-Divergent values across provenance layers are NOT automatically resolved.
-They fail as `unresolved cross-scope parameter conflict` until a future
-explicit adjudication mechanism records authority, chosen value and
-justification.
+Расходящиеся значения между provenance layers автоматически НЕ разрешаются. Они приводят к `unresolved cross-scope parameter conflict`, пока будущий явный механизм разрешения не зафиксирует authority, выбранное значение и обоснование.
 
-## Gate 5 — probe executability
-Semantics inherited from checker-v2. Current runtime runner: sysctl only.
+## Gate 5 — исполнимость probe
 
-### Observation value encoding
+Семантика наследуется от checker-v2. Текущий runtime-runner: только sysctl.
 
-Control semantic types and probe wire values are separate contracts. Exact
-encoding rules are defined in `docs/observation-value-contract.md`.
+### Кодирование значения наблюдения
 
-Current Gate 5 runner remains **sysctl only**:
+Семантические типы контроля и wire-значения probe — разные контракты. Точные правила кодирования определены в `docs/observation-value-contract.md`.
 
-- sysctl integer/string observations arrive as JSON strings;
-- sysctl boolean is forbidden by `KIND_RULES`.
+Текущий runner Gate 5 остаётся **только sysctl**:
 
-Reserved formats for future runners:
+- integer/string-наблюдения sysctl приходят как JSON strings;
+- boolean для sysctl запрещён `KIND_RULES`.
 
-- `systemd-unit-state` boolean -> JSON boolean;
-- `package-presence` boolean -> JSON boolean.
+Зарезервированные форматы для будущих runners:
 
-Quoted strings `"true"` / `"false"` and numeric `0/1` are not accepted as
-boolean observations. `file-kv` boolean observation mapping remains explicitly
-deferred until a file-kv probe design exists.
+- boolean `systemd-unit-state` -> JSON boolean;
+- boolean `package-presence` -> JSON boolean.
+
+Строки `"true"` / `"false"` и числовые `0/1` не принимаются как boolean-наблюдения. Отображение boolean-наблюдений для `file-kv` явно отложено до появления дизайна соответствующего `file-kv` probe.

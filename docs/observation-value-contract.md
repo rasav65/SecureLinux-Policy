@@ -1,81 +1,75 @@
-# Observation value / type contract
+# Контракт значения и типа наблюдения
 
-## Purpose
+## Назначение
 
-Control `expected.type` and probe `VALUE.value` are different contracts.
+`expected.type` контроля и `VALUE.value` probe — разные контракты.
 
-- `expected.type` is the semantic policy type stored in a control.
-- `VALUE.value` is the JSON wire representation emitted by a probe.
+- `expected.type` — семантический тип политики, сохранённый в контроле.
+- `VALUE.value` — JSON wire-представление, выдаваемое probe.
 
-The checker must not guess how a wire value becomes a semantic value.
+Checker не должен угадывать, как wire-значение преобразуется в семантическое значение.
 
-## Current exact contracts
+## Текущие точные контракты
 
-### sysctl — implemented
+### sysctl — реализовано
 
-Current Gate 5 runner is sysctl-only.
+Текущий runner Gate 5 работает только с sysctl.
 
-| expected.type | `VALUE.value` JSON type | decoding |
+| `expected.type` | JSON-тип `VALUE.value` | декодирование |
 |---|---|---|
-| `integer` | string | Python integer parse of the string |
-| `string` | string | identity |
-| `boolean` | forbidden by `KIND_RULES` | none |
+| `integer` | string | разбор строки как Python integer |
+| `string` | string | без преобразования |
+| `boolean` | запрещён `KIND_RULES` | отсутствует |
 
-This preserves the factual sysctl-v1 evidence format.
+Это сохраняет фактический формат evidence sysctl-v1.
 
-### systemd-unit-state — wire format reserved, runner not implemented
+### systemd-unit-state — wire-формат зарезервирован, runner не реализован
 
-When the first `systemd-unit-state` probe is implemented:
+Когда будет реализован первый probe `systemd-unit-state`:
 
-- control `expected.type` remains `boolean`;
-- `VALUE.value` **MUST be a JSON boolean** (`true` / `false`, unquoted);
-- strings `"true"` / `"false"` are invalid;
-- numbers `0` / `1` are invalid.
+- `expected.type` контроля остаётся `boolean`;
+- `VALUE.value` **ДОЛЖЕН быть JSON boolean** (`true` / `false`, без кавычек);
+- строки `"true"` / `"false"` недопустимы;
+- числа `0` / `1` недопустимы.
 
-The current checker still rejects this kind at Gate 5 because the runner is not
-implemented. Defining the wire format does not claim executability.
+Текущий checker по-прежнему отклоняет этот kind на Gate 5, потому что runner не реализован. Определение wire-формата не является утверждением об исполнимости.
 
-### package-presence — wire format reserved, runner not implemented
+### package-presence — wire-формат зарезервирован, runner не реализован
 
-When the first `package-presence` probe is implemented:
+Когда будет реализован первый probe `package-presence`:
 
-- control `expected.type` remains `boolean`;
-- `VALUE.value` **MUST be a JSON boolean**;
-- strings `"true"` / `"false"` are invalid;
-- numbers `0` / `1` are invalid.
+- `expected.type` контроля остаётся `boolean`;
+- `VALUE.value` **ДОЛЖЕН быть JSON boolean**;
+- строки `"true"` / `"false"` недопустимы;
+- числа `0` / `1` недопустимы.
 
-Again, this is a format contract, not a runner implementation.
+Это контракт формата, а не реализация runner.
 
-### file-kv boolean — explicitly deferred
+### boolean для file-kv — явно отложено
 
-`file-kv` controls may have semantic boolean values, but file formats use
-different textual conventions (`yes/no`, `true/false`, `on/off`, `0/1`, etc.).
+Контроли `file-kv` могут иметь семантические boolean-значения, но файловые форматы используют разные текстовые соглашения (`yes/no`, `true/false`, `on/off`, `0/1` и т. п.).
 
-Therefore no generic file-kv boolean observation coercion exists. A future
-file-kv probe/adaptor must define its source-specific mapping first.
+Поэтому универсального приведения boolean-наблюдений `file-kv` нет. Будущий probe/adapter `file-kv` сначала должен определить собственное отображение, зависящее от источника.
 
-## Prohibited behavior
+## Запрещённое поведение
 
-There is no project-wide conversion:
+В проекте нет общего преобразования:
 
-`"true" -> true` or `"false" -> false`
+`"true" -> true` или `"false" -> false`
 
-Such conversion used to exist accidentally in `_expected_compliance` and has
-been removed.
+Такое преобразование ранее случайно существовало в `_expected_compliance` и было удалено.
 
-## Relationship to schema
+## Связь со схемой
 
-This cleanup does not change `KIND_RULES` and therefore does not change
-`CONTROL-SCHEMA.json`.
+Эта очистка не меняет `KIND_RULES` и поэтому не меняет `CONTROL-SCHEMA.json`.
 
-- sysctl already excludes boolean;
-- systemd-unit-state and package-presence remain semantic boolean kinds;
-- schema generation parity must remain PASS;
-- schema/runtime differential tests must remain PASS.
+- sysctl уже исключает boolean;
+- `systemd-unit-state` и `package-presence` остаются семантическими boolean-kinds;
+- паритет генерации схемы должен оставаться PASS;
+- differential tests schema/runtime должны оставаться PASS.
 
-Any future change to `KIND_RULES` still requires schema regeneration through
-`--emit-schema` and the differential suite.
+Любое будущее изменение `KIND_RULES` по-прежнему требует регенерации схемы через `--emit-schema` и запуска differential suite.
 
-## Next gate
+## Следующий gate
 
-Next roadmap stage: mandatory real-jsonschema release gate.
+Следующий этап roadmap: обязательный release gate с реальным jsonschema.

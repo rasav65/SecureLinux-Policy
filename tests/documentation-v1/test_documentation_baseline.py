@@ -124,6 +124,40 @@ assert "SRC-0005 / 2.3.1" in product_readme
 assert "mode bits-clear 0077" in product_readme
 assert "README не пинует\nручное число controls" in controls_readme
 
+
+# Актуальный v3-документационный контур ведётся по-русски. Технические
+# идентификаторы и protocol/wire terms могут оставаться английскими.
+ru_current_docs = {
+    "checker/gates-v3/README.md": (
+        "Сохранены исправления независимого аудита",
+        "Gate 5 в текущем состоянии исполняется только для sysctl-пилота",
+    ),
+    "checker/gates-v3/GATE-SPEC.md": (
+        "Gate 2 — обратное покрытие источника + контракт полноты",
+        "Строка, закрытая через disposition",
+    ),
+    "docs/observation-value-contract.md": (
+        "# Контракт значения и типа наблюдения",
+        "Checker не должен угадывать",
+    ),
+    "tests/gates-v3/README.md": (
+        "# Тесты gates-v3",
+        "Тесты контракта значений наблюдений",
+    ),
+}
+for rel, markers in ru_current_docs.items():
+    text = (ROOT / rel).read_text(encoding="utf-8")
+    for marker in markers:
+        assert marker in text, (rel, marker)
+
+for rel, obsolete_english in (
+    ("checker/gates-v3/README.md", "Independent-audit repairs"),
+    ("checker/gates-v3/GATE-SPEC.md", "A controlled CLOSED source row is valid only when"),
+    ("docs/observation-value-contract.md", "The checker must not guess"),
+    ("tests/gates-v3/README.md", "focused tests for completeness-contract"),
+):
+    assert obsolete_english not in (ROOT / rel).read_text(encoding="utf-8"), rel
+
 # Generated blocks exist exactly once.
 assert readme.count("<!-- BEGIN GENERATED CURRENT STATUS -->") == 1
 assert readme.count("<!-- END GENERATED CURRENT STATUS -->") == 1

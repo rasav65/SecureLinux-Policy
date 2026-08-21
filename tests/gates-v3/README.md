@@ -1,22 +1,15 @@
-# gates-v3 tests
+# Тесты gates-v3
 
-`test_audit_fixes.py` — focused tests for completeness-contract, full schema,
-scope/profile conflicts and active-tree fail-closed behavior. Current population counts are derived from source/index contracts rather than pinned.
+`test_audit_fixes.py` — точечные тесты контракта полноты, полной схемы, конфликтов scope/profile и fail-closed поведения активного дерева. Текущие счётчики population вычисляются из контрактов source/index, а не закрепляются вручную.
 
-`test_schema_runtime_parity.py` — B-R1-01 and B-R2-01 regression:
+`test_schema_runtime_parity.py` — regression B-R1-01 и B-R2-01:
 
-- generation parity: `CONTROL-SCHEMA.json` is byte-identical to the schema
-  generated from the runtime constants;
-- differential acceptance: current matrix, including 16 CR/LF boundary cases,
-  must be judged identically by the runtime and by the schema;
-- pattern semantics: for every anchored pattern, `re.fullmatch` (runtime) and
-  `re.search` (JSON Schema) must accept the same set of strings;
-- parser invariant: a control character in a scalar is rejected at parse time;
-- when `jsonschema` is installed, the same matrix is also run against a real
-  `Draft202012Validator`; otherwise those two tests are skipped explicitly.
+- паритет генерации: `CONTROL-SCHEMA.json` побайтово совпадает со схемой, сгенерированной из runtime-констант;
+- differential acceptance: текущая матрица, включая 16 граничных случаев CR/LF, должна одинаково оцениваться runtime и схемой;
+- semantics pattern: для каждого anchored pattern `re.fullmatch` (runtime) и `re.search` (JSON Schema) должны принимать одно и то же множество строк;
+- инвариант parser: управляющий символ в scalar отклоняется на этапе разбора;
+- если установлен `jsonschema`, та же матрица дополнительно выполняется через реальный `Draft202012Validator`; иначе эти два теста явно пропускаются.
 
-Observation-value contract tests ensure there is no generic boolean string coercion and reserve JSON-boolean wire values for future systemd/package runners.
+Тесты контракта значений наблюдений подтверждают отсутствие универсального преобразования boolean-строк и резервируют JSON-boolean wire-значения для будущих systemd/package runners.
 
-Current matrix includes `kernel-cmdline` positive/negative cases: exact
-`/proc/cmdline`, safe key/value syntax, `eq` string relation and `present=true`
-boolean relation.
+Текущая матрица включает положительные и отрицательные случаи `kernel-cmdline`: exact `/proc/cmdline`, безопасный синтаксис key/value, строковое отношение `eq`, boolean-отношение `present=true` и отношение `one-of` для SRC-0026.
