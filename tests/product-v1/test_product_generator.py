@@ -12,6 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 GEN_PATH = ROOT / "product" / "generate-product-check-v1.py"
+FILESET_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-optional-file-root-files-mode-check-v1.py"
 BASH = shutil.which("bash")
 
 
@@ -23,6 +24,16 @@ def load_generator():
 
 
 GEN = load_generator()
+
+
+def load_fileset_adapter():
+    spec = importlib.util.spec_from_file_location("slp_fileset_adapter", FILESET_ADAPTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+FILESET = load_fileset_adapter()
 
 
 def load_current():
@@ -48,8 +59,16 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertEqual(set(adapters), {"sysctl", "file-mode-owner", "kernel-cmdline"})
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode"})
+        src0010 = [c for c in controls if c["index_id"] == "SRC-0010"]
+        self.assertEqual(len(src0010), 6)
+        self.assertEqual(
+            {c["parameter_locator"] for c in src0010},
+            {"/etc/crontab", "/etc/cron.d", "/etc/cron.hourly", "/etc/cron.daily", "/etc/cron.weekly", "/etc/cron.monthly"},
+        )
+        self.assertTrue(all(c["parameter_kind"] == "optional-file-root-files-mode" for c in src0010))
+        self.assertTrue(all(c["parameter_key"] == "mode" and c["expected_op"] == "bits-clear" and c["expected_value"] == "0033" for c in src0010))
         src0005 = [c for c in controls if c["index_id"] == "SRC-0005"]
         self.assertEqual(len(src0005), 3)
         self.assertEqual(
@@ -147,7 +166,7 @@ class GeneratorModel(unittest.TestCase):
         two = GEN.render_script(controls, adapters, manifest_sha, registry_sha, generator_sha)
         self.assertEqual(one, two)
         self.assertIn(f"CONTROL_COUNT={len(controls)}".encode("ascii"), one)
-        self.assertIn(b"ADAPTER_COUNT=3", one)
+        self.assertIn(f"ADAPTER_COUNT={len(adapters)}".encode("ascii"), one)
         self.assertIn(b"TOTAL=%d", one)
         for c in controls:
             self.assertGreaterEqual(one.count(c["control_id"].encode("utf-8")), 2)
@@ -219,6 +238,65 @@ class GeneratorModel(unittest.TestCase):
 
 
 @unittest.skipIf(BASH is None, "bash not available")
+class OptionalFileRootFilesAdapterFixtures(unittest.TestCase):
+    def run_fileset(self, path: Path):
+        source = FILESET.shell_function("TEST-FILESET", str(path), "mode", "bits-clear", "0033")
+        return subprocess.run(
+            [BASH, "-c", "set -u\n" + source + "\nslp_check_TEST_FILESET"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+    def test_missing_optional_root_is_value_pass(self):
+        with tempfile.TemporaryDirectory() as td:
+            cp = self.run_fileset(Path(td) / "missing")
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            self.assertEqual(cp.stderr, "")
+            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-FILESET\tVALUE\t<absent>\tPASS")
+
+    def test_regular_file_pass_and_fail(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "crontab"; p.write_text("x\n"); os.chmod(p, 0o644)
+            self.assertIn("\tVALUE\tchecked=1;violations=0\tPASS", self.run_fileset(p).stdout)
+            os.chmod(p, 0o664)
+            self.assertIn("\tVALUE\tchecked=1;violations=1\tFAIL", self.run_fileset(p).stdout)
+
+    def test_directory_root_and_direct_regular_files(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "cron.d"; p.mkdir(); os.chmod(p, 0o700)
+            a = p / "a"; a.write_text("x\n"); os.chmod(a, 0o600)
+            b = p / "b"; b.write_text("x\n"); os.chmod(b, 0o644)
+            self.assertIn("\tVALUE\tchecked=3;violations=0\tPASS", self.run_fileset(p).stdout)
+            os.chmod(b, 0o655)
+            self.assertIn("\tVALUE\tchecked=3;violations=1\tFAIL", self.run_fileset(p).stdout)
+
+    def test_nested_directory_symlink_and_special_are_error(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            d = base / "nested-case"; d.mkdir(); os.chmod(d, 0o700); (d / "nested").mkdir()
+            self.assertEqual(self.run_fileset(d).stdout.strip(), "SLP-CHECK-V1\tTEST-FILESET\tERROR\t-\tERROR")
+            target = base / "target"; target.write_text("x\n")
+            link = base / "link"; link.symlink_to(target)
+            self.assertEqual(self.run_fileset(link).stdout.strip(), "SLP-CHECK-V1\tTEST-FILESET\tERROR\t-\tERROR")
+            s = base / "symlink-child"; s.mkdir(); os.chmod(s, 0o700); (s / "l").symlink_to(target)
+            self.assertEqual(self.run_fileset(s).stdout.strip(), "SLP-CHECK-V1\tTEST-FILESET\tERROR\t-\tERROR")
+            if hasattr(os, "mkfifo"):
+                f = base / "special"; f.mkdir(); os.chmod(f, 0o700); os.mkfifo(f / "pipe")
+                self.assertEqual(self.run_fileset(f).stdout.strip(), "SLP-CHECK-V1\tTEST-FILESET\tERROR\t-\tERROR")
+
+    def test_generation_rejects_wrong_contract_fields(self):
+        for args in (
+            ("TEST", "/tmp/x", "owner", "bits-clear", "0033"),
+            ("TEST", "/tmp/x", "mode", "eq", "0033"),
+            ("TEST", "/tmp/x", "mode", "bits-clear", "0077"),
+        ):
+            with self.subTest(args=args):
+                with self.assertRaises(ValueError):
+                    FILESET.shell_function(*args)
+
+
+@unittest.skipIf(BASH is None, "bash not available")
 class GeneratedArtifact(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -259,7 +337,7 @@ class GeneratedArtifact(unittest.TestCase):
     def test_generator_cli_and_sidecar(self):
         rows, _, _, _, _ = load_current()
         self.assertIn(f"CONTROL_COUNT={len(rows)}\n", self.generator_stdout)
-        self.assertIn("ADAPTER_COUNT=3\n", self.generator_stdout)
+        self.assertIn(f"ADAPTER_COUNT={len(load_current()[2])}\n", self.generator_stdout)
         self.assertIn("RESULT=PASS\n", self.generator_stdout)
         side = self.out.with_name(self.out.name + ".sha256")
         self.assertTrue(side.is_file())
@@ -286,7 +364,7 @@ class GeneratedArtifact(unittest.TestCase):
         self.assertIn("GENERATOR_ID=product-check-generator-v1\n", cp.stdout)
         rows, _, _, _, _ = load_current()
         self.assertIn(f"CONTROL_COUNT={len(rows)}\n", cp.stdout)
-        self.assertIn("ADAPTER_COUNT=3\n", cp.stdout)
+        self.assertIn(f"ADAPTER_COUNT={len(load_current()[2])}\n", cp.stdout)
         self.assertIn("MUTATING_MODES=NONE\n", cp.stdout)
 
     def test_provenance_all_and_one(self):

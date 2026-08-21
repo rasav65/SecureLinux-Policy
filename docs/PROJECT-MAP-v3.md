@@ -11,7 +11,7 @@
 > не закрывает source-index rows.
 
 <!-- BEGIN GENERATED MAP STATUS -->
-`source rows=349 · controlled CLOSED=24 · OPEN=325 · canonical controls=28 · adapters=3 · target=ubuntu-24.04-x86_64`
+`source rows=349 · controlled CLOSED=25 · OPEN=324 · canonical controls=34 · adapters=4 · target=ubuntu-24.04-x86_64`
 
 Точные таблицы покрытия: [`docs/fstec-coverage.md`](fstec-coverage.md).
 <!-- END GENERATED MAP STATUS -->
@@ -305,13 +305,14 @@ flowchart LR
     P7["SRC-0040 / 2.6.6<br/>terminal source-boundary fix + CHECK-18<br/>DONE"]:::closed
     P8["SRC-0033 / 2.5.10<br/>sysctl lower-bound ge 4096 + CHECK-19<br/>DONE"]:::closed
     P9["kernel-cmdline exact-token batch<br/>7 source rows · 9 controls + CHECK-28<br/>DONE"]:::closed
+    P9A["SRC-0010 / 2.3.6<br/>system cron roots + direct files · 6 controls<br/>DONE"]:::closed
     P10["МЫ ЗДЕСЬ<br/>systematic FSTEC expansion<br/>remaining OPEN rows"]:::current
     P11["APPLY semantic contract<br/>NOT IMPLEMENTED"]:::future
     P12["APPLY implementation<br/>future"]:::future
     P13["RESTORE contract + implementation<br/>future"]:::future
     P14["final distributable artifact<br/>future"]:::future
 
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10 --> P11 --> P12 --> P13 --> P14
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P9A --> P10 --> P11 --> P12 --> P13 --> P14
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
     classDef current fill:#ffe2a8,stroke:#c77800,color:#111,stroke-width:4px;
@@ -326,10 +327,12 @@ flowchart LR
 terminal source-boundary fix с CHECK-18, `SRC-0033 / 2.5.10` через
 source-faithful `sysctl ge 4096` с CHECK-19 и donor-backed exact-token batch
 `SRC-0018`, `SRC-0019`, `SRC-0020`, `SRC-0021`, `SRC-0022`, `SRC-0024`,
-`SRC-0032` через read-only `kernel-cmdline`. Read-only
+`SRC-0032` через read-only `kernel-cmdline`, затем `SRC-0010 / 2.3.6` через
+шесть source-listed optional cron roots с `bits-clear 0033`. Read-only
 `product-sysctl-check-v2`, `product-file-mode-owner-check-v1`,
-`product-kernel-cmdline-check-v1`, `product/generate-product-check-v1.py` и
-generated CHECK уже реализованы и не относятся к будущему APPLY/RESTORE track.
+`product-kernel-cmdline-check-v1`, `product-optional-file-root-files-mode-check-v1`,
+`product/generate-product-check-v1.py` и generated CHECK уже реализованы и не
+относятся к будущему APPLY/RESTORE track.
 
 ## Что является источником истины
 

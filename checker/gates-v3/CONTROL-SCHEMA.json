@@ -599,6 +599,99 @@
           "parameter": {
             "properties": {
               "kind": {
+                "const": "optional-file-root-files-mode"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "bits-clear"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "0033"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "bits-clear"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "mode"
+              },
+              "locator": {
+                "enum": [
+                  "/etc/crontab",
+                  "/etc/cron.d",
+                  "/etc/cron.hourly",
+                  "/etc/cron.daily",
+                  "/etc/cron.weekly",
+                  "/etc/cron.monthly"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
                 "const": "mount-option"
               }
             },
@@ -863,6 +956,7 @@
             "kernel-cmdline",
             "file-kv",
             "file-mode-owner",
+            "optional-file-root-files-mode",
             "mount-option",
             "systemd-unit-state",
             "package-presence",

@@ -138,6 +138,27 @@ KIND_RULES = {
             },
         ],
     },
+    "optional-file-root-files-mode": {
+        "locator": {"enum": [
+            "/etc/crontab",
+            "/etc/cron.d",
+            "/etc/cron.hourly",
+            "/etc/cron.daily",
+            "/etc/cron.weekly",
+            "/etc/cron.monthly",
+        ]},
+        "key": {"const": "mode"},
+        "op": {"const": "bits-clear"},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "bits-clear"}},
+                "then": {
+                    "expected.value": {"const": "0033"},
+                },
+            },
+        ],
+    },
     "mount-option": {
         "locator": {"pattern": ABSOLUTE_PATH_PATTERN},
         "key": {"anyOf": [{"const": "fstype"},

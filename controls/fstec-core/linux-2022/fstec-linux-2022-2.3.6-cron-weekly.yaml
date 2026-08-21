@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0010"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.3.6"
+  quote: "2.3.6. Установить корректные права доступа к системным файлам заданий (конфигурационным файлам) cron при помощи команды chmod go-wx путь_к_файлу_или_директории. К системным файлам-описаниям очередей cron относятся следующие файлы (могут присутствовать не всегда, в зависимости от операционной системы и ее настроек): /etc/crontab; /etc/cron.d (директория и файлы внутри нее); /etc/cron.hourly (директория и файлы внутри нее); /etc/cron.daily (директория и файлы внутри нее); /etc/cron.weekly (директория и файлы внутри нее); /etc/cron.monthly (директория и файлы внутри нее)."
+  quote_sha256: "36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962"
+  norm: "norm-v1"
+requirement:
+  stated: "2.3.6. Установить корректные права доступа к системным файлам заданий (конфигурационным файлам) cron при помощи команды chmod go-wx путь_к_файлу_или_директории. К системным файлам-описаниям очередей cron относятся следующие файлы (могут присутствовать не всегда, в зависимости от операционной системы и ее настроек): /etc/crontab; /etc/cron.d (директория и файлы внутри нее); /etc/cron.hourly (директория и файлы внутри нее); /etc/cron.daily (директория и файлы внутри нее); /etc/cron.weekly (директория и файлы внутри нее); /etc/cron.monthly (директория и файлы внутри нее)."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "optional-file-root-files-mode"
+  locator: "/etc/cron.weekly"
+  key: "mode"
+expected:
+  op: "bits-clear"
+  value: "0033"
+  type: "string"
+apply:
+  supported: false

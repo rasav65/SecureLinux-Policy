@@ -10,9 +10,18 @@
 
 ## [Unreleased]
 
+### Added — SRC-0010 / 2.3.6 system cron file-set CHECK
+
+- `SRC-0010` переводится `OPEN → CLOSED` через exact-control-set из шести source-listed roots.
+- Новый kind `optional-file-root-files-mode` выражает только `bits-clear 0033` (`chmod go-wx`): regular-file root проверяется сам; directory root — сам + direct regular files.
+- Отсутствие source-listed root допускается источником и даёт `VALUE/PASS`; nested directory, symlink, special entry, stat/traversal error дают fail-closed `ERROR`.
+- Pinned donor использован только как engineering precedent для cron targets/stat; его более строгие `600/700 root:root` не являются requirement v3.
+- После batch: `349 / 25 controlled CLOSED / 324 OPEN`; canonical controls: `34`; current adapters: `4`.
+- APPLY/RESTORE и formal Gate5 probe-results не создаются.
+
 ### Текущее незавершённое состояние
 
-- После SRC-0033 / CHECK-19 остаются `332` `OPEN` source rows; текущий
+- После SRC-0010 / file-set batch остаются `324` `OPEN` source rows; текущий
   product checkpoint — систематическое FSTEC expansion по machine source truth.
 - Formal `Gate 5 --probe-results` для current product population остаётся
   отдельным контрактным артефактом.
