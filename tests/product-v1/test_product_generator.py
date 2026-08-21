@@ -17,6 +17,7 @@ SHADOW_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-local-account-pas
 USER_CRON_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-user-cron-files-mode-check-v1.py"
 STANDARD_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-standard-system-paths-mode-check-v1.py"
 SUID_SGID_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-suid-sgid-applications-check-v1.py"
+HOME_SENSITIVE_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-home-sensitive-files-mode-check-v1.py"
 BASH = shutil.which("bash")
 
 
@@ -71,6 +72,14 @@ def load_suid_sgid_adapter():
 
 SUID_SGID = load_suid_sgid_adapter()
 
+def load_home_sensitive_adapter():
+    spec = importlib.util.spec_from_file_location("slp_home_sensitive_adapter", HOME_SENSITIVE_ADAPTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+HOME_SENSITIVE = load_home_sensitive_adapter()
+
 
 def load_current():
     rows, manifest_sha = GEN.load_manifest(ROOT)
@@ -95,8 +104,8 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications"} <= set(adapters))
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode"})
         src0001 = [c for c in controls if c["index_id"] == "SRC-0001"]
         self.assertEqual(len(src0001), 1)
         self.assertEqual(
@@ -131,6 +140,12 @@ class GeneratorModel(unittest.TestCase):
                 ("suid-sgid-applications", "/proc/self/mountinfo", "mode", "bits-clear", "0022"),
                 ("suid-sgid-applications", "/proc/self/mountinfo", "approved-set", "subset-of-file", "/etc/securelinux-policy/suid-sgid.allowlist-v1"),
             },
+        )
+        src0014 = [c for c in controls if c["index_id"] == "SRC-0014"]
+        self.assertEqual(len(src0014), 1)
+        self.assertEqual(
+            (src0014[0]["parameter_kind"], src0014[0]["parameter_locator"], src0014[0]["parameter_key"], src0014[0]["expected_op"], src0014[0]["expected_value"]),
+            ("home-sensitive-files-mode", "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "bits-clear", "0077"),
         )
         src0005 = [c for c in controls if c["index_id"] == "SRC-0005"]
         self.assertEqual(len(src0005), 3)
@@ -742,6 +757,73 @@ class LocalAccountPasswordStateFixtures(unittest.TestCase):
 
 
 @unittest.skipIf(BASH is None, "bash not available")
+class HomeSensitiveFilesAdapterFixtures(unittest.TestCase):
+    def setUp(self):
+        if BASH is None:
+            self.skipTest("bash unavailable")
+        self.tmp = tempfile.TemporaryDirectory()
+        self.base = Path(self.tmp.name)
+        self.passwd = self.base / "passwd"
+        self.login_defs = self.base / "login.defs"
+        self.inventory = self.base / "inventory"
+        self.root_home = self.base / "root"
+        self.user_home = self.base / "user"
+        self.root_home.mkdir(); self.user_home.mkdir()
+        self.login_defs.write_text("UID_MIN 1000\n", encoding="utf-8")
+        self.inventory.write_text("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\n", encoding="utf-8")
+        self.passwd.write_text(
+            f"root:x:0:0:root:{self.root_home}:/bin/bash\n"
+            f"daemon:x:1:1:daemon:{self.base / 'daemon'}:/usr/sbin/nologin\n"
+            f"user:x:1000:1000:user:{self.user_home}:/bin/bash\n",
+            encoding="utf-8",
+        )
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_check(self):
+        block = HOME_SENSITIVE._shell_function_for_fixture(
+            "TEST.HOME", str(self.passwd), str(self.login_defs), str(self.inventory)
+        )
+        script = self.base / "check.sh"
+        script.write_text(block + "\nslp_check_TEST_HOME\n", encoding="utf-8")
+        return subprocess.run([BASH, str(script)], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    def test_positive_and_service_account_excluded(self):
+        (self.root_home / ".bashrc").write_text("x\n", encoding="utf-8"); os.chmod(self.root_home / ".bashrc", 0o600)
+        (self.user_home / ".bash_history").write_text("x\n", encoding="utf-8"); os.chmod(self.user_home / ".bash_history", 0o600)
+        cp = self.run_check()
+        self.assertEqual(cp.returncode, 0); self.assertEqual(cp.stderr, "")
+        self.assertIn("accounts=2;homes=2;names=8;checked=2;violations=0\tPASS", cp.stdout)
+
+    def test_group_other_bits_fail(self):
+        p = self.user_home / ".profile"; p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o644)
+        cp = self.run_check()
+        self.assertIn("checked=1;violations=1\tFAIL", cp.stdout)
+
+    def test_missing_inventory_fails_closed(self):
+        self.inventory.unlink()
+        cp = self.run_check()
+        self.assertIn("\tERROR\t-\tERROR", cp.stdout)
+
+    def test_inventory_must_cover_all_source_examples(self):
+        self.inventory.write_text(".bashrc\n", encoding="utf-8")
+        cp = self.run_check()
+        self.assertIn("\tERROR\t-\tERROR", cp.stdout)
+
+    def test_additional_nested_inventory_member_is_checked(self):
+        self.inventory.write_text("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\n.config/fish/config.fish\n", encoding="utf-8")
+        d=self.user_home / ".config" / "fish"; d.mkdir(parents=True)
+        p=d / "config.fish"; p.write_text("x\n", encoding="utf-8"); os.chmod(p,0o600)
+        cp=self.run_check()
+        self.assertIn("names=9;checked=1;violations=0\tPASS", cp.stdout)
+
+    def test_symlink_member_fails_closed(self):
+        outside=self.base / "outside"; outside.write_text("x\n",encoding="utf-8")
+        (self.user_home / ".bashrc").symlink_to(outside)
+        cp=self.run_check()
+        self.assertIn("\tERROR\t-\tERROR", cp.stdout)
+
 class GeneratedArtifact(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

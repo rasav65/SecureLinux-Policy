@@ -171,6 +171,11 @@ CASES = [
     ("suid-sgid mode mask rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "mode", "bits-clear", "0033", "string")),
     ("suid-sgid allowlist path rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "approved-set", "subset-of-file", "/tmp/list", "string")),
     ("suid-sgid allowlist key rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "mode", "subset-of-file", "/etc/securelinux-policy/suid-sgid.allowlist-v1", "string")),
+    ("home sensitive files accepted", record("home-sensitive-files-mode", "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "bits-clear", "0077", "string")),
+    ("home sensitive files locator rejected", record("home-sensitive-files-mode", "/etc/passwd", "mode", "bits-clear", "0077", "string")),
+    ("home sensitive files key rejected", record("home-sensitive-files-mode", "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1", "owner", "bits-clear", "0077", "string")),
+    ("home sensitive files op rejected", record("home-sensitive-files-mode", "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "eq", "0077", "string")),
+    ("home sensitive files mask rejected", record("home-sensitive-files-mode", "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "bits-clear", "0022", "string")),
     ("local account password-state accepted", record("local-account-password-state", "/etc/shadow", "password-field", "all-nonempty", True, "boolean")),
     ("local account locator rejected", record("local-account-password-state", "/tmp/shadow", "password-field", "all-nonempty", True, "boolean")),
     ("local account key rejected", record("local-account-password-state", "/etc/shadow", "password", "all-nonempty", True, "boolean")),
@@ -242,6 +247,7 @@ NEWLINE_CASES = [
     ("local account locator with LF", record("local-account-password-state", "/etc/shadow\n", "password-field", "all-nonempty", True, "boolean")),
     ("standard system paths locator with LF", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|/lib|/lib64|/usr/lib|/usr/lib64|/lib/modules/<uname-r>\n", "mode", "bits-clear", "0022", "string")),
     ("suid-sgid locator with LF", record("suid-sgid-applications", "/proc/self/mountinfo\n", "mode", "bits-clear", "0022", "string")),
+    ("home sensitive files locator with LF", record("home-sensitive-files-mode", "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1\n", "mode", "bits-clear", "0077", "string")),
     ("mount-option locator with LF", record("mount-option", "/tmp\n", "fstype", "eq", "tmpfs", "string")),
     ("mount-option key with LF", record("mount-option", "/tmp", "option::noexec\n", "eq", "noexec", "string")),
     ("pam-line locator with LF", record("pam-line", "/etc/pam.d/x\n", "active_line::a", "contains", "x", "string")),
@@ -366,6 +372,21 @@ class DifferentialAcceptanceTests(unittest.TestCase):
                     f"{name}: emulator disagrees with Draft202012Validator",
                 )
 
+
+
+
+class InlineSourceBoundaryTests(unittest.TestCase):
+    def test_src0014_exact_inline_page_furniture_is_accepted(self):
+        raw = "prefix файлы 5 настройки оболочки suffix"
+        canonical = "prefix файлы настройки оболочки suffix"
+        self.assertTrue(checker.source_quote_in_corpus("SRC-0014", canonical, raw))
+
+    def test_inline_rewrite_is_pinned_and_fail_closed(self):
+        raw = "prefix файлы 5 настройки оболочки suffix"
+        canonical = "prefix файлы настройки оболочки suffix"
+        self.assertFalse(checker.source_quote_in_corpus("SRC-0015", canonical, raw))
+        self.assertFalse(checker.source_quote_in_corpus("SRC-0014", canonical, raw + " / " + raw))
+        self.assertFalse(checker.source_quote_in_corpus("SRC-0014", "prefix файлы настройки оболочки suffix", "prefix файлы 6 настройки оболочки suffix"))
 
 class ParserInvariantTests(unittest.TestCase):
     """Defence in depth: a control file cannot even carry a control character

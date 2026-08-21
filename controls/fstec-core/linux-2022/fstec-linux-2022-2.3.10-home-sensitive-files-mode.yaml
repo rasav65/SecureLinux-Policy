@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0014"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.3.10"
+  quote: "2.3.10. Установить корректные права доступа к содержимому домашних директорий пользователей (.bash_history, .history, .sh_history и т. п. - файлы истории команд оболочек, .bash_profile, .bashrc, .profile, .bash_logout и т. п. - файлы настройки оболочки, .rhosts - настройки R-подсистем) путём установки на каждый из указанных файлов корректных прав доступа с помощью команды вида: chmod go-rwx путь_к_файлу."
+  quote_sha256: "c243edbafcfee7fadede64b0dec702e3f8f92553d6240a89c36575934958b5f0"
+  norm: "norm-v1"
+requirement:
+  stated: "2.3.10. Установить корректные права доступа к содержимому домашних директорий пользователей (.bash_history, .history, .sh_history и т. п. - файлы истории команд оболочек, .bash_profile, .bashrc, .profile, .bash_logout и т. п. - файлы настройки оболочки, .rhosts - настройки R-подсистем) путём установки на каждый из указанных файлов корректных прав доступа с помощью команды вида: chmod go-rwx путь_к_файлу."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "home-sensitive-files-mode"
+  locator: "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1"
+  key: "mode"
+expected:
+  op: "bits-clear"
+  value: "0077"
+  type: "string"
+apply:
+  supported: false

@@ -1096,6 +1096,92 @@
           "parameter": {
             "properties": {
               "kind": {
+                "const": "home-sensitive-files-mode"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "bits-clear"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "0077"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "bits-clear"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "mode"
+              },
+              "locator": {
+                "const": "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
                 "const": "local-account-password-state"
               }
             },
@@ -1450,6 +1536,7 @@
             "user-cron-files-mode",
             "standard-system-paths-mode",
             "suid-sgid-applications",
+            "home-sensitive-files-mode",
             "local-account-password-state",
             "mount-option",
             "systemd-unit-state",

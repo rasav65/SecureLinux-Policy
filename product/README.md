@@ -122,3 +122,11 @@ Formal `Gate 5 --probe-results` остаётся отдельным контра
 `SUID-SGID-ALLOWLIST` использует ту же population, но проверяет только `population ⊆ approved set`. Источник требует убедиться, что нет «лишних» SUID/SGID-приложений, но не задаёт универсальный машинный критерий необходимости. Поэтому generated CHECK не угадывает его: authority — явный локальный read-only список `/etc/securelinux-policy/suid-sgid.allowlist-v1`, по одному exact absolute path на строку; comments `#` и пустые строки разрешены. Отсутствующий, symlink, нечитаемый или malformed список означает `ERROR`, а unlisted detected application — `VALUE/FAIL`. Сам путь allowlist является механизмом current product, а не дополнительным требованием ФСТЭК.
 
 Pinned donor использован только как precedent для `mode & 0022`. Его автоматическая трактовка SUID non-root owner как нарушения отклонена: 2.3.9 такого универсального owner rule не устанавливает. Семь privileged VM runs подтвердили, что mode condition штатно имеет `GO_W=0`, а population зависит от состава ОС и установленных пакетов.
+
+## SRC-0014 / 2.3.10 — sensitive user-home files
+
+- `home-sensitive-files-mode` — read-only aggregate CHECK для source-отношения `chmod go-rwx`, то есть `mode & 0077 == 0`.
+- Population пользователей: локальный `/etc/passwd`, `root` плюс обычные interactive accounts по `UID_MIN` из `/etc/login.defs`; service accounts с `nologin`/`false` не считаются human-user homes.
+- Source `и т. п.` не урезается до восьми примеров: `/etc/securelinux-policy/home-sensitive-files-v1` — обязательный локальный inventory относительных sensitive paths; он обязан содержать восемь явно названных source entries и может/должен расширяться локально.
+- Отсутствующий/malformed inventory, symlink/ambiguous path или неполный доступ дают `ERROR`; present regular members с group/other rwx дают `VALUE/FAIL`.
+- Owner/group не проверяются: это не требование 2.3.10. Режим самой home directory `0700` относится к `SRC-0015`. APPLY/RESTORE не создаются.

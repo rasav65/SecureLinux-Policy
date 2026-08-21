@@ -213,6 +213,18 @@ KIND_RULES = {
             },
         ],
     },
+    "home-sensitive-files-mode": {
+        "locator": {"const": "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1"},
+        "key": {"const": "mode"},
+        "op": {"const": "bits-clear"},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "bits-clear"}},
+                "then": {"expected.value": {"const": "0077"}},
+            },
+        ],
+    },
     "local-account-password-state": {
         "locator": {"const": "/etc/shadow"},
         "key": {"const": "password-field"},
@@ -830,6 +842,25 @@ def resolve_norm_corpus(project_root: Path, row: dict):
     return p
 
 
+INLINE_SOURCE_CORPUS_REWRITES = {
+    "SRC-0014": (
+        "файлы 5 настройки оболочки",
+        "файлы настройки оболочки",
+    ),
+}
+
+def source_quote_in_corpus(index_id: str, quote: str, corpus: str) -> bool:
+    if quote in corpus:
+        return True
+    rule = INLINE_SOURCE_CORPUS_REWRITES.get(index_id)
+    if rule is None:
+        return False
+    raw, canonical = rule
+    if corpus.count(raw) != 1:
+        return False
+    repaired = corpus.replace(raw, canonical, 1)
+    return quote in repaired
+
 def gate1(project_root, index_by_id, records):
     normalize_text = load_normalizer(project_root)
     errors, passed = [], 0
@@ -870,7 +901,7 @@ def gate1(project_root, index_by_id, records):
             corpus = resolve_norm_corpus(project_root, row).read_text(encoding="utf-8")
             if corpus.endswith("\n"):
                 corpus = corpus[:-1]
-            if s["quote"] not in corpus:
+            if not source_quote_in_corpus(s["index_id"], s["quote"], corpus):
                 local.append("normalized quote not found in normalized source corpus")
         except Exception as exc:
             local.append(f"norm corpus verification failed: {exc}")

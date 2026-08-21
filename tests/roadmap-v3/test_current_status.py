@@ -84,6 +84,8 @@ assert by_index["SRC-0012"]["status"] == "CLOSED"
 assert not by_index["SRC-0012"]["disposition"]
 assert by_index["SRC-0013"]["status"] == "CLOSED"
 assert not by_index["SRC-0013"]["disposition"]
+assert by_index["SRC-0014"]["status"] == "CLOSED"
+assert not by_index["SRC-0014"]["disposition"]
 assert by_index["SRC-0026"]["status"] == "CLOSED"
 assert not by_index["SRC-0026"]["disposition"]
 assert by_index["SRC-0034"]["status"] == "CLOSED"
@@ -92,7 +94,7 @@ assert by_index["SRC-0040"]["status"] == "CLOSED"
 assert not by_index["SRC-0040"]["disposition"]
 
 adapter_kinds = {row["parameter_kind"] for row in adapters}
-assert {"sysctl", "file-mode-owner", "kernel-cmdline", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications"} <= adapter_kinds
+assert {"sysctl", "file-mode-owner", "kernel-cmdline", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode"} <= adapter_kinds
 assert (ROOT / "product/generate-product-check-v1.py").is_file()
 
 current = pmap.split("## 6. Где мы находимся", 1)[1].split(

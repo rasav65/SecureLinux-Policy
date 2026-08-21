@@ -107,3 +107,9 @@ Population определялась по mounted filesystems, на которы�
 | Debian 13 (trixie) | **GNOME** | 18 | 11 | 7 | 0 | 0 |
 
 Вывод для semantics: численный состав SUID/SGID population нельзя фиксировать как нормативный baseline — он зависит от пакетов и installation class. Универсальная часть 2.3.9 — отсутствие group/other write. Решение о том, какое найденное приложение является «лишним», требует отдельного локального authority и не выводится автоматически из package ownership или из этой VM-матрицы.
+
+### SRC-0014 / 2.3.10 — sensitive files in selected user homes
+
+Перед closure выполнен privileged read-only evidence batch на 7 installation classes. Во всех runs selector `root OR UID>=UID_MIN`, interactive shell и absolute home дал 2 candidate accounts; `HOME_SCAN_ERRORS=0`, host mutation отсутствовала. Source-exact present entries / `go-rwx` violations: Ubuntu 22.04.5 FULL `6/5`; Ubuntu 24.04.4 MINIMIZED `7/5`, FULL `7/5`; Ubuntu 26.04 MINIMIZED `5/5`, FULL `6/5`; Debian 12 SERVER `7/5`; Debian 13 GNOME `6/5`. Эти observed modes не являются normative baseline: нормативное отношение берётся только из source (`bits-clear 0077`).
+
+Открытые `и т. п.` выражены обязательным локальным inventory `/etc/securelinux-policy/home-sensitive-files-v1`; без него CHECK даёт `ERROR`, а не делает ложный вывод о полноте восьми примеров. NSS/network-only accounts v1 не включены в current local-account population и требуют отдельной authority model до расширения product scope.

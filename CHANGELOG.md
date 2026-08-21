@@ -10,6 +10,16 @@
 
 ## [Unreleased]
 
+### Added — SRC-0014 / 2.3.10 sensitive user-home files CHECK
+
+- `SRC-0014` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE`.
+- Exact source relation `chmod go-rwx` представлено как `mode & 0077 == 0`; owner/group и mode home directory `0700` не добавляются.
+- Новый read-only kind `home-sensitive-files-mode` выводит local-user home population из `/etc/passwd` + `UID_MIN`: root плюс normal interactive local accounts, без `/home`-only donor restriction.
+- Два source `и т. п.` не урезаются до восьми имён: обязательный `/etc/securelinux-policy/home-sensitive-files-v1` закрепляет полный локально применимый sensitive-path inventory и обязан включать восемь exact source examples. Отсутствующий/malformed inventory и symlink/ambiguous paths дают fail-closed `ERROR`.
+- Семь privileged read-only VM runs использованы как engineering evidence selector/path assumptions; observed file modes не превращаются в нормативные значения.
+- Historical `checker/gates-v1` не изменяется и остаётся не-current authority: его active-corpus regression ожидает ровно один Gate1 fail-closed на canonical SRC-0014 quote, потому что legacy Gate1 не знает pinned inline page-furniture correction; current `gates-v3` Gate1 остаётся PASS.
+- После шага: `349 / 32 controlled CLOSED / 317 OPEN`; canonical controls `42`; adapters `9`. Formal Gate5 probe-results, APPLY и RESTORE не создаются.
+
 ### Исправлено — source boundary SRC-0014 / 2.3.10
 
 - В recovered `fstec-linux-2022` подтверждён внутренний page token `5` между словами `файлы` и `настройки оболочки`; соседние page tokens `3`, `4`, `6`, `7` подтверждают структуру page furniture.
