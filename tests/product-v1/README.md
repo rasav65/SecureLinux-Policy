@@ -29,7 +29,7 @@
 - registry содержит current строки для `sysctl`, `file-mode-owner` и
   `kernel-cmdline`; все contract/binding/implementation SHA совпадают.
 
-`test_product_generator.py` — тесты tracked generator:
+`test_product_generator.py` — regression предыдущего `generate-product-check-v1.py`, current adapter semantics и current unified CLI v2:
 
 - current `CONTROL-MANIFEST.tsv` определяет population динамически и проверяется по SHA;
 - `ADAPTER-REGISTRY.tsv` является единственным источником выбора adapter;
@@ -50,3 +50,5 @@ Current sysctl regression covers `eq` and unbounded signed-integer `ge`; `ge` is
 `eq`/`present`, absence as VALUE/FAIL, conflict as ERROR, adapter selftest,
 9 controls для 7 source rows и отсутствие `SRC-0026`/`SRC-0034` до отдельной
 семантики.
+
+Дополнительный `UnifiedCliArtifact` в том же test-file проверяет byte-exact parity tracked `securelinux-policy.sh` с `generate-product-check-v2.py`, fixed-column pretty output, raw/JSON, `--failed`, metadata/provenance и fail-closed APPLY/RESTORE stubs.

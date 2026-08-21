@@ -27,12 +27,31 @@
 - `adapters/product-suid-sgid-applications-check-v1.py` + JSON binding; только чтение mountinfo/allowlist и `find/sort/stat`, без chmod/chown/remount/APPLY;
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
   semantic contract / binding / implementation с SHA-256;
-- `generate-product-check-v1.py` — tracked deterministic generator current
-  product CHECK;
-- `dist/` — derived gitignored output, не источник истины.
+- `generate-product-check-v2.py` — current tracked deterministic generator единого read-only CLI;
+- `generate-product-check-v1.py` — сохранённая предыдущая generator identity;
+- `/securelinux-policy.sh` + `/securelinux-policy.sh.sha256` — tracked byte-exact user entrypoint current product population;
+- `dist/` — optional derived gitignored rebuild output, не источник истины.
 
 Generator читает текущий `CONTROL-MANIFEST.tsv`, проверяет canonical YAML и
 registry SHA bindings и fail-closed выбирает adapter по `parameter.kind`.
+
+
+## Unified CLI / Quick Start v1
+
+Текущая пользовательская точка входа — один tracked executable
+`securelinux-policy.sh`. Для обычного CHECK пользователь не запускает Python
+generator.
+
+- `--check` — pretty table с фиксированными колонками `RESULT`, `CONTROL`, `VALUE / DETAILS`;
+- `--check --failed` — только `FAIL` и `ERROR`;
+- `--check --format raw` — прежний стабильный `SLP-CHECK-V1` TSV;
+- `--check --format json` — `SLP-REPORT-V1`;
+- `--report` — compact human report с `FAIL`/`ERROR`;
+- `--build-info`, `--provenance`, `--version`, `--help` — metadata/UI;
+- `--apply`, `--restore` — fail-closed `NOT_IMPLEMENTED`, RC=2, mutation implementation отсутствует.
+
+`tests/product-v1/test_product_generator.py` содержит `UnifiedCliArtifact`, который
+детерминированно пересобирает artifact в temp и требует byte-exact equality с tracked root script и sidecar.
 
 ## Текущий статус
 

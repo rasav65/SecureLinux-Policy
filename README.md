@@ -48,9 +48,9 @@ read-only проверки:
   → semantic contract
   → adapter registry
   → read-only adapter
-  → deterministic generator
-  → generated CHECK
-  → structured result
+  → deterministic generator v2
+  → tracked `securelinux-policy.sh`
+  → pretty / raw / JSON result
 ```
 
 Каждый controlled source row должен иметь проверяемый source-anchor и закрываться
@@ -64,52 +64,84 @@ CHECK и изменение системы разделены принципиа
 
 ---
 
-## Быстрый старт CHECK
+## Быстрый старт
 
-Сначала рекомендуется проверить DEV baseline:
+Для обычного запуска генератор не нужен. Текущий read-only product entrypoint
+уже находится в корне репозитория:
 
-```bash
-PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B \
-  tests/run-all.py --dev
+```text
+securelinux-policy.sh
 ```
 
-Для release-validation отдельно запускается:
+На поддерживаемом target-host (`ubuntu-24.04-x86_64`) полный CHECK запускается
+одной командой:
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B \
-  tests/run-all.py --release
+sudo ./securelinux-policy.sh --check
 ```
 
-Сгенерировать текущий CHECK:
+По умолчанию вывод предназначен для человека: колонки `RESULT`, `CONTROL` и
+`VALUE / DETAILS` имеют фиксированные позиции, а длинные details переносятся
+под третьей колонкой.
+
+Только проблемы:
+
+```bash
+sudo ./securelinux-policy.sh --check --failed
+```
+
+Машинные форматы:
+
+```bash
+sudo ./securelinux-policy.sh --check --format raw
+sudo ./securelinux-policy.sh --check --format json
+```
+
+`raw` сохраняет wire-format `SLP-CHECK-V1`/`SLP-SUMMARY-V1`; `json` выдаёт
+структурированный `SLP-REPORT-V1`. Краткий human-readable отчёт с `FAIL` и
+`ERROR`:
+
+```bash
+sudo ./securelinux-policy.sh --report
+```
+
+Metadata и provenance не требуют запуска policy checks:
+
+```bash
+./securelinux-policy.sh --version
+./securelinux-policy.sh --build-info
+./securelinux-policy.sh --provenance
+```
+
+`--apply` и `--restore` уже зарезервированы в едином CLI, но сейчас обязаны
+завершаться `NOT_IMPLEMENTED` с RC=2 и ничего не менять на хосте.
+
+Sidecar текущего tracked artifact:
+
+```bash
+sha256sum -c securelinux-policy.sh.sha256
+```
+
+### Для разработчика: детерминированная пересборка
+
+Current user-facing artifact строится `product/generate-product-check-v2.py`.
+Tracked `securelinux-policy.sh` обязан побайтно совпадать со свежей генерацией;
+это проверяется DEV regression. Для ручной проверки можно собрать копию вне
+tracked root:
 
 ```bash
 mkdir -p dist
-
 PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B \
-  product/generate-product-check-v1.py \
+  product/generate-product-check-v2.py \
   --repo . \
-  --out dist/securelinux-policy-check.sh
+  --out dist/securelinux-policy.sh
 
-cd dist
-sha256sum -c securelinux-policy-check.sh.sha256
-cd ..
+cmp -s securelinux-policy.sh dist/securelinux-policy.sh
+echo "RC_PARITY=$?"
 ```
 
-Посмотреть build metadata и provenance:
-
-```bash
-dist/securelinux-policy-check.sh --build-info
-dist/securelinux-policy-check.sh --provenance
-```
-
-Выполнить read-only проверку текущих controls:
-
-```bash
-dist/securelinux-policy-check.sh
-```
-
-Generated CHECK не содержит APPLY/RESTORE и не должен изменять проверяемое
-состояние хоста.
+Historical `product/generate-product-check-v1.py` сохраняется как предыдущая
+generator identity и не является текущей пользовательской точкой входа.
 
 ---
 
@@ -255,7 +287,8 @@ controls/   canonical policy controls
 checker/    schema и gates
 tools/      project generators и integrity helpers
 product/    semantic contracts, adapter registry, adapters, CHECK generator
-dist/       derived generated CHECK; gitignored
+securelinux-policy.sh  tracked read-only user entrypoint
+dist/       optional derived rebuild output; gitignored
 probes/     read-only probe infrastructure и historical/reference evidence line
 tests/      DEV/RELEASE regression suites
 docs/       product, engineering, donor-reference и roadmap documentation
@@ -348,7 +381,8 @@ population показана в machine-generated статусе выше. Тек
 | canonical controls | `controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv` + YAML |
 | parameter schema | `checker/gates-v3/checker.py` → generated `CONTROL-SCHEMA.json` |
 | CHECK adapter mapping | `product/ADAPTER-REGISTRY.tsv` |
-| CHECK generator | `product/generate-product-check-v1.py` |
+| current CHECK/CLI generator | `product/generate-product-check-v2.py` |
+| tracked user entrypoint | `securelinux-policy.sh` + `.sha256` |
 | macro-roadmap | `docs/ROADMAP-v3.tsv` |
 | generated current docs | `tools/render-current-docs.py` |
 

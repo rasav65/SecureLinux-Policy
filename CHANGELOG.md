@@ -10,6 +10,17 @@
 
 ## [Unreleased]
 
+### Added — UNIFIED CLI / QUICK START v1
+
+- Добавлен tracked user-facing `securelinux-policy.sh` с sidecar SHA-256; обычному пользователю для current CHECK больше не требуется запускать Python generator.
+- Current generator — `product/generate-product-check-v2.py`; v1 сохраняется как предыдущая deterministic generator identity.
+- `--check` по умолчанию выдаёт выровненную таблицу с фиксированными колонками `RESULT`, `CONTROL`, `VALUE / DETAILS`; длинные semicolon-delimited details переносятся под третьей колонкой без внешней `column`.
+- Добавлены `--check --failed`, `--check --format raw`, `--check --format json`, `--report`, `--version`; `--build-info` и `--provenance` сохранены.
+- Raw mode сохраняет wire-format `SLP-CHECK-V1`/`SLP-SUMMARY-V1`; JSON mode вводит `SLP-REPORT-V1`.
+- `--apply` и `--restore` зарезервированы как fail-closed `NOT_IMPLEMENTED` stubs с RC=2; mutation implementation и host-state changes не добавлены.
+- Расширен `tests/product-v1/test_product_generator.py`: byte-exact rebuild parity unified CLI, pretty/raw/json, sidecar/mode и fail-closed stubs без увеличения tracked test-file population.
+- Source index/controls/closure не меняются: этим product-interface шагом закрыто **0** source rows; состояние остаётся `349 / 33 controlled CLOSED / 316 OPEN`, canonical controls `43`, adapters `10`.
+
 ### Added — SRC-0015 / 2.3.11 user home-directory mode CHECK
 
 - `SRC-0015` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE`.

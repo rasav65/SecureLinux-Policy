@@ -11,9 +11,10 @@
 ubuntu-24.04-x86_64
 ```
 
-Target задаётся `product/generate-product-check-v1.py` и binding/semantic
-contracts adapters. Generated CHECK выполняет target preflight до проверки
-controls.
+Target задаётся current `product/generate-product-check-v2.py` и binding/semantic
+contracts adapters. Tracked `securelinux-policy.sh` является byte-exact output этого
+generator и выполняет target preflight до проверки controls. Historical v1
+generator остаётся предыдущей product identity.
 
 `SUPPORTED` означает: текущий product contract разрешает этот target. Это не
 утверждение, что все возможные варианты Ubuntu 24.04 уже прошли VM acceptance.

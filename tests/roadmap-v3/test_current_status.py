@@ -98,6 +98,9 @@ assert not by_index["SRC-0040"]["disposition"]
 adapter_kinds = {row["parameter_kind"] for row in adapters}
 assert {"sysctl", "file-mode-owner", "kernel-cmdline", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode"} <= adapter_kinds
 assert (ROOT / "product/generate-product-check-v1.py").is_file()
+assert (ROOT / "product/generate-product-check-v2.py").is_file()
+assert (ROOT / "securelinux-policy.sh").is_file()
+assert (ROOT / "securelinux-policy.sh.sha256").is_file()
 
 current = pmap.split("## 6. Где мы находимся", 1)[1].split(
     "## Что является источником истины", 1
@@ -114,6 +117,8 @@ assert "SRC-0033 / 2.5.10" in current
 assert "sysctl lower-bound ge 4096 + CHECK-19" in current
 assert "kernel-cmdline exact-token batch" in current
 assert "7 source rows · 9 controls + CHECK-28" in current
+assert "UNIFIED CLI / QUICK START v1" in current
+assert "securelinux-policy.sh · pretty/raw/json" in current
 assert "systematic FSTEC expansion" in current
 assert "МЫ ЗДЕСЬ<br/>systematic FSTEC expansion" in current
 assert "МЫ ЗДЕСЬ<br/>Step 7B" not in current

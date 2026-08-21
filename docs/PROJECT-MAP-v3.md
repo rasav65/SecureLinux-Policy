@@ -199,24 +199,29 @@ flowchart LR
     REG["product/ADAPTER-REGISTRY.tsv<br/>single tracked adapter mapping"]:::component
     SYS["product-sysctl-check-v2<br/>read-only eq + integer ge"]:::closed
     FILE["product-file-mode-owner-check-v1<br/>read-only"]:::closed
-    GEN["product/generate-product-check-v1.py<br/>tracked deterministic generator"]:::closed
-    CHECK["generated CHECK<br/>current manifest population<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
+    GEN1["product/generate-product-check-v1.py<br/>previous generator identity"]:::note
+    GEN2["product/generate-product-check-v2.py<br/>current deterministic generator"]:::closed
+    CLI["securelinux-policy.sh<br/>tracked unified read-only CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE<br/>pretty · raw · JSON"]:::closed
 
     CTRLNOW --> REG
     REG --> SYS
     REG --> FILE
-    SYS --> GEN
-    FILE --> GEN
-    CTRLNOW --> GEN --> CHECK
+    SYS --> GEN2
+    FILE --> GEN2
+    CTRLNOW --> GEN2 --> CLI
+    GEN1 -. historical .-> GEN2
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
     classDef component fill:#dcecff,stroke:#3e6ea8,color:#111;
+    classDef note fill:#fff8d8,stroke:#9d8730,color:#111;
 ```
 
 Эта product-line отделена от historical Step 7B.0. `ADAPTER-REGISTRY.tsv`
 пинует semantic contract, adapter binding и implementation по SHA-256.
-Generated `dist/` является derived output и не входит в root manifests.
-APPLY/RESTORE здесь отсутствуют.
+Tracked `securelinux-policy.sh` и sidecar входят в root manifests и обязаны
+byte-exact совпадать со свежим generator-v2 output. `dist/` остаётся optional
+gitignored rebuild output. APPLY/RESTORE mutation capability здесь отсутствует;
+одноимённые CLI flags являются только fail-closed `NOT_IMPLEMENTED` stubs.
 
 ## 4. Инженерный донор → будущий APPLY/RESTORE runtime
 
@@ -306,13 +311,14 @@ flowchart LR
     P8["SRC-0033 / 2.5.10<br/>sysctl lower-bound ge 4096 + CHECK-19<br/>DONE"]:::closed
     P9["kernel-cmdline exact-token batch<br/>7 source rows · 9 controls + CHECK-28<br/>DONE"]:::closed
     P9A["SRC-0010 / 2.3.6<br/>system cron roots + direct files · 6 controls<br/>DONE"]:::closed
+    P9B["UNIFIED CLI / QUICK START v1<br/>securelinux-policy.sh · pretty/raw/json<br/>DONE"]:::closed
     P10["МЫ ЗДЕСЬ<br/>systematic FSTEC expansion<br/>remaining OPEN rows"]:::current
     P11["APPLY semantic contract<br/>NOT IMPLEMENTED"]:::future
     P12["APPLY implementation<br/>future"]:::future
     P13["RESTORE contract + implementation<br/>future"]:::future
     P14["final distributable artifact<br/>future"]:::future
 
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P9A --> P10 --> P11 --> P12 --> P13 --> P14
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P9A --> P9B --> P10 --> P11 --> P12 --> P13 --> P14
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
     classDef current fill:#ffe2a8,stroke:#c77800,color:#111,stroke-width:4px;
@@ -331,8 +337,9 @@ source-faithful `sysctl ge 4096` с CHECK-19 и donor-backed exact-token batch
 шесть source-listed optional cron roots с `bits-clear 0033`. Read-only
 `product-sysctl-check-v2`, `product-file-mode-owner-check-v1`,
 `product-kernel-cmdline-check-v1`, `product-optional-file-root-files-mode-check-v1`,
-`product/generate-product-check-v1.py` и generated CHECK уже реализованы и не
-относятся к будущему APPLY/RESTORE track.
+`product/generate-product-check-v2.py` и tracked `securelinux-policy.sh` уже
+реализованы; v1 generator сохранён как предыдущая identity. Unified read-only CLI
+не открывает будущий APPLY/RESTORE track.
 
 ## Что является источником истины
 
@@ -343,7 +350,7 @@ implementation adapters и tests.
 
 Направление проекта:
 
-`source → text corpus → index → control/disposition → gates → semantic contract → read-only adapter → generated CHECK → future APPLY/RESTORE → distributable artifact`
+`source → text corpus → index → control/disposition → gates → semantic contract → read-only adapter → generator v2 → tracked unified CHECK CLI → future APPLY/RESTORE`
 
 а не:
 

@@ -967,5 +967,124 @@ class GeneratedArtifact(unittest.TestCase):
         self.assertEqual(self.run_check("--provenance", "NO-SUCH-CONTROL").returncode, 2)
 
 
+class UnifiedCliArtifact(unittest.TestCase):
+    GEN_V2 = ROOT / "product/generate-product-check-v2.py"
+    ARTIFACT = ROOT / "securelinux-policy.sh"
+    SIDECAR = ROOT / "securelinux-policy.sh.sha256"
+
+    def run_cli(self, *args):
+        return subprocess.run(
+            [BASH, str(self.ARTIFACT), *args], cwd=ROOT,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+
+    def run_sourced(self, body):
+        return subprocess.run(
+            [BASH, "-c", f"set -u\nsource {self.ARTIFACT!s}\n{body}"],
+            cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+
+    @staticmethod
+    def synthetic_prelude():
+        return r'''
+SLP_RESULTS=(
+$'SLP-CHECK-V1\tFSTEC-LINUX-2022-2.3.1-GROUP-MODE\tVALUE\t0644\tPASS'
+$'SLP-CHECK-V1\tFSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE\tVALUE\taccounts=2;homes=2;violations=1\tFAIL'
+$'SLP-CHECK-V1\tFSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE\tVALUE\troots_present=9;roots_absent=0;aliases=4;exec=1236;libraries=999;modules=6474;checked=8300;violations=0\tPASS'
+$'SLP-CHECK-V1\tFSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE\tERROR\t-\tERROR'
+)
+SLP_TOTAL=4
+SLP_PASS=2
+SLP_FAIL=1
+SLP_NF=0
+SLP_ERR=1
+SLP_POLICY_STATUS=UNEVALUATED
+SLP_POLICY_RC=1
+'''
+
+    def test_unified_tracked_artifact_matches_fresh_generator_exactly(self):
+        self.assertTrue(self.GEN_V2.is_file())
+        self.assertTrue(self.ARTIFACT.is_file())
+        self.assertTrue(self.SIDECAR.is_file())
+        self.assertEqual(self.ARTIFACT.stat().st_mode & 0o777, 0o755)
+        self.assertEqual(self.SIDECAR.stat().st_mode & 0o777, 0o644)
+        with tempfile.TemporaryDirectory(prefix="slp-unified-cli-rebuild-") as td:
+            out = Path(td) / "securelinux-policy.sh"
+            cp = subprocess.run(
+                [os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B",
+                 str(self.GEN_V2), "--repo", str(ROOT), "--out", str(out)],
+                cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            )
+            self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+            self.assertIn("GENERATOR_ID=product-check-generator-v2\n", cp.stdout)
+            self.assertIn("CONTROL_COUNT=43\n", cp.stdout)
+            self.assertIn("ADAPTER_COUNT=10\n", cp.stdout)
+            self.assertEqual(out.read_bytes(), self.ARTIFACT.read_bytes())
+            self.assertEqual(out.with_name(out.name + ".sha256").read_bytes(), self.SIDECAR.read_bytes())
+        expected = f"{sha256_file(self.ARTIFACT)}  {self.ARTIFACT.name}\n"
+        self.assertEqual(self.SIDECAR.read_text(encoding="utf-8"), expected)
+
+    def test_unified_help_version_build_info_and_stubs(self):
+        syntax = subprocess.run([BASH, "-n", str(self.ARTIFACT)], capture_output=True, text=True)
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
+        noargs = self.run_cli()
+        self.assertEqual(noargs.returncode, 0)
+        self.assertIn("SecureLinux-Policy v3 — единый read-only CLI", noargs.stdout)
+        self.assertIn("--check [--failed] [--format pretty|raw|json]", noargs.stdout)
+        version = self.run_cli("--version")
+        self.assertEqual(version.returncode, 0)
+        self.assertIn("PRODUCT_CLI=product-cli-v1\n", version.stdout)
+        build = self.run_cli("--build-info")
+        self.assertEqual(build.returncode, 0)
+        self.assertIn("GENERATOR_ID=product-check-generator-v2\n", build.stdout)
+        self.assertIn("MUTATING_MODES=NONE\n", build.stdout)
+        for flag, name in (("--apply", "APPLY"), ("--restore", "RESTORE")):
+            cp = self.run_cli(flag)
+            self.assertEqual(cp.returncode, 2)
+            self.assertEqual(cp.stdout, "")
+            self.assertEqual(cp.stderr, f"NOT_IMPLEMENTED: {name}; host state was not changed.\n")
+
+    def test_unified_pretty_raw_json_and_failed_renderers(self):
+        pre = self.synthetic_prelude()
+        pretty = self.run_sourced(pre + "\nslp_render_pretty 0 CHECK\n")
+        self.assertEqual(pretty.returncode, 0, pretty.stderr)
+        lines = pretty.stdout.splitlines()
+        self.assertEqual(lines[2].index("CONTROL"), 9)
+        self.assertEqual(lines[2].index("VALUE / DETAILS"), 63)
+        continuation = [x for x in lines if x.startswith(" " * 63) and "libraries=999" in x]
+        self.assertEqual(len(continuation), 1)
+        failed = self.run_sourced(pre + "\nslp_render_pretty 1 CHECK\n")
+        self.assertEqual(failed.returncode, 0, failed.stderr)
+        self.assertIn("HOME-DIRECTORIES-MODE", failed.stdout)
+        self.assertIn("HOME-SENSITIVE-FILES-MODE", failed.stdout)
+        self.assertNotIn("GROUP-MODE", failed.stdout)
+        raw = self.run_sourced(pre + "\nslp_render_raw 0\n")
+        self.assertEqual(raw.returncode, 0, raw.stderr)
+        raw_lines = raw.stdout.splitlines()
+        self.assertEqual(len(raw_lines), 5)
+        self.assertTrue(all(x.startswith("SLP-CHECK-V1\t") for x in raw_lines[:-1]))
+        obj = json.loads(self.run_sourced(pre + "\nslp_render_json 0\n").stdout)
+        self.assertEqual(obj["schema"], "SLP-REPORT-V1")
+        self.assertEqual(obj["summary"], {"total":4,"pass":2,"fail":1,"not_found":0,"error":1})
+        fobj = json.loads(self.run_sourced(pre + "\nslp_render_json 1\n").stdout)
+        self.assertEqual([x["result"] for x in fobj["results"]], ["FAIL", "ERROR"])
+
+    def test_unified_provenance_invalid_cli_and_no_mutation_scaffold(self):
+        prov = self.run_cli("--provenance")
+        self.assertEqual(prov.returncode, 0)
+        rows = [json.loads(x) for x in prov.stdout.splitlines()]
+        self.assertEqual(len(rows), 43)
+        one = self.run_cli("--provenance", rows[0]["control_id"])
+        self.assertEqual(json.loads(one.stdout)["control_id"], rows[0]["control_id"])
+        for args in (("--bogus",), ("--help", "extra"), ("--check", "--format"),
+                     ("--check", "--format", "xml"), ("--check", "--format=xml"),
+                     ("--check", "--failed", "--failed")):
+            self.assertEqual(self.run_cli(*args).returncode, 2, args)
+        text = self.ARTIFACT.read_text(encoding="utf-8")
+        for forbidden in ("sysctl -w", "sysctl --write", "tee /proc/sys", "sed -i",
+                          "chmod ", "chown ", "chgrp ", "setfacl ", "truncate ", "column "):
+            self.assertNotIn(forbidden, text, forbidden)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

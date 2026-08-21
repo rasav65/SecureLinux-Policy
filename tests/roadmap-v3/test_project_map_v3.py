@@ -27,6 +27,8 @@ for marker in (
     "product-sysctl-check-v2",
     "product-file-mode-owner-check-v1",
     "product/generate-product-check-v1.py",
+    "product/generate-product-check-v2.py",
+    "securelinux-policy.sh",
     "NON_RELEASE_PRODUCT_CANDIDATE",
 ):
     assert marker in text, marker
@@ -38,8 +40,8 @@ product_line = text.split("## 3. Текущая read-only product-line CHECK", 1
 for marker in (
     'product-sysctl-check-v2<br/>read-only eq + integer ge"]:::closed',
     'product-file-mode-owner-check-v1<br/>read-only"]:::closed',
-    'tracked deterministic generator"]:::closed',
-    'generated CHECK<br/>current manifest population<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed',
+    'product/generate-product-check-v2.py<br/>current deterministic generator"]:::closed',
+    'securelinux-policy.sh<br/>tracked unified read-only CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE<br/>pretty · raw · JSON"]:::closed',
 ):
     assert marker in product_line, marker
 
@@ -54,6 +56,7 @@ assert 'P6["sysctl exact-eq batch<br/>SRC-0030,0031,0036–0039 + CHECK-17<br/>D
 assert 'P7["SRC-0040 / 2.6.6<br/>terminal source-boundary fix + CHECK-18<br/>DONE"]:::closed' in current
 assert 'P8["SRC-0033 / 2.5.10<br/>sysctl lower-bound ge 4096 + CHECK-19<br/>DONE"]:::closed' in current
 assert 'P9["kernel-cmdline exact-token batch<br/>7 source rows · 9 controls + CHECK-28<br/>DONE"]:::closed' in current
+assert 'P9B["UNIFIED CLI / QUICK START v1<br/>securelinux-policy.sh · pretty/raw/json<br/>DONE"]:::closed' in current
 assert 'P10["МЫ ЗДЕСЬ<br/>systematic FSTEC expansion<br/>remaining OPEN rows"]:::current' in current
 for marker in (
     "CHECK-8 product-line",
@@ -70,6 +73,8 @@ for marker in (
     "CHECK-19",
     "kernel-cmdline exact-token batch",
     "CHECK-28",
+    "UNIFIED CLI / QUICK START v1",
+    "securelinux-policy.sh · pretty/raw/json",
     "systematic FSTEC expansion",
     "APPLY semantic contract",
     "APPLY implementation",
@@ -92,6 +97,8 @@ positions = [current.index(marker) for marker in (
     "CHECK-19",
     "kernel-cmdline exact-token batch",
     "CHECK-28",
+    "UNIFIED CLI / QUICK START v1",
+    "securelinux-policy.sh · pretty/raw/json",
     "systematic FSTEC expansion",
     "APPLY semantic contract",
     "APPLY implementation",
@@ -110,12 +117,13 @@ for stale in (
 
 assert "путь к конечному `securelinux-ng.sh`" not in text
 assert "Финальный `securelinux-ng.sh`" not in text
-assert "future final<br/>distributable artifact" in text
+assert "final distributable artifact" in text
+assert "tracked unified read-only CLI" in text
 assert "Gate 0 PASS" in text
 assert "только byte-generation parity" in text
 assert "docs/PROJECT-MAP-v3.md" in readme
 print(
     "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=systematic-expansion "
     "src0005_check11_done=1 exact_eq_check17_done=1 src0040_check18_done=1 "
-    "src0033_check19_done=1 kernel_cmdline_check28_done=1 future_apply_restore=1"
+    "src0033_check19_done=1 kernel_cmdline_check28_done=1 unified_cli_done=1 future_apply_restore=1"
 )
