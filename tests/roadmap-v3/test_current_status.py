@@ -75,12 +75,16 @@ for index_id in ("SRC-0030", "SRC-0031", "SRC-0036", "SRC-0037", "SRC-0038", "SR
     assert not by_index[index_id]["disposition"], index_id
 assert by_index["SRC-0033"]["status"] == "CLOSED"
 assert not by_index["SRC-0033"]["disposition"]
+for index_id in ("SRC-0018", "SRC-0019", "SRC-0020", "SRC-0021", "SRC-0022", "SRC-0024", "SRC-0032"):
+    assert by_index[index_id]["status"] == "CLOSED", index_id
+    assert not by_index[index_id]["disposition"], index_id
+assert by_index["SRC-0026"]["status"] == "OPEN"
 assert by_index["SRC-0034"]["status"] == "OPEN"
 assert by_index["SRC-0040"]["status"] == "CLOSED"
 assert not by_index["SRC-0040"]["disposition"]
 
 adapter_kinds = {row["parameter_kind"] for row in adapters}
-assert {"sysctl", "file-mode-owner"} <= adapter_kinds
+assert {"sysctl", "file-mode-owner", "kernel-cmdline"} <= adapter_kinds
 assert (ROOT / "product/generate-product-check-v1.py").is_file()
 
 current = pmap.split("## 6. Где мы находимся", 1)[1].split(
@@ -96,6 +100,8 @@ assert "SRC-0040 / 2.6.6" in current
 assert "terminal source-boundary fix + CHECK-18" in current
 assert "SRC-0033 / 2.5.10" in current
 assert "sysctl lower-bound ge 4096 + CHECK-19" in current
+assert "kernel-cmdline exact-token batch" in current
+assert "7 source rows · 9 controls + CHECK-28" in current
 assert "systematic FSTEC expansion" in current
 assert "МЫ ЗДЕСЬ<br/>systematic FSTEC expansion" in current
 assert "МЫ ЗДЕСЬ<br/>Step 7B" not in current

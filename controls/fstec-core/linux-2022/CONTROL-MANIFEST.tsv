@@ -4,7 +4,15 @@ FSTEC-LINUX-2022-2.3.1-PASSWD-MODE	SRC-0005	2.3.1	mode	0644	fstec-linux-2022-2.3
 FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX	SRC-0005	2.3.1	mode	0077	fstec-linux-2022-2.3.1-shadow-go-rwx.yaml	62efde1e39f219e843193c7bc5a2d539d685ab79c33094c05a70e3d21873e03f
 FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT	SRC-0016	2.4.1	kernel.dmesg_restrict	1	fstec-linux-2022-2.4.1-dmesg-restrict.yaml	51f99ed4b7c67eb30558176685885337c27a4d8c2047a8e667059dd2bbff07d9
 FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT	SRC-0017	2.4.2	kernel.kptr_restrict	2	fstec-linux-2022-2.4.2-kptr-restrict.yaml	ba25c49b237cf91b74afcda02e15fd872e81c08973abd9719a8f4c465513aa9a
+FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC	SRC-0018	2.4.3	init_on_alloc	1	fstec-linux-2022-2.4.3-init-on-alloc.yaml	68b4a5d37e9addc54b6c8d9316e1a9e47e4eda7cb0683b2df99c4be911c7ea5c
+FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE	SRC-0019	2.4.4	slab_nomerge	True	fstec-linux-2022-2.4.4-slab-nomerge.yaml	817ddc5844c8600b30ea82b013576e8c90fe4381f37ff2d3e6f697766881aa9e
+FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE	SRC-0020	2.4.5	iommu	force	fstec-linux-2022-2.4.5-iommu-force.yaml	595da19602209ab601375e129f45dfa720038e5a5b92017e51b5b7873bd6233d
+FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH	SRC-0020	2.4.5	iommu.passthrough	0	fstec-linux-2022-2.4.5-iommu-passthrough.yaml	85b3d67e7f741cfd9d50b3d935bc96ac38d6468d44cb18465baefa3379242942
+FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT	SRC-0020	2.4.5	iommu.strict	1	fstec-linux-2022-2.4.5-iommu-strict.yaml	0d68a6bb3b7869e9d76046d196e61511e34560cfb55cf130b30c65b3b9d3e629
+FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET	SRC-0021	2.4.6	randomize_kstack_offset	1	fstec-linux-2022-2.4.6-randomize-kstack-offset.yaml	876b71fa1a3eabed4455db496c576c43ec897ccfe335266ae707b9bb976f124e
+FSTEC-LINUX-2022-2.4.7-MITIGATIONS	SRC-0022	2.4.7	mitigations	auto,nosmt	fstec-linux-2022-2.4.7-mitigations.yaml	2d004e6effde058bcd8d5713b8116adec36af1476da6e4f5acb1553d7857d981
 FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN	SRC-0023	2.4.8	net.core.bpf_jit_harden	2	fstec-linux-2022-2.4.8-bpf-jit-harden.yaml	cfe64060a4d9829351c2c6f19c6f41b0e0697bd8be5b503a90ffe27a5f4c52ee
+FSTEC-LINUX-2022-2.5.1-VSYSCALL	SRC-0024	2.5.1	vsyscall	none	fstec-linux-2022-2.5.1-vsyscall.yaml	611d219ec1d517ebceb3539968662a6e40a75bb028fc553ec18eb9a95544f413
 FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR	SRC-0033	2.5.10	vm.mmap_min_addr	4096	fstec-linux-2022-2.5.10-mmap-min-addr.yaml	f2733434c77fa39bec5210262632becd3f0aad65ddb7423c869725fe95fa5655
 FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID	SRC-0025	2.5.2	kernel.perf_event_paranoid	3	fstec-linux-2022-2.5.2-perf-event-paranoid.yaml	b0eb7068712e20660c0d84871c271c6f3fdc542132cca1cf529910dcf7f85c0a
 FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED	SRC-0027	2.5.4	kernel.kexec_load_disabled	1	fstec-linux-2022-2.5.4-kexec-load-disabled.yaml	6006fdfb164b8a8860b8f4ae6d4e2758799f25ed32d53e185916da0ef0b7ed01
@@ -12,6 +20,7 @@ FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES	SRC-0028	2.5.5	user.max_user_namespac
 FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED	SRC-0029	2.5.6	kernel.unprivileged_bpf_disabled	1	fstec-linux-2022-2.5.6-unprivileged-bpf-disabled.yaml	44423cf2e57eabddd637a973430a6633282f8eba658430a1290bfa610efe5b67
 FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD	SRC-0030	2.5.7	vm.unprivileged_userfaultfd	0	fstec-linux-2022-2.5.7-unprivileged-userfaultfd.yaml	3a5a2c1c560d688eeea441f4455297a86983c599745acf8963507f91b72c86f4
 FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD	SRC-0031	2.5.8	dev.tty.ldisc_autoload	0	fstec-linux-2022-2.5.8-ldisc-autoload.yaml	d6e4d8f63a5235ff32f3cb429c91caa7b7ff7864ba8ab90f8fd350362e8d3a69
+FSTEC-LINUX-2022-2.5.9-TSX	SRC-0032	2.5.9	tsx	off	fstec-linux-2022-2.5.9-tsx.yaml	07040e8445ac0565a587fcf6cfadf124a45b6b076592d4a268eff2abe37b5ef3
 FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE	SRC-0035	2.6.1	kernel.yama.ptrace_scope	3	fstec-linux-2022-2.6.1-ptrace-scope.yaml	2bc9bb0cb5372fb5738612ff3738526cad9adb831b0043cc5924f36d23e7ca37
 FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS	SRC-0036	2.6.2	fs.protected_symlinks	1	fstec-linux-2022-2.6.2-protected-symlinks.yaml	b709581e94eb65e5a059d70ff4ec7aac7d248e6b664ffb42c502e23c88e2bbe8
 FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS	SRC-0037	2.6.3	fs.protected_hardlinks	1	fstec-linux-2022-2.6.3-protected-hardlinks.yaml	fc1fd0f1141cb6d78b5d322e6a04b2649f0264a5e8c4784c64116bed55d70ffa

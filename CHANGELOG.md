@@ -35,6 +35,65 @@
   `observer-fitness-v1`) не входят в current Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
 
+## [0.0.20] — 2026-08-21
+
+### Added — read-only kernel command-line CHECK
+
+- Добавлен новый current parameter kind `kernel-cmdline` для фактической
+  загрузочной строки `/proc/cmdline`.
+- Semantic contract `kernel-cmdline-check-semantic-v1` поддерживает:
+  - `eq` — exact `key=value` token;
+  - `present` — exact bare token.
+- Adapter `product-kernel-cmdline-check-v1` только читает `/proc/cmdline`.
+  GRUB, загрузчик, APPLY и RESTORE не изменяются.
+- Отсутствие требуемого boot token — наблюдаемое `VALUE/FAIL`, а не
+  `NOT_FOUND`; конфликтующие значения одного key дают `ERROR`.
+
+### Added — exact boot-token batch
+
+- `SRC-0018 / 2.4.3` → `init_on_alloc=1`.
+- `SRC-0019 / 2.4.4` → bare flag `slab_nomerge`.
+- `SRC-0020 / 2.4.5` → exact-control-set:
+  `iommu=force`, `iommu.strict=1`, `iommu.passthrough=0`.
+- `SRC-0021 / 2.4.6` → `randomize_kstack_offset=1`.
+- `SRC-0022 / 2.4.7` → `mitigations=auto,nosmt` для current x86_64 target.
+- `SRC-0024 / 2.5.1` → `vsyscall=none`.
+- `SRC-0032 / 2.5.9` → `tsx=off`.
+- Corpus после batch: `349 / 24 controlled CLOSED / 325 OPEN`;
+  canonical controls: `28`.
+
+### Donor review
+
+- Pinned SecureLinux-NG v16.2.11 использован только как engineering precedent:
+  его `grub_kernel_params_check_module` уже читает `/proc/cmdline`, выполняет
+  whitespace tokenization и проверяет exact tokens.
+- v3 не копирует GRUB remediation и усиливает observation semantics для
+  конфликтующих duplicate key values.
+- `SRC-0026 / 2.5.3` намеренно остаётся `OPEN`: формулировка
+  `debugfs=no-mount (по возможности off)` требует отдельной semantics
+  альтернатив/предпочтения и не подменяется одним exact token.
+- `SRC-0034 / 2.5.11` остаётся `OPEN` из-за procedural qualifier
+  `после тестирования`.
+
+### Tested
+
+- Schema/runtime parity включает positive/negative `kernel-cmdline` cases.
+- Product generator registry содержит 3 current adapters и 28 controls.
+- Kernel-cmdline adapter selftest покрывает exact match, absence, duplicate
+  identical/conflicting values и bare-vs-keyed ambiguity.
+- Устранены два stale regression pin после добавления нового adapter/kind:
+  `test_audit_fixes.py` теперь сверяет schema enum с current `KIND_RULES`, а
+  `test_sysctl_adapter.py` проверяет уникальность и SHA bindings registry без
+  фиксации исторического глобального числа adapter rows.
+- Нормализован EOF двух обновлённых test README до одного завершающего LF;
+  installer v2 корректно откатился на `git diff --check` из-за лишней пустой
+  строки в конце файлов.
+- Source-block production parity и source-skeleton verify: `28/28`.
+- Gate 1/3/4 должны пройти на 28 controls; Gate 2 ожидаемо остаётся FAIL из-за
+  325 OPEN; formal Gate 5 без `probe-results` остаётся fail-closed.
+- DEV/RELEASE/root manifests проверяются installer после real-tree rebuild.
+- Закрыто строк source index этим шагом: **7**.
+
 ## [0.0.19] — 2026-08-20
 
 ### Added — source-faithful sysctl lower bound / SRC-0033

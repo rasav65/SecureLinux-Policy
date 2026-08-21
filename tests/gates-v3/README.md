@@ -7,7 +7,7 @@ scope/profile conflicts and active-tree fail-closed behavior. Current population
 
 - generation parity: `CONTROL-SCHEMA.json` is byte-identical to the schema
   generated from the runtime constants;
-- differential acceptance: 50 records, including 16 CR/LF boundary cases,
+- differential acceptance: current matrix, including 16 CR/LF boundary cases,
   must be judged identically by the runtime and by the schema;
 - pattern semantics: for every anchored pattern, `re.fullmatch` (runtime) and
   `re.search` (JSON Schema) must accept the same set of strings;
@@ -16,3 +16,7 @@ scope/profile conflicts and active-tree fail-closed behavior. Current population
   `Draft202012Validator`; otherwise those two tests are skipped explicitly.
 
 Observation-value contract tests ensure there is no generic boolean string coercion and reserve JSON-boolean wire values for future systemd/package runners.
+
+Current matrix includes `kernel-cmdline` positive/negative cases: exact
+`/proc/cmdline`, safe key/value syntax, `eq` string relation and `present=true`
+boolean relation.

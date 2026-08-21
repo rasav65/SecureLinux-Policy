@@ -133,7 +133,7 @@ class ContractTests(unittest.TestCase):
 
 
 class SchemaContractTests(unittest.TestCase):
-    def test_schema_has_nested_contract_and_eight_kinds(self):
+    def test_schema_has_nested_contract_and_current_kinds(self):
         schema=json.loads((PROJECT/"checker/gates-v3/CONTROL-SCHEMA.json").read_text(encoding="utf-8"))
         self.assertFalse(schema["additionalProperties"])
         for key in ("source","requirement","parameter","expected","apply"):
@@ -141,10 +141,7 @@ class SchemaContractTests(unittest.TestCase):
             self.assertIn("required",schema["properties"][key])
             self.assertFalse(schema["properties"][key]["additionalProperties"])
         kinds=set(schema["properties"]["parameter"]["properties"]["kind"]["enum"])
-        self.assertEqual(kinds,{
-            "sysctl","file-kv","file-mode-owner","mount-option",
-            "systemd-unit-state","package-presence","pam-line","audit-rule"
-        })
+        self.assertEqual(kinds,set(mod.KIND_RULES))
 
 
 class ActivePilotTests(unittest.TestCase):

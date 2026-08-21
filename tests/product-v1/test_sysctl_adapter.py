@@ -40,9 +40,13 @@ class Static(unittest.TestCase):
         self.assertEqual(meta["implementation_sha256"],sha256_file(ADAPTER_PATH)); self.assertEqual(meta["semantic_contract_sha256"],sha256_file(CONTRACT_PATH)); self.assertEqual(meta["supported_ops"],["eq","ge"])
     def test_registry(self):
         with REGISTRY.open("r",encoding="utf-8",newline="") as f: rows=list(csv.DictReader(f,delimiter="\t"))
-        self.assertEqual(len(rows),2)
+        self.assertTrue(rows)
         self.assertEqual(set(rows[0]),{"parameter_kind","adapter_id","semantic_contract_path","semantic_contract_sha256","adapter_contract_path","adapter_contract_sha256","implementation_path","implementation_sha256"})
-        self.assertEqual({r["parameter_kind"] for r in rows},{"sysctl","file-mode-owner"}); self.assertEqual(len({r["adapter_id"] for r in rows}),2)
+        self.assertEqual(len({r["parameter_kind"] for r in rows}),len(rows))
+        self.assertEqual(len({r["adapter_id"] for r in rows}),len(rows))
+        by_kind={r["parameter_kind"]:r for r in rows}
+        self.assertIn("sysctl",by_kind)
+        self.assertEqual(by_kind["sysctl"]["adapter_id"],ADAPTER.ADAPTER_ID)
         for row in rows:
             for pk,sk in (("semantic_contract_path","semantic_contract_sha256"),("adapter_contract_path","adapter_contract_sha256"),("implementation_path","implementation_sha256")):
                 p=ROOT/row[pk]; self.assertTrue(p.is_file(),row[pk]); self.assertEqual(sha256_file(p),row[sk],row[pk])

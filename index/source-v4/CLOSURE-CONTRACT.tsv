@@ -2,13 +2,20 @@ index_id	coverage_mode	expected_control_ids	basis
 SRC-0005	exact-control-set	FSTEC-LINUX-2022-2.3.1-GROUP-MODE,FSTEC-LINUX-2022-2.3.1-PASSWD-MODE,FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX	Full-clause review: three independently observable file-mode requirements represent chmod 644 /etc/passwd, chmod 644 /etc/group and chmod go-rwx /etc/shadow; shadow is not strengthened to 0600.
 SRC-0016	atomic-single	FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT	Full-clause review: one independently observable sysctl parameter.
 SRC-0017	atomic-single	FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT	Full-clause review: one independently observable sysctl parameter.
+SRC-0018	atomic-single	FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC	Full-clause review: one exact boot-parameter requirement init_on_alloc=1; the remaining sentence explains the corresponding kernel build default and per-boot effect.
+SRC-0019	atomic-single	FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE	Full-clause review: one exact bare boot flag slab_nomerge; the remaining sentence explains the corresponding kernel build default and per-boot effect.
+SRC-0020	exact-control-set	FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE,FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT,FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH	Full-clause review: three independently observable exact boot-parameter requirements represent iommu=force, iommu.strict=1 and iommu.passthrough=0.
+SRC-0021	atomic-single	FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET	Full-clause review: one exact boot-parameter requirement randomize_kstack_offset=1; the remaining sentence explains the corresponding kernel build default and per-boot effect.
+SRC-0022	atomic-single	FSTEC-LINUX-2022-2.4.7-MITIGATIONS	Full-clause review: one exact x86 boot-parameter requirement mitigations=auto,nosmt; current product target is ubuntu-24.04-x86_64.
 SRC-0023	atomic-single	FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN	Full-clause review: one independently observable sysctl parameter.
+SRC-0024	atomic-single	FSTEC-LINUX-2022-2.5.1-VSYSCALL	Full-clause review: one exact boot-parameter requirement vsyscall=none; the remaining sentence explains the corresponding kernel build default and per-boot effect.
 SRC-0025	atomic-single	FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID	Full-clause review: one independently observable sysctl parameter.
 SRC-0027	atomic-single	FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED	Full-clause review: one independently observable sysctl parameter.
 SRC-0028	atomic-single	FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES	Full-clause review: one independently observable sysctl parameter; remaining sentences are advisory compatibility notes, not separate requirements.
 SRC-0029	atomic-single	FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED	Full-clause review: one independently observable sysctl parameter; remaining sentences are advisory compatibility notes, not separate requirements.
 SRC-0030	atomic-single	FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD	Full-clause review: one independently observable sysctl parameter.
 SRC-0031	atomic-single	FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD	Full-clause review: one independently observable sysctl parameter.
+SRC-0032	atomic-single	FSTEC-LINUX-2022-2.5.9-TSX	Full-clause review: one exact boot-parameter requirement tsx=off.
 SRC-0033	atomic-single	FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR	Full-clause review: one independently observable sysctl lower-bound requirement; source says 4096 or greater and canonical ge 4096 represents that relation exactly without weakening it to eq.
 SRC-0035	atomic-single	FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE	Full-clause review: one independently observable sysctl parameter.
 SRC-0036	atomic-single	FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS	Full-clause review: one independently observable sysctl parameter; the remaining sentence is rationale, not a separate runtime requirement.

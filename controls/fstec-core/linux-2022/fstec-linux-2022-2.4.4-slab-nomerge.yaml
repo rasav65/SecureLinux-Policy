@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0019"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.4.4"
+  quote: "2.4.4. Запретить слияние кэшей ядерного аллокатора путём установки опции загрузки ядра slab_nomerge. Эта настройка позволяет изменить значение опции сборки ядра CONFIG_SLAB_MERGE_DEFAULT при запуске системы (per boot)."
+  quote_sha256: "6a5c7fa4c5804ef3c2e152c338da6c73553bb8bce5dbde0331e4ba4db09d8b6f"
+  norm: "norm-v1"
+requirement:
+  stated: "2.4.4. Запретить слияние кэшей ядерного аллокатора путём установки опции загрузки ядра slab_nomerge. Эта настройка позволяет изменить значение опции сборки ядра CONFIG_SLAB_MERGE_DEFAULT при запуске системы (per boot)."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "kernel-cmdline"
+  locator: "/proc/cmdline"
+  key: "slab_nomerge"
+expected:
+  op: "present"
+  value: true
+  type: "boolean"
+apply:
+  supported: false

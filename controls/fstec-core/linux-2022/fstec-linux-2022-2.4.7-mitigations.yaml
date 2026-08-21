@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.4.7-MITIGATIONS"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0022"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.4.7"
+  quote: "2.4.7. Включить средства защиты от аппаратных уязвимостей центрального процессора (для платформы x86) путём установки значения опции загрузки ядра mitigations=auto,nosmt."
+  quote_sha256: "593127f71a130fb574410cc9b249cf9ce42c1ec9698ebad648c79c4554d55ceb"
+  norm: "norm-v1"
+requirement:
+  stated: "2.4.7. Включить средства защиты от аппаратных уязвимостей центрального процессора (для платформы x86) путём установки значения опции загрузки ядра mitigations=auto,nosmt."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "kernel-cmdline"
+  locator: "/proc/cmdline"
+  key: "mitigations"
+expected:
+  op: "eq"
+  value: "auto,nosmt"
+  type: "string"
+apply:
+  supported: false

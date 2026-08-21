@@ -13,4 +13,4 @@ order и согласованность текущего product status.
 
 Errata 0.0.13: `test_project_map_v3.py` дополнительно запрещает изображать уже реализованные CHECK adapters/generator как future и проверяет current product checkpoint `SRC-0005 → CHECK-11`; `test_current_status.py` связывает этот checkpoint с current SOURCE-INDEX/CONTROL-MANIFEST/ADAPTER-REGISTRY.
 
-Current checkpoint regression requires SRC-0005/CHECK-11, the six-row sysctl exact-eq CHECK-17 batch, SRC-0040/CHECK-18 and SRC-0033/CHECK-19 lower-bound closure to be DONE before systematic FSTEC expansion remains the single current node.
+Current checkpoint regression requires SRC-0005/CHECK-11, the six-row sysctl exact-eq CHECK-17 batch, SRC-0040/CHECK-18, SRC-0033/CHECK-19 and the seven-row kernel-cmdline CHECK-28 batch to be DONE before systematic FSTEC expansion remains the single current node.

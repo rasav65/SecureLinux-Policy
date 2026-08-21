@@ -251,6 +251,176 @@
           "parameter": {
             "properties": {
               "kind": {
+                "const": "kernel-cmdline"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "type": {
+                          "const": "string"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "pattern": "^(?![\\s\\S]*[\\r\\n])[A-Za-z0-9_.,:+/-]+$"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "present"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "type": {
+                          "const": "boolean"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "enum": [
+                  "eq",
+                  "present"
+                ]
+              },
+              "type": {
+                "enum": [
+                  "string",
+                  "boolean"
+                ]
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "pattern": "^(?![\\s\\S]*[\\r\\n])[A-Za-z0-9_.-]+$"
+              },
+              "locator": {
+                "const": "/proc/cmdline"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
                 "const": "file-kv"
               }
             },
@@ -690,6 +860,7 @@
         "kind": {
           "enum": [
             "sysctl",
+            "kernel-cmdline",
             "file-kv",
             "file-mode-owner",
             "mount-option",

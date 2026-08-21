@@ -48,8 +48,8 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertEqual(set(adapters), {"sysctl", "file-mode-owner"})
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner"})
+        self.assertEqual(set(adapters), {"sysctl", "file-mode-owner", "kernel-cmdline"})
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline"})
         src0005 = [c for c in controls if c["index_id"] == "SRC-0005"]
         self.assertEqual(len(src0005), 3)
         self.assertEqual(
@@ -107,6 +107,32 @@ class GeneratorModel(unittest.TestCase):
             [c["index_id"] for c in controls if c["parameter_kind"] == "sysctl" and c["expected_op"] == "ge"],
             ["SRC-0033"],
         )
+        kernel_rows = {
+            c["control_id"]: (
+                c["index_id"],
+                c["parameter_locator"],
+                c["parameter_key"],
+                c["expected_op"],
+                c["expected_value"],
+            )
+            for c in controls
+            if c["parameter_kind"] == "kernel-cmdline"
+        }
+        self.assertEqual(
+            kernel_rows,
+            {
+                "FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC": ("SRC-0018", "/proc/cmdline", "init_on_alloc", "eq", "1"),
+                "FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE": ("SRC-0019", "/proc/cmdline", "slab_nomerge", "present", True),
+                "FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE": ("SRC-0020", "/proc/cmdline", "iommu", "eq", "force"),
+                "FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT": ("SRC-0020", "/proc/cmdline", "iommu.strict", "eq", "1"),
+                "FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH": ("SRC-0020", "/proc/cmdline", "iommu.passthrough", "eq", "0"),
+                "FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET": ("SRC-0021", "/proc/cmdline", "randomize_kstack_offset", "eq", "1"),
+                "FSTEC-LINUX-2022-2.4.7-MITIGATIONS": ("SRC-0022", "/proc/cmdline", "mitigations", "eq", "auto,nosmt"),
+                "FSTEC-LINUX-2022-2.5.1-VSYSCALL": ("SRC-0024", "/proc/cmdline", "vsyscall", "eq", "none"),
+                "FSTEC-LINUX-2022-2.5.9-TSX": ("SRC-0032", "/proc/cmdline", "tsx", "eq", "off"),
+            },
+        )
+        self.assertFalse(any(c["index_id"] == "SRC-0026" for c in controls))
         self.assertFalse(any(c["index_id"] == "SRC-0034" for c in controls))
         self.assertEqual(
             manifest_sha,
@@ -121,7 +147,7 @@ class GeneratorModel(unittest.TestCase):
         two = GEN.render_script(controls, adapters, manifest_sha, registry_sha, generator_sha)
         self.assertEqual(one, two)
         self.assertIn(f"CONTROL_COUNT={len(controls)}".encode("ascii"), one)
-        self.assertIn(b"ADAPTER_COUNT=2", one)
+        self.assertIn(b"ADAPTER_COUNT=3", one)
         self.assertIn(b"TOTAL=%d", one)
         for c in controls:
             self.assertGreaterEqual(one.count(c["control_id"].encode("utf-8")), 2)
@@ -150,6 +176,31 @@ class GeneratorModel(unittest.TestCase):
         self.assertIn(b"stat -L -c %a", rendered)
         self.assertIn(b"8#$_slp_mode & 8#$_slp_expected", rendered)
         self.assertIn(b'"parameter_kind":"file-mode-owner"', rendered)
+
+    def test_kernel_cmdline_adapter_selftest_and_render(self):
+        adapter_path = ROOT / "product/adapters/product-kernel-cmdline-check-v1.py"
+        cp = subprocess.run(
+            [os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", str(adapter_path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        self.assertIn("ADAPTER_SELFTEST=PASS", cp.stdout)
+
+        _, manifest_sha, adapters, registry_sha, controls = self.load_current()
+        sample = next(c for c in controls if c["parameter_kind"] == "kernel-cmdline")
+        rendered = GEN.render_script(
+            [sample],
+            adapters,
+            manifest_sha,
+            registry_sha,
+            sha256_file(GEN_PATH),
+        )
+        self.assertIn(b"/proc/cmdline", rendered)
+        self.assertIn(b"read -r -a _slp_tokens", rendered)
+        self.assertIn(b'"parameter_kind":"kernel-cmdline"', rendered)
 
     def test_unknown_kind_fails_closed(self):
         _, manifest_sha, adapters, registry_sha, controls = self.load_current()
@@ -208,7 +259,7 @@ class GeneratedArtifact(unittest.TestCase):
     def test_generator_cli_and_sidecar(self):
         rows, _, _, _, _ = load_current()
         self.assertIn(f"CONTROL_COUNT={len(rows)}\n", self.generator_stdout)
-        self.assertIn("ADAPTER_COUNT=2\n", self.generator_stdout)
+        self.assertIn("ADAPTER_COUNT=3\n", self.generator_stdout)
         self.assertIn("RESULT=PASS\n", self.generator_stdout)
         side = self.out.with_name(self.out.name + ".sha256")
         self.assertTrue(side.is_file())
@@ -235,7 +286,7 @@ class GeneratedArtifact(unittest.TestCase):
         self.assertIn("GENERATOR_ID=product-check-generator-v1\n", cp.stdout)
         rows, _, _, _, _ = load_current()
         self.assertIn(f"CONTROL_COUNT={len(rows)}\n", cp.stdout)
-        self.assertIn("ADAPTER_COUNT=2\n", cp.stdout)
+        self.assertIn("ADAPTER_COUNT=3\n", cp.stdout)
         self.assertIn("MUTATING_MODES=NONE\n", cp.stdout)
 
     def test_provenance_all_and_one(self):

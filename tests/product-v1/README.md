@@ -20,14 +20,14 @@
 `product/adapters/product-sysctl-check-v2.py` и `product/ADAPTER-REGISTRY.tsv`:
 
 - отдельная product identity, historical `sysctl-check-v1` не изменяется;
-- только `parameter.kind=sysctl`, `locator=sysctl`, `op=eq`,
-  `expected.type=integer`;
+- только `parameter.kind=sysctl`, `locator=sysctl`; current v2 поддерживает
+  `eq` и source-faithful integer lower-bound `ge`;
 - dotted sysctl key преобразуется в `/proc/sys/...`;
 - целое значение нормализуется как signed base10 без ведущих нулей;
 - VALUE/PASS, VALUE/FAIL, NOT_FOUND и ERROR;
 - ошибка чтения не создаёт неструктурированный stderr (P-01);
-- registry содержит ровно одну строку для `sysctl` и одну для
-  `file-mode-owner`, все contract/binding/implementation SHA совпадают.
+- registry содержит current строки для `sysctl`, `file-mode-owner` и
+  `kernel-cmdline`; все contract/binding/implementation SHA совпадают.
 
 `test_product_generator.py` — тесты tracked generator:
 
@@ -44,3 +44,9 @@
 Current-population regression also pins the exact `sysctl eq` semantics for `SRC-0030`, `SRC-0031`, `SRC-0036`–`SRC-0039` and `SRC-0040 / fs.suid_dumpable=0`, while requiring `SRC-0034` to remain absent until its procedural `после тестирования` qualifier is represented.
 
 Current sysctl regression covers `eq` and unbounded signed-integer `ge`; `ge` is used only for source clauses that explicitly define a lower bound.
+
+`test_product_generator.py` также покрывает новый
+`product-kernel-cmdline-check-v1`: exact `/proc/cmdline` token semantics,
+`eq`/`present`, absence as VALUE/FAIL, conflict as ERROR, adapter selftest,
+9 controls для 7 source rows и отсутствие `SRC-0026`/`SRC-0034` до отдельной
+семантики.

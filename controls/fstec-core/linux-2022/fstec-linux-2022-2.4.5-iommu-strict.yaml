@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0020"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.4.5"
+  quote: "2.4.5. Инициализировать механизм IOMMU путём установки значения для следующих опций загрузки ядра: iommu=force; iommu.strict=1; iommu.passthrough=0."
+  quote_sha256: "5d6db53b7945c06a610654f7b22d3f23b2840228e091cdf675568d3b6ecc3af5"
+  norm: "norm-v1"
+requirement:
+  stated: "2.4.5. Инициализировать механизм IOMMU путём установки значения для следующих опций загрузки ядра: iommu=force; iommu.strict=1; iommu.passthrough=0."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "kernel-cmdline"
+  locator: "/proc/cmdline"
+  key: "iommu.strict"
+expected:
+  op: "eq"
+  value: "1"
+  type: "string"
+apply:
+  supported: false

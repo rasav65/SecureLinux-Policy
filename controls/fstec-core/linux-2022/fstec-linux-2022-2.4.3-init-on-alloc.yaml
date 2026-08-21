@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0018"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.4.3"
+  quote: "2.4.3. Инициализировать динамическую ядерную память нулем при ее выделении путём установки значения опции загрузки ядра init_on_alloc=1. Эта настройка позволяет изменить значение опции сборки ядра CONFIG_INIT_ON_ALLOC_DEFAULT_ON при запуске системы (per boot)."
+  quote_sha256: "016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d"
+  norm: "norm-v1"
+requirement:
+  stated: "2.4.3. Инициализировать динамическую ядерную память нулем при ее выделении путём установки значения опции загрузки ядра init_on_alloc=1. Эта настройка позволяет изменить значение опции сборки ядра CONFIG_INIT_ON_ALLOC_DEFAULT_ON при запуске системы (per boot)."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "kernel-cmdline"
+  locator: "/proc/cmdline"
+  key: "init_on_alloc"
+expected:
+  op: "eq"
+  value: "1"
+  type: "string"
+apply:
+  supported: false

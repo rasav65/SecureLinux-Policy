@@ -57,6 +57,8 @@ PKG_PATTERN = single_line(r"[A-Za-z0-9][A-Za-z0-9+._:-]*")
 ABSOLUTE_PATH_PATTERN = single_line(r"/.*")
 MOUNT_OPTION_KEY_PATTERN = single_line(r"option::.+")
 PAM_LINE_KEY_PATTERN = single_line(r"active_line::.+")
+KERNEL_CMDLINE_KEY_PATTERN = single_line(r"[A-Za-z0-9_.-]+")
+KERNEL_CMDLINE_VALUE_PATTERN = single_line(r"[A-Za-z0-9_.,:+/-]+")
 
 
 ID_RE = re.compile(ID_PATTERN)
@@ -84,6 +86,28 @@ KIND_RULES = {
             {
                 "if": {"expected.op": {"const": "ge"}},
                 "then": {"expected.type": {"const": "integer"}},
+            },
+        ],
+    },
+    "kernel-cmdline": {
+        "locator": {"const": "/proc/cmdline"},
+        "key": {"pattern": KERNEL_CMDLINE_KEY_PATTERN},
+        "op": {"enum": ["eq", "present"]},
+        "type": {"enum": ["string", "boolean"]},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "eq"}},
+                "then": {
+                    "expected.type": {"const": "string"},
+                    "expected.value": {"pattern": KERNEL_CMDLINE_VALUE_PATTERN},
+                },
+            },
+            {
+                "if": {"expected.op": {"const": "present"}},
+                "then": {
+                    "expected.type": {"const": "boolean"},
+                    "expected.value": {"const": True},
+                },
             },
         ],
     },
@@ -163,6 +187,13 @@ OBSERVATION_VALUE_CONTRACTS = {
         "encodings": {
             "integer": "json-string-parse-int",
             "string": "json-string-literal",
+        },
+    },
+    "kernel-cmdline": {
+        "runner_status": "not-implemented",
+        "encodings": {
+            "string": "json-string-literal",
+            "boolean": "json-boolean",
         },
     },
     "systemd-unit-state": {

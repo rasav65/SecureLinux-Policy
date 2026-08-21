@@ -142,6 +142,8 @@ assert "SRC-0040 / 2.6.6" in current_map
 assert "CHECK-18" in current_map
 assert "SRC-0033 / 2.5.10" in current_map
 assert "CHECK-19" in current_map
+assert "kernel-cmdline exact-token batch" in current_map
+assert "CHECK-28" in current_map
 assert "МЫ ЗДЕСЬ<br/>systematic FSTEC expansion" in current_map
 for stale in (
     "МЫ ЗДЕСЬ<br/>Step 7B",

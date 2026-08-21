@@ -11,8 +11,12 @@
   contract для `file-mode-owner`;
 - `contracts/sysctl-check-semantic-v2.json` — current read-only semantic contract для
   `sysctl`; `eq` сохраняет exact semantics, `ge` разрешён только для integer lower bounds;
+- `contracts/kernel-cmdline-check-semantic-v1.json` — read-only exact-token contract
+  для фактической загрузочной строки `/proc/cmdline`;
 - `adapters/product-file-mode-owner-check-v1.py` + JSON binding;
 - `adapters/product-sysctl-check-v2.py` + JSON binding (v1 сохранён как предыдущая product identity);
+- `adapters/product-kernel-cmdline-check-v1.py` + JSON binding; только чтение
+  `/proc/cmdline`, без GRUB/APPLY/RESTORE;
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
   semantic contract / binding / implementation с SHA-256;
 - `generate-product-check-v1.py` — tracked deterministic generator current
@@ -57,6 +61,19 @@ failure; `NOT_FOUND`/`ERROR` делают итог `UNEVALUATED`.
 `vm.mmap_min_addr = 4096 или больше`, поэтому подмена на `eq 4096` запрещена.
 `eq`-controls не меняют своей semantics. Exact current population всегда
 берётся из `CONTROL-MANIFEST.tsv`.
+
+Следующий read-only kind `kernel-cmdline` принят после сверки с pinned
+engineering donor: donor уже читал `/proc/cmdline`, делил его на whitespace
+tokens и проверял exact boot tokens. В v3 этот механизм ужесточён fail-closed:
+для `eq` конфликтующие дубли одного key дают `ERROR`, отсутствие требуемого
+key — наблюдаемое `VALUE/FAIL`; для bare flag `present` отсутствие также
+`VALUE/FAIL`. Сам donor остаётся только implementation precedent.
+
+Через этот kind source-faithful закрываются `SRC-0018`, `SRC-0019`,
+`SRC-0020`, `SRC-0021`, `SRC-0022`, `SRC-0024`, `SRC-0032`. `SRC-0026 /
+2.5.3` намеренно остаётся `OPEN`: источник задаёт `debugfs=no-mount` с
+оговоркой `(по возможности off)`, что не сводится к одному exact token без
+отдельной semantics альтернатив/предпочтения. `SRC-0034` также остаётся OPEN.
 
 Formal `Gate 5 --probe-results` остаётся отдельным контрактным артефактом и не
 подменяется выводом generated CHECK. APPLY/RESTORE не реализованы.

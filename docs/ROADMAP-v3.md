@@ -56,8 +56,12 @@ Roadmap steps 8–11 относятся к будущему APPLY/RESTORE и ф�
 закрыты; затем закрыт exact-eq sysctl batch `SRC-0030`, `SRC-0031`,
 `SRC-0036`–`SRC-0039`, `SRC-0040 / 2.6.6` закрыт после точечного
 исправления terminal page-furniture boundary и CHECK-18, а `SRC-0033 /
-2.5.10` закрывается source-faithful lower-bound `sysctl ge 4096` через
-current sysctl adapter v2. Текущий product checkpoint внутри Step 7B —
+2.5.10` закрыт source-faithful lower-bound `sysctl ge 4096` через current
+sysctl adapter v2. Следующий donor-backed read-only kind `kernel-cmdline`
+закрывает exact boot-token rows `SRC-0018`, `SRC-0019`, `SRC-0020`,
+`SRC-0021`, `SRC-0022`, `SRC-0024`, `SRC-0032`; `SRC-0026` остаётся OPEN
+из-за альтернативной/предпочтительной формулировки `debugfs=no-mount
+(по возможности off)`. Текущий product checkpoint внутри Step 7B —
 систематическое представление оставшихся `OPEN` source rows.
 
 ## Правило сохранения инженерного донора

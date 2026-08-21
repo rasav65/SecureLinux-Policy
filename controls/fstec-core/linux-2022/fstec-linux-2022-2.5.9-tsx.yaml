@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.5.9-TSX"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0032"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.5.9"
+  quote: "2.5.9. Отключить технологию Transactional Synchronization Extensions (TSX) путём установки значения опции загрузки ядра tsx=off."
+  quote_sha256: "40b0ad985774f12adad55439e22a5ba29b3a2c50c9fedd16551fa261fd29464c"
+  norm: "norm-v1"
+requirement:
+  stated: "2.5.9. Отключить технологию Transactional Synchronization Extensions (TSX) путём установки значения опции загрузки ядра tsx=off."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "kernel-cmdline"
+  locator: "/proc/cmdline"
+  key: "tsx"
+expected:
+  op: "eq"
+  value: "off"
+  type: "string"
+apply:
+  supported: false

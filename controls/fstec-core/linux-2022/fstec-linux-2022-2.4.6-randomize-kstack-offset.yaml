@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0021"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.4.6"
+  quote: "2.4.6. Рандомизировать расположение ядерного стека путём установки значения опции загрузки ядра randomize_kstack_offset=1. Эта настройка позволяет изменить значение опции сборки ядра CONFIG_RANDOMIZE_KSTACK_OFFSET_ DEFAULT при запуске системы (per boot)."
+  quote_sha256: "69cbdb70f31aadd134129cae9eb95a96f836168646a821927cc3ea56ea58c980"
+  norm: "norm-v1"
+requirement:
+  stated: "2.4.6. Рандомизировать расположение ядерного стека путём установки значения опции загрузки ядра randomize_kstack_offset=1. Эта настройка позволяет изменить значение опции сборки ядра CONFIG_RANDOMIZE_KSTACK_OFFSET_ DEFAULT при запуске системы (per boot)."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "kernel-cmdline"
+  locator: "/proc/cmdline"
+  key: "randomize_kstack_offset"
+expected:
+  op: "eq"
+  value: "1"
+  type: "string"
+apply:
+  supported: false
