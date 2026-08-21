@@ -1230,3 +1230,9 @@ SHA-256:
 - Новая активная модель строится source-first.
 - Один control = один parameter.
 - Источник и literal quote должны быть машинно проверяемы.
+### Добавлено — SRC-0011 / 2.3.7: пользовательские cron-файлы
+
+- Добавлен aggregate kind `user-cron-files-mode` с read-only adapter `product-user-cron-files-mode-check-v1`.
+- Source-exact `chmod go-w` представлен как `bits-clear 0022`; owner/group и режимы root-каталогов не усиливаются.
+- Population рекурсивно включает regular non-symlink files под optional roots `/var/spool/cron` и `/var/spool/cron/crontabs`; overlap дедуплицируется. Пустая/отсутствующая population — PASS, неоднозначность или ошибка обхода/stat — ERROR.
+- Layout assumptions сверены отдельно на Ubuntu 22 FULL, Ubuntu 24 MINIMIZED/FULL, Ubuntu 26 MINIMIZED/FULL, Debian 12 SERVER и Debian 13 GNOME; эти наблюдения не расширяют current product target.

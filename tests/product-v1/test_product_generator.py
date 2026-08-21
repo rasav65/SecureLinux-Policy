@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 GEN_PATH = ROOT / "product" / "generate-product-check-v1.py"
 FILESET_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-optional-file-root-files-mode-check-v1.py"
 SHADOW_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-local-account-password-state-check-v1.py"
+USER_CRON_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-user-cron-files-mode-check-v1.py"
 BASH = shutil.which("bash")
 
 
@@ -44,6 +45,14 @@ def load_shadow_adapter():
 
 SHADOW = load_shadow_adapter()
 
+def load_user_cron_adapter():
+    spec = importlib.util.spec_from_file_location("slp_user_cron_adapter", USER_CRON_ADAPTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+USER_CRON = load_user_cron_adapter()
+
 
 def load_current():
     rows, manifest_sha = GEN.load_manifest(ROOT)
@@ -68,8 +77,8 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state"} <= set(adapters))
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode"})
         src0001 = [c for c in controls if c["index_id"] == "SRC-0001"]
         self.assertEqual(len(src0001), 1)
         self.assertEqual(
@@ -84,6 +93,12 @@ class GeneratorModel(unittest.TestCase):
         )
         self.assertTrue(all(c["parameter_kind"] == "optional-file-root-files-mode" for c in src0010))
         self.assertTrue(all(c["parameter_key"] == "mode" and c["expected_op"] == "bits-clear" and c["expected_value"] == "0033" for c in src0010))
+        src0011 = [c for c in controls if c["index_id"] == "SRC-0011"]
+        self.assertEqual(len(src0011), 1)
+        self.assertEqual(
+            (src0011[0]["parameter_kind"], src0011[0]["parameter_locator"], src0011[0]["parameter_key"], src0011[0]["expected_op"], src0011[0]["expected_value"]),
+            ("user-cron-files-mode", "/var/spool/cron|/var/spool/cron/crontabs", "mode", "bits-clear", "0022"),
+        )
         src0005 = [c for c in controls if c["index_id"] == "SRC-0005"]
         self.assertEqual(len(src0005), 3)
         self.assertEqual(
@@ -351,6 +366,91 @@ class OptionalFileRootFilesAdapterFixtures(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     FILESET.shell_function(*args)
 
+
+
+@unittest.skipIf(BASH is None, "bash not available")
+class UserCronFilesModeFixtures(unittest.TestCase):
+    def run_user_cron(self, roots):
+        source = USER_CRON._shell_function_for_roots("TEST-USER-CRON", [str(x) for x in roots])
+        return subprocess.run(
+            [BASH, "-c", "set -u\n" + source + "\nslp_check_TEST_USER_CRON"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+    def test_both_roots_absent_is_empty_pass(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            cp = self.run_user_cron([base / "cron", base / "cron" / "crontabs"])
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            self.assertEqual(cp.stderr, "")
+            self.assertEqual(
+                cp.stdout.strip(),
+                "SLP-CHECK-V1\tTEST-USER-CRON\tVALUE\troots_present=0;roots_absent=2;checked=0;violations=0\tPASS",
+            )
+
+    def test_full_layout_empty_population_pass_and_overlap(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            cron = base / "cron"; cron.mkdir()
+            crontabs = cron / "crontabs"; crontabs.mkdir()
+            cp = self.run_user_cron([cron, crontabs])
+            self.assertEqual(cp.stderr, "")
+            self.assertIn("roots_present=2;roots_absent=0;checked=0;violations=0\tPASS", cp.stdout)
+
+            user_file = crontabs / "alice"; user_file.write_text("x\n", encoding="utf-8"); os.chmod(user_file, 0o600)
+            cp = self.run_user_cron([cron, crontabs])
+            self.assertEqual(cp.stderr, "")
+            self.assertIn("roots_present=2;roots_absent=0;checked=1;violations=0\tPASS", cp.stdout)
+
+    def test_recursive_regular_file_pass_and_violation(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td); cron = base / "cron"; nested = cron / "a" / "b"; nested.mkdir(parents=True)
+            f = nested / "job"; f.write_text("x\n", encoding="utf-8"); os.chmod(f, 0o640)
+            self.assertIn("checked=1;violations=0\tPASS", self.run_user_cron([cron]).stdout)
+            os.chmod(f, 0o662)
+            self.assertIn("checked=1;violations=1\tFAIL", self.run_user_cron([cron]).stdout)
+
+    def test_symlink_special_root_file_and_traversal_error_fail_closed(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            target = base / "target"; target.write_text("x\n", encoding="utf-8")
+            root_link = base / "root-link"; root_link.symlink_to(base, target_is_directory=True)
+            self.assertEqual(self.run_user_cron([root_link]).stdout.strip(), "SLP-CHECK-V1\tTEST-USER-CRON\tERROR\t-\tERROR")
+
+            cron = base / "cron"; cron.mkdir(); (cron / "link").symlink_to(target)
+            self.assertEqual(self.run_user_cron([cron]).stdout.strip(), "SLP-CHECK-V1\tTEST-USER-CRON\tERROR\t-\tERROR")
+            (cron / "link").unlink()
+
+            if hasattr(os, "mkfifo"):
+                os.mkfifo(cron / "pipe")
+                self.assertEqual(self.run_user_cron([cron]).stdout.strip(), "SLP-CHECK-V1\tTEST-USER-CRON\tERROR\t-\tERROR")
+                (cron / "pipe").unlink()
+
+            bad_root = base / "file-root"; bad_root.write_text("x\n", encoding="utf-8")
+            self.assertEqual(self.run_user_cron([bad_root]).stdout.strip(), "SLP-CHECK-V1\tTEST-USER-CRON\tERROR\t-\tERROR")
+
+            locked = cron / "locked"; locked.mkdir(); os.chmod(locked, 0)
+            try:
+                cp = self.run_user_cron([cron])
+                # Root execution can bypass DAC in some CI containers; ordinary-user execution must fail closed.
+                if os.geteuid() != 0:
+                    self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-USER-CRON\tERROR\t-\tERROR")
+            finally:
+                os.chmod(locked, 0o700)
+
+    def test_generation_rejects_wrong_contract_fields(self):
+        good = "/var/spool/cron|/var/spool/cron/crontabs"
+        for args in (
+            ("TEST", "/var/spool/cron", "mode", "bits-clear", "0022"),
+            ("TEST", good, "owner", "bits-clear", "0022"),
+            ("TEST", good, "mode", "eq", "0022"),
+            ("TEST", good, "mode", "bits-clear", "0033"),
+        ):
+            with self.subTest(args=args):
+                with self.assertRaises(ValueError):
+                    USER_CRON.shell_function(*args)
 
 
 @unittest.skipIf(BASH is None, "bash not available")

@@ -167,6 +167,18 @@ KIND_RULES = {
             },
         ],
     },
+    "user-cron-files-mode": {
+        "locator": {"const": "/var/spool/cron|/var/spool/cron/crontabs"},
+        "key": {"const": "mode"},
+        "op": {"const": "bits-clear"},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "bits-clear"}},
+                "then": {"expected.value": {"const": "0022"}},
+            },
+        ],
+    },
     "local-account-password-state": {
         "locator": {"const": "/etc/shadow"},
         "key": {"const": "password-field"},

@@ -55,3 +55,18 @@ CHECK с RC=3 до выполнения policy checks.
 - дату;
 - exact product/control identity;
 - ссылку на tracked evidence или его SHA-256.
+## VM-наблюдения layout для SRC-0011
+
+Это **не** расширение `SUPPORTED` target и не acceptance полного product CHECK. Наблюдения используются только для проверки population/layout assumptions требования 2.3.7.
+
+| ОС | Тип установки | cron | `/var/spool/cron` | `/var/spool/cron/crontabs` | Regular files | Traversal errors |
+|---|---|---|---|---|---:|---:|
+| Ubuntu 22.04.5 LTS | **FULL** | `3.0pl1-137ubuntu3` | `0755 root:root` | `1730 root:gid112` | 0 | 0 |
+| Ubuntu 24.04.4 LTS | **MINIMIZED** | не установлен | отсутствует | отсутствует | 0 | 0 |
+| Ubuntu 24.04.4 LTS | **FULL** | `3.0pl1-184ubuntu2` | `0755 root:root` | `1730 root:gid990` | 0 | 0 |
+| Ubuntu 26.04 LTS | **MINIMIZED** | не установлен | отсутствует | отсутствует | 0 | 0 |
+| Ubuntu 26.04 LTS | **FULL** | `3.0pl1-200ubuntu1` | `0755 root:root` | `1730 root:gid986` | 0 | 0 |
+| Debian 12 (bookworm) | **SERVER** | `3.0pl1-162` | `0755 root:root` | `1730 root:gid101` | 0 | 0 |
+| Debian 13.4 (trixie) | **GNOME** | `3.0pl1-197` | `0755 root:root` | `1730 root:gid997` | 0 | 0 |
+
+Вывод для semantics: оба roots являются optional discovery roots; штатное отсутствие обоих roots и штатно пустая population должны давать compliant результат. Конкретный GID каталога `crontabs` различается между установками и поэтому не является policy condition SRC-0011.

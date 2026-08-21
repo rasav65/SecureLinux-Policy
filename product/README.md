@@ -93,3 +93,8 @@ Formal `Gate 5 --probe-results` остаётся отдельным контра
 ## SRC-0001 / 2.1.1
 
 Один aggregate control проверяет локальную account population из `/etc/passwd` против source-anchored `/etc/shadow`. Для каждого локального пользователя требуется определимая shadow-запись с непустым password field. Empty field → `VALUE/FAIL`; missing/unreadable/symlink/malformed/duplicate mapping → fail-closed `ERROR`. APPLY/RESTORE не реализованы.
+## SRC-0011 / 2.3.7
+
+Один aggregate control `user-cron-files-mode` проверяет только пользовательские cron-файлы под двумя donor-подтверждёнными optional discovery roots: `/var/spool/cron` и `/var/spool/cron/crontabs`. Обычные файлы обнаруживаются рекурсивно, пересечение roots дедуплицируется по абсолютному пути, а вложенные каталоги служат только контейнерами population. Точное source-отношение `chmod go-w` представлено как `mode bits-clear 0022`; требования к owner/group или к режиму root-каталогов не добавляются.
+
+Пустая population compliant: на Ubuntu 24/26 `MINIMIZED` пакет `cron` отсутствовал вместе с обоими roots; на Ubuntu 22 `FULL`, Ubuntu 24 `FULL`, Ubuntu 26 `FULL`, Debian 12 `SERVER` и Debian 13 `GNOME` roots присутствовали, но regular cron-файлов на момент диагностики не было. Эти VM-факты подтверждают layout assumptions, но не расширяют current product target. Symlink/special object, traversal/stat error или неоднозначность population дают `ERROR`; молчаливые donor-skips не переносятся.

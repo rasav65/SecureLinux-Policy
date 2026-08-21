@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0011"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.3.7"
+  quote: "2.3.7. Установить корректные права доступа к пользовательским файлам заданий cron при помощи команды вида: chmod go-w путь_к_файлу_заданий."
+  quote_sha256: "af9430a9911e812b6f4b9735f35554d02e4203f7c39a3cae3d1c03004eb9adbe"
+  norm: "norm-v1"
+requirement:
+  stated: "2.3.7. Установить корректные права доступа к пользовательским файлам заданий cron при помощи команды вида: chmod go-w путь_к_файлу_заданий."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "user-cron-files-mode"
+  locator: "/var/spool/cron|/var/spool/cron/crontabs"
+  key: "mode"
+expected:
+  op: "bits-clear"
+  value: "0022"
+  type: "string"
+apply:
+  supported: false
