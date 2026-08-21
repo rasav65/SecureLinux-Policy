@@ -11,7 +11,7 @@
 > не закрывает source-index rows.
 
 <!-- BEGIN GENERATED MAP STATUS -->
-`source rows=349 · controlled CLOSED=16 · OPEN=333 · canonical controls=18 · adapters=2 · target=ubuntu-24.04-x86_64`
+`source rows=349 · controlled CLOSED=17 · OPEN=332 · canonical controls=19 · adapters=2 · target=ubuntu-24.04-x86_64`
 
 Точные таблицы покрытия: [`docs/fstec-coverage.md`](fstec-coverage.md).
 <!-- END GENERATED MAP STATUS -->
@@ -197,7 +197,7 @@ flowchart TB
 flowchart LR
     CTRLNOW["canonical controls<br/>manifest-driven fstec-core population"]:::component
     REG["product/ADAPTER-REGISTRY.tsv<br/>single tracked adapter mapping"]:::component
-    SYS["product-sysctl-check-v1<br/>read-only"]:::closed
+    SYS["product-sysctl-check-v2<br/>read-only eq + integer ge"]:::closed
     FILE["product-file-mode-owner-check-v1<br/>read-only"]:::closed
     GEN["product/generate-product-check-v1.py<br/>tracked deterministic generator"]:::closed
     CHECK["generated CHECK<br/>current manifest population<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
@@ -303,13 +303,14 @@ flowchart LR
     P5["CHECK-11<br/>regenerate + read-only run<br/>DONE"]:::closed
     P6["sysctl exact-eq batch<br/>SRC-0030,0031,0036–0039 + CHECK-17<br/>DONE"]:::closed
     P7["SRC-0040 / 2.6.6<br/>terminal source-boundary fix + CHECK-18<br/>DONE"]:::closed
-    P8["МЫ ЗДЕСЬ<br/>systematic FSTEC expansion<br/>remaining OPEN rows"]:::current
-    P9["APPLY semantic contract<br/>NOT IMPLEMENTED"]:::future
-    P10["APPLY implementation<br/>future"]:::future
-    P11["RESTORE contract + implementation<br/>future"]:::future
-    P12["final distributable artifact<br/>future"]:::future
+    P8["SRC-0033 / 2.5.10<br/>sysctl lower-bound ge 4096 + CHECK-19<br/>DONE"]:::closed
+    P9["МЫ ЗДЕСЬ<br/>systematic FSTEC expansion<br/>remaining OPEN rows"]:::current
+    P10["APPLY semantic contract<br/>NOT IMPLEMENTED"]:::future
+    P11["APPLY implementation<br/>future"]:::future
+    P12["RESTORE contract + implementation<br/>future"]:::future
+    P13["final distributable artifact<br/>future"]:::future
 
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10 --> P11 --> P12
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10 --> P11 --> P12 --> P13
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
     classDef current fill:#ffe2a8,stroke:#c77800,color:#111,stroke-width:4px;
@@ -320,11 +321,12 @@ flowchart LR
 остаётся общим этапом FSTEC expansion. Текущий product checkpoint внутри него —
 систематическое представление оставшихся `OPEN` source rows после закрытия
 `SRC-0005 / 2.3.1`, CHECK-11, exact-eq sysctl batch `SRC-0030`, `SRC-0031`,
-`SRC-0036`–`SRC-0039` с CHECK-17 и `SRC-0040 / 2.6.6` после точечного
-terminal source-boundary fix с CHECK-18. Read-only `product-sysctl-check-v1`,
-`product-file-mode-owner-check-v1`, `product/generate-product-check-v1.py` и
-generated CHECK уже реализованы и не относятся к будущему APPLY/RESTORE
-implementation track.
+`SRC-0036`–`SRC-0039` с CHECK-17, `SRC-0040 / 2.6.6` после точечного
+terminal source-boundary fix с CHECK-18 и `SRC-0033 / 2.5.10` через
+source-faithful `sysctl ge 4096` с CHECK-19. Read-only
+`product-sysctl-check-v2`, `product-file-mode-owner-check-v1`,
+`product/generate-product-check-v1.py` и generated CHECK уже реализованы и не
+относятся к будущему APPLY/RESTORE implementation track.
 
 ## Что является источником истины
 

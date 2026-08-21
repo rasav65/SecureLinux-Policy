@@ -28,12 +28,13 @@ Parity-checker:
 
 Текущая control population читается непосредственно из
 `controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv`; checker не содержит
-ручного числа controls. На checkpoint этого batch результат:
-
-`controls=18 supported=18 matched=18 unsupported=0 missing_index=0 mismatches=0 errors=0`
+ручного числа controls. Regression требует, чтобы `controls`, `supported` и
+`matched` каждый раз равнялись фактическому числу строк current
+`CONTROL-MANIFEST.tsv`, при `unsupported=0`, `missing_index=0`,
+`mismatches=0`, `errors=0`.
 
 Следовательно, для всей current manifest population механически обеспечен
-паритет регенерации.
+паритет регенерации без исторического числового pin.
 
 Сам генератор `source:` пока поддерживает один из тринадцати текущих
 `unit_kind` — `numbered-position`. Если закоммиченный control ссылается на

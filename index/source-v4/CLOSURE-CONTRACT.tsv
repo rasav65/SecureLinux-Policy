@@ -9,6 +9,7 @@ SRC-0028	atomic-single	FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES	Full-clause re
 SRC-0029	atomic-single	FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED	Full-clause review: one independently observable sysctl parameter; remaining sentences are advisory compatibility notes, not separate requirements.
 SRC-0030	atomic-single	FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD	Full-clause review: one independently observable sysctl parameter.
 SRC-0031	atomic-single	FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD	Full-clause review: one independently observable sysctl parameter.
+SRC-0033	atomic-single	FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR	Full-clause review: one independently observable sysctl lower-bound requirement; source says 4096 or greater and canonical ge 4096 represents that relation exactly without weakening it to eq.
 SRC-0035	atomic-single	FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE	Full-clause review: one independently observable sysctl parameter.
 SRC-0036	atomic-single	FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS	Full-clause review: one independently observable sysctl parameter; the remaining sentence is rationale, not a separate runtime requirement.
 SRC-0037	atomic-single	FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS	Full-clause review: one independently observable sysctl parameter; the remaining sentence is rationale, not a separate runtime requirement.

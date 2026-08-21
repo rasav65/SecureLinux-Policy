@@ -9,10 +9,10 @@
 
 - `contracts/file-mode-owner-check-semantic-v1.json` — read-only semantic
   contract для `file-mode-owner`;
-- `contracts/sysctl-check-semantic-v1.json` — read-only semantic contract для
-  `sysctl`;
+- `contracts/sysctl-check-semantic-v2.json` — current read-only semantic contract для
+  `sysctl`; `eq` сохраняет exact semantics, `ge` разрешён только для integer lower bounds;
 - `adapters/product-file-mode-owner-check-v1.py` + JSON binding;
-- `adapters/product-sysctl-check-v1.py` + JSON binding;
+- `adapters/product-sysctl-check-v2.py` + JSON binding (v1 сохранён как предыдущая product identity);
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
   semantic contract / binding / implementation с SHA-256;
 - `generate-product-check-v1.py` — tracked deterministic generator current
@@ -48,14 +48,17 @@ failure; `NOT_FOUND`/`ERROR` делают итог `UNEVALUATED`.
 не реализованы.
 
 После CHECK-11 product track перешёл к систематическому представлению
-оставшихся `OPEN` source rows. Exact-eq batch использует существующий
-`product-sysctl-check-v1` для `SRC-0030`, `SRC-0031`, `SRC-0036`–`SRC-0039`.
-Следующий точечный шаг закрывает `SRC-0040 / 2.6.6` тем же read-only adapter:
-`fs.suid_dumpable = 0`. Перед этим source-skeleton исключает только точный
-конечный горизонтальный разделитель закреплённого PDF; нормативный quote
-заканчивается фразой `вредоносное поведение.`, а не page furniture. Новый
-adapter не создаётся. Exact current population всегда берётся из
-`CONTROL-MANIFEST.tsv`. Formal `Gate 5 --probe-results` остаётся отдельным
-контрактным артефактом и не подменяется выводом generated CHECK.
+оставшихся `OPEN` source rows. Exact-eq batch закрыл `SRC-0030`, `SRC-0031`,
+`SRC-0036`–`SRC-0039`; затем `SRC-0040 / 2.6.6` закрыт через
+`fs.suid_dumpable eq 0` после точечного удаления terminal page furniture.
+
+Текущий sysctl adapter v2 добавляет только source-faithful integer lower-bound
+оператор `ge`. Он нужен для `SRC-0033 / 2.5.10`: источник требует
+`vm.mmap_min_addr = 4096 или больше`, поэтому подмена на `eq 4096` запрещена.
+`eq`-controls не меняют своей semantics. Exact current population всегда
+берётся из `CONTROL-MANIFEST.tsv`.
+
+Formal `Gate 5 --probe-results` остаётся отдельным контрактным артефактом и не
+подменяется выводом generated CHECK. APPLY/RESTORE не реализованы.
 
 Тесты: `tests/product-v1/`.

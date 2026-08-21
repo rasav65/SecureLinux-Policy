@@ -384,6 +384,43 @@ def render_coverage(state: dict) -> str:
 
     lines.extend([
         "",
+        "## Покрытие по исходным документам",
+        "",
+        "| Source document | Total rows | Controlled CLOSED | Disposed CLOSED | OPEN | Canonical controls |",
+        "|---|---:|---:|---:|---:|---:|",
+    ])
+
+    by_source: dict[str, dict[str, int]] = {}
+    for src in state["source_rows"]:
+        bucket = by_source.setdefault(
+            src["source_id"],
+            {"total": 0, "controlled": 0, "disposed": 0, "open": 0, "controls": 0},
+        )
+        bucket["total"] += 1
+        if src["status"] == "OPEN":
+            bucket["open"] += 1
+        elif src["disposition"].strip():
+            bucket["disposed"] += 1
+        else:
+            bucket["controlled"] += 1
+
+    for control in state["controls"]:
+        source_id = state["source_by_id"][control["index_id"]]["source_id"]
+        by_source[source_id]["controls"] += 1
+
+    for source_id in sorted(by_source, key=lambda s: s.encode("utf-8")):
+        bucket = by_source[source_id]
+        lines.append(
+            f"| {md_cell(source_id)} | {bucket['total']} | {bucket['controlled']} | "
+            f"{bucket['disposed']} | {bucket['open']} | {bucket['controls']} |"
+        )
+
+    lines.extend([
+        "",
+        "Эта таблица описывает фактическую структуру корпуса, а не обещание превратить "
+        "каждую `OPEN` строку в host CHECK. По контракту source index строка закрывается "
+        "canonical control-set либо explicit disposition; выбор зависит от source semantics.",
+        "",
         "## Открытая часть корпуса",
         "",
         f"`{open_count}` source rows остаются `OPEN`. Полный перечень и их source metadata "

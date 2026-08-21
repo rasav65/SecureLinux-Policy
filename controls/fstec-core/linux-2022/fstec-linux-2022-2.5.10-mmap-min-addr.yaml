@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0033"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.5.10"
+  quote: "2.5.10. Настроить параметр ядра, который определяет минимальный виртуальный адрес, который процессу разрешено использовать для mmap, путём использования sysctl-опции vm.mmap_min_addr = 4096 или больше."
+  quote_sha256: "5b55fd931f99da5241c6bc05e33c7131ff091a282547b95f0699b17f515a6729"
+  norm: "norm-v1"
+requirement:
+  stated: "2.5.10. Настроить параметр ядра, который определяет минимальный виртуальный адрес, который процессу разрешено использовать для mmap, путём использования sysctl-опции vm.mmap_min_addr = 4096 или больше."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sysctl"
+  locator: "sysctl"
+  key: "vm.mmap_min_addr"
+expected:
+  op: "ge"
+  value: 4096
+  type: "integer"
+apply:
+  supported: false

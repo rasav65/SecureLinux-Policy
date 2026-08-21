@@ -78,8 +78,14 @@ KIND_RULES = {
     "sysctl": {
         "locator": {"const": "sysctl"},
         "key": {"pattern": SYSCTL_KEY_PATTERN},
-        "op": {"const": "eq"},
+        "op": {"enum": ["eq", "ge"]},
         "type": {"enum": ["integer", "string"]},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "ge"}},
+                "then": {"expected.type": {"const": "integer"}},
+            },
+        ],
     },
     "file-kv": {
         "locator": {"pattern": ABSOLUTE_PATH_PATTERN},

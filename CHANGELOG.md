@@ -12,7 +12,7 @@
 
 ### Текущее незавершённое состояние
 
-- После SRC-0040 / CHECK-18 остаются `333` `OPEN` source rows; текущий
+- После SRC-0033 / CHECK-19 остаются `332` `OPEN` source rows; текущий
   product checkpoint — систематическое FSTEC expansion по machine source truth.
 - Formal `Gate 5 --probe-results` для current product population остаётся
   отдельным контрактным артефактом.
@@ -23,17 +23,64 @@
 
 ### Известные незакрытые замечания
 
-- Отдельный будущий decision point: текущая `eq`-семантика sysctl следует
-  буквальному значению источника и поэтому может дать `FAIL` на более строгом
-  состоянии системы. На CHECK-8 это наблюдалось для
-  `kernel.unprivileged_bpf_disabled=2` при expected `1` и
-  `kernel.perf_event_paranoid=4` при expected `3`. Текущие controls задним
-  числом не меняются.
+- `eq`-controls продолжают следовать буквальному равенству источника и могут
+  дать `FAIL` на более строгом состоянии системы. На CHECK-8 это наблюдалось
+  для `kernel.unprivileged_bpf_disabled=2` при expected `1` и
+  `kernel.perf_event_paranoid=4` при expected `3`. Оператор `ge` добавлен
+  только для source clauses, которые сами задают нижнюю границу; существующие
+  `eq` controls задним числом не меняются.
 - Устаревшее примечание `Gate-1 quote blocked ...` осталось в строках индекса,
   для которых восстановленный текстовый источник уже указан.
 - Две historical observer fixtures (`observer-adversarial-fitness-v2`,
   `observer-fitness-v1`) не входят в current Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
+
+## [0.0.19] — 2026-08-20
+
+### Added — source-faithful sysctl lower bound / SRC-0033
+
+- Добавлен current read-only `product-sysctl-check-v2` и semantic contract v2:
+  `eq` сохраняет exact integer semantics; новый `ge` реализует математическое
+  сравнение signed base10 без зависимости от machine-word width.
+- `SRC-0033 / 2.5.10` переведён `OPEN → CLOSED` через
+  `FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR`:
+  `vm.mmap_min_addr ge 4096`.
+- Source quote SHA-256: `5b55fd931f99da5241c6bc05e33c7131ff091a282547b95f0699b17f515a6729`; фраза `4096 или больше` не подменяется
+  `eq 4096`.
+- Старый engineering donor используется только как corroborating implementation
+  precedent: в SecureLinux-NG `vm.mmap_min_addr` уже сравнивался как
+  `actual >= expected`; нормативным основанием остаётся pinned FSTEC source.
+
+### Changed — generated coverage
+
+- `docs/fstec-coverage.md` теперь содержит генерируемую таблицу по каждому
+  `source_id`: total / controlled CLOSED / disposed CLOSED / OPEN /
+  canonical controls.
+- Таблица устраняет двусмысленность общего знаменателя 349, не утверждая, что
+  каждая `OPEN` строка обязана стать host CHECK.
+- Текущий corpus: `349 / 17 controlled CLOSED / 332 OPEN`; controls: `19`.
+
+### Fixed — current documentation / regressions
+
+- `product/README.md` больше не описывает уже завершённый SRC-0040 как следующий
+  шаг и фиксирует current sysctl adapter v2.
+- Source-skeleton/source-parity/roadmap docs больше не пинят исторические
+  `18/18` или `8/8`; population выводится из current manifests.
+- Schema/runtime parity добавляет positive `sysctl ge integer` и negative
+  `sysctl ge string` cases.
+- Product adapter regression покрывает equal/greater/less, отрицательные и
+  200-digit lower-bound cases.
+
+### Tested
+
+- Source-skeleton verify: `19/19`.
+- Production source-block regeneration parity: `19/19`.
+- Schema/runtime differential parity: PASS; real jsonschema остаётся
+  обязательным RELEASE gate.
+- Product sysctl adapter v2 и generator regressions: PASS.
+- Gate 1/3/4 должны пройти на 19 controls; Gate 2 ожидаемо остаётся FAIL из-за
+  332 OPEN; formal Gate 5 без `probe-results` остаётся fail-closed.
+- Закрыто строк source index этим шагом: **1**.
 
 ## [0.0.18] — 2026-08-20
 

@@ -81,6 +81,17 @@ class GeneratorModel(unittest.TestCase):
                 "SRC-0039": ("sysctl", "fs.protected_regular", "eq", 2),
             },
         )
+        src0033 = [c for c in controls if c["index_id"] == "SRC-0033"]
+        self.assertEqual(len(src0033), 1)
+        self.assertEqual(
+            (
+                src0033[0]["parameter_locator"],
+                src0033[0]["parameter_key"],
+                src0033[0]["expected_op"],
+                src0033[0]["expected_value"],
+            ),
+            ("sysctl", "vm.mmap_min_addr", "ge", 4096),
+        )
         src0040 = [c for c in controls if c["index_id"] == "SRC-0040"]
         self.assertEqual(len(src0040), 1)
         self.assertEqual(
@@ -91,6 +102,10 @@ class GeneratorModel(unittest.TestCase):
                 src0040[0]["expected_value"],
             ),
             ("sysctl", "fs.suid_dumpable", "eq", 0),
+        )
+        self.assertEqual(
+            [c["index_id"] for c in controls if c["parameter_kind"] == "sysctl" and c["expected_op"] == "ge"],
+            ["SRC-0033"],
         )
         self.assertFalse(any(c["index_id"] == "SRC-0034" for c in controls))
         self.assertEqual(

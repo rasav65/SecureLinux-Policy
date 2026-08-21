@@ -24,7 +24,7 @@ for marker in (
     "DONOR_TO_V3_MAPPING",
     "REUSE / ADAPT / REJECT / DEFER",
     "product/ADAPTER-REGISTRY.tsv",
-    "product-sysctl-check-v1",
+    "product-sysctl-check-v2",
     "product-file-mode-owner-check-v1",
     "product/generate-product-check-v1.py",
     "NON_RELEASE_PRODUCT_CANDIDATE",
@@ -36,7 +36,7 @@ product_line = text.split("## 3. Текущая read-only product-line CHECK", 1
     "## 4. Инженерный донор", 1
 )[0]
 for marker in (
-    'product-sysctl-check-v1<br/>read-only"]:::closed',
+    'product-sysctl-check-v2<br/>read-only eq + integer ge"]:::closed',
     'product-file-mode-owner-check-v1<br/>read-only"]:::closed',
     'tracked deterministic generator"]:::closed',
     'generated CHECK<br/>current manifest population<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed',
@@ -52,7 +52,8 @@ assert 'P4["SRC-0005 / 2.3.1<br/>3 canonical file-mode controls<br/>DONE"]:::clo
 assert 'P5["CHECK-11<br/>regenerate + read-only run<br/>DONE"]:::closed' in current
 assert 'P6["sysctl exact-eq batch<br/>SRC-0030,0031,0036–0039 + CHECK-17<br/>DONE"]:::closed' in current
 assert 'P7["SRC-0040 / 2.6.6<br/>terminal source-boundary fix + CHECK-18<br/>DONE"]:::closed' in current
-assert 'P8["МЫ ЗДЕСЬ<br/>systematic FSTEC expansion<br/>remaining OPEN rows"]:::current' in current
+assert 'P8["SRC-0033 / 2.5.10<br/>sysctl lower-bound ge 4096 + CHECK-19<br/>DONE"]:::closed' in current
+assert 'P9["МЫ ЗДЕСЬ<br/>systematic FSTEC expansion<br/>remaining OPEN rows"]:::current' in current
 for marker in (
     "CHECK-8 product-line",
     "TEST BASELINE",
@@ -64,6 +65,8 @@ for marker in (
     "CHECK-17",
     "SRC-0040 / 2.6.6",
     "CHECK-18",
+    "SRC-0033 / 2.5.10",
+    "CHECK-19",
     "systematic FSTEC expansion",
     "APPLY semantic contract",
     "APPLY implementation",
@@ -82,6 +85,8 @@ positions = [current.index(marker) for marker in (
     "CHECK-17",
     "SRC-0040 / 2.6.6",
     "CHECK-18",
+    "SRC-0033 / 2.5.10",
+    "CHECK-19",
     "systematic FSTEC expansion",
     "APPLY semantic contract",
     "APPLY implementation",
@@ -107,5 +112,5 @@ assert "docs/PROJECT-MAP-v3.md" in readme
 print(
     "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=systematic-expansion "
     "src0005_check11_done=1 exact_eq_check17_done=1 src0040_check18_done=1 "
-    "future_apply_restore=1"
+    "src0033_check19_done=1 future_apply_restore=1"
 )

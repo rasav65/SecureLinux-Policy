@@ -131,6 +131,8 @@ def record(kind, locator, key, op, value, value_type,
 
 CASES = [
     ("sysctl accepted", record("sysctl", "sysctl", "kernel.dmesg_restrict", "eq", 1, "integer")),
+    ("sysctl ge integer accepted", record("sysctl", "sysctl", "vm.mmap_min_addr", "ge", 4096, "integer")),
+    ("sysctl ge string rejected", record("sysctl", "sysctl", "kernel.x", "ge", "4096", "string")),
     ("sysctl locator rejected", record("sysctl", "/proc/sys", "kernel.x", "eq", 1, "integer")),
     ("sysctl key rejected", record("sysctl", "sysctl", "kernel x", "eq", 1, "integer")),
     ("sysctl op rejected", record("sysctl", "sysctl", "kernel.x", "contains", "1", "string")),

@@ -64,6 +64,40 @@ assert "**GENERATED FILE.**" in coverage
 assert "CONTROLLED_CLOSED_WITH_CONTRACT=" in coverage
 assert "Готовность CHECK adapters" in coverage
 assert "Canonical controls, ещё не закрывающие source row" in coverage
+assert "## Покрытие по исходным документам" in coverage
+
+import csv
+with (ROOT / "index/source-v4/SOURCE-INDEX.tsv").open(
+    encoding="utf-8", newline=""
+) as stream:
+    source_rows = list(csv.DictReader(stream, delimiter="\t"))
+with (ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv").open(
+    encoding="utf-8", newline=""
+) as stream:
+    manifest_rows = list(csv.DictReader(stream, delimiter="\t"))
+
+by_source = {}
+source_by_id = {row["index_id"]: row for row in source_rows}
+for row in source_rows:
+    bucket = by_source.setdefault(
+        row["source_id"],
+        {"total": 0, "controlled": 0, "disposed": 0, "open": 0, "controls": 0},
+    )
+    bucket["total"] += 1
+    if row["status"] == "OPEN":
+        bucket["open"] += 1
+    elif row["disposition"].strip():
+        bucket["disposed"] += 1
+    else:
+        bucket["controlled"] += 1
+for control in manifest_rows:
+    by_source[source_by_id[control["index_id"]]["source_id"]]["controls"] += 1
+for source_id, bucket in by_source.items():
+    expected = (
+        f"| {source_id} | {bucket['total']} | {bucket['controlled']} | "
+        f"{bucket['disposed']} | {bucket['open']} | {bucket['controls']} |"
+    )
+    assert expected in coverage, expected
 
 # Product-facing docs must not retain the stale pilot presentation.
 product_docs = "\n".join(
@@ -106,6 +140,8 @@ assert "sysctl exact-eq batch" in current_map
 assert "CHECK-17" in current_map
 assert "SRC-0040 / 2.6.6" in current_map
 assert "CHECK-18" in current_map
+assert "SRC-0033 / 2.5.10" in current_map
+assert "CHECK-19" in current_map
 assert "МЫ ЗДЕСЬ<br/>systematic FSTEC expansion" in current_map
 for stale in (
     "МЫ ЗДЕСЬ<br/>Step 7B",

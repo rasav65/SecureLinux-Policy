@@ -3,9 +3,9 @@
 import csv, hashlib, importlib.util, json, shutil, subprocess, tempfile, unittest
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
-ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sysctl-check-v1.py"
-ADAPTER_JSON = ROOT / "product" / "adapters" / "product-sysctl-check-v1.json"
-CONTRACT_PATH = ROOT / "product" / "contracts" / "sysctl-check-semantic-v1.json"
+ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sysctl-check-v2.py"
+ADAPTER_JSON = ROOT / "product" / "adapters" / "product-sysctl-check-v2.json"
+CONTRACT_PATH = ROOT / "product" / "contracts" / "sysctl-check-semantic-v2.json"
 REGISTRY = ROOT / "product" / "ADAPTER-REGISTRY.tsv"
 BASH = shutil.which("bash")
 
@@ -22,10 +22,10 @@ ADAPTER=load_adapter()
 
 class Static(unittest.TestCase):
     def test_identity_and_validation(self):
-        self.assertEqual(ADAPTER.ADAPTER_ID, "product-sysctl-check-v1")
+        self.assertEqual(ADAPTER.ADAPTER_ID, "product-sysctl-check-v2")
         self.assertEqual(ADAPTER.PARAMETER_KIND, "sysctl")
         self.assertEqual(ADAPTER.proc_path("kernel.dmesg_restrict"), "/proc/sys/kernel/dmesg_restrict")
-        bad=[("C","/proc/sys","kernel.x","eq",1),("C","sysctl",".kernel.x","eq",1),("C","sysctl","kernel..x","eq",1),("C","sysctl","kernel.x","ge",1),("C","sysctl","kernel.x","eq","1"),("C","sysctl","kernel.x","eq",True),("C;id","sysctl","kernel.x","eq",1)]
+        bad=[("C","/proc/sys","kernel.x","eq",1),("C","sysctl",".kernel.x","eq",1),("C","sysctl","kernel..x","eq",1),("C","sysctl","kernel.x","gt",1),("C","sysctl","kernel.x","eq","1"),("C","sysctl","kernel.x","ge","4096"),("C","sysctl","kernel.x","eq",True),("C;id","sysctl","kernel.x","eq",1)]
         for args in bad:
             with self.assertRaises(ValueError, msg=repr(args)): ADAPTER.shell_function(*args)
     def test_read_only_and_p01_guard(self):
@@ -37,7 +37,7 @@ class Static(unittest.TestCase):
         self.assertEqual(contract["semantic_contract_id"],ADAPTER.SEMANTIC_CONTRACT_ID)
         self.assertEqual(meta["adapter_id"],ADAPTER.ADAPTER_ID); self.assertEqual(meta["parameter_kind"],ADAPTER.PARAMETER_KIND)
         self.assertEqual(meta["semantic_contract_id"],ADAPTER.SEMANTIC_CONTRACT_ID)
-        self.assertEqual(meta["implementation_sha256"],sha256_file(ADAPTER_PATH)); self.assertEqual(meta["semantic_contract_sha256"],sha256_file(CONTRACT_PATH)); self.assertEqual(meta["supported_ops"],["eq"])
+        self.assertEqual(meta["implementation_sha256"],sha256_file(ADAPTER_PATH)); self.assertEqual(meta["semantic_contract_sha256"],sha256_file(CONTRACT_PATH)); self.assertEqual(meta["supported_ops"],["eq","ge"])
     def test_registry(self):
         with REGISTRY.open("r",encoding="utf-8",newline="") as f: rows=list(csv.DictReader(f,delimiter="\t"))
         self.assertEqual(len(rows),2)
@@ -53,13 +53,13 @@ class Runtime(unittest.TestCase):
     def setUpClass(cls): cls.tmp=tempfile.mkdtemp(prefix="slp-product-sysctl-test-")
     @classmethod
     def tearDownClass(cls): shutil.rmtree(cls.tmp,ignore_errors=True)
-    def run_patched(self,content_bytes,expected):
+    def run_patched(self,content_bytes,expected,op="eq"):
         target=Path(self.tmp)/"target"
         if target.exists(): shutil.rmtree(target) if target.is_dir() else target.unlink()
         if content_bytes is None: pass
         elif content_bytes==b"__DIR__": target.mkdir()
         else: target.write_bytes(content_bytes)
-        src=ADAPTER.shell_function("CTRL-T","sysctl","slp_test.value","eq",expected)
+        src=ADAPTER.shell_function("CTRL-T","sysctl","slp_test.value",op,expected)
         src=src.replace(repr("/proc/sys/slp_test/value"),repr(str(target)),1)
         run=Path(self.tmp)/"run.sh"; run.write_text("set -u\n"+src+"\nslp_check_CTRL_T\n",encoding="utf-8")
         p=subprocess.run([BASH,str(run)],capture_output=True,text=True)
@@ -68,6 +68,15 @@ class Runtime(unittest.TestCase):
         return tuple(fields[2:])
     def test_value_pass(self): self.assertEqual(self.run_patched(b"001\n",1),("VALUE","1","PASS"))
     def test_value_fail(self): self.assertEqual(self.run_patched(b"+0002\n",1),("VALUE","2","FAIL"))
+    def test_ge_equal(self): self.assertEqual(self.run_patched(b"4096\n",4096,"ge"),("VALUE","4096","PASS"))
+    def test_ge_greater(self): self.assertEqual(self.run_patched(b"65536\n",4096,"ge"),("VALUE","65536","PASS"))
+    def test_ge_less(self): self.assertEqual(self.run_patched(b"4095\n",4096,"ge"),("VALUE","4095","FAIL"))
+    def test_ge_negative_boundaries(self):
+        self.assertEqual(self.run_patched(b"-2\n",-3,"ge"),("VALUE","-2","PASS"))
+        self.assertEqual(self.run_patched(b"-4\n",-3,"ge"),("VALUE","-4","FAIL"))
+    def test_ge_unbounded_decimal(self):
+        huge=10**200
+        self.assertEqual(self.run_patched((str(huge)+"\n").encode(),10**199,"ge"),("VALUE",str(huge),"PASS"))
     def test_negative_value(self): self.assertEqual(self.run_patched(b" -0003 \n",-3),("VALUE","-3","PASS"))
     def test_negative_zero_normalizes(self): self.assertEqual(self.run_patched(b"-000\n",0),("VALUE","0","PASS"))
     def test_not_found(self): self.assertEqual(self.run_patched(None,1),("NOT_FOUND","-","NOT_FOUND"))

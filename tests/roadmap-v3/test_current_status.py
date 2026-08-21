@@ -73,8 +73,9 @@ by_index = {row["index_id"]: row for row in index_rows}
 for index_id in ("SRC-0030", "SRC-0031", "SRC-0036", "SRC-0037", "SRC-0038", "SRC-0039"):
     assert by_index[index_id]["status"] == "CLOSED", index_id
     assert not by_index[index_id]["disposition"], index_id
-for index_id in ("SRC-0033", "SRC-0034"):
-    assert by_index[index_id]["status"] == "OPEN", index_id
+assert by_index["SRC-0033"]["status"] == "CLOSED"
+assert not by_index["SRC-0033"]["disposition"]
+assert by_index["SRC-0034"]["status"] == "OPEN"
 assert by_index["SRC-0040"]["status"] == "CLOSED"
 assert not by_index["SRC-0040"]["disposition"]
 
@@ -93,6 +94,8 @@ assert "sysctl exact-eq batch" in current
 assert "CHECK-17" in current
 assert "SRC-0040 / 2.6.6" in current
 assert "terminal source-boundary fix + CHECK-18" in current
+assert "SRC-0033 / 2.5.10" in current
+assert "sysctl lower-bound ge 4096 + CHECK-19" in current
 assert "systematic FSTEC expansion" in current
 assert "МЫ ЗДЕСЬ<br/>systematic FSTEC expansion" in current
 assert "МЫ ЗДЕСЬ<br/>Step 7B" not in current
