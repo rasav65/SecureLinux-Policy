@@ -126,6 +126,17 @@ class GeneratorModel(unittest.TestCase):
             ),
             ("sysctl", "vm.mmap_min_addr", "ge", 4096),
         )
+        src0034 = [c for c in controls if c["index_id"] == "SRC-0034"]
+        self.assertEqual(len(src0034), 1)
+        self.assertEqual(
+            (
+                src0034[0]["parameter_locator"],
+                src0034[0]["parameter_key"],
+                src0034[0]["expected_op"],
+                src0034[0]["expected_value"],
+            ),
+            ("sysctl", "kernel.randomize_va_space", "eq", 2),
+        )
         src0040 = [c for c in controls if c["index_id"] == "SRC-0040"]
         self.assertEqual(len(src0040), 1)
         self.assertEqual(
@@ -167,7 +178,6 @@ class GeneratorModel(unittest.TestCase):
             },
         )
         self.assertFalse(any(c["index_id"] == "SRC-0026" for c in controls))
-        self.assertFalse(any(c["index_id"] == "SRC-0034" for c in controls))
         self.assertEqual(
             manifest_sha,
             sha256_file(ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"),

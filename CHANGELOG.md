@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+### Added — SRC-0034 / 2.5.11 ASLR sysctl CHECK
+
+- `SRC-0034` переводится `OPEN → CLOSED` одним существующим `sysctl` control.
+- Source-exact requirement `kernel.randomize_va_space = 2` представлено без расширения semantics как `sysctl / eq / integer 2`.
+- Новый adapter/contract не создаётся; используется current `product-sysctl-check-v2`.
+- После batch: `349 / 27 controlled CLOSED / 322 OPEN`; canonical controls `36`; current adapters `5`.
+- CHECK остаётся read-only; APPLY/RESTORE и formal Gate5 probe-results не создаются.
+
 ### Added — SRC-0001 / 2.1.1 local account password-state CHECK
 
 - `SRC-0001` переводится `OPEN → CLOSED` одним aggregate control.

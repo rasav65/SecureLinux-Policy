@@ -79,7 +79,8 @@ for index_id in ("SRC-0018", "SRC-0019", "SRC-0020", "SRC-0021", "SRC-0022", "SR
     assert by_index[index_id]["status"] == "CLOSED", index_id
     assert not by_index[index_id]["disposition"], index_id
 assert by_index["SRC-0026"]["status"] == "OPEN"
-assert by_index["SRC-0034"]["status"] == "OPEN"
+assert by_index["SRC-0034"]["status"] == "CLOSED"
+assert not by_index["SRC-0034"]["disposition"]
 assert by_index["SRC-0040"]["status"] == "CLOSED"
 assert not by_index["SRC-0040"]["disposition"]
 
