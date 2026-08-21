@@ -32,7 +32,8 @@ marker at the same or a shallower depth, or at end of document. Markers are
 matched only when not preceded by a digit or a dot, so ``2.4.1`` inside a
 sentence cannot start a unit. The extracted span is stripped of surrounding whitespace. Source-specific
 page furniture may then be removed only by exact pinned rules: a terminal
-footer token at corpus EOF, or an index-specific trailing page-number token.
+footer token at corpus EOF, an index-specific trailing page-number token, or
+an index-specific inline page-number fragment with exact surrounding text.
 The result is re-normalized with norm-v1 and required to be unchanged -- if
 normalization would alter the span, the row is refused rather than guessed.
 
@@ -69,6 +70,18 @@ TERMINAL_PAGE_FURNITURE = {
 # is pinned to one exact index row and one exact trailing token.
 INDEX_TRAILING_PAGE_FURNITURE = {
     "SRC-0001": "3",
+}
+
+# Inline page-number furniture is also never stripped generically. For an
+# internal page break, both the raw fragment and the canonical replacement are
+# pinned to one index row. This makes a recovery-layout change fail closed.
+INDEX_INLINE_PAGE_FURNITURE = {
+    "SRC-0014": (
+        ".bash_profile, .bashrc, .profile, .bash_logout и т. п. - "
+        "файлы 5 настройки оболочки, .rhosts",
+        ".bash_profile, .bashrc, .profile, .bash_logout и т. п. - "
+        "файлы настройки оболочки, .rhosts",
+    ),
 }
 INDEX_FIELDS = {
     "index_id", "source_id", "source_file", "source_sha256", "source_role",
@@ -293,15 +306,39 @@ def strip_index_trailing_page_furniture(quote: str, row) -> str:
     return quote[:-len(suffix)].rstrip()
 
 
+def strip_index_inline_page_furniture(quote: str, row) -> str:
+    """Remove one exact inline page-number fragment for a pinned index row.
+
+    The complete surrounding fragment is pinned. It must occur exactly once;
+    absence or duplication is an error rather than a reason to guess.
+    Unlisted rows are unchanged.
+    """
+    pair = INDEX_INLINE_PAGE_FURNITURE.get(row["index_id"])
+    if pair is None:
+        return quote
+    raw_fragment, canonical_fragment = pair
+    hits = quote.count(raw_fragment)
+    if hits != 1:
+        raise ValueError(
+            f"pinned inline page furniture mismatch for {row['index_id']}: "
+            f"matches={hits}"
+        )
+    return quote.replace(raw_fragment, canonical_fragment, 1)
+
+
 def build_source_block(project_root: Path, row, normalize_text):
     if row["quote_anchor_ready"] != "YES":
         raise ValueError("index quote_anchor_ready != YES")
     corpus = resolve_corpus(project_root, row).read_text(encoding="utf-8")
     if corpus.endswith("\n"):
         corpus = corpus[:-1]
-    quote = extract_unit(corpus, row["locator"])
-    quote = strip_terminal_page_furniture(corpus, quote, row)
+    raw_quote = extract_unit(corpus, row["locator"])
+    if raw_quote not in corpus:
+        raise ValueError("raw extracted quote is not a substring of the corpus")
+
+    quote = strip_terminal_page_furniture(corpus, raw_quote, row)
     quote = strip_index_trailing_page_furniture(quote, row)
+    quote = strip_index_inline_page_furniture(quote, row)
 
     # An unpinned unit that runs across a page break ends with a page number,
     # which is page furniture rather than normative text. Stripping it
@@ -317,9 +354,6 @@ def build_source_block(project_root: Path, row, normalize_text):
         canonical = canonical[:-1]
     if canonical != quote:
         raise ValueError("extracted span is not canonical under norm-v1")
-    if quote not in corpus:
-        raise ValueError("extracted quote is not a substring of the corpus")
-
     return {
         "index_id": row["index_id"],
         "doc_id": row["source_id"],

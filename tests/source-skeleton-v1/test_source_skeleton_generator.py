@@ -13,10 +13,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CONTROL_MANIFEST = ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 GEN = ROOT / "tools/source_skeleton_generator.py"
-EXPECTED_GEN_SHA = "2451b67aed71a534e849f612cec7916dfdbacfb9a0237a439455ec3d03d85607"
+EXPECTED_GEN_SHA = "c90b04f271ef62920ab8697c5212cae13d010481980b46c10c3137aa3ddcf387"
 EXPECTED_SRC0018_SHA = "016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d"
 EXPECTED_SRC0040_SHA = "f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d"
 EXPECTED_SRC0001_SHA = "799b85637928264e6f43d5e32d8cc6b48af6694e30f6fbf5e4c6ddef3a207f3b"
+EXPECTED_SRC0014_SHA = "c243edbafcfee7fadede64b0dec702e3f8f92553d6240a89c36575934958b5f0"
 EXPECTED_REFUSED = {"SRC-0133"}
 
 
@@ -115,6 +116,45 @@ else:
     raise AssertionError("mismatched pinned page token was accepted")
 fixture_row1["index_id"] = "SRC-0018"
 assert gate.strip_index_trailing_page_furniture("fixture 3", fixture_row1) == "fixture 3"
+
+# Exact pinned inline page boundary for SRC-0014. The recovered corpus contains
+# page number "5" between "файлы" and "настройки оболочки"; only this exact
+# index + surrounding fragment is admitted as page furniture.
+block14 = gate.build_source_block(ROOT, by_id["SRC-0014"], normalize_text)
+assert block14["quote_sha256"] == EXPECTED_SRC0014_SHA
+assert "файлы настройки оболочки" in block14["quote"]
+assert "файлы 5 настройки оболочки" not in block14["quote"]
+raw14 = gate.extract_unit(
+    gate.resolve_corpus(ROOT, by_id["SRC-0014"]).read_text(encoding="utf-8").rstrip("\n"),
+    "2.3.10",
+)
+assert "файлы 5 настройки оболочки" in raw14
+
+fixture_row14 = dict(by_id["SRC-0014"])
+raw_fragment14, canonical_fragment14 = gate.INDEX_INLINE_PAGE_FURNITURE["SRC-0014"]
+assert gate.strip_index_inline_page_furniture(
+    raw_fragment14, fixture_row14
+) == canonical_fragment14
+try:
+    gate.strip_index_inline_page_furniture(
+        raw_fragment14.replace("файлы 5", "файлы 4"), fixture_row14
+    )
+except ValueError as exc:
+    assert "pinned inline page furniture mismatch" in str(exc)
+else:
+    raise AssertionError("mismatched pinned inline page token was accepted")
+try:
+    gate.strip_index_inline_page_furniture(
+        raw_fragment14 + " " + raw_fragment14, fixture_row14
+    )
+except ValueError as exc:
+    assert "matches=2" in str(exc)
+else:
+    raise AssertionError("duplicated pinned inline page fragment was accepted")
+fixture_row14["index_id"] = "SRC-0018"
+assert gate.strip_index_inline_page_furniture(
+    raw_fragment14, fixture_row14
+) == raw_fragment14
 
 # Exact known example.
 block = gate.build_source_block(ROOT, by_id["SRC-0018"], normalize_text)
@@ -251,5 +291,6 @@ print(
     "index_generic_path=1 negative_duplicate_index=1 "
     "negative_quote_anchor=1 negative_normalizer_sha=1 "
     "negative_norm_sha=1 internal_page_exact=1 internal_page_negative=2 "
+    "inline_page_exact=1 inline_page_negative=2 "
     "terminal_footer_exact=1 terminal_footer_negative=2"
 )

@@ -10,6 +10,13 @@
 
 ## [Unreleased]
 
+### Исправлено — source boundary SRC-0014 / 2.3.10
+
+- В recovered `fstec-linux-2022` подтверждён внутренний page token `5` между словами `файлы` и `настройки оболочки`; соседние page tokens `3`, `4`, `6`, `7` подтверждают структуру page furniture.
+- `source_skeleton_generator.py` удаляет этот token только для `SRC-0014` по exact pinned surrounding fragment; generic inline-number stripping запрещён, отсутствие или дублирование pinned fragment дают fail-closed ошибку.
+- Canonical quote SHA-256 после удаления только page furniture: `c243edbafcfee7fadede64b0dec702e3f8f92553d6240a89c36575934958b5f0`.
+- Добавлены positive/negative regression fixtures для inline boundary; `SRC-0014` остаётся `OPEN`, этим errata закрыто `0` source rows.
+
 ### Добавлено — SRC-0013 / 2.3.9: аудит SUID/SGID-приложений
 
 - `SRC-0013` переводится `OPEN → CLOSED` через exact-control-set из двух controls одного read-only kind `suid-sgid-applications`.
