@@ -692,6 +692,92 @@
           "parameter": {
             "properties": {
               "kind": {
+                "const": "local-account-password-state"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "all-nonempty"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "all-nonempty"
+              },
+              "type": {
+                "const": "boolean"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "password-field"
+              },
+              "locator": {
+                "const": "/etc/shadow"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
                 "const": "mount-option"
               }
             },
@@ -957,6 +1043,7 @@
             "file-kv",
             "file-mode-owner",
             "optional-file-root-files-mode",
+            "local-account-password-state",
             "mount-option",
             "systemd-unit-state",
             "package-presence",

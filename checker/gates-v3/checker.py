@@ -159,6 +159,18 @@ KIND_RULES = {
             },
         ],
     },
+    "local-account-password-state": {
+        "locator": {"const": "/etc/shadow"},
+        "key": {"const": "password-field"},
+        "op": {"const": "all-nonempty"},
+        "type": {"const": "boolean"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "all-nonempty"}},
+                "then": {"expected.value": {"const": True}},
+            },
+        ],
+    },
     "mount-option": {
         "locator": {"pattern": ABSOLUTE_PATH_PATTERN},
         "key": {"anyOf": [{"const": "fstype"},

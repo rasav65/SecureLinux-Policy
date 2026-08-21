@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+### Added — SRC-0001 / 2.1.1 local account password-state CHECK
+
+- `SRC-0001` переводится `OPEN → CLOSED` одним aggregate control.
+- Новый kind `local-account-password-state` использует локальную population `/etc/passwd` и source-anchored state `/etc/shadow`.
+- Для каждого локального пользователя matching shadow password field должен быть непустым; empty field → `VALUE/FAIL`.
+- Missing/unreadable/symlink/malformed/duplicate account-state mapping → fail-closed `ERROR`; partial PASS запрещён.
+- Adapter read-only: никаких `passwd`/`usermod`/`chpasswd`/APPLY/RESTORE.
+- После batch: `349 / 26 controlled CLOSED / 323 OPEN`; canonical controls `35`; current adapters `5`.
+
 ### Fixed — SRC-0001 source quote boundary
 
 - `source_skeleton_generator.py` получил одну exact pinned exception для `SRC-0001`: trailing page token `3` после `/etc/shadow.` удаляется как page furniture только для этой строки.

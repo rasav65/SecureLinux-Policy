@@ -14,11 +14,13 @@
 - `contracts/kernel-cmdline-check-semantic-v1.json` — read-only exact-token contract
   для фактической загрузочной строки `/proc/cmdline`;
 - `contracts/optional-file-root-files-mode-check-semantic-v1.json` — read-only contract для optional system-cron root + direct regular files; missing root = `VALUE/PASS`, неоднозначный nested/symlink/special population = `ERROR`;
+- `contracts/local-account-password-state-check-semantic-v1.json` — read-only aggregate contract для локальных `/etc/passwd` accounts + source-anchored `/etc/shadow`; empty password field = `FAIL`, неполная/неоднозначная mapping = `ERROR`;
 - `adapters/product-file-mode-owner-check-v1.py` + JSON binding;
 - `adapters/product-sysctl-check-v2.py` + JSON binding (v1 сохранён как предыдущая product identity);
 - `adapters/product-kernel-cmdline-check-v1.py` + JSON binding; только чтение
   `/proc/cmdline`, без GRUB/APPLY/RESTORE;
 - `adapters/product-optional-file-root-files-mode-check-v1.py` + JSON binding; только `stat/find/sort`, без chmod/chown/APPLY;
+- `adapters/product-local-account-password-state-check-v1.py` + JSON binding; только чтение `/etc/passwd` и `/etc/shadow`, без passwd/usermod/APPLY;
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
   semantic contract / binding / implementation с SHA-256;
 - `generate-product-check-v1.py` — tracked deterministic generator current
@@ -85,3 +87,7 @@ Formal `Gate 5 --probe-results` остаётся отдельным контра
 ## SRC-0010 / 2.3.6
 
 Шесть перечисленных source roots представлены exact-control-set. Проверка использует только source-exact `go-wx` → `bits-clear 0033`; donor `600/700 root:root` не переносится. Для directory root проверяются root + direct regular files. Nested directory, symlink, special entry или incomplete traversal дают `ERROR`; отсутствие перечисленного root разрешено источником и даёт `VALUE/PASS`.
+
+## SRC-0001 / 2.1.1
+
+Один aggregate control проверяет локальную account population из `/etc/passwd` против source-anchored `/etc/shadow`. Для каждого локального пользователя требуется определимая shadow-запись с непустым password field. Empty field → `VALUE/FAIL`; missing/unreadable/symlink/malformed/duplicate mapping → fail-closed `ERROR`. APPLY/RESTORE не реализованы.

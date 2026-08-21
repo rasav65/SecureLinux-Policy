@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 GEN_PATH = ROOT / "product" / "generate-product-check-v1.py"
 FILESET_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-optional-file-root-files-mode-check-v1.py"
+SHADOW_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-local-account-password-state-check-v1.py"
 BASH = shutil.which("bash")
 
 
@@ -34,6 +35,14 @@ def load_fileset_adapter():
 
 
 FILESET = load_fileset_adapter()
+
+def load_shadow_adapter():
+    spec = importlib.util.spec_from_file_location("slp_shadow_adapter", SHADOW_ADAPTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+SHADOW = load_shadow_adapter()
 
 
 def load_current():
@@ -59,8 +68,14 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode"} <= set(adapters))
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state"})
+        src0001 = [c for c in controls if c["index_id"] == "SRC-0001"]
+        self.assertEqual(len(src0001), 1)
+        self.assertEqual(
+            (src0001[0]["parameter_kind"], src0001[0]["parameter_locator"], src0001[0]["parameter_key"], src0001[0]["expected_op"], src0001[0]["expected_value"]),
+            ("local-account-password-state", "/etc/shadow", "password-field", "all-nonempty", True),
+        )
         src0010 = [c for c in controls if c["index_id"] == "SRC-0010"]
         self.assertEqual(len(src0010), 6)
         self.assertEqual(
@@ -294,6 +309,63 @@ class OptionalFileRootFilesAdapterFixtures(unittest.TestCase):
             with self.subTest(args=args):
                 with self.assertRaises(ValueError):
                     FILESET.shell_function(*args)
+
+
+
+@unittest.skipIf(BASH is None, "bash not available")
+class LocalAccountPasswordStateFixtures(unittest.TestCase):
+    def run_shadow(self, passwd_text, shadow_text):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            passwd = base / "passwd"
+            shadow = base / "shadow"
+            passwd.write_text(passwd_text, encoding="utf-8")
+            shadow.write_text(shadow_text, encoding="utf-8")
+            source = SHADOW._shell_function_for_paths(
+                "TEST-SHADOW", str(passwd), str(shadow),
+                "password-field", "all-nonempty", True,
+            )
+            return subprocess.run(
+                [BASH, "-c", "set -u\n" + source + "\nslp_check_TEST_SHADOW"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            )
+
+    def test_pass_nonempty_hash_and_lock_markers(self):
+        cp = self.run_shadow(
+            "root:x:0:0:root:/root:/bin/bash\nuser:x:1000:1000::/home/user:/bin/bash\n",
+            "root:!:1:0:99999:7:::\nuser:$6$abc:1:0:99999:7:::\n",
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        self.assertIn("\tVALUE\taccounts=2;empty=0\tPASS", cp.stdout)
+
+    def test_empty_password_is_fail(self):
+        cp = self.run_shadow(
+            "root:x:0:0:root:/root:/bin/bash\nuser:x:1000:1000::/home/user:/bin/bash\n",
+            "root:!:1:0:99999:7:::\nuser::1:0:99999:7:::\n",
+        )
+        self.assertEqual(cp.stderr, "")
+        self.assertIn("\tVALUE\taccounts=2;empty=1\tFAIL", cp.stdout)
+
+    def test_missing_mapping_and_malformed_are_error(self):
+        cp = self.run_shadow(
+            "root:x:0:0:root:/root:/bin/bash\nuser:x:1000:1000::/home/user:/bin/bash\n",
+            "root:!:1:0:99999:7:::\n",
+        )
+        self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SHADOW\tERROR\t-\tERROR")
+        cp = self.run_shadow("broken\n", "root:!:1:0:99999:7:::\n")
+        self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SHADOW\tERROR\t-\tERROR")
+
+    def test_generation_rejects_wrong_contract_fields(self):
+        for args in (
+            ("TEST", "/tmp/shadow", "password-field", "all-nonempty", True),
+            ("TEST", "/etc/shadow", "password", "all-nonempty", True),
+            ("TEST", "/etc/shadow", "password-field", "eq", True),
+            ("TEST", "/etc/shadow", "password-field", "all-nonempty", False),
+        ):
+            with self.subTest(args=args):
+                with self.assertRaises(ValueError):
+                    SHADOW.shell_function(*args)
 
 
 @unittest.skipIf(BASH is None, "bash not available")
