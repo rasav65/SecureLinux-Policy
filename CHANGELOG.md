@@ -10,6 +10,31 @@
 
 ## [Unreleased]
 
+### Added — SRC-0002 / 2.1.2 SSH root-login CHECK
+
+- `SRC-0002` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN`.
+- Source-exact `PermitRootLogin no` закреплён именно за main `/etc/ssh/sshd_config`; managed drop-in без main directive source row не закрывает.
+- Новый read-only kind `sshd-root-login` обрабатывает active `Include`, проверяет `sshd -t` и effective root-context `sshd -T -C`; PASS требует main global `no` и effective `no`.
+- Conditional Match non-`no` и parser/read ambiguity дают fail-closed `ERROR`; global duplicates adjudicated OpenSSH effective semantics, а не простым grep.
+- Privileged evidence matrix 7/7 показала отрицательные default states: `without-password` на Ubuntu 22/24 и Debian 12/13, `prohibit-password` на Ubuntu 26; ни одна reference installation не имела source-exact main `no`.
+- SSH test fixture создаёт fake `sshd` во временном каталоге внутри test workspace, поэтому DEV/RELEASE не зависят от системного `/tmp` с `noexec`; product/adapter semantics не меняются.
+- После шага: `349 / 34 controlled CLOSED / 315 OPEN`; canonical controls `44`; adapters `11`. Formal Gate5 probe-results, APPLY/RESTORE и SSH reload/restart не создаются.
+
+### Исправлено — SRC-0002 parser hardening после adversarial review
+
+- Исправлена OpenSSH Include-scope семантика: каждый included file наследует текущий `Match`-scope содержащего файла, но его собственные `Match` не протекают обратно.
+- Tokenizer больше не обрезает `#` внутри token; поддерживает quoted/escaped arguments, CRLF и whitespace/один `=` как separator для проверяемых SSH-директив.
+- Include-glob fail-closed hardened: `builtin compgen`, явный `LC_ALL=C` sort с проверяемым RC, pinned `find/readlink`, проверка newline pathnames; ошибки discovery/sort не могут превратиться в PASS.
+- Неверный lexical-order oracle заменён на scope-restoration fixture; добавлены adversarial случаи для `#` в имени, quoted Include, compgen shadowing, sort failure, newline pathname, quoted/CRLF `PermitRootLogin`.
+- Project-integrity reverse-completeness обобщена: полный local `SHA256SUMS` определяется по принятому base HEAD и затем обязан покрывать весь текущий Git-visible subtree; scoped/historical manifests сохраняют собственную population.
+
+### Исправлено — SRC-0002 audit hardening
+
+- Include-glob теперь сортируется явно в лексикографическом порядке перед рекурсивным разбором; ambient shell glob order не может изменить CHECK semantics.
+- Parser проверяемых SSH-директив принимает OpenSSH-разделение keyword/value пробелом или одним `=`; malformed relevant directives остаются fail-closed `ERROR`.
+- В `controls/fstec-core/linux-2022/SHA256SUMS` восстановлены пять ранее потерянных действующих YAML; project-integrity теперь проверяет полноту этого local manifest в обе стороны.
+- Добавлены adversarial fixtures для reverse Include-glob order, `=`-форм и malformed `PermitRootLogin`.
+
 ### Added — UNIFIED CLI / QUICK START v1
 
 - Добавлен tracked user-facing `securelinux-policy.sh` с sidecar SHA-256; обычному пользователю для current CHECK больше не требуется запускать Python generator.

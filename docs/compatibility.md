@@ -122,3 +122,7 @@ Current CHECK использует тот же локальный account select
 Для каждого существующего selected home требуется exact `0700`, потому что source приводит именно `chmod 700`. Отсутствие home path не объявляется нарушением существования; symlink/non-directory/stat ambiguity даёт `ERROR`. Ownership не добавляется.
 
 Семь privileged read-only VM runs подтвердили layout assumptions: Debian 12 `SERVER` и Debian 13 `GNOME` имели `/root` и `/home/user` mode `0700`; Ubuntu 22 `FULL`, Ubuntu 24 `MINIMIZED/FULL` и Ubuntu 26 `MINIMIZED/FULL` имели `/root=0700`, `/home/user=0750`. Эти наблюдения не расширяют current product target и не заменяют source-exact expected `0700`.
+
+## SRC-0002 / SSH root login — privileged evidence matrix
+
+Read-only evidence helper `slp-vm-batch-src0002-src0004-evidence-v1` выполнен на семи reference installations: Ubuntu 22 FULL, Ubuntu 24 MINIMIZED/FULL, Ubuntu 26 MINIMIZED/FULL, Debian 12 SERVER, Debian 13 GNOME. Во всех runs main `/etc/ssh/sshd_config` не содержал active global `PermitRootLogin`; syntax `sshd -t` был valid. Effective root-context был `without-password` на Ubuntu 22/24 и Debian 12/13, `prohibit-password` на Ubuntu 26. Поэтому все семь являются отрицательными current-state примерами относительно source-exact expected `no`. Эти наблюдения подтверждают необходимость effective-config semantics, но не расширяют current product target `ubuntu-24.04-x86_64`.

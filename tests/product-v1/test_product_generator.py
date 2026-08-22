@@ -19,6 +19,7 @@ STANDARD_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-standard-
 SUID_SGID_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-suid-sgid-applications-check-v1.py"
 HOME_SENSITIVE_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-home-sensitive-files-mode-check-v1.py"
 HOME_DIRECTORIES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-home-directories-mode-check-v1.py"
+SSHD_ROOT_LOGIN_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sshd-root-login-check-v1.py"
 BASH = shutil.which("bash")
 
 
@@ -89,6 +90,14 @@ def load_home_directories_adapter():
 
 HOME_DIRECTORIES = load_home_directories_adapter()
 
+def load_sshd_root_login_adapter():
+    spec = importlib.util.spec_from_file_location("slp_sshd_root_login_adapter", SSHD_ROOT_LOGIN_ADAPTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+SSHD_ROOT_LOGIN = load_sshd_root_login_adapter()
+
 
 def load_current():
     rows, manifest_sha = GEN.load_manifest(ROOT)
@@ -113,8 +122,14 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode"} <= set(adapters))
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login"})
+        src0002 = [c for c in controls if c["index_id"] == "SRC-0002"]
+        self.assertEqual(len(src0002), 1)
+        self.assertEqual(
+            (src0002[0]["parameter_kind"], src0002[0]["parameter_locator"], src0002[0]["parameter_key"], src0002[0]["expected_op"], src0002[0]["expected_value"]),
+            ("sshd-root-login", "/etc/ssh/sshd_config", "PermitRootLogin", "eq", "no"),
+        )
         src0001 = [c for c in controls if c["index_id"] == "SRC-0001"]
         self.assertEqual(len(src0001), 1)
         self.assertEqual(
@@ -967,6 +982,217 @@ class GeneratedArtifact(unittest.TestCase):
         self.assertEqual(self.run_check("--provenance", "NO-SUCH-CONTROL").returncode, 2)
 
 
+class SshdRootLoginAdapterFixtures(unittest.TestCase):
+    def run_fixture(
+        self, config_text=None, effective="no", syntax_rc=0, include_files=None,
+        make_symlink=False, shadow_compgen=False, sort_fail=False,
+    ):
+        if BASH is None:
+            self.skipTest("bash not found")
+        include_files = include_files or {}
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            cfg = root / "sshd_config"
+            if config_text is not None:
+                config_text = config_text.replace("/etc/ssh/TEST-INCLUDE.conf", str(root / "TEST-INCLUDE.conf"))
+                config_text = config_text.replace("/etc/ssh/TEST-INCLUDE-DIR", str(root / "TEST-INCLUDE-DIR"))
+                cfg.write_bytes(config_text.encode("utf-8"))
+            if make_symlink:
+                target = root / "real-config"
+                target.write_text("PermitRootLogin no\n", encoding="utf-8")
+                if cfg.exists():
+                    cfg.unlink()
+                cfg.symlink_to(target)
+            for name, body in include_files.items():
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(body.encode("utf-8"))
+            sshd = root / "sshd"
+            sshd.write_text(
+                "#!/usr/bin/env bash\n"
+                "if [[ ${1:-} == -t ]]; then exit " + str(syntax_rc) + "; fi\n"
+                "if [[ ${1:-} == -T ]]; then printf '%s\\n' 'permitrootlogin " + effective + "'; exit 0; fi\n"
+                "exit 2\n",
+                encoding="utf-8",
+            )
+            sshd.chmod(0o755)
+            sort_path = "/usr/bin/sort"
+            if sort_fail:
+                fake_sort = root / "sort"
+                fake_sort.write_text("#!/usr/bin/env bash\nexit 74\n", encoding="utf-8")
+                fake_sort.chmod(0o755)
+                sort_path = str(fake_sort)
+            block = SSHD_ROOT_LOGIN._shell_function_for_fixture(
+                "SSH.TEST", str(cfg), str(sshd), "PermitRootLogin", "eq", "no", sort_path
+            )
+            prelude = "compgen() { return 1; }\n" if shadow_compgen else ""
+            cp = subprocess.run(
+                [BASH, "-c", "set -u\n" + prelude + block + "\nslp_check_SSH_TEST\n"],
+                text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+            )
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            return cp.stdout.strip().split("\t")
+
+    def test_positive_main_no(self):
+        row = self.run_fixture("PermitRootLogin no\n")
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertIn("effective=no", row[3])
+
+    def test_openssh_separator_quote_and_crlf_forms(self):
+        for line in (
+            "PermitRootLogin=no\n",
+            "PermitRootLogin = no\n",
+            "PermitRootLogin= no\n",
+            "PermitRootLogin =no\n",
+            'PermitRootLogin "no"\n',
+            "PermitRootLogin 'no'\n",
+            'PermitRootLogin="no"\n',
+            "PermitRootLogin no\r\n",
+        ):
+            with self.subTest(line=line):
+                row = self.run_fixture(line)
+                self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        row = self.run_fixture("PermitRootLogin no\nMatch=User root\nPermitRootLogin yes\n")
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        row = self.run_fixture(
+            "PermitRootLogin no\nInclude=/etc/ssh/TEST-INCLUDE.conf\n",
+            include_files={"TEST-INCLUDE.conf": "Match User root\nPermitRootLogin yes\n"},
+        )
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_malformed_relevant_directives_error(self):
+        for line in (
+            "PermitRootLogin\n",
+            "PermitRootLogin no extra\n",
+            "PermitRootLogin==no\n",
+            'PermitRootLogin "no\n',
+            "Include=\n",
+            "Match=\n",
+        ):
+            with self.subTest(line=line):
+                row = self.run_fixture(line)
+                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_include_scope_is_restored_between_glob_members(self):
+        row = self.run_fixture(
+            "PermitRootLogin no\nInclude /etc/ssh/TEST-INCLUDE-DIR/*.conf\n",
+            include_files={
+                "TEST-INCLUDE-DIR/10-match.conf": "Match User nobody\n",
+                "TEST-INCLUDE-DIR/20-global.conf": "PermitRootLogin yes\n",
+            },
+        )
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+
+    def test_include_scope_push_pop_and_inheritance(self):
+        # Match created inside Include must not leak back to following main-file directives.
+        row = self.run_fixture(
+            "Include /etc/ssh/TEST-INCLUDE.conf\nPermitRootLogin no\n",
+            include_files={"TEST-INCLUDE.conf": "Match User nobody\n"},
+        )
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertIn("main_global_no=1", row[3])
+
+        # Conversely, an Include reached from Match scope must inherit that scope.
+        row = self.run_fixture(
+            "PermitRootLogin no\nMatch User nobody\nInclude /etc/ssh/TEST-INCLUDE.conf\n",
+            include_files={"TEST-INCLUDE.conf": "PermitRootLogin yes\n"},
+        )
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_comment_marker_inside_include_filename_is_not_comment(self):
+        row = self.run_fixture(
+            "PermitRootLogin no\nInclude /etc/ssh/TEST-INCLUDE-DIR/file#prod.conf # trailing comment\n",
+            include_files={
+                "TEST-INCLUDE-DIR/file#prod.conf": "Match User root\nPermitRootLogin yes\n",
+            },
+        )
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_quoted_include_is_parsed(self):
+        row = self.run_fixture(
+            'PermitRootLogin no\nInclude "/etc/ssh/TEST-INCLUDE.conf"\n',
+            include_files={"TEST-INCLUDE.conf": "Match User root\nPermitRootLogin yes\n"},
+        )
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_compgen_function_shadow_cannot_hide_include_population(self):
+        row = self.run_fixture(
+            "PermitRootLogin no\nInclude /etc/ssh/TEST-INCLUDE-DIR/*.conf\n",
+            include_files={
+                "TEST-INCLUDE-DIR/20.conf": "Match User root\nPermitRootLogin yes\n",
+            },
+            shadow_compgen=True,
+        )
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_sort_failure_is_error(self):
+        row = self.run_fixture(
+            "PermitRootLogin no\nInclude /etc/ssh/TEST-INCLUDE-DIR/*.conf\n",
+            include_files={
+                "TEST-INCLUDE-DIR/20.conf": "Match User root\nPermitRootLogin yes\n",
+            },
+            sort_fail=True,
+        )
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_newline_glob_member_is_error(self):
+        row = self.run_fixture(
+            "PermitRootLogin no\nInclude /etc/ssh/TEST-INCLUDE-DIR/*.conf\n",
+            include_files={
+                "TEST-INCLUDE-DIR/bad\nfragment.conf": "Match User root\nPermitRootLogin yes\n",
+            },
+        )
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_glob_implementation_is_explicit_and_builtin(self):
+        block = SSHD_ROOT_LOGIN._shell_function_for_fixture(
+            "SSH.TEST", "/tmp/sshd_config", "/tmp/sshd", "PermitRootLogin", "eq", "no"
+        )
+        self.assertIn('builtin compgen -G', block)
+        self.assertIn('LC_ALL=C "$_slp_sort"', block)
+        self.assertIn('set -o pipefail', block)
+
+    def test_main_directive_absent_fails(self):
+        row = self.run_fixture("PasswordAuthentication no\n")
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+
+    def test_main_non_no_fails(self):
+        row = self.run_fixture("PermitRootLogin prohibit-password\n", effective="prohibit-password")
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+
+    def test_global_include_before_main_controls_effective(self):
+        row = self.run_fixture(
+            "Include /etc/ssh/TEST-INCLUDE.conf\nPermitRootLogin no\n",
+            effective="prohibit-password",
+            include_files={"TEST-INCLUDE.conf": "PermitRootLogin prohibit-password\n"},
+        )
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+
+    def test_match_non_no_fails_closed_error(self):
+        row = self.run_fixture("PermitRootLogin no\nMatch User root\n  PermitRootLogin yes\n")
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_match_no_is_safe(self):
+        row = self.run_fixture("PermitRootLogin no\nMatch User root\n  PermitRootLogin no\n")
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+
+    def test_effective_non_no_fails(self):
+        row = self.run_fixture("PermitRootLogin no\n", effective="prohibit-password")
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+
+    def test_syntax_failure_errors(self):
+        row = self.run_fixture("PermitRootLogin no\n", syntax_rc=1)
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_missing_config_not_found(self):
+        row = self.run_fixture(None)
+        self.assertEqual((row[2], row[4]), ("NOT_FOUND", "FAIL"))
+
+    def test_symlink_config_errors(self):
+        row = self.run_fixture(None, make_symlink=True)
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+
 class UnifiedCliArtifact(unittest.TestCase):
     GEN_V2 = ROOT / "product/generate-product-check-v2.py"
     ARTIFACT = ROOT / "securelinux-policy.sh"
@@ -1017,8 +1243,8 @@ SLP_POLICY_RC=1
             )
             self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
             self.assertIn("GENERATOR_ID=product-check-generator-v2\n", cp.stdout)
-            self.assertIn("CONTROL_COUNT=43\n", cp.stdout)
-            self.assertIn("ADAPTER_COUNT=10\n", cp.stdout)
+            self.assertIn("CONTROL_COUNT=44\n", cp.stdout)
+            self.assertIn("ADAPTER_COUNT=11\n", cp.stdout)
             self.assertEqual(out.read_bytes(), self.ARTIFACT.read_bytes())
             self.assertEqual(out.with_name(out.name + ".sha256").read_bytes(), self.SIDECAR.read_bytes())
         expected = f"{sha256_file(self.ARTIFACT)}  {self.ARTIFACT.name}\n"
@@ -1073,7 +1299,7 @@ SLP_POLICY_RC=1
         prov = self.run_cli("--provenance")
         self.assertEqual(prov.returncode, 0)
         rows = [json.loads(x) for x in prov.stdout.splitlines()]
-        self.assertEqual(len(rows), 43)
+        self.assertEqual(len(rows), 44)
         one = self.run_cli("--provenance", rows[0]["control_id"])
         self.assertEqual(json.loads(one.stdout)["control_id"], rows[0]["control_id"])
         for args in (("--bogus",), ("--help", "extra"), ("--check", "--format"),

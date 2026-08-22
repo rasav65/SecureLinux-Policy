@@ -1,5 +1,5 @@
-12a725ce134d2d7de248b5d832046e3c525d276ff6208816831079f234bd5b43  ADAPTER-REGISTRY.tsv
-b482b62d98b8a45a9cc9889c0b9b61ecac29a05020f9662053d89438e2dd13f5  README.md
+67c5690b1b862343c5df1b3a16694c7a8cbd6856242aaec8fca1188cc9a5e762  ADAPTER-REGISTRY.tsv
+518c93b5df5131d8fb8b7a0fde13ccb69a23451c0854f438d7cc9c2398c68563  README.md
 ea6c62f0c9fb1455830378f0a069a7d214f10ce7f3f621c8307dff6c797f1d8a  adapters/product-file-mode-owner-check-v1.json
 02765c2d3deb62fbcd16a637f14c55407fa0a2e7102a205e85624bf18dc93bee  adapters/product-file-mode-owner-check-v1.py
 f699ddb309987acb0383bd297c9f5aab067c2b02a874ab964d47e4c9af60fa43  adapters/product-home-directories-mode-check-v1.json
@@ -14,6 +14,8 @@ ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275  adapters/produ
 f92af716622ef9ef5c9463e0496a4d5cb636729a087fd8520a89a5d0e6cc6a47  adapters/product-local-account-password-state-check-v1.py
 81b7ed8d496af95c68c7b31fbc90f190085bbff2e4021248770f3bb83c15d85f  adapters/product-optional-file-root-files-mode-check-v1.json
 8e6bde277ad265352f3549a22411daf9d4416d80c8c683e346221b173aea2991  adapters/product-optional-file-root-files-mode-check-v1.py
+bfa23394817ce3ecb5d28756e41cdf25059b5094d5decb23028b0091b67022d1  adapters/product-sshd-root-login-check-v1.json
+e275d54b72f98715993cfc9843dd5145073107b69aad1b550fcedfeaa92b6e6d  adapters/product-sshd-root-login-check-v1.py
 4d60671baf64d13f586e1507781b987765e8bc66727046d1181ad8869d58332e  adapters/product-standard-system-paths-mode-check-v1.json
 299a44565dcd8dc9d10539326a34371498cb24df2be77382d29a2fcd12e180ab  adapters/product-standard-system-paths-mode-check-v1.py
 f4fd2c4f55967a4dc9c0ffa8c59f64a8b6f4b2262782cb2f4d0714dac067dc08  adapters/product-suid-sgid-applications-check-v1.json
@@ -31,6 +33,7 @@ b737347b3377148507c544e0dc2f2eb8fa0b8548ec04449ea33de8e05c0d578b  contracts/home
 4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a  contracts/kernel-cmdline-check-semantic-v2.json
 2dbfb302061eab4d698dd5c74c15132ca92d0fd8f98808582986dbe8cd4c2cb1  contracts/local-account-password-state-check-semantic-v1.json
 391d2db8f698fd6c34e0bce7adf830ffd59079402dc2363d1a149d497d0a1aa1  contracts/optional-file-root-files-mode-check-semantic-v1.json
+db8f1a56bb13c28cb0fb77eafdbeeac3ccd7439ae11df34a65e1c24ec7c0c6ba  contracts/sshd-root-login-check-semantic-v1.json
 bc44b45c985fd83ce4d0dcd9c87d7f8add24ff57a6cf081040a7f9d7d605fe71  contracts/standard-system-paths-mode-check-semantic-v1.json
 7a5f6780dfd5ec858f4e4c89d706f60ee35387678f5ca8437c7631fbd0eefaaa  contracts/suid-sgid-applications-check-semantic-v1.json
 91e259288f5d87c1dd9d6e734724274c23ebd137e9c44d471b2d37c15757e053  contracts/sysctl-check-semantic-v1.json

@@ -52,3 +52,5 @@ Current sysctl regression covers `eq` and unbounded signed-integer `ge`; `ge` is
 семантики.
 
 Дополнительный `UnifiedCliArtifact` в том же test-file проверяет byte-exact parity tracked `securelinux-policy.sh` с `generate-product-check-v2.py`, fixed-column pretty output, raw/JSON, `--failed`, metadata/provenance и fail-closed APPLY/RESTORE stubs.
+
+`test_product_generator.py` также содержит positive/negative/adversarial fixtures для SRC-0002 `sshd-root-login`: main `PermitRootLogin no`, whitespace/`=`/quoted/CRLF формы, malformed relevant directives, восстановление Match-scope между Include-файлами, lexical glob order, `#` внутри pathname, quoted Include, function-shadowed `compgen`, sort failure, newline pathname, Include precedence, Match ambiguity, syntax/effective failure, missing и symlink config.

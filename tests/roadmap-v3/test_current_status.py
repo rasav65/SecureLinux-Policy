@@ -86,6 +86,8 @@ assert by_index["SRC-0013"]["status"] == "CLOSED"
 assert not by_index["SRC-0013"]["disposition"]
 assert by_index["SRC-0014"]["status"] == "CLOSED"
 assert not by_index["SRC-0014"]["disposition"]
+assert by_index["SRC-0002"]["status"] == "CLOSED"
+assert not by_index["SRC-0002"]["disposition"]
 assert by_index["SRC-0015"]["status"] == "CLOSED"
 assert not by_index["SRC-0015"]["disposition"]
 assert by_index["SRC-0026"]["status"] == "CLOSED"
@@ -96,7 +98,7 @@ assert by_index["SRC-0040"]["status"] == "CLOSED"
 assert not by_index["SRC-0040"]["disposition"]
 
 adapter_kinds = {row["parameter_kind"] for row in adapters}
-assert {"sysctl", "file-mode-owner", "kernel-cmdline", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode"} <= adapter_kinds
+assert {"sysctl", "file-mode-owner", "kernel-cmdline", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login"} <= adapter_kinds
 assert (ROOT / "product/generate-product-check-v1.py").is_file()
 assert (ROOT / "product/generate-product-check-v2.py").is_file()
 assert (ROOT / "securelinux-policy.sh").is_file()

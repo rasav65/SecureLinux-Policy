@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0002"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.1.2"
+  quote: "2.1.2. Обеспечить отключение входа суперпользователя в систему по протоколу SSH путём установки для параметра PermitRootLogin значения no в файле /etc/ssh/sshd_config."
+  quote_sha256: "c671457700fd0fc656b34ccab9796a6b3b31a304492a26c3f317f0279e753785"
+  norm: "norm-v1"
+requirement:
+  stated: "2.1.2. Обеспечить отключение входа суперпользователя в систему по протоколу SSH путём установки для параметра PermitRootLogin значения no в файле /etc/ssh/sshd_config."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sshd-root-login"
+  locator: "/etc/ssh/sshd_config"
+  key: "PermitRootLogin"
+expected:
+  op: "eq"
+  value: "no"
+  type: "string"
+apply:
+  supported: false

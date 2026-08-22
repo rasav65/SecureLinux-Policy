@@ -106,29 +106,57 @@ assert seen_exceptions == PINNED_HISTORICAL_MANIFEST_EXCEPTIONS, (
     PINNED_HISTORICAL_MANIFEST_EXCEPTIONS,
 )
 
-# product/SHA256SUMS is a complete subtree manifest, not a scoped/historical one.
-# Require the reverse direction too: every Git-visible product file must be bound.
-product_manifest_rel = "product/SHA256SUMS"
-product_targets = set()
-for lineno, line in enumerate(
-    (ROOT / product_manifest_rel).read_text(encoding="utf-8").splitlines(), 1
-):
-    if not line:
-        continue
-    match = re.fullmatch(r"([0-9a-f]{64})  (.+)", line)
-    assert match is not None, (product_manifest_rel, lineno, line)
-    rel_target = (Path("product") / Path(match.group(2))).as_posix()
-    assert rel_target not in product_targets, (product_manifest_rel, rel_target)
-    product_targets.add(rel_target)
+# Infer complete-subtree local manifests from the accepted base HEAD.
+# A manifest that exactly covered its HEAD subtree remains complete; scoped/historical
+# manifests retain their narrower population and continue to receive only one-way checks.
+def manifest_target_set(manifest_rel: str, text: str) -> set[str]:
+    base = Path(manifest_rel).parent
+    targets = set()
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if not line:
+            continue
+        match = re.fullmatch(r"([0-9a-f]{64})  (.+)", line)
+        assert match is not None, (manifest_rel, lineno, line)
+        local = Path(match.group(2))
+        assert not local.is_absolute(), (manifest_rel, lineno, local)
+        assert ".." not in local.parts, (manifest_rel, lineno, local)
+        rel_target = (base / local).as_posix()
+        assert rel_target not in targets, (manifest_rel, rel_target)
+        targets.add(rel_target)
+    return targets
 
-product_expected = {
-    rel for rel in visible
-    if rel.startswith("product/") and rel != product_manifest_rel
-}
-assert product_targets == product_expected, (
-    sorted(product_expected - product_targets),
-    sorted(product_targets - product_expected),
-)
+
+complete_subtree_manifests = []
+for manifest_rel in local_manifests:
+    base = Path(manifest_rel).parent.as_posix()
+    head_manifest = run(["git", "show", f"HEAD:{manifest_rel}"], ROOT)
+    if head_manifest.returncode != 0:
+        continue
+    head_targets = manifest_target_set(manifest_rel, head_manifest.stdout)
+    head_visible = set(
+        run(["git", "ls-tree", "-r", "--name-only", "HEAD", "--", base], ROOT).stdout.splitlines()
+    )
+    head_expected = {rel for rel in head_visible if rel != manifest_rel}
+    if head_targets != head_expected:
+        continue
+
+    current_targets = manifest_target_set(
+        manifest_rel, (ROOT / manifest_rel).read_text(encoding="utf-8")
+    )
+    prefix = base + "/"
+    current_expected = {
+        rel for rel in visible
+        if rel.startswith(prefix) and rel != manifest_rel
+    }
+    assert current_targets == current_expected, (
+        manifest_rel,
+        sorted(current_expected - current_targets),
+        sorted(current_targets - current_expected),
+    )
+    complete_subtree_manifests.append(manifest_rel)
+
+assert "product/SHA256SUMS" in complete_subtree_manifests
+assert "controls/fstec-core/linux-2022/SHA256SUMS" in complete_subtree_manifests
 
 # ACTIVE must mean current.
 checker = run(
@@ -185,5 +213,6 @@ print(
     "ROOT_MANIFEST_POLICY=PASS "
     f"actual=1 fixture=1 ignored_runtime=2 "
     f"local_manifests={len(local_manifests)} local_entries={checked_entries} "
-    "pinned_historical_exceptions=2 product_manifest_complete=1 active_checker_fresh=2"
+    f"pinned_historical_exceptions=2 complete_subtree_manifests={len(complete_subtree_manifests)} "
+    "active_checker_fresh=2"
 )

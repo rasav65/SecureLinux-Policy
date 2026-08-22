@@ -249,6 +249,18 @@ KIND_RULES = {
             },
         ],
     },
+    "sshd-root-login": {
+        "locator": {"const": "/etc/ssh/sshd_config"},
+        "key": {"const": "PermitRootLogin"},
+        "op": {"const": "eq"},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "eq"}},
+                "then": {"expected.value": {"const": "no"}},
+            },
+        ],
+    },
     "mount-option": {
         "locator": {"pattern": ABSOLUTE_PATH_PATTERN},
         "key": {"anyOf": [{"const": "fstype"},
