@@ -20,6 +20,7 @@ SUID_SGID_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-suid-sgid-appl
 HOME_SENSITIVE_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-home-sensitive-files-mode-check-v1.py"
 HOME_DIRECTORIES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-home-directories-mode-check-v1.py"
 SSHD_ROOT_LOGIN_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sshd-root-login-check-v1.py"
+PAM_WHEEL_ACCESS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-pam-wheel-access-check-v1.py"
 BASH = shutil.which("bash")
 
 
@@ -99,6 +100,16 @@ def load_sshd_root_login_adapter():
 SSHD_ROOT_LOGIN = load_sshd_root_login_adapter()
 
 
+def load_pam_wheel_access_adapter():
+    spec = importlib.util.spec_from_file_location("slp_pam_wheel_access_adapter", PAM_WHEEL_ACCESS_ADAPTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+PAM_WHEEL_ACCESS = load_pam_wheel_access_adapter()
+
+
 def load_current():
     rows, manifest_sha = GEN.load_manifest(ROOT)
     adapters, registry_sha = GEN.load_registry(ROOT)
@@ -122,13 +133,19 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login"} <= set(adapters))
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access"})
         src0002 = [c for c in controls if c["index_id"] == "SRC-0002"]
         self.assertEqual(len(src0002), 1)
         self.assertEqual(
             (src0002[0]["parameter_kind"], src0002[0]["parameter_locator"], src0002[0]["parameter_key"], src0002[0]["expected_op"], src0002[0]["expected_value"]),
             ("sshd-root-login", "/etc/ssh/sshd_config", "PermitRootLogin", "eq", "no"),
+        )
+        src0003 = [c for c in controls if c["index_id"] == "SRC-0003"]
+        self.assertEqual(len(src0003), 1)
+        self.assertEqual(
+            (src0003[0]["parameter_kind"], src0003[0]["parameter_locator"], src0003[0]["parameter_key"], src0003[0]["expected_op"], src0003[0]["expected_value"]),
+            ("pam-wheel-access", "/etc/pam.d/su|/etc/group", "policy", "eq-authority-file", "/etc/securelinux-policy/wheel-users.allowlist-v1"),
         )
         src0001 = [c for c in controls if c["index_id"] == "SRC-0001"]
         self.assertEqual(len(src0001), 1)
@@ -982,6 +999,173 @@ class GeneratedArtifact(unittest.TestCase):
         self.assertEqual(self.run_check("--provenance", "NO-SUCH-CONTROL").returncode, 2)
 
 
+@unittest.skipIf(BASH is None, "bash not available")
+class PamWheelAccessAdapterFixtures(unittest.TestCase):
+    def run_fixture(self, pam_text=None, group_text=None, authority_text=None, symlink=None):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            pam = root / "su"
+            group = root / "group"
+            authority = root / "wheel-users.allowlist-v1"
+            if pam_text is not None:
+                pam.write_bytes(pam_text.encode("utf-8"))
+            if group_text is not None:
+                group.write_bytes(group_text.encode("utf-8"))
+            if authority_text is not None:
+                authority.write_bytes(authority_text.encode("utf-8"))
+            if symlink == "pam":
+                target = root / "pam-real"
+                target.write_text(pam_text or "", encoding="utf-8")
+                if pam.exists():
+                    pam.unlink()
+                pam.symlink_to(target)
+            elif symlink == "group":
+                target = root / "group-real"
+                target.write_text(group_text or "", encoding="utf-8")
+                if group.exists():
+                    group.unlink()
+                group.symlink_to(target)
+            elif symlink == "authority":
+                target = root / "authority-real"
+                target.write_text(authority_text or "", encoding="utf-8")
+                if authority.exists():
+                    authority.unlink()
+                authority.symlink_to(target)
+            block = PAM_WHEEL_ACCESS._shell_function_for_fixture(
+                "PAM.WHEEL.TEST", str(pam), str(group), str(authority)
+            )
+            cp = subprocess.run(
+                [BASH, "-c", "set -u\n" + block + "\nslp_check_PAM_WHEEL_TEST\n"],
+                text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+            )
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            row = cp.stdout.strip().split("\t")
+            self.assertEqual(len(row), 5, cp.stdout)
+            return row
+
+    def test_positive_root_only_empty_authority_and_include(self):
+        row = self.run_fixture(
+            "# comment\n@include common-auth\nauth required pam_wheel.so use_uid # exact\n",
+            "root:x:0:\nwheel:x:10:root\n",
+            "# no additional users\n",
+        )
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertIn("approved=0", row[3])
+
+    def test_positive_explicit_users_arbitrary_gid_and_crlf(self):
+        row = self.run_fixture(
+            "auth required pam_wheel.so use_uid\r\n",
+            "wheel:!:1234:root,alice,bob\r\n",
+            "alice\r\nbob\r\n",
+        )
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertIn("gid=1234", row[3])
+
+    def test_duplicate_exact_pam_rule_is_redundant_but_compliant(self):
+        row = self.run_fixture(
+            "auth required pam_wheel.so use_uid\nauth required pam_wheel.so use_uid\n",
+            "wheel:x:42:root\n", "",
+        )
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertIn("pam_exact=2", row[3])
+
+    def test_escaped_line_continuation_preserves_exact_rule(self):
+        row = self.run_fixture(
+            "auth required pam_wheel.so \\\nuse_uid\n", "wheel:x:10:root\n", "",
+        )
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+
+    def test_missing_exact_pam_is_definitive_fail_without_authority(self):
+        row = self.run_fixture("auth required pam_unix.so\n", "wheel:x:10:root\n", None)
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+        self.assertIn("authority=not-needed", row[3])
+
+    def test_comment_backslash_does_not_continue_comment_text(self):
+        row = self.run_fixture(
+            "# disabled pam_wheel \\\n"
+            "auth required pam_wheel.so use_uid\n",
+            "wheel:x:10:root\n", "",
+        )
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+
+    def test_non_source_pam_wheel_variants_are_error(self):
+        variants = (
+            "auth required pam_wheel.so use_uid group=wheel\n",
+            "auth sufficient pam_wheel.so use_uid\n",
+            "auth required /lib/security/pam_wheel.so use_uid\n",
+            "auth [success=ok default=bad] pam_wheel.so use_uid\n",
+            "-auth required pam_wheel.so use_uid\n",
+        )
+        for pam_text in variants:
+            with self.subTest(pam_text=pam_text):
+                row = self.run_fixture(pam_text, "wheel:x:10:root\n", "")
+                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_missing_wheel_is_definitive_fail_without_authority(self):
+        row = self.run_fixture("auth required pam_wheel.so use_uid\n", "root:x:0:\n", None)
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+
+    def test_missing_root_member_is_definitive_fail_without_authority(self):
+        row = self.run_fixture("auth required pam_wheel.so use_uid\n", "wheel:x:10:alice\n", None)
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+        self.assertIn("root=missing", row[3])
+
+    def test_membership_must_equal_root_plus_authority(self):
+        for group_text, authority_text in (
+            ("wheel:x:10:root,extra\n", ""),
+            ("wheel:x:10:root\n", "alice\n"),
+            ("wheel:x:10:root,alice,extra\n", "alice\n"),
+        ):
+            with self.subTest(group_text=group_text, authority_text=authority_text):
+                row = self.run_fixture("auth required pam_wheel.so use_uid\n", group_text, authority_text)
+                self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+
+    def test_missing_authority_is_error_only_after_structural_requirements(self):
+        row = self.run_fixture("auth required pam_wheel.so use_uid\n", "wheel:x:10:root\n", None)
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_malformed_authority_is_error(self):
+        for authority_text in ("root\n", "alice\nalice\n", "alice,bob\n", "alice bob\n", "ali#ce\n"):
+            with self.subTest(authority_text=authority_text):
+                row = self.run_fixture("auth required pam_wheel.so use_uid\n", "wheel:x:10:root,alice\n", authority_text)
+                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_duplicate_or_malformed_wheel_is_error(self):
+        for group_text in (
+            "wheel:x:10:root\nwheel:x:11:root\n",
+            "wheel:x:not-a-gid:root\n",
+            "wheel:x:10:root,\n",
+            "wheel:x:10:root,root\n",
+        ):
+            with self.subTest(group_text=group_text):
+                row = self.run_fixture("auth required pam_wheel.so use_uid\n", group_text, "")
+                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_symlink_inputs_fail_closed(self):
+        for which in ("pam", "group", "authority"):
+            with self.subTest(which=which):
+                row = self.run_fixture("auth required pam_wheel.so use_uid\n", "wheel:x:10:root\n", "", symlink=which)
+                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_missing_required_config_is_not_found_fail(self):
+        row = self.run_fixture(None, "wheel:x:10:root\n", "")
+        self.assertEqual((row[2], row[4]), ("NOT_FOUND", "FAIL"))
+
+    def test_generation_rejects_wrong_contract_fields(self):
+        cases = (
+            ("/etc/pam.d/su", PAM_WHEEL_ACCESS.CANONICAL_KEY, PAM_WHEEL_ACCESS.CANONICAL_OP, PAM_WHEEL_ACCESS.CANONICAL_AUTHORITY),
+            (PAM_WHEEL_ACCESS.CANONICAL_LOCATOR, "members", PAM_WHEEL_ACCESS.CANONICAL_OP, PAM_WHEEL_ACCESS.CANONICAL_AUTHORITY),
+            (PAM_WHEEL_ACCESS.CANONICAL_LOCATOR, PAM_WHEEL_ACCESS.CANONICAL_KEY, "eq", PAM_WHEEL_ACCESS.CANONICAL_AUTHORITY),
+            (PAM_WHEEL_ACCESS.CANONICAL_LOCATOR, PAM_WHEEL_ACCESS.CANONICAL_KEY, PAM_WHEEL_ACCESS.CANONICAL_OP, "/tmp/wheel"),
+        )
+        for args in cases:
+            with self.subTest(args=args):
+                with self.assertRaises(ValueError):
+                    PAM_WHEEL_ACCESS.shell_function("TEST", *args)
+
+
 class SshdRootLoginAdapterFixtures(unittest.TestCase):
     def run_fixture(
         self, config_text=None, effective="no", syntax_rc=0, include_files=None,
@@ -1243,8 +1427,8 @@ SLP_POLICY_RC=1
             )
             self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
             self.assertIn("GENERATOR_ID=product-check-generator-v2\n", cp.stdout)
-            self.assertIn("CONTROL_COUNT=44\n", cp.stdout)
-            self.assertIn("ADAPTER_COUNT=11\n", cp.stdout)
+            self.assertIn("CONTROL_COUNT=45\n", cp.stdout)
+            self.assertIn("ADAPTER_COUNT=12\n", cp.stdout)
             self.assertEqual(out.read_bytes(), self.ARTIFACT.read_bytes())
             self.assertEqual(out.with_name(out.name + ".sha256").read_bytes(), self.SIDECAR.read_bytes())
         expected = f"{sha256_file(self.ARTIFACT)}  {self.ARTIFACT.name}\n"
@@ -1299,7 +1483,7 @@ SLP_POLICY_RC=1
         prov = self.run_cli("--provenance")
         self.assertEqual(prov.returncode, 0)
         rows = [json.loads(x) for x in prov.stdout.splitlines()]
-        self.assertEqual(len(rows), 44)
+        self.assertEqual(len(rows), 45)
         one = self.run_cli("--provenance", rows[0]["control_id"])
         self.assertEqual(json.loads(one.stdout)["control_id"], rows[0]["control_id"])
         for args in (("--bogus",), ("--help", "extra"), ("--check", "--format"),

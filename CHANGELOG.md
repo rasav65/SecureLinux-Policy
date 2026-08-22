@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+### Добавлено — SRC-0003 / 2.2.1: ограничение su через pam_wheel
+
+- `SRC-0003` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.2.1-SU-WHEEL-ACCESS`.
+- Новый read-only kind `pam-wheel-access` проверяет активную source-exact семантику `auth required pam_wheel.so use_uid` в `/etc/pam.d/su` и local запись `wheel` в `/etc/group`.
+- `root` обязателен непосредственно в members field; placeholder `<user list>` задаётся только явной local authority `/etc/securelinux-policy/wheel-users.allowlist-v1`, без вывода из `sudo`, `admin`, `WHEEL_USERS` или `SUDO_USER`.
+- GID `10` не превращён в portable compliance condition; числовой GID валидируется синтаксически, а relevant PAM/group/authority ambiguity даёт fail-closed `ERROR`.
+- Семь ранее собранных privileged read-only VM evidence имеют integrity `7/7`: во всех active pam_wheel=0 и local wheel=0 при установленном module; это definitive baseline `FAIL`, но не расширение product target.
+- После шага: `349 / 35 controlled CLOSED / 314 OPEN`; canonical controls `45`; adapters `12`. Formal Gate5 probe-results, APPLY и RESTORE не создаются.
+
 ### Added — SRC-0002 / 2.1.2 SSH root-login CHECK
 
 - `SRC-0002` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN`.

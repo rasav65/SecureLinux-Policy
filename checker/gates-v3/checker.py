@@ -261,6 +261,18 @@ KIND_RULES = {
             },
         ],
     },
+    "pam-wheel-access": {
+        "locator": {"const": "/etc/pam.d/su|/etc/group"},
+        "key": {"const": "policy"},
+        "op": {"const": "eq-authority-file"},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "eq-authority-file"}},
+                "then": {"expected.value": {"const": "/etc/securelinux-policy/wheel-users.allowlist-v1"}},
+            },
+        ],
+    },
     "mount-option": {
         "locator": {"pattern": ABSOLUTE_PATH_PATTERN},
         "key": {"anyOf": [{"const": "fstype"},

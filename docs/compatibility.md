@@ -126,3 +126,7 @@ Current CHECK использует тот же локальный account select
 ## SRC-0002 / SSH root login — privileged evidence matrix
 
 Read-only evidence helper `slp-vm-batch-src0002-src0004-evidence-v1` выполнен на семи reference installations: Ubuntu 22 FULL, Ubuntu 24 MINIMIZED/FULL, Ubuntu 26 MINIMIZED/FULL, Debian 12 SERVER, Debian 13 GNOME. Во всех runs main `/etc/ssh/sshd_config` не содержал active global `PermitRootLogin`; syntax `sshd -t` был valid. Effective root-context был `without-password` на Ubuntu 22/24 и Debian 12/13, `prohibit-password` на Ubuntu 26. Поэтому все семь являются отрицательными current-state примерами относительно source-exact expected `no`. Эти наблюдения подтверждают необходимость effective-config semantics, но не расширяют current product target `ubuntu-24.04-x86_64`.
+
+## SRC-0003 / pam_wheel — privileged evidence matrix
+
+Тот же read-only batch имеет integrity-verified evidence `7/7` для 2.2.1. На всех семи installations `/etc/pam.d/su` и `/etc/group` были regular root-owned files mode `0644`; active `pam_wheel` lines и exact required line count равнялись `0`, local `wheel` group count равнялся `0`, при этом `pam_wheel.so` module был обнаружен в standard security-module paths. Поэтому baseline однозначно `FAIL` ещё до необходимости локальной `<user list>` authority. Наличие module file само по себе compliance не доказывает. Evidence подтверждает assumptions CHECK и не расширяет current product target `ubuntu-24.04-x86_64`.
