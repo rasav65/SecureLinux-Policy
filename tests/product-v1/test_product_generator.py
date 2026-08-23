@@ -34,6 +34,17 @@ def load_generator():
 GEN = load_generator()
 
 
+def load_generator_v2():
+    path = ROOT / "product/generate-product-check-v2.py"
+    spec = importlib.util.spec_from_file_location("slp_product_generator_v2", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+GEN_V2_CURRENT = load_generator_v2()
+
+
 def load_fileset_adapter():
     spec = importlib.util.spec_from_file_location("slp_fileset_adapter", FILESET_ADAPTER_PATH)
     mod = importlib.util.module_from_spec(spec)
@@ -327,7 +338,7 @@ class GeneratorModel(unittest.TestCase):
             registry_sha,
             sha256_file(GEN_PATH),
         )
-        self.assertIn(b"stat -L -c %a", rendered)
+        self.assertIn(b"/usr/bin/stat -L -c %a", rendered)
         self.assertIn(b"8#$_slp_mode & 8#$_slp_expected", rendered)
         self.assertIn(b'"parameter_kind":"file-mode-owner"', rendered)
 
@@ -401,6 +412,31 @@ class GeneratorModel(unittest.TestCase):
         ).decode("utf-8")
         for token in ("sysctl -w", "sysctl --write", "tee /proc/sys", "sed -i"):
             self.assertNotIn(token, rendered)
+
+    def _load_current_v2(self):
+        rows, manifest_sha = GEN_V2_CURRENT.load_manifest(ROOT)
+        adapters, registry_sha = GEN_V2_CURRENT.load_registry(ROOT)
+        controls = [GEN_V2_CURRENT.load_control(ROOT, row) for row in rows]
+        return rows, manifest_sha, adapters, registry_sha, controls
+
+    def test_v2_shell_function_name_collision_is_rejected(self):
+        _, manifest_sha, adapters, registry_sha, controls = self._load_current_v2()
+        one_control = dict(controls[0]); two_control = dict(controls[0])
+        one_control["control_id"] = "COLLIDE-A.B"
+        two_control["control_id"] = "COLLIDE-A-B"
+        with self.assertRaisesRegex(RuntimeError, "shell function name collision"):
+            GEN_V2_CURRENT.render_script([one_control, two_control], adapters, manifest_sha, registry_sha, sha256_file(ROOT / "product/generate-product-check-v2.py"))
+
+    def test_v2_quote_split_mutating_command_is_rejected(self):
+        _, manifest_sha, adapters, registry_sha, controls = self._load_current_v2()
+        control = dict(controls[0]); kind = control["parameter_kind"]
+        original = adapters[kind]["module"].shell_function
+        try:
+            adapters[kind]["module"].shell_function = lambda *args: "slp_check_X(){ ch''mod 0600 /tmp/x; }\n"
+            with self.assertRaisesRegex(RuntimeError, "mutating token"):
+                GEN_V2_CURRENT.render_script([control], adapters, manifest_sha, registry_sha, sha256_file(ROOT / "product/generate-product-check-v2.py"))
+        finally:
+            adapters[kind]["module"].shell_function = original
 
 
 @unittest.skipIf(BASH is None, "bash not available")
@@ -734,6 +770,15 @@ class SuidSgidApplicationsFixtures(unittest.TestCase):
             )
             self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SUID-SGID\tERROR\t-\tERROR")
 
+    def test_nul_in_allowlist_is_error(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            app = base / "app"; app.write_text("x\n", encoding="utf-8"); os.chmod(app, 0o4755)
+            allow = base / "allowlist"
+            allow.write_bytes(str(app).encode("utf-8") + b"\x00\n")
+            cp = self.run_fixture(base, "approved-set", "subset-of-file", str(allow))
+            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SUID-SGID\tERROR\t-\tERROR")
+
     def test_generation_rejects_wrong_contract_fields(self):
         for args in (
             ("TEST", "/proc/mounts", "mode", "bits-clear", "0022"),
@@ -871,6 +916,14 @@ class HomeSensitiveFilesAdapterFixtures(unittest.TestCase):
         cp=self.run_check()
         self.assertIn("\tERROR\t-\tERROR", cp.stdout)
 
+    def test_nul_in_login_defs_or_inventory_is_error(self):
+        self.login_defs.write_bytes(b"UID\x00_MIN 1000\n")
+        self.assertIn("\tERROR\t-\tERROR", self.run_check().stdout)
+        self.login_defs.write_text("UID_MIN 1000\n", encoding="utf-8")
+        payload = b".bash_history\x00\n" + "\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES[1:]).encode("utf-8") + b"\n"
+        self.inventory.write_bytes(payload)
+        self.assertIn("\tERROR\t-\tERROR", self.run_check().stdout)
+
 @unittest.skipIf(BASH is None, "bash not available")
 class HomeDirectoriesModeAdapterFixtures(unittest.TestCase):
     def setUp(self):
@@ -905,6 +958,9 @@ class HomeDirectoriesModeAdapterFixtures(unittest.TestCase):
         self.user_home.rmdir(); cp=self.run_check(); self.assertIn("accounts=2;homes=1;violations=0\tPASS",cp.stdout)
     def test_symlink_home_fails_closed(self):
         self.user_home.rmdir(); self.user_home.symlink_to(self.root_home,target_is_directory=True); cp=self.run_check(); self.assertIn("\tERROR\t-\tERROR",cp.stdout)
+    def test_nul_in_login_defs_is_error(self):
+        self.login_defs.write_bytes(b"UID\x00_MIN 1000\n")
+        cp=self.run_check(); self.assertIn("\tERROR\t-\tERROR",cp.stdout)
     def test_generation_rejects_wrong_contract_fields(self):
         for args in (("TEST","/etc/passwd","mode","eq","0700"),("TEST",HOME_DIRECTORIES.CANONICAL_LOCATOR,"owner","eq","0700"),("TEST",HOME_DIRECTORIES.CANONICAL_LOCATOR,"mode","bits-clear","0700"),("TEST",HOME_DIRECTORIES.CANONICAL_LOCATOR,"mode","eq","0750")):
             with self.subTest(args=args):
@@ -1001,7 +1057,7 @@ class GeneratedArtifact(unittest.TestCase):
 
 @unittest.skipIf(BASH is None, "bash not available")
 class PamWheelAccessAdapterFixtures(unittest.TestCase):
-    def run_fixture(self, pam_text=None, group_text=None, authority_text=None, symlink=None):
+    def run_fixture(self, pam_text=None, group_text=None, authority_text=None, symlink=None, prelude=""):
         if BASH is None:
             self.skipTest("bash not found")
         with tempfile.TemporaryDirectory(dir=ROOT) as td:
@@ -1010,11 +1066,11 @@ class PamWheelAccessAdapterFixtures(unittest.TestCase):
             group = root / "group"
             authority = root / "wheel-users.allowlist-v1"
             if pam_text is not None:
-                pam.write_bytes(pam_text.encode("utf-8"))
+                pam.write_bytes(pam_text if isinstance(pam_text, bytes) else pam_text.encode("utf-8"))
             if group_text is not None:
-                group.write_bytes(group_text.encode("utf-8"))
+                group.write_bytes(group_text if isinstance(group_text, bytes) else group_text.encode("utf-8"))
             if authority_text is not None:
-                authority.write_bytes(authority_text.encode("utf-8"))
+                authority.write_bytes(authority_text if isinstance(authority_text, bytes) else authority_text.encode("utf-8"))
             if symlink == "pam":
                 target = root / "pam-real"
                 target.write_text(pam_text or "", encoding="utf-8")
@@ -1037,7 +1093,7 @@ class PamWheelAccessAdapterFixtures(unittest.TestCase):
                 "PAM.WHEEL.TEST", str(pam), str(group), str(authority)
             )
             cp = subprocess.run(
-                [BASH, "-c", "set -u\n" + block + "\nslp_check_PAM_WHEEL_TEST\n"],
+                [BASH, "-c", "set -u\n" + prelude + "\n" + block + "\nslp_check_PAM_WHEEL_TEST\n"],
                 text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
             )
             self.assertEqual(cp.returncode, 0, cp.stderr)
@@ -1148,6 +1204,48 @@ class PamWheelAccessAdapterFixtures(unittest.TestCase):
             with self.subTest(which=which):
                 row = self.run_fixture("auth required pam_wheel.so use_uid\n", "wheel:x:10:root\n", "", symlink=which)
                 self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_nul_and_internal_cr_fail_closed(self):
+        cases = (
+            (b"auth required pam_wheel.so\x00 use_uid\n", b"wheel:x:10:root\n", b""),
+            (b"auth required pam_wheel.so use_uid\nfoo\rbar\n", b"wheel:x:10:root\n", b""),
+            (b"auth required pam_wheel.so use_uid\n", b"wheel:x:10:root\x00\n", b""),
+            (b"auth required pam_wheel.so use_uid\n", b"wheel:x:10:root\n", b"alice\x00\n"),
+        )
+        for pam_text, group_text, authority_text in cases:
+            with self.subTest(pam_text=pam_text, group_text=group_text, authority_text=authority_text):
+                row = self.run_fixture(pam_text, group_text, authority_text)
+                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_slash_named_od_function_cannot_bypass_nul_validation(self):
+        row = self.run_fixture(
+            b"auth required pam_wheel.so\x00 use_uid\n",
+            b"wheel:x:10:root\n",
+            b"",
+            prelude='function /usr/bin/od(){ printf "61 62 63\n"; }',
+        )
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_bare_cr_at_eof_is_error_for_all_pam_inputs(self):
+        cases = (
+            (b"auth required pam_wheel.so use_uid\r", b"wheel:x:10:root\n", b""),
+            (b"auth required pam_wheel.so use_uid\n", b"wheel:x:10:root\r", b""),
+            (b"auth required pam_wheel.so use_uid\n", b"wheel:x:10:root,alice\n", b"alice\r"),
+        )
+        for pam_text, group_text, authority_text in cases:
+            with self.subTest(pam_text=pam_text, group_text=group_text, authority_text=authority_text):
+                row = self.run_fixture(pam_text, group_text, authority_text)
+                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_generated_cli_has_no_direct_external_tool_invocations(self):
+        rendered = (ROOT / "securelinux-policy.sh").read_text(encoding="utf-8")
+        forbidden = (
+            "$(/usr/bin/", "$(/usr/sbin/", "LC_ALL=C /usr/bin/", "LC_ALL=C /usr/sbin/",
+            '| LC_ALL=C /usr/bin/', '| LC_ALL=C /usr/sbin/',
+            '  "$_slp_sshd" -t', '$("$_slp_sshd" -T', 'LC_ALL=C "$_slp_sort"',
+        )
+        for token in forbidden:
+            self.assertNotIn(token, rendered, token)
 
     def test_missing_required_config_is_not_found_fail(self):
         row = self.run_fixture(None, "wheel:x:10:root\n", "")
@@ -1333,7 +1431,7 @@ class SshdRootLoginAdapterFixtures(unittest.TestCase):
             "SSH.TEST", "/tmp/sshd_config", "/tmp/sshd", "PermitRootLogin", "eq", "no"
         )
         self.assertIn('builtin compgen -G', block)
-        self.assertIn('LC_ALL=C "$_slp_sort"', block)
+        self.assertIn('LC_ALL=C command "$_slp_sort"', block)
         self.assertIn('set -o pipefail', block)
 
     def test_main_directive_absent_fails(self):
@@ -1384,7 +1482,7 @@ class UnifiedCliArtifact(unittest.TestCase):
 
     def run_cli(self, *args):
         return subprocess.run(
-            [BASH, str(self.ARTIFACT), *args], cwd=ROOT,
+            [str(self.ARTIFACT), *args], cwd=ROOT,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
         )
 
@@ -1418,6 +1516,7 @@ SLP_POLICY_RC=1
         self.assertTrue(self.SIDECAR.is_file())
         self.assertEqual(self.ARTIFACT.stat().st_mode & 0o777, 0o755)
         self.assertEqual(self.SIDECAR.stat().st_mode & 0o777, 0o644)
+        self.assertTrue(self.ARTIFACT.read_bytes().startswith(b"#!/bin/bash -p\n"))
         with tempfile.TemporaryDirectory(prefix="slp-unified-cli-rebuild-") as td:
             out = Path(td) / "securelinux-policy.sh"
             cp = subprocess.run(
@@ -1433,6 +1532,38 @@ SLP_POLICY_RC=1
             self.assertEqual(out.with_name(out.name + ".sha256").read_bytes(), self.SIDECAR.read_bytes())
         expected = f"{sha256_file(self.ARTIFACT)}  {self.ARTIFACT.name}\n"
         self.assertEqual(self.SIDECAR.read_text(encoding="utf-8"), expected)
+
+    def test_privileged_shebang_blocks_exported_command_function(self):
+        env = os.environ.copy()
+        env["BASH_FUNC_command%%"] = "() {  printf 'POISONED-COMMAND\\n'\n}"
+        shebang = self.ARTIFACT.read_bytes().splitlines(keepends=True)[0]
+        self.assertEqual(shebang, b"#!/bin/bash -p\n")
+        with tempfile.TemporaryDirectory(prefix="slp-command-shebang-", dir=ROOT) as td:
+            td_path = Path(td)
+            target = td_path / "target"
+            target.write_text("x", encoding="utf-8")
+            target.chmod(0o600)
+
+            def run_probe(name, probe_shebang):
+                probe = td_path / name
+                probe.write_bytes(
+                    probe_shebang
+                    + b'command /usr/bin/stat -c %a -- "$1"\n'
+                )
+                probe.chmod(0o755)
+                return subprocess.run(
+                    [str(probe), str(target)], cwd=ROOT, env=env,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                )
+
+            privileged_bash_control = run_probe("privileged-bash-control.sh", shebang)
+            plain_bash_control = run_probe("plain-bash-control.sh", b"#!/bin/bash\n")
+
+        self.assertEqual(privileged_bash_control.returncode, 0, privileged_bash_control.stderr)
+        self.assertEqual(privileged_bash_control.stdout, "600\n")
+        self.assertNotIn("POISONED-COMMAND", privileged_bash_control.stdout + privileged_bash_control.stderr)
+        self.assertEqual(plain_bash_control.returncode, 0, plain_bash_control.stderr)
+        self.assertIn("POISONED-COMMAND", plain_bash_control.stdout + plain_bash_control.stderr)
 
     def test_unified_help_version_build_info_and_stubs(self):
         syntax = subprocess.run([BASH, "-n", str(self.ARTIFACT)], capture_output=True, text=True)

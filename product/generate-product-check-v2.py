@@ -351,6 +351,25 @@ def sh_single(s: str) -> str:
     return "'" + s.replace("'", "'\"'\"'") + "'"
 
 
+def mutation_scan_view(block: str) -> str:
+    # Defense-in-depth only. It catches simple quote/backslash spelling tricks
+    # around known mutating commands; it is not a formal shell-language proof.
+    return block.replace("'", "").replace('"', "").replace("\\", "")
+
+
+def find_known_mutating_token(block: str):
+    view = mutation_scan_view(block)
+    for phrase in ("sysctl -w", "sysctl --write", "tee /proc/sys", "sed -i"):
+        if phrase in view:
+            return phrase
+    m = re.search(r"(?<![A-Za-z0-9_./-])(chmod|chown|chgrp|setfacl|rm|rmdir|mv|cp|touch|truncate|dd)(?=[ \t])", view)
+    return m.group(1) if m else None
+
+
+def shell_function_name(control_id: str) -> str:
+    return "slp_check_" + re.sub(r"[^A-Za-z0-9_]", "_", control_id)
+
+
 def render_script(
     controls,
     adapters,
@@ -360,6 +379,7 @@ def render_script(
 ) -> bytes:
     blocks = []
     function_names = []
+    function_owners = {}
     provenance_lines = []
 
     for c in controls:
@@ -377,13 +397,18 @@ def render_script(
         )
         if not isinstance(block, str) or not block.endswith("\n"):
             raise RuntimeError(f"adapter returned invalid shell block: {c['control_id']}")
-        for token in MUTATING_TOKENS:
-            if token in block:
-                raise RuntimeError(f"mutating token {token!r} emitted for {c['control_id']}")
+        mutating = find_known_mutating_token(block)
+        if mutating is not None:
+            raise RuntimeError(f"mutating token {mutating!r} emitted for {c['control_id']}")
+        fn_name = shell_function_name(c["control_id"])
+        previous = function_owners.get(fn_name)
+        if previous is not None and previous != c["control_id"]:
+            raise RuntimeError(
+                f"shell function name collision: {previous!r} and {c['control_id']!r} -> {fn_name!r}"
+            )
+        function_owners[fn_name] = c["control_id"]
         blocks.append(block.rstrip("\n"))
-        function_names.append(
-            "slp_check_" + re.sub(r"[^A-Za-z0-9_]", "_", c["control_id"])
-        )
+        function_names.append(fn_name)
 
         row = a["row"]
         prov = {
@@ -426,7 +451,7 @@ def render_script(
     fn_words = " ".join(sh_single(x) for x in function_names)
     cid_words = " ".join(sh_single(c["control_id"]) for c in controls)
 
-    template = r'''#!/usr/bin/env bash
+    template = r'''#!/bin/bash -p
 # SecureLinux-Policy v3 unified read-only product CLI
 # STATUS=@@PRODUCT_STATUS@@
 # PRODUCT_CLI=@@PRODUCT_CLI_ID@@
@@ -460,7 +485,7 @@ slp_target_preflight() {
         ;;
     esac
   done < /etc/os-release
-  _slp_arch=$(/usr/bin/uname -m 2>/dev/null) || {
+  _slp_arch=$(command /usr/bin/uname -m 2>/dev/null) || {
     printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2
     return 3
   }
@@ -873,9 +898,9 @@ def main() -> int:
     generator_sha = sha_file(Path(__file__).resolve(strict=True))
     script = render_script(controls, adapters, manifest_sha, registry_sha, generator_sha)
 
-    for token in (b"sysctl -w", b"sysctl --write", b"tee /proc/sys", b"sed -i"):
-        if token in script:
-            raise RuntimeError(f"mutating token leaked into generated CHECK: {token!r}")
+    mutating = find_known_mutating_token(script.decode("utf-8"))
+    if mutating is not None:
+        raise RuntimeError(f"known mutating token leaked into generated CHECK: {mutating!r}")
 
     write_exclusive(out, script, 0o755)
     script_sha = sha_bytes(script)

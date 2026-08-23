@@ -44,7 +44,10 @@ registry SHA bindings и fail-closed выбирает adapter по `parameter.ki
 
 Текущая пользовательская точка входа — один tracked executable
 `securelinux-policy.sh`. Для обычного CHECK пользователь не запускает Python
-generator.
+generator. Compliance execution выполняется как executable (`./securelinux-policy.sh`)
+или явно `/bin/bash -p ./securelinux-policy.sh`: shebang `#!/bin/bash -p` запрещает
+импорт environment shell functions до выполнения generated checks. Plain `bash script`
+и `source script` не являются поддерживаемым compliance execution path.
 
 - `--check` — pretty table с фиксированными колонками `RESULT`, `CONTROL`, `VALUE / DETAILS`;
 - `--check --failed` — только `FAIL` и `ERROR`;

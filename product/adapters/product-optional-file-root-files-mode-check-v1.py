@@ -53,7 +53,7 @@ def shell_function(control_id, locator, key, op, expected):
         "    fi",
         "    return 0",
         "  fi",
-        '  if ! _slp_mode=$(LC_ALL=C /usr/bin/stat -c %a -- "$_slp_path" 2>/dev/null); then',
+        '  if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_path" 2>/dev/null); then',
         emit + ' "ERROR" "-" "ERROR"',
         "    return 0",
         "  fi",
@@ -72,7 +72,7 @@ def shell_function(control_id, locator, key, op, expected):
         "    return 0",
         "  fi",
         '  mapfile -d \'\' -t _slp_entries < <(',
-        '    LC_ALL=C /usr/bin/find -- "$_slp_path" -mindepth 1 -maxdepth 1 -print0 2>/dev/null | LC_ALL=C /usr/bin/sort -z',
+        '    LC_ALL=C command /usr/bin/find -- "$_slp_path" -mindepth 1 -maxdepth 1 -print0 2>/dev/null | LC_ALL=C command /usr/bin/sort -z',
         '    _slp_scan_marker="${PIPESTATUS[0]},${PIPESTATUS[1]}"',
         '    printf "__SLP_SCAN_RC=%s\\0" "$_slp_scan_marker"',
         "  )",
@@ -98,7 +98,7 @@ def shell_function(control_id, locator, key, op, expected):
         emit + ' "ERROR" "-" "ERROR"',
         "      return 0",
         "    fi",
-        '    if ! _slp_mode=$(LC_ALL=C /usr/bin/stat -c %a -- "$_slp_entry" 2>/dev/null); then',
+        '    if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_entry" 2>/dev/null); then',
         emit + ' "ERROR" "-" "ERROR"',
         "      return 0",
         "    fi",
@@ -127,7 +127,7 @@ def _selftest():
     assert _mode_compliance("0664") is False
     assert _mode_compliance("bogus") is None
     src = shell_function("CTRL", "/tmp/example", "mode", "bits-clear", "0033")
-    assert "/usr/bin/find" in src and "/usr/bin/sort -z" in src and "<absent>" in src
+    assert "command /usr/bin/find" in src and "command /usr/bin/sort -z" in src and "<absent>" in src
     for token in MUTATING_TOKENS:
         assert token not in src, token
     bad = [

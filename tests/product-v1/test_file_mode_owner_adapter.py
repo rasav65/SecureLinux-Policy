@@ -46,7 +46,7 @@ class Emitted(unittest.TestCase):
             src = ADAPTER.shell_function("C", "/etc/shadow", "mode", op, exp)
             for token in ADAPTER.MUTATING_TOKENS:
                 self.assertNotIn(token, src, token)
-            self.assertNotIn("$(", src.replace('$(LC_ALL=C stat -L -c %a -- "$_slp_path" 2>/dev/null)', ""))
+            self.assertNotIn("$(", src.replace('$(LC_ALL=C command /usr/bin/stat -L -c %a -- "$_slp_path" 2>/dev/null)', ""))
 
     def test_rejects_unsupported(self):
         bad = [
@@ -120,11 +120,11 @@ class Runtime(unittest.TestCase):
             pass
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
-    def run_check(self, locator, op, expected, env_extra=None):
+    def run_check(self, locator, op, expected, env_extra=None, preamble=""):
         src = ADAPTER.shell_function("CTRL-T", locator, "mode", op, expected)
         script = os.path.join(self.tmp, "run.sh")
         with open(script, "w", encoding="utf-8") as f:
-            f.write("set -u\n" + src + "\nslp_check_CTRL_T\n")
+            f.write("set -u\n" + preamble + src + "\nslp_check_CTRL_T\n")
         env = dict(os.environ)
         env["LC_ALL"] = "C"
         if env_extra:
@@ -190,11 +190,14 @@ class Runtime(unittest.TestCase):
         self.assertEqual(self.run_check(os.path.join(self.closed, "absent"), "eq", "0644"),
                          ("ERROR", "-", "ERROR"))
 
-    def test_missing_stat_is_error(self):
+    def test_path_and_function_shadowing_do_not_override_pinned_stat(self):
         empty = os.path.join(self.tmp, "emptybin")
         os.makedirs(empty, exist_ok=True)
-        self.assertEqual(self.run_check(self.ok, "eq", "0644", {"PATH": empty}),
-                         ("ERROR", "-", "ERROR"))
+        fake = 'stat(){ printf "600\n"; }\nfunction /usr/bin/stat(){ printf "600\n"; }\n'
+        self.assertEqual(
+            self.run_check(self.ok, "eq", "0644", {"PATH": empty}, fake),
+            ("VALUE", "0644", "PASS"),
+        )
 
     def test_target_is_not_modified(self):
         before = os.lstat(self.ok)

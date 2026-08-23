@@ -44,7 +44,7 @@ def _render(control_id, exec_roots, lib_roots, module_root, expected=EXPECTED_MA
     ]
     if dynamic_module:
         lines += [
-            "  if ! _slp_uname_r=$(/usr/bin/uname -r 2>/dev/null); then",
+            "  if ! _slp_uname_r=$(command /usr/bin/uname -r 2>/dev/null); then",
             emit + ' "ERROR" "-" "ERROR"',
             "    return 0",
             "  fi",
@@ -67,7 +67,7 @@ def _render(control_id, exec_roots, lib_roots, module_root, expected=EXPECTED_MA
         '        ((_slp_roots_absent+=1))',
         '        continue',
         '      fi',
-        '      if ! _slp_resolved=$(/usr/bin/readlink -f -- "$_slp_root" 2>/dev/null); then',
+        '      if ! _slp_resolved=$(command /usr/bin/readlink -f -- "$_slp_root" 2>/dev/null); then',
         emit + ' "ERROR" "-" "ERROR"',
         '        return 0',
         '      fi',
@@ -75,7 +75,7 @@ def _render(control_id, exec_roots, lib_roots, module_root, expected=EXPECTED_MA
         emit + ' "ERROR" "-" "ERROR"',
         '        return 0',
         '      fi',
-        '      if ! _slp_root_id=$(LC_ALL=C /usr/bin/stat -Lc "%d:%i" -- "$_slp_resolved" 2>/dev/null); then',
+        '      if ! _slp_root_id=$(LC_ALL=C command /usr/bin/stat -Lc "%d:%i" -- "$_slp_resolved" 2>/dev/null); then',
         emit + ' "ERROR" "-" "ERROR"',
         '        return 0',
         '      fi',
@@ -87,7 +87,7 @@ def _render(control_id, exec_roots, lib_roots, module_root, expected=EXPECTED_MA
         '      _slp_seen_roots["$_slp_root_id"]=1',
         '      _slp_entries=()',
         '      mapfile -d \"\" -t _slp_entries < <(',
-        '        LC_ALL=C /usr/bin/find -P -- "$_slp_resolved" -mindepth 1 -print0 2>/dev/null | LC_ALL=C /usr/bin/sort -z',
+        '        LC_ALL=C command /usr/bin/find -P -- "$_slp_resolved" -mindepth 1 -print0 2>/dev/null | LC_ALL=C command /usr/bin/sort -z',
         '        _slp_scan_marker="${PIPESTATUS[0]},${PIPESTATUS[1]}"',
         '        printf "__SLP_SCAN_RC=%s\\0" "$_slp_scan_marker"',
         '      )',
@@ -124,7 +124,7 @@ def _render(control_id, exec_roots, lib_roots, module_root, expected=EXPECTED_MA
         '          module) ((_slp_modules+=1)) ;;',
         '        esac',
         '        if [[ -L "$_slp_entry" ]]; then',
-        '          if ! _slp_target=$(/usr/bin/readlink -f -- "$_slp_entry" 2>/dev/null); then',
+        '          if ! _slp_target=$(command /usr/bin/readlink -f -- "$_slp_entry" 2>/dev/null); then',
         emit + ' "ERROR" "-" "ERROR"',
         '            return 0',
         '          fi',
@@ -138,13 +138,13 @@ def _render(control_id, exec_roots, lib_roots, module_root, expected=EXPECTED_MA
         emit + ' "ERROR" "-" "ERROR"',
         '          return 0',
         '        fi',
-        '        if ! _slp_ident=$(LC_ALL=C /usr/bin/stat -Lc "%d:%i" -- "$_slp_target" 2>/dev/null); then',
+        '        if ! _slp_ident=$(LC_ALL=C command /usr/bin/stat -Lc "%d:%i" -- "$_slp_target" 2>/dev/null); then',
         emit + ' "ERROR" "-" "ERROR"',
         '          return 0',
         '        fi',
         '        if [[ ${_slp_seen_targets["$_slp_ident"]+x} ]]; then continue; fi',
         '        _slp_seen_targets["$_slp_ident"]=1',
-        '        if ! _slp_mode=$(LC_ALL=C /usr/bin/stat -Lc %a -- "$_slp_target" 2>/dev/null); then',
+        '        if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -Lc %a -- "$_slp_target" 2>/dev/null); then',
         emit + ' "ERROR" "-" "ERROR"',
         '          return 0',
         '        fi',
@@ -195,8 +195,8 @@ def _selftest():
     assert _mode_compliance("0664") is False
     assert _mode_compliance("bogus") is None
     src = shell_function("CTRL", CANONICAL_LOCATOR, "mode", "bits-clear", "0022")
-    assert "/usr/bin/find -P" in src and "/usr/bin/readlink -f" in src
-    assert "/lib/modules/<uname-r>" in src and "/usr/bin/uname -r" in src
+    assert "command /usr/bin/find -P" in src and "command /usr/bin/readlink -f" in src
+    assert "/lib/modules/<uname-r>" in src and "command /usr/bin/uname -r" in src
     assert "libraries=" in src and "modules=" in src and "violations=" in src
     for token in MUTATING_TOKENS:
         assert token not in src, token

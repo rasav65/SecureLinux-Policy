@@ -80,6 +80,13 @@ securelinux-policy.sh
 sudo ./securelinux-policy.sh --check
 ```
 
+Compliance execution contract: tracked CLI запускается **как executable**, чтобы kernel
+применил shebang `#!/bin/bash -p`. Privileged-mode Bash не импортирует shell functions
+из environment, поэтому функция `command` не может подменить pinned external calls.
+Эквивалентный явный запуск — `/bin/bash -p ./securelinux-policy.sh ...`. Обычный
+`bash securelinux-policy.sh ...` и `source securelinux-policy.sh` не являются поддерживаемым
+режимом compliance execution.
+
 По умолчанию вывод предназначен для человека: колонки `RESULT`, `CONTROL` и
 `VALUE / DETAILS` имеют фиксированные позиции, а длинные details переносятся
 под третьей колонкой.
@@ -149,7 +156,7 @@ generator identity и не является текущей пользовате�
 
 | Гарантия | Статус | Чем проверяется |
 |---|---|---|
-| CHECK не содержит mutation capability | PASS | product generator regression + forbidden-token checks |
+| APPLY/RESTORE mutation modes не реализованы | PASS | CLI stubs + adapter contracts; forbidden-token scan — только defense-in-depth, а не формальное доказательство произвольного shell-кода |
 | Детерминированная генерация CHECK | PASS | `tests/product-v1/test_product_generator.py` |
 | Adapter/contract bytes закреплены SHA-256 | PASS | `ADAPTER-REGISTRY.tsv` + product regressions |
 | CHECK provenance доступен машинно | PASS | generator regression / `--provenance` |

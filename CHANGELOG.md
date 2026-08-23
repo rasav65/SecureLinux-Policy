@@ -4,11 +4,27 @@
 каждая запись обязана указывать, сколько строк source index она закрыла, и не
 приписывать себе продвижение, которого не было.
 
-Раздел `[Unreleased]` содержит только то, что ещё не имеет завершённого
-проверяемого состояния. Завершённые изменения переносятся в датированную
-версию.
+Раздел `[Unreleased]` содержит проверяемые изменения, уже выполненные в
+рабочем дереве, но ещё не включённые в датированную версию. Незавершённые планы
+не записываются как свершившиеся факты.
 
 ## [Unreleased]
+
+### Исправлено — fail-closed hardening перед SRC-0004
+
+- `file-mode-owner` и остальные current adapters вызывают pinned external tools через shell builtin `command`; slash-named functions вроде `/usr/bin/stat` и `/usr/bin/od` больше не подменяют runtime observation внутри adapter fixtures.
+- Tracked unified CLI переведён на `#!/bin/bash -p`: supported executable launch не импортирует environment shell functions, поэтому экспортированная функция `command` больше не может превратить pinned external observation в ложный PASS. Plain `bash script`/`source script` не объявляются supported compliance execution.
+- `pam-wheel-access`, `suid-sgid-applications`, `home-sensitive-files-mode` и `home-directories-mode` проверяют NUL до Bash line parsing через pinned `od` под тем же protected executable boundary; удаление NUL shell-ом больше не может превратить malformed input в PASS.
+- PAM raw-byte prevalidation разрешает `CR` только непосредственно перед `LF`; bare CR at EOF и internal CR дают fail-closed `ERROR`, canonical CRLF остаётся допустимым.
+- Generator отклоняет коллизии shell-function names после нормализации control ID и усиливает defense-in-depth scan против quote-splitting; документация больше не объявляет этот scan формальным доказательством read-only.
+- Добавлены adversarial regressions для stat shadowing, NUL/internal-CR, `A-B`/`A.B` collision и `ch''mod`. Source closure не меняется: это implementation/assurance errata уже закрытых controls.
+
+### Добавлено — SRC-0011 / 2.3.7: пользовательские cron-файлы
+
+- Добавлен aggregate kind `user-cron-files-mode` с read-only adapter `product-user-cron-files-mode-check-v1`.
+- Source-exact `chmod go-w` представлен как `bits-clear 0022`; owner/group и режимы root-каталогов не усиливаются.
+- Population рекурсивно включает regular non-symlink files под optional roots `/var/spool/cron` и `/var/spool/cron/crontabs`; overlap дедуплицируется. Пустая/отсутствующая population — PASS, неоднозначность или ошибка обхода/stat — ERROR.
+- Layout assumptions сверены отдельно на Ubuntu 22 FULL, Ubuntu 24 MINIMIZED/FULL, Ubuntu 26 MINIMIZED/FULL, Debian 12 SERVER и Debian 13 GNOME; эти наблюдения не расширяют current product target.
 
 ### Добавлено — SRC-0003 / 2.2.1: ограничение su через pam_wheel
 
@@ -1321,9 +1337,3 @@ SHA-256:
 - Новая активная модель строится source-first.
 - Один control = один parameter.
 - Источник и literal quote должны быть машинно проверяемы.
-### Добавлено — SRC-0011 / 2.3.7: пользовательские cron-файлы
-
-- Добавлен aggregate kind `user-cron-files-mode` с read-only adapter `product-user-cron-files-mode-check-v1`.
-- Source-exact `chmod go-w` представлен как `bits-clear 0022`; owner/group и режимы root-каталогов не усиливаются.
-- Population рекурсивно включает regular non-symlink files под optional roots `/var/spool/cron` и `/var/spool/cron/crontabs`; overlap дедуплицируется. Пустая/отсутствующая population — PASS, неоднозначность или ошибка обхода/stat — ERROR.
-- Layout assumptions сверены отдельно на Ubuntu 22 FULL, Ubuntu 24 MINIMIZED/FULL, Ubuntu 26 MINIMIZED/FULL, Debian 12 SERVER и Debian 13 GNOME; эти наблюдения не расширяют current product target.

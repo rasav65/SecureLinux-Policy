@@ -69,11 +69,11 @@ def shell_function(control_id, locator, key, op, expected):
         "  local _slp_path=" + path_lit,
         "  local _slp_expected=" + exp_lit,
         "  local _slp_mode _slp_parent _slp_comp",
-        "  if ! command -v stat >/dev/null 2>&1; then",
+        "  if [[ ! -x /usr/bin/stat ]]; then",
         emit_error,
         "    return 0",
         "  fi",
-        '  if _slp_mode=$(LC_ALL=C stat -L -c %a -- "$_slp_path" 2>/dev/null); then',
+        '  if _slp_mode=$(LC_ALL=C command /usr/bin/stat -L -c %a -- "$_slp_path" 2>/dev/null); then',
         "    if [[ ! $_slp_mode =~ ^[0-7]{1,4}$ ]]; then",
         emit_error,
         "      return 0",
@@ -106,7 +106,7 @@ MUTATING_TOKENS = (
 
 def _selftest():
     s = shell_function("CTRL-A", "/etc/shadow", "mode", "bits-clear", "0077")
-    assert "stat -L -c %a" in s
+    assert "command /usr/bin/stat -L -c %a" in s
     assert "8#$_slp_mode & 8#$_slp_expected" in s
     for token in MUTATING_TOKENS:
         assert token not in s, token
