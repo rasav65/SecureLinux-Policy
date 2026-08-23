@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.2.2-SUDOERS-REVIEWED-POLICY"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0004"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.2.2"
+  quote: "2.2.2. Ограничить список пользователей, которым разрешено использовать команду sudo и разрешенных к выполнению через sudo команд путём пересмотра файла /etc/sudoers."
+  quote_sha256: "779597efe81ae7d291d2b7b0883cffb5af1a56f0234919b0243f360e688babea"
+  norm: "norm-v1"
+requirement:
+  stated: "2.2.2. Ограничить список пользователей, которым разрешено использовать команду sudo и разрешенных к выполнению через sudo команд путём пересмотра файла /etc/sudoers."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sudoers-reviewed-policy"
+  locator: "/etc/sudoers"
+  key: "policy-tree"
+expected:
+  op: "eq-reviewed-policy"
+  value: "/etc/securelinux-policy/sudoers-reviewed-policy-v1"
+  type: "string"
+apply:
+  supported: false

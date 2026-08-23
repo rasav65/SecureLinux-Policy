@@ -5,6 +5,7 @@ import importlib.util
 import json
 import os
 import shutil
+import shlex
 import subprocess
 import tempfile
 import unittest
@@ -21,6 +22,7 @@ HOME_SENSITIVE_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-home-sens
 HOME_DIRECTORIES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-home-directories-mode-check-v1.py"
 SSHD_ROOT_LOGIN_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sshd-root-login-check-v1.py"
 PAM_WHEEL_ACCESS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-pam-wheel-access-check-v1.py"
+SUDOERS_REVIEWED_POLICY_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sudoers-reviewed-policy-check-v1.py"
 BASH = shutil.which("bash")
 
 
@@ -120,6 +122,14 @@ def load_pam_wheel_access_adapter():
 
 PAM_WHEEL_ACCESS = load_pam_wheel_access_adapter()
 
+def load_sudoers_reviewed_policy_adapter():
+    spec = importlib.util.spec_from_file_location("slp_sudoers_reviewed_policy_adapter", SUDOERS_REVIEWED_POLICY_ADAPTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+SUDOERS_REVIEWED_POLICY = load_sudoers_reviewed_policy_adapter()
+
 
 def load_current():
     rows, manifest_sha = GEN.load_manifest(ROOT)
@@ -144,8 +154,8 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access"} <= set(adapters))
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy"})
         src0002 = [c for c in controls if c["index_id"] == "SRC-0002"]
         self.assertEqual(len(src0002), 1)
         self.assertEqual(
@@ -157,6 +167,12 @@ class GeneratorModel(unittest.TestCase):
         self.assertEqual(
             (src0003[0]["parameter_kind"], src0003[0]["parameter_locator"], src0003[0]["parameter_key"], src0003[0]["expected_op"], src0003[0]["expected_value"]),
             ("pam-wheel-access", "/etc/pam.d/su|/etc/group", "policy", "eq-authority-file", "/etc/securelinux-policy/wheel-users.allowlist-v1"),
+        )
+        src0004 = [c for c in controls if c["index_id"] == "SRC-0004"]
+        self.assertEqual(len(src0004), 1)
+        self.assertEqual(
+            (src0004[0]["parameter_kind"], src0004[0]["parameter_locator"], src0004[0]["parameter_key"], src0004[0]["expected_op"], src0004[0]["expected_value"]),
+            ("sudoers-reviewed-policy", "/etc/sudoers", "policy-tree", "eq-reviewed-policy", "/etc/securelinux-policy/sudoers-reviewed-policy-v1"),
         )
         src0001 = [c for c in controls if c["index_id"] == "SRC-0001"]
         self.assertEqual(len(src0001), 1)
@@ -1264,6 +1280,289 @@ class PamWheelAccessAdapterFixtures(unittest.TestCase):
                     PAM_WHEEL_ACCESS.shell_function("TEST", *args)
 
 
+class SudoersReviewedPolicyAdapterFixtures(unittest.TestCase):
+    def run_fixture(self, files, authority_text, visudo_lines=None, visudo_rc=0, symlink_path=None, authority_bytes=None, prelude=""):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            sudoers = root / "sudoers"
+            authority = root / "authority"
+            for rel, data in files.items():
+                path = root / rel
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data if isinstance(data, bytes) else data.encode())
+            if not sudoers.exists():
+                sudoers.write_text("Defaults env_reset\n", encoding="utf-8")
+            if symlink_path:
+                target = root / (symlink_path + ".target")
+                target.write_text("x\n", encoding="utf-8")
+                path = root / symlink_path
+                if path.exists() or path.is_symlink(): path.unlink()
+                path.symlink_to(target)
+            if authority_bytes is not None:
+                authority.write_bytes(authority_bytes)
+            elif authority_text is not None:
+                authority.write_text(authority_text, encoding="utf-8", newline="")
+            fake = root / "visudo"
+            lines = visudo_lines
+            if lines is None:
+                lines = [str(root / rel) for rel in files]
+                if str(sudoers) not in lines: lines.insert(0, str(sudoers))
+            body = ["#!/bin/bash", "[[ \"$1\" == -c && \"$2\" == -f ]] || exit 64"]
+            if visudo_rc == 0:
+                for path in lines:
+                    body.append("printf '%s\\n' " + shlex.quote(str(path) + ": parsed OK"))
+                body.append("exit 0")
+            else:
+                body.append("printf '%s\\n' 'parse error' >&2")
+                body.append(f"exit {visudo_rc}")
+            fake.write_text("\n".join(body) + "\n", encoding="utf-8")
+            fake.chmod(0o755)
+            src = SUDOERS_REVIEWED_POLICY._render("TEST-SUDOERS", str(sudoers), str(authority), str(fake))
+            script = root / "run.sh"
+            script.write_text("#!/bin/bash -p\n" + prelude + "\n" + src + "\nslp_check_TEST_SUDOERS\n", encoding="utf-8")
+            script.chmod(0o755)
+            cp = subprocess.run([str(script)], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            rows = [line.split("\t") for line in cp.stdout.splitlines() if line.startswith("SLP-CHECK-V1\t")]
+            self.assertEqual(len(rows), 1, cp.stdout + cp.stderr)
+            return rows[0], root
+
+    @staticmethod
+    def authority_for(root, rels):
+        lines = ["SLP-SUDOERS-REVIEWED-POLICY-V1"]
+        for rel in rels:
+            p = root / rel
+            lines.append(hashlib.sha256(p.read_bytes()).hexdigest() + "\t" + str(p))
+        return "\n".join(lines) + "\n"
+
+    def test_exact_active_tree_passes(self):
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); (root/"sudoers.d").mkdir();
+            (root/"sudoers").write_text("Defaults env_reset\n", encoding="utf-8")
+            (root/"sudoers.d/site").write_text("alice ALL=(root) /usr/bin/id\n", encoding="utf-8")
+            authority = root/"authority"; fake=root/"visudo"
+            rels=["sudoers","sudoers.d/site"]
+            authority.write_text(self.authority_for(root, rels), encoding="utf-8")
+            fake.write_text("#!/bin/bash\nprintf '%s\\n' " + shlex.quote(str(root/"sudoers")+": parsed OK") + "\nprintf '%s\\n' " + shlex.quote(str(root/"sudoers.d/site")+": parsed OK") + "\n", encoding="utf-8"); fake.chmod(0o755)
+            src=SUDOERS_REVIEWED_POLICY._render("TEST-SUDOERS",str(root/"sudoers"),str(authority),str(fake))
+            script=root/"run.sh"; script.write_text("#!/bin/bash -p\n"+src+"\nslp_check_TEST_SUDOERS\n",encoding="utf-8"); script.chmod(0o755)
+            cp=subprocess.run([str(script)],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+            self.assertEqual(cp.returncode,0,cp.stderr); row=cp.stdout.strip().split("\t")
+            self.assertEqual((row[2],row[4]),("VALUE","PASS")); self.assertIn("mismatch=0",row[3])
+
+    def test_byte_drift_and_pathset_drift_fail(self):
+        for mode in ("bytes", "pathset"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory(dir=ROOT) as td:
+                root=Path(td); (root/"sudoers").write_text("Defaults env_reset\n",encoding="utf-8"); (root/"site").write_text("alice ALL=ALL\n",encoding="utf-8")
+                authority=root/"authority"; fake=root/"visudo"
+                rels=["sudoers","site"]
+                approved=self.authority_for(root,rels)
+                if mode=="bytes": (root/"site").write_text("alice ALL=(root) /usr/bin/id\n",encoding="utf-8")
+                else: approved="SLP-SUDOERS-REVIEWED-POLICY-V1\n"+hashlib.sha256((root/"sudoers").read_bytes()).hexdigest()+"\t"+str(root/"sudoers")+"\n"
+                authority.write_text(approved,encoding="utf-8")
+                fake.write_text("#!/bin/bash\nprintf '%s\\n' "+shlex.quote(str(root/"sudoers")+": parsed OK")+"\nprintf '%s\\n' "+shlex.quote(str(root/"site")+": parsed OK")+"\n",encoding="utf-8"); fake.chmod(0o755)
+                src=SUDOERS_REVIEWED_POLICY._render("TEST-SUDOERS",str(root/"sudoers"),str(authority),str(fake)); script=root/"run.sh"; script.write_text("#!/bin/bash -p\n"+src+"\nslp_check_TEST_SUDOERS\n",encoding="utf-8"); script.chmod(0o755)
+                cp=subprocess.run([str(script)],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True); row=cp.stdout.strip().split("\t")
+                self.assertEqual((row[2],row[4]),("VALUE","FAIL"))
+
+    def test_authority_visudo_and_closure_ambiguity_error(self):
+        cases=("missing-authority","bad-header","visudo-fail","unexpected-output","duplicate-path")
+        for case in cases:
+            with self.subTest(case=case), tempfile.TemporaryDirectory(dir=ROOT) as td:
+                root=Path(td); sudoers=root/"sudoers"; sudoers.write_text("Defaults env_reset\n",encoding="utf-8"); authority=root/"authority"; fake=root/"visudo"
+                if case!="missing-authority": authority.write_text("BAD\n" if case=="bad-header" else "SLP-SUDOERS-REVIEWED-POLICY-V1\n"+hashlib.sha256(sudoers.read_bytes()).hexdigest()+"\t"+str(sudoers)+"\n",encoding="utf-8")
+                if case=="visudo-fail": body="#!/bin/bash\nexit 1\n"
+                elif case=="unexpected-output": body="#!/bin/bash\nprintf '%s\\n' warning\n"
+                elif case=="duplicate-path": body="#!/bin/bash\nprintf '%s\\n' "+shlex.quote(str(sudoers)+": parsed OK")+"\nprintf '%s\\n' "+shlex.quote(str(sudoers)+": parsed OK")+"\n"
+                else: body="#!/bin/bash\nprintf '%s\\n' "+shlex.quote(str(sudoers)+": parsed OK")+"\n"
+                fake.write_text(body,encoding="utf-8"); fake.chmod(0o755)
+                src=SUDOERS_REVIEWED_POLICY._render("TEST-SUDOERS",str(sudoers),str(authority),str(fake)); script=root/"run.sh"; script.write_text("#!/bin/bash -p\n"+src+"\nslp_check_TEST_SUDOERS\n",encoding="utf-8"); script.chmod(0o755)
+                cp=subprocess.run([str(script)],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True); row=cp.stdout.strip().split("\t")
+                self.assertEqual((row[2],row[4]),("ERROR","ERROR"))
+
+    def test_symlink_member_and_binary_authority_error(self):
+        for case in ("symlink","nul","bare-cr"):
+            with self.subTest(case=case), tempfile.TemporaryDirectory(dir=ROOT) as td:
+                root=Path(td); sudoers=root/"sudoers"; sudoers.write_text("Defaults env_reset\n",encoding="utf-8"); member=root/"site.target"; member.write_text("alice ALL=ALL\n",encoding="utf-8"); site=root/"site"; site.symlink_to(member); authority=root/"authority"; fake=root/"visudo"
+                if case=="nul": authority.write_bytes(b"SLP-SUDOERS-REVIEWED-POLICY-V1\n"+b"0"*64+b"\t/x\x00\n")
+                elif case=="bare-cr": authority.write_bytes(b"SLP-SUDOERS-REVIEWED-POLICY-V1\r")
+                else: authority.write_text("SLP-SUDOERS-REVIEWED-POLICY-V1\n"+hashlib.sha256(sudoers.read_bytes()).hexdigest()+"\t"+str(sudoers)+"\n"+hashlib.sha256(member.read_bytes()).hexdigest()+"\t"+str(site)+"\n",encoding="utf-8")
+                lines=[str(sudoers)] if case!="symlink" else [str(sudoers),str(site)]
+                fake.write_text("#!/bin/bash\n"+"".join("printf '%s\\n' "+shlex.quote(x+": parsed OK")+"\n" for x in lines),encoding="utf-8"); fake.chmod(0o755)
+                src=SUDOERS_REVIEWED_POLICY._render("TEST-SUDOERS",str(sudoers),str(authority),str(fake)); script=root/"run.sh"; script.write_text("#!/bin/bash -p\n"+src+"\nslp_check_TEST_SUDOERS\n",encoding="utf-8"); script.chmod(0o755)
+                cp=subprocess.run([str(script)],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True); row=cp.stdout.strip().split("\t")
+                self.assertEqual((row[2],row[4]),("ERROR","ERROR"))
+
+    def test_slash_named_od_function_cannot_bypass_binary_authority_validation(self):
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            sudoers = root / "sudoers"
+            sudoers.write_text("Defaults env_reset\n", encoding="utf-8")
+            authority = root / "authority"
+            authority.write_bytes(
+                b"SLP-SUDOERS-REVIEWED-POLICY-V1\n"
+                + b"0" * 64 + b"\t" + str(sudoers).encode() + b"\x00\n"
+            )
+            fake = root / "visudo"
+            fake.write_text(
+                "#!/bin/bash\nprintf '%s\\n' "
+                + shlex.quote(str(sudoers) + ": parsed OK") + "\n",
+                encoding="utf-8",
+            )
+            fake.chmod(0o755)
+            src = SUDOERS_REVIEWED_POLICY._render(
+                "TEST-SUDOERS", str(sudoers), str(authority), str(fake)
+            )
+            script = root / "run.sh"
+            script.write_text(
+                "#!/bin/bash -p\n"
+                "function /usr/bin/od(){ printf '61 62 63\\n'; }\n"
+                + src + "\nslp_check_TEST_SUDOERS\n",
+                encoding="utf-8",
+            )
+            script.chmod(0o755)
+            cp = subprocess.run(
+                [str(script)], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+            row = cp.stdout.strip().split("\t")
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_slash_named_sha256sum_function_cannot_hide_policy_byte_drift(self):
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            sudoers = root / "sudoers"
+            sudoers.write_text("Defaults env_reset\n", encoding="utf-8")
+            approved_digest = hashlib.sha256(sudoers.read_bytes()).hexdigest()
+            authority = root / "authority"
+            authority.write_text(
+                "SLP-SUDOERS-REVIEWED-POLICY-V1\n"
+                + approved_digest + "\t" + str(sudoers) + "\n",
+                encoding="utf-8",
+            )
+            sudoers.write_text("Defaults env_reset\nalice ALL=(root) /usr/bin/id\n", encoding="utf-8")
+            fake = root / "visudo"
+            fake.write_text(
+                "#!/bin/bash\nprintf '%s\\n' "
+                + shlex.quote(str(sudoers) + ": parsed OK") + "\n",
+                encoding="utf-8",
+            )
+            fake.chmod(0o755)
+            src = SUDOERS_REVIEWED_POLICY._render(
+                "TEST-SUDOERS", str(sudoers), str(authority), str(fake)
+            )
+            script = root / "run.sh"
+            script.write_text(
+                "#!/bin/bash -p\n"
+                "function /usr/bin/sha256sum(){ printf '"
+                + approved_digest
+                + "  %s\\n' \"$2\"; }\n"
+                + src + "\nslp_check_TEST_SUDOERS\n",
+                encoding="utf-8",
+            )
+            script.chmod(0o755)
+            cp = subprocess.run(
+                [str(script)], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+            row = cp.stdout.strip().split("\t")
+            self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+            self.assertIn("mismatch=1", row[3])
+
+    def test_slash_named_visudo_function_cannot_override_selected_executable(self):
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            sudoers = root / "sudoers"
+            sudoers.write_text("Defaults env_reset\n", encoding="utf-8")
+            authority = root / "authority"
+            authority.write_text(self.authority_for(root, ["sudoers"]), encoding="utf-8")
+            fake = root / "visudo"
+            fake.write_text(
+                "#!/bin/bash\nprintf '%s\\n' "
+                + shlex.quote(str(sudoers) + ": parsed OK") + "\n",
+                encoding="utf-8",
+            )
+            fake.chmod(0o755)
+            src = SUDOERS_REVIEWED_POLICY._render(
+                "TEST-SUDOERS", str(sudoers), str(authority), str(fake)
+            )
+            script = root / "run.sh"
+            script.write_text(
+                "#!/bin/bash -p\n"
+                "function " + str(fake) + "(){ printf '%s\\n' 'shadowed'; return 1; }\n"
+                + src + "\nslp_check_TEST_SUDOERS\n",
+                encoding="utf-8",
+            )
+            script.chmod(0o755)
+            cp = subprocess.run(
+                [str(script)], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+            row = cp.stdout.strip().split("\t")
+            self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+            self.assertIn("mismatch=0", row[3])
+
+    def test_other_control_byte_in_authority_path_is_error(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            sudoers = root / "sudoers"
+            sudoers.write_text("Defaults env_reset\n", encoding="utf-8")
+            member = root / ("site" + "\x01" + "policy")
+            member.write_text("alice ALL=(root) /usr/bin/id\n", encoding="utf-8")
+            authority = root / "authority"
+            authority.write_text(self.authority_for(root, ["sudoers", member.name]), encoding="utf-8", newline="")
+            fake = root / "visudo"
+            fake.write_text(
+                "#!/bin/bash\n"
+                + "printf '%s\\n' " + shlex.quote(str(sudoers) + ": parsed OK") + "\n"
+                + "printf '%s\\n' " + shlex.quote(str(member) + ": parsed OK") + "\n",
+                encoding="utf-8",
+            )
+            fake.chmod(0o755)
+            src = SUDOERS_REVIEWED_POLICY._render("TEST-SUDOERS", str(sudoers), str(authority), str(fake))
+            script = root / "run.sh"
+            script.write_text("#!/bin/bash -p\n" + src + "\nslp_check_TEST_SUDOERS\n", encoding="utf-8")
+            script.chmod(0o755)
+            cp = subprocess.run([str(script)], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SUDOERS\tERROR\t-\tERROR")
+
+    def test_visudo_nul_before_parsed_ok_is_error_before_line_parsing(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            sudoers = root / "sudoers"
+            sudoers.write_text("Defaults env_reset\n", encoding="utf-8")
+            authority = root / "authority"
+            authority.write_text(self.authority_for(root, ["sudoers"]), encoding="utf-8", newline="")
+            fake = root / "visudo"
+            fake.write_text(
+                "#!/bin/bash\n"
+                + "printf '%s\\0%s\\n' "
+                + shlex.quote(str(sudoers))
+                + " "
+                + shlex.quote(": parsed OK")
+                + "\n",
+                encoding="utf-8",
+            )
+            fake.chmod(0o755)
+            src = SUDOERS_REVIEWED_POLICY._render("TEST-SUDOERS", str(sudoers), str(authority), str(fake))
+            script = root / "run.sh"
+            script.write_text("#!/bin/bash -p\n" + src + "\nslp_check_TEST_SUDOERS\n", encoding="utf-8")
+            script.chmod(0o755)
+            cp = subprocess.run([str(script)], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SUDOERS\tERROR\t-\tERROR")
+            self.assertNotIn("ignored null byte", cp.stderr.lower())
+
+    def test_generation_rejects_wrong_contract_fields(self):
+        cases=(("/tmp/sudoers",SUDOERS_REVIEWED_POLICY.CANONICAL_KEY,SUDOERS_REVIEWED_POLICY.CANONICAL_OP,SUDOERS_REVIEWED_POLICY.CANONICAL_AUTHORITY),(SUDOERS_REVIEWED_POLICY.CANONICAL_LOCATOR,"users",SUDOERS_REVIEWED_POLICY.CANONICAL_OP,SUDOERS_REVIEWED_POLICY.CANONICAL_AUTHORITY),(SUDOERS_REVIEWED_POLICY.CANONICAL_LOCATOR,SUDOERS_REVIEWED_POLICY.CANONICAL_KEY,"eq",SUDOERS_REVIEWED_POLICY.CANONICAL_AUTHORITY),(SUDOERS_REVIEWED_POLICY.CANONICAL_LOCATOR,SUDOERS_REVIEWED_POLICY.CANONICAL_KEY,SUDOERS_REVIEWED_POLICY.CANONICAL_OP,"/tmp/policy"))
+        for args in cases:
+            with self.subTest(args=args), self.assertRaises(ValueError): SUDOERS_REVIEWED_POLICY.shell_function("TEST",*args)
+
+
 class SshdRootLoginAdapterFixtures(unittest.TestCase):
     def run_fixture(
         self, config_text=None, effective="no", syntax_rc=0, include_files=None,
@@ -1526,8 +1825,8 @@ SLP_POLICY_RC=1
             )
             self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
             self.assertIn("GENERATOR_ID=product-check-generator-v2\n", cp.stdout)
-            self.assertIn("CONTROL_COUNT=45\n", cp.stdout)
-            self.assertIn("ADAPTER_COUNT=12\n", cp.stdout)
+            self.assertIn("CONTROL_COUNT=46\n", cp.stdout)
+            self.assertIn("ADAPTER_COUNT=13\n", cp.stdout)
             self.assertEqual(out.read_bytes(), self.ARTIFACT.read_bytes())
             self.assertEqual(out.with_name(out.name + ".sha256").read_bytes(), self.SIDECAR.read_bytes())
         expected = f"{sha256_file(self.ARTIFACT)}  {self.ARTIFACT.name}\n"
@@ -1614,7 +1913,7 @@ SLP_POLICY_RC=1
         prov = self.run_cli("--provenance")
         self.assertEqual(prov.returncode, 0)
         rows = [json.loads(x) for x in prov.stdout.splitlines()]
-        self.assertEqual(len(rows), 45)
+        self.assertEqual(len(rows), 46)
         one = self.run_cli("--provenance", rows[0]["control_id"])
         self.assertEqual(json.loads(one.stdout)["control_id"], rows[0]["control_id"])
         for args in (("--bogus",), ("--help", "extra"), ("--check", "--format"),

@@ -17,6 +17,7 @@
 - `contracts/local-account-password-state-check-semantic-v1.json` — read-only aggregate contract для локальных `/etc/passwd` accounts + source-anchored `/etc/shadow`; empty password field = `FAIL`, неполная/неоднозначная mapping = `ERROR`;
 - `contracts/sshd-root-login-check-semantic-v1.json` — read-only source-faithful contract SRC-0002: main `/etc/ssh/sshd_config` обязан содержать global `PermitRootLogin no`, а `sshd -t/-T` подтверждают синтаксис и effective `no`; Include/Match ambiguity fail-closed;
 - `contracts/pam-wheel-access-check-semantic-v1.json` — read-only aggregate contract SRC-0003: source-exact PAM rule + local `wheel` membership against explicit local authority;
+- `contracts/sudoers-reviewed-policy-check-semantic-v1.json` — read-only aggregate contract SRC-0004: exact active sudoers policy tree against explicit reviewed local authority;
 - `contracts/standard-system-paths-mode-check-semantic-v1.json` — read-only aggregate contract SRC-0012 для standard executable/library/current-kernel-module population с merged-`/usr` aliases, target deduplication и fail-closed observation errors;
 - `contracts/suid-sgid-applications-check-semantic-v1.json` — read-only contract SRC-0013: effective SUID/SGID population, `go-w` mode check и отдельная allowlist-authority проверка отсутствия лишних приложений;
 - `adapters/product-file-mode-owner-check-v1.py` + JSON binding;
@@ -27,6 +28,7 @@
 - `adapters/product-local-account-password-state-check-v1.py` + JSON binding; только чтение `/etc/passwd` и `/etc/shadow`, без passwd/usermod/APPLY;
 - `adapters/product-sshd-root-login-check-v1.py` + JSON binding; только чтение SSH config tree и `sshd -t/-T`, без записи/reload/restart/APPLY;
 - `adapters/product-pam-wheel-access-check-v1.py` + JSON binding; только чтение `/etc/pam.d/su`, `/etc/group` и local authority, без group/PAM mutation/APPLY;
+- `adapters/product-sudoers-reviewed-policy-check-v1.py` + JSON binding; только `visudo -c`/read/hash active sudoers closure и reviewed authority, без sudoers mutation/APPLY;
 - `adapters/product-standard-system-paths-mode-check-v1.py` + JSON binding; только `uname/readlink/find/sort/stat`, без chmod/chown/APPLY;
 - `adapters/product-suid-sgid-applications-check-v1.py` + JSON binding; только чтение mountinfo/allowlist и `find/sort/stat`, без chmod/chown/remount/APPLY;
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
@@ -177,3 +179,10 @@ Global duplicates не объявляются ошибкой сами по се�
 `root` обязателен непосредственно в fourth field wheel record. Placeholder `<user list>` не угадывается из текущих sudo/admin accounts: current product authority — `/etc/securelinux-policy/wheel-users.allowlist-v1`, по одному дополнительному разрешённому имени на строку. После обязательного `root` фактический supplementary-members set должен точно совпасть с authority; missing/extra member даёт `VALUE/FAIL`. Если PAM/wheel/root уже явно отсутствуют, это definitive `FAIL` без authority; когда structural conditions выполнены, missing/malformed authority даёт `ERROR`.
 
 GID `10` из source-record не фиксируется как portable compliance condition: adapter требует числовой GID, но `pam_wheel` выбирает группу по имени `wheel`, а системные GID allocations различаются. Иной active `pam_wheel.so` rule (`deny`, `trust`, `group=...`, absolute module path, иной control) не заменяет source-exact rule и даёт fail-closed `ERROR`. Donor auto-create/group membership mutation, `WHEEL_USERS` и `SUDO_USER` discovery не переносятся. APPLY/RESTORE отсутствуют.
+## SRC-0004 / 2.2.2
+
+Один aggregate control `sudoers-reviewed-policy` представляет source-требование пересмотра `/etc/sudoers` без выдумывания универсального списка sudo-пользователей или команд. Current local decision задаётся authority `/etc/securelinux-policy/sudoers-reviewed-policy-v1`: header `SLP-SUDOERS-REVIEWED-POLICY-V1`, затем exact SHA-256 и absolute path каждого утверждённого active sudoers-файла.
+
+CHECK запускает pinned `/usr/sbin/visudo -c -f /etc/sudoers` под `LC_ALL=C`; PASS требует successful syntax validation и exact equality фактической parse closure (`/etc/sudoers` + реально разобранные include/includedir files) с authority по pathset и bytes. До line parsing authority raw bytes допускают только structural TAB/LF и canonical CRLF, а `visudo` stdout сначала переводится pinned `/usr/bin/od` в hex и проверяется как raw-byte stream, чтобы Bash command substitution не мог скрыть NUL/control-byte corruption. Missing/extra file или digest drift даёт `VALUE/FAIL`. Missing/malformed authority, embedded nonstructural control byte, NUL/invalid framing в observation, unexpected/duplicate visudo closure, symlink/nonregular/unreadable policy member либо tool failure дают `ERROR`. `%sudo`, `%wheel`, `SUDO_USER`, donor и VM defaults не используются как approved-policy authority. APPLY/RESTORE отсутствуют.
+
+Семь ранее собранных privileged VM runs подтвердили discovery baseline: `/etc/sudoers` regular `0440 root:root`, `@includedir /etc/sudoers.d` присутствует, `visudo` full check `RC=0` на всех 7/7; это не определяет approved local policy.

@@ -130,3 +130,7 @@ Read-only evidence helper `slp-vm-batch-src0002-src0004-evidence-v1` выпол�
 ## SRC-0003 / pam_wheel — privileged evidence matrix
 
 Тот же read-only batch имеет integrity-verified evidence `7/7` для 2.2.1. На всех семи installations `/etc/pam.d/su` и `/etc/group` были regular root-owned files mode `0644`; active `pam_wheel` lines и exact required line count равнялись `0`, local `wheel` group count равнялся `0`, при этом `pam_wheel.so` module был обнаружен в standard security-module paths. Поэтому baseline однозначно `FAIL` ещё до необходимости локальной `<user list>` authority. Наличие module file само по себе compliance не доказывает. Evidence подтверждает assumptions CHECK и не расширяет current product target `ubuntu-24.04-x86_64`.
+
+## SRC-0004 / sudoers reviewed policy — privileged evidence matrix
+
+Read-only evidence `slp-vm-evidence-src0002-src0004-v1-*` integrity-verified `7/7`: Ubuntu 22 FULL, Ubuntu 24 MINIMIZED/FULL, Ubuntu 26 MINIMIZED/FULL, Debian 12 SERVER, Debian 13 GNOME. Во всех семи `/etc/sudoers` существовал как regular `0440 root:root`, присутствовал active `@includedir /etc/sudoers.d`, полный `visudo` check завершался `RC=0`. На Ubuntu 26 `sudo`/`visudo` предоставлялись через alternatives symlinks. Эти host facts подтверждают способ discovery/validation; они не задают универсальный approved user/command set и не расширяют current target `ubuntu-24.04-x86_64`.

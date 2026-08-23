@@ -10,6 +10,16 @@
 
 ## [Unreleased]
 
+### Добавлено — SRC-0004 / 2.2.2: reviewed sudoers policy
+
+- `SRC-0004` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.2.2-SUDOERS-REVIEWED-POLICY`.
+- Новый read-only kind `sudoers-reviewed-policy` не выводит approved set из `%sudo`, `%wheel`, `SUDO_USER`, donor или VM defaults: локальное решение задаётся explicit reviewed authority `/etc/securelinux-policy/sudoers-reviewed-policy-v1`.
+- Pinned `visudo -c -f /etc/sudoers` определяет и валидирует active include/includedir closure; exact pathset и SHA-256 bytes каждого parsed policy file должны совпасть с authority. Drift даёт `VALUE/FAIL`, authority/closure/visudo ambiguity — `ERROR`.
+- 7/7 previously collected privileged VM evidence подтверждают `/etc/sudoers` regular `0440 root:root`, active `@includedir /etc/sudoers.d` и successful full `visudo` check; это evidence discovery assumptions, не normative approved policy.
+- Independent targeted adversarial audit SRC-0004 выявил и исправил два fail-open дефекта implementation без изменения source semantics/contract identity: authority теперь отвергает nonstructural C0/DEL control bytes, а raw stdout `visudo` проверяется через pinned `/usr/bin/od` до Bash line parsing, поэтому NUL больше не может быть silently stripped command substitution.
+- Targeted SRC-0004 assurance расширен с 8 до 10 fixtures: добавлены regression для authority path с `0x01` и regression для `<path><NUL>: parsed OK`; оба требуют `ERROR`.
+- После шага: `349 / 36 controlled CLOSED / 313 OPEN`; canonical controls `46`; adapters `13`. Formal Gate5 probe-results, APPLY и RESTORE не создаются.
+
 ### Исправлено — fail-closed hardening перед SRC-0004
 
 - `file-mode-owner` и остальные current adapters вызывают pinned external tools через shell builtin `command`; slash-named functions вроде `/usr/bin/stat` и `/usr/bin/od` больше не подменяют runtime observation внутри adapter fixtures.

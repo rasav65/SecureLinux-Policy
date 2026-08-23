@@ -273,6 +273,18 @@ KIND_RULES = {
             },
         ],
     },
+    "sudoers-reviewed-policy": {
+        "locator": {"const": "/etc/sudoers"},
+        "key": {"const": "policy-tree"},
+        "op": {"const": "eq-reviewed-policy"},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "eq-reviewed-policy"}},
+                "then": {"expected.value": {"const": "/etc/securelinux-policy/sudoers-reviewed-policy-v1"}},
+            },
+        ],
+    },
     "mount-option": {
         "locator": {"pattern": ABSOLUTE_PATH_PATTERN},
         "key": {"anyOf": [{"const": "fstype"},

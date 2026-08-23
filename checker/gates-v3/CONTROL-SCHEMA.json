@@ -1526,6 +1526,92 @@
           "parameter": {
             "properties": {
               "kind": {
+                "const": "sudoers-reviewed-policy"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq-reviewed-policy"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "/etc/securelinux-policy/sudoers-reviewed-policy-v1"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq-reviewed-policy"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "policy-tree"
+              },
+              "locator": {
+                "const": "/etc/sudoers"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
                 "const": "mount-option"
               }
             },
@@ -1799,6 +1885,7 @@
             "local-account-password-state",
             "sshd-root-login",
             "pam-wheel-access",
+            "sudoers-reviewed-policy",
             "mount-option",
             "systemd-unit-state",
             "package-presence",
