@@ -191,6 +191,22 @@ KIND_RULES = {
             },
         ],
     },
+    "running-process-paths-write-protection": {
+        "locator": {"const": "/proc/<pid>/exe|/proc/<pid>/maps"},
+        "key": {"const": "write-protection"},
+        "op": {"const": "runtime-paths-safe"},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "runtime-paths-safe"}},
+                "then": {
+                    "expected.value": {
+                        "const": "file-go-w;parent-unprivileged-write-denied"
+                    },
+                },
+            },
+        ],
+    },
     "suid-sgid-applications": {
         "locator": {"const": "/proc/self/mountinfo"},
         "key": {"enum": ["mode", "approved-set"]},

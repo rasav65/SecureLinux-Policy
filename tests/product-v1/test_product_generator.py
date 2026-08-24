@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """product-v1 tests for the tracked product CHECK generator."""
+import ast
+import contextlib
+import errno
+import io
 import hashlib
 import importlib.util
 import json
@@ -8,6 +12,8 @@ import shutil
 import shlex
 import subprocess
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -23,6 +29,7 @@ HOME_DIRECTORIES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-home-di
 SSHD_ROOT_LOGIN_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sshd-root-login-check-v1.py"
 PAM_WHEEL_ACCESS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-pam-wheel-access-check-v1.py"
 SUDOERS_REVIEWED_POLICY_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sudoers-reviewed-policy-check-v1.py"
+RUNNING_PROCESS_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-running-process-paths-write-protection-check-v1.py"
 BASH = shutil.which("bash")
 
 
@@ -130,6 +137,14 @@ def load_sudoers_reviewed_policy_adapter():
 
 SUDOERS_REVIEWED_POLICY = load_sudoers_reviewed_policy_adapter()
 
+def load_running_process_paths_adapter():
+    spec = importlib.util.spec_from_file_location("slp_running_process_paths_adapter", RUNNING_PROCESS_PATHS_ADAPTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+RUNNING_PROCESS_PATHS = load_running_process_paths_adapter()
+
 
 def load_current():
     rows, manifest_sha = GEN.load_manifest(ROOT)
@@ -154,8 +169,8 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy"} <= set(adapters))
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy"})
         src0002 = [c for c in controls if c["index_id"] == "SRC-0002"]
         self.assertEqual(len(src0002), 1)
         self.assertEqual(
@@ -173,6 +188,12 @@ class GeneratorModel(unittest.TestCase):
         self.assertEqual(
             (src0004[0]["parameter_kind"], src0004[0]["parameter_locator"], src0004[0]["parameter_key"], src0004[0]["expected_op"], src0004[0]["expected_value"]),
             ("sudoers-reviewed-policy", "/etc/sudoers", "policy-tree", "eq-reviewed-policy", "/etc/securelinux-policy/sudoers-reviewed-policy-v1"),
+        )
+        src0006 = [c for c in controls if c["index_id"] == "SRC-0006"]
+        self.assertEqual(len(src0006), 1)
+        self.assertEqual(
+            (src0006[0]["parameter_kind"], src0006[0]["parameter_locator"], src0006[0]["parameter_key"], src0006[0]["expected_op"], src0006[0]["expected_value"]),
+            ("running-process-paths-write-protection", "/proc/<pid>/exe|/proc/<pid>/maps", "write-protection", "runtime-paths-safe", "file-go-w;parent-unprivileged-write-denied"),
         )
         src0001 = [c for c in controls if c["index_id"] == "SRC-0001"]
         self.assertEqual(len(src0001), 1)
@@ -581,7 +602,7 @@ class UserCronFilesModeFixtures(unittest.TestCase):
             locked = cron / "locked"; locked.mkdir(); os.chmod(locked, 0)
             try:
                 cp = self.run_user_cron([cron])
-                # Root execution can bypass DAC in some CI containers; ordinary-user execution must fail closed.
+                # Root execution may not exercise DAC denial in some CI containers; ordinary-user execution must fail closed.
                 if os.geteuid() != 0:
                     self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-USER-CRON\tERROR\t-\tERROR")
             finally:
@@ -936,8 +957,8 @@ class HomeSensitiveFilesAdapterFixtures(unittest.TestCase):
         self.login_defs.write_bytes(b"UID\x00_MIN 1000\n")
         self.assertIn("\tERROR\t-\tERROR", self.run_check().stdout)
         self.login_defs.write_text("UID_MIN 1000\n", encoding="utf-8")
-        payload = b".bash_history\x00\n" + "\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES[1:]).encode("utf-8") + b"\n"
-        self.inventory.write_bytes(payload)
+        invalid_inventory_bytes = b".bash_history\x00\n" + "\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES[1:]).encode("utf-8") + b"\n"
+        self.inventory.write_bytes(invalid_inventory_bytes)
         self.assertIn("\tERROR\t-\tERROR", self.run_check().stdout)
 
 @unittest.skipIf(BASH is None, "bash not available")
@@ -1233,7 +1254,7 @@ class PamWheelAccessAdapterFixtures(unittest.TestCase):
                 row = self.run_fixture(pam_text, group_text, authority_text)
                 self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
 
-    def test_slash_named_od_function_cannot_bypass_nul_validation(self):
+    def test_slash_named_od_function_cannot_override_nul_validation(self):
         row = self.run_fixture(
             b"auth required pam_wheel.so\x00 use_uid\n",
             b"wheel:x:10:root\n",
@@ -1395,7 +1416,7 @@ class SudoersReviewedPolicyAdapterFixtures(unittest.TestCase):
                 cp=subprocess.run([str(script)],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True); row=cp.stdout.strip().split("\t")
                 self.assertEqual((row[2],row[4]),("ERROR","ERROR"))
 
-    def test_slash_named_od_function_cannot_bypass_binary_authority_validation(self):
+    def test_slash_named_od_function_cannot_override_binary_authority_validation(self):
         with tempfile.TemporaryDirectory(dir=ROOT) as td:
             root = Path(td)
             sudoers = root / "sudoers"
@@ -1774,6 +1795,511 @@ class SshdRootLoginAdapterFixtures(unittest.TestCase):
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
 
 
+class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
+    @staticmethod
+    def _stat_text(pid_name="1", start="123"):
+        fields = ["S"] + ["0"] * 49
+        fields[19] = start
+        return f"{pid_name} (fixture) " + " ".join(fields) + "\n"
+
+    @staticmethod
+    def _status_text(state="S", kthread=0):
+        return f"State:\t{state} (fixture)\nKthread:\t{kthread}\n"
+
+    def _prepare_fs(self, root, name="app"):
+        fsroot = root / "fsroot"
+        bindir = fsroot / "opt" / name / "bin"
+        libdir = fsroot / "opt" / name / "lib"
+        bindir.mkdir(parents=True)
+        libdir.mkdir(parents=True)
+        exe = bindir / name
+        lib = libdir / "libfixture.so.1"
+        exe.write_text("x\n", encoding="utf-8")
+        lib.write_text("x\n", encoding="utf-8")
+        exe.chmod(0o555)
+        lib.chmod(0o555)
+        return fsroot, exe, lib, libdir
+
+    @staticmethod
+    def _seal_fs(fsroot, names, mode=0o555):
+        for d in (fsroot, fsroot / "opt"):
+            d.chmod(mode)
+        for name in names:
+            for d in (fsroot / "opt" / name, fsroot / "opt" / name / "bin", fsroot / "opt" / name / "lib"):
+                d.chmod(mode)
+
+    def _add_pid(self, proc, pid_name, exe, maps_text, start="123", status=None):
+        pid = proc / str(pid_name)
+        pid.mkdir(parents=True)
+        (pid / "stat").write_text(self._stat_text(str(pid_name), start), encoding="ascii")
+        (pid / "status").write_text(status or self._status_text(), encoding="utf-8")
+        if exe is not None:
+            (pid / "exe").symlink_to(exe)
+        if maps_text is not None:
+            (pid / "maps").write_text(maps_text, encoding="utf-8")
+        return pid
+
+    @staticmethod
+    def _maps_line(
+        path, *, perms="r-xp", inode=None, dev=None,
+        address="00400000-00401000", offset="00000000", source_path=None,
+    ):
+        if source_path is None:
+            candidate = Path(str(path))
+            if str(path).startswith("/") and candidate.exists():
+                source_path = candidate
+        if source_path is not None:
+            st = os.stat(source_path)
+            if inode is None:
+                inode = st.st_ino
+            if dev is None:
+                dev = f"{os.major(st.st_dev):x}:{os.minor(st.st_dev):x}"
+        if inode is None:
+            inode = 0 if str(path).startswith("[") else 1
+        if dev is None:
+            dev = "00:00"
+        return f"{address} {perms} {offset} {dev} {inode} {path}\n"
+
+    @staticmethod
+    def _prepare_proc(root, forks=1000):
+        proc = root / "proc"
+        proc.mkdir()
+        (proc / "stat").write_text(
+            f"cpu  0 0 0 0 0 0 0 0 0 0\nprocesses {forks}\n",
+            encoding="ascii",
+        )
+        return proc
+
+    @staticmethod
+    def _set_process_counter(proc, forks):
+        (proc / "stat").write_text(
+            f"cpu  0 0 0 0 0 0 0 0 0 0\nprocesses {forks}\n",
+            encoding="ascii",
+        )
+
+    def _script(self, root, proc, fsroot):
+        src = RUNNING_PROCESS_PATHS._shell_function_for_roots(
+            "TEST-RUNTIME-PATHS", str(proc), str(fsroot)
+        )
+        script = root / "run.sh"
+        script.write_text(
+            "#!/bin/bash -p\n" + src + "\nslp_check_TEST_RUNTIME_PATHS\n",
+            encoding="utf-8",
+        )
+        script.chmod(0o755)
+        return script
+
+    def _run_script(self, script):
+        cp = subprocess.run(
+            [str(script)], cwd=ROOT,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        row = cp.stdout.strip().split("\t")
+        self.assertEqual(len(row), 5, cp.stdout + cp.stderr)
+        return row
+
+    def _popen_script(self, script):
+        return subprocess.Popen(
+            [str(script)], cwd=ROOT,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+
+    @staticmethod
+    def _open_fifo_writer(path, timeout=5.0):
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                return os.open(path, os.O_WRONLY | os.O_NONBLOCK)
+            except OSError as exc:
+                if exc.errno != errno.ENXIO or time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.01)
+
+    def _finish_popen(self, cp, timeout=5.0):
+        out, err = cp.communicate(timeout=timeout)
+        self.assertEqual(cp.returncode, 0, err)
+        row = out.strip().split("\t")
+        self.assertEqual(len(row), 5, out + err)
+        return row
+
+    @staticmethod
+    def _serve_fifo_once(path, text):
+        failures = []
+        def writer():
+            try:
+                with open(path, "w", encoding="utf-8") as stream:
+                    stream.write(text)
+                    stream.flush()
+            except Exception as exc:
+                failures.append(exc)
+        thread = threading.Thread(target=writer, daemon=True)
+        thread.start()
+        return thread, failures
+
+    def run_fixture(
+        self, *, file_mode=0o555, parent_mode=0o555, deleted_library=False,
+        no_library=False, mapped_name="libfixture.so.1", proc_escape_space=False,
+        malformed_escape=False,
+    ):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            fsroot, exe, lib, libdir = self._prepare_fs(root)
+            if mapped_name != lib.name:
+                replacement = libdir / mapped_name
+                lib.rename(replacement)
+                lib = replacement
+            exe.chmod(file_mode)
+            lib.chmod(file_mode)
+            self._seal_fs(fsroot, ("app",), parent_mode)
+
+            proc = self._prepare_proc(root)
+            if no_library:
+                maps_path = "[heap]"
+                maps = self._maps_line(maps_path, perms="rw-p", inode=0)
+            else:
+                maps_path = str(lib)
+                if proc_escape_space:
+                    maps_path = maps_path.replace(" ", r"\040")
+                if malformed_escape:
+                    maps_path += r"\04x"
+                if deleted_library:
+                    maps_path += " (deleted)"
+                maps = self._maps_line(maps_path, source_path=lib)
+            self._add_pid(proc, "100", exe, maps)
+            return self._run_script(self._script(root, proc, fsroot))
+
+    def test_adapter_selftest(self):
+        cp = subprocess.run(
+            [os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", str(RUNNING_PROCESS_PATHS_ADAPTER_PATH)],
+            cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertIn("ADAPTER_SELFTEST=PASS", cp.stdout)
+
+    def test_positive_dynamic_population(self):
+        row = self.run_fixture()
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertIn("file_violations=0", row[3])
+        self.assertIn("parent_violations=0", row[3])
+
+    def test_file_go_w_is_fail(self):
+        row = self.run_fixture(file_mode=0o575)
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+        self.assertIn("file_violations=", row[3])
+
+    def test_unprivileged_parent_write_is_fail(self):
+        row = self.run_fixture(parent_mode=0o775)
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+        self.assertIn("parent_violations=", row[3])
+
+    def test_deleted_library_is_error(self):
+        row = self.run_fixture(deleted_library=True)
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_missing_library_population_is_error(self):
+        row = self.run_fixture(no_library=True)
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_executable_mapping_without_shared_object_name_is_checked(self):
+        row = self.run_fixture(mapped_name="render.plugin", file_mode=0o575)
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+
+    def test_proc_octal_escaped_mapping_path_is_decoded(self):
+        row = self.run_fixture(mapped_name="render plugin", proc_escape_space=True, file_mode=0o575)
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+
+    def test_malformed_proc_escape_is_error(self):
+        row = self.run_fixture(malformed_escape=True)
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_each_pid_requires_file_backed_executable_mapping(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            fsroot, exe1, lib1, _ = self._prepare_fs(root, "app1")
+            _, exe2, lib2, _ = self._prepare_fs(root, "app2")
+            proc = self._prepare_proc(root)
+            self._add_pid(proc, "100", exe1, self._maps_line("[heap]", perms="rw-p", inode=0))
+            self._add_pid(proc, "200", exe2, self._maps_line(str(lib2)))
+            self._seal_fs(fsroot, ("app1", "app2"))
+            row = self._run_script(self._script(root, proc, fsroot))
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_pid_population_growth_is_error(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            fsroot, exe1, lib1, _ = self._prepare_fs(root, "app1")
+            _, exe2, lib2, _ = self._prepare_fs(root, "app2")
+            proc = self._prepare_proc(root)
+            pid1 = self._add_pid(proc, "100", exe1, None)
+            fifo = pid1 / "maps"; os.mkfifo(fifo)
+            self._seal_fs(fsroot, ("app1", "app2"))
+            cp = self._popen_script(self._script(root, proc, fsroot))
+            fd = self._open_fifo_writer(fifo)
+            try:
+                self._add_pid(proc, "200", exe2, self._maps_line(str(lib2)))
+                os.write(fd, self._maps_line(str(lib1)).encode("utf-8"))
+            finally:
+                os.close(fd)
+            row = self._finish_popen(cp)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_identity_change_after_no_exe_classification_is_error(self):
+        tree = ast.parse(RUNNING_PROCESS_PATHS._PY)
+        selected = []
+        for node in tree.body:
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                selected.append(node)
+            elif isinstance(node, ast.FunctionDef) and node.name in {
+                "error", "read_start", "classify_no_exe",
+            }:
+                selected.append(node)
+        namespace = {}
+        exec(
+            compile(
+                ast.fix_missing_locations(ast.Module(body=selected, type_ignores=[])),
+                "<src0006-classify-no-exe>",
+                "exec",
+            ),
+            namespace,
+        )
+
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            pid = Path(td) / "100"
+            pid.mkdir()
+            (pid / "status").write_text(
+                self._status_text(state="Z"),
+                encoding="utf-8",
+            )
+
+            namespace["read_start"] = lambda _pid: "123"
+            self.assertEqual(
+                namespace["classify_no_exe"](pid, "123"),
+                "excluded",
+            )
+
+            namespace["read_start"] = lambda _pid: "456"
+            captured = io.StringIO()
+            with contextlib.redirect_stdout(captured):
+                with self.assertRaises(SystemExit) as cm:
+                    namespace["classify_no_exe"](pid, "123")
+            self.assertEqual(cm.exception.code, 0)
+            self.assertEqual(captured.getvalue().strip(), "ERROR")
+
+    def _snapshot_drift_case(self, mutate_parent):
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            fsroot, exe1, lib1, libdir1 = self._prepare_fs(root, "app1")
+            _, exe2, lib2, _ = self._prepare_fs(root, "app2")
+            proc = self._prepare_proc(root)
+            self._add_pid(proc, "100", exe1, self._maps_line(str(lib1)))
+            pid2 = self._add_pid(proc, "200", exe2, None)
+            fifo = pid2 / "maps"; os.mkfifo(fifo)
+            self._seal_fs(fsroot, ("app1", "app2"))
+            cp = self._popen_script(self._script(root, proc, fsroot))
+            fd = self._open_fifo_writer(fifo)
+            try:
+                if mutate_parent:
+                    libdir1.chmod(0o775)
+                else:
+                    lib1.chmod(0o575)
+                os.write(fd, self._maps_line(str(lib2)).encode("utf-8"))
+            finally:
+                os.close(fd)
+            thread, failures = self._serve_fifo_once(fifo, self._maps_line(str(lib2)))
+            row = self._finish_popen(cp)
+            thread.join(timeout=5.0)
+            self.assertFalse(thread.is_alive(), "second maps FIFO writer did not finish")
+            self.assertEqual(failures, [])
+            return row
+
+    def test_file_snapshot_drift_is_error(self):
+        row = self._snapshot_drift_case(False)
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_parent_snapshot_drift_is_error(self):
+        row = self._snapshot_drift_case(True)
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+
+    def test_maps_declared_identity_mismatch_is_error(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            fsroot, exe, lib, _ = self._prepare_fs(root)
+            proc = self._prepare_proc(root)
+            st = os.stat(lib)
+            maps = self._maps_line(
+                str(lib),
+                inode=st.st_ino + 1,
+                dev=f"{os.major(st.st_dev):x}:{os.minor(st.st_dev):x}",
+            )
+            self._add_pid(proc, "100", exe, maps)
+            self._seal_fs(fsroot, ("app",))
+            row = self._run_script(self._script(root, proc, fsroot))
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_malformed_maps_address_offset_device_are_error(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        cases = (
+            {"address": "NOT-AN-ADDRESS"},
+            {"offset": "NOT-OFFSET"},
+            {"dev": "NOT-DEV"},
+        )
+        for override in cases:
+            with self.subTest(override=override):
+                with tempfile.TemporaryDirectory(dir=ROOT) as td:
+                    root = Path(td)
+                    fsroot, exe, lib, _ = self._prepare_fs(root)
+                    proc = self._prepare_proc(root)
+                    maps = self._maps_line(str(lib), source_path=lib, **override)
+                    self._add_pid(proc, "100", exe, maps)
+                    self._seal_fs(fsroot, ("app",))
+                    row = self._run_script(self._script(root, proc, fsroot))
+                    self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_unicode_inode_digits_are_error(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            fsroot, exe, lib, _ = self._prepare_fs(root)
+            proc = self._prepare_proc(root)
+            st = os.stat(lib)
+            unicode_inode = str(st.st_ino).translate(str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩"))
+            maps = self._maps_line(str(lib), inode=unicode_inode, source_path=lib)
+            self._add_pid(proc, "100", exe, maps)
+            self._seal_fs(fsroot, ("app",))
+            row = self._run_script(self._script(root, proc, fsroot))
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_non_ascii_decimal_starttime_is_error(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            fsroot, exe, lib, _ = self._prepare_fs(root)
+            proc = self._prepare_proc(root)
+            self._add_pid(proc, "100", exe, self._maps_line(str(lib)), start="NOT-A-NUMBER")
+            self._seal_fs(fsroot, ("app",))
+            row = self._run_script(self._script(root, proc, fsroot))
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_missing_starttime_with_following_fields_is_error(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            fsroot, exe, lib, _ = self._prepare_fs(root)
+            proc = self._prepare_proc(root)
+            pid = self._add_pid(proc, "100", exe, self._maps_line(str(lib)))
+            fields = ["S"] + ["0"] * 49
+            fields[19] = ""
+            fields[20] = "777"
+            (pid / "stat").write_text("100 (fixture) " + " ".join(fields) + "\n", encoding="ascii")
+            self._seal_fs(fsroot, ("app",))
+            row = self._run_script(self._script(root, proc, fsroot))
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_transient_process_creation_counter_change_is_error(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            fsroot, exe, lib, _ = self._prepare_fs(root)
+            proc = self._prepare_proc(root, forks=1000)
+            pid = self._add_pid(proc, "100", exe, None)
+            fifo = pid / "maps"
+            os.mkfifo(fifo)
+            self._seal_fs(fsroot, ("app",))
+            cp = self._popen_script(self._script(root, proc, fsroot))
+            fd = self._open_fifo_writer(fifo)
+            try:
+                self._set_process_counter(proc, 1001)
+                os.write(fd, self._maps_line(str(lib)).encode("utf-8"))
+            finally:
+                os.close(fd)
+            row = self._finish_popen(cp)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_same_pid_mapping_population_drift_is_error(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            fsroot, exe1, lib1, _ = self._prepare_fs(root, "app1")
+            _, exe2, lib2, _ = self._prepare_fs(root, "app2")
+            _, _, lib3, _ = self._prepare_fs(root, "app3")
+            proc = self._prepare_proc(root)
+            pid1 = self._add_pid(proc, "100", exe1, self._maps_line(str(lib1)))
+            pid2 = self._add_pid(proc, "200", exe2, None)
+            fifo = pid2 / "maps"
+            os.mkfifo(fifo)
+            self._seal_fs(fsroot, ("app1", "app2", "app3"))
+            cp = self._popen_script(self._script(root, proc, fsroot))
+            fd = self._open_fifo_writer(fifo)
+            try:
+                (pid1 / "maps").write_text(
+                    self._maps_line(str(lib1)) +
+                    self._maps_line(
+                        str(lib3),
+                        address="00500000-00501000",
+                        source_path=lib3,
+                    ),
+                    encoding="utf-8",
+                )
+                os.write(fd, self._maps_line(str(lib2)).encode("utf-8"))
+            finally:
+                os.close(fd)
+            row = self._finish_popen(cp)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_same_pid_exe_target_drift_is_error(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            fsroot, exe1, lib1, _ = self._prepare_fs(root, "app1")
+            _, exe2, lib2, _ = self._prepare_fs(root, "app2")
+            _, exe3, _, _ = self._prepare_fs(root, "app3")
+            proc = self._prepare_proc(root)
+            pid1 = self._add_pid(proc, "100", exe1, self._maps_line(str(lib1)))
+            pid2 = self._add_pid(proc, "200", exe2, None)
+            fifo = pid2 / "maps"
+            os.mkfifo(fifo)
+            self._seal_fs(fsroot, ("app1", "app2", "app3"))
+            cp = self._popen_script(self._script(root, proc, fsroot))
+            fd = self._open_fifo_writer(fifo)
+            try:
+                (pid1 / "exe").unlink()
+                (pid1 / "exe").symlink_to(exe3)
+                os.write(fd, self._maps_line(str(lib2)).encode("utf-8"))
+            finally:
+                os.close(fd)
+            row = self._finish_popen(cp)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_generation_rejects_wrong_contract_fields(self):
+        cases = (
+            ("/proc", RUNNING_PROCESS_PATHS.CANONICAL_KEY, RUNNING_PROCESS_PATHS.CANONICAL_OP, RUNNING_PROCESS_PATHS.CANONICAL_EXPECTED),
+            (RUNNING_PROCESS_PATHS.CANONICAL_LOCATOR, "mode", RUNNING_PROCESS_PATHS.CANONICAL_OP, RUNNING_PROCESS_PATHS.CANONICAL_EXPECTED),
+            (RUNNING_PROCESS_PATHS.CANONICAL_LOCATOR, RUNNING_PROCESS_PATHS.CANONICAL_KEY, "bits-clear", RUNNING_PROCESS_PATHS.CANONICAL_EXPECTED),
+            (RUNNING_PROCESS_PATHS.CANONICAL_LOCATOR, RUNNING_PROCESS_PATHS.CANONICAL_KEY, RUNNING_PROCESS_PATHS.CANONICAL_OP, "0022"),
+        )
+        for args in cases:
+            with self.subTest(args=args):
+                with self.assertRaises(ValueError):
+                    RUNNING_PROCESS_PATHS.shell_function("TEST", *args)
+
+
 class UnifiedCliArtifact(unittest.TestCase):
     GEN_V2 = ROOT / "product/generate-product-check-v2.py"
     ARTIFACT = ROOT / "securelinux-policy.sh"
@@ -1825,8 +2351,8 @@ SLP_POLICY_RC=1
             )
             self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
             self.assertIn("GENERATOR_ID=product-check-generator-v2\n", cp.stdout)
-            self.assertIn("CONTROL_COUNT=46\n", cp.stdout)
-            self.assertIn("ADAPTER_COUNT=13\n", cp.stdout)
+            self.assertIn("CONTROL_COUNT=47\n", cp.stdout)
+            self.assertIn("ADAPTER_COUNT=14\n", cp.stdout)
             self.assertEqual(out.read_bytes(), self.ARTIFACT.read_bytes())
             self.assertEqual(out.with_name(out.name + ".sha256").read_bytes(), self.SIDECAR.read_bytes())
         expected = f"{sha256_file(self.ARTIFACT)}  {self.ARTIFACT.name}\n"
@@ -1913,7 +2439,7 @@ SLP_POLICY_RC=1
         prov = self.run_cli("--provenance")
         self.assertEqual(prov.returncode, 0)
         rows = [json.loads(x) for x in prov.stdout.splitlines()]
-        self.assertEqual(len(rows), 46)
+        self.assertEqual(len(rows), 47)
         one = self.run_cli("--provenance", rows[0]["control_id"])
         self.assertEqual(json.loads(one.stdout)["control_id"], rows[0]["control_id"])
         for args in (("--bogus",), ("--help", "extra"), ("--check", "--format"),

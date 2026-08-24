@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0006"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.3.2"
+  quote: "2.3.2. Установить корректные права доступа к файлам запущенных процессов путём выполнения команды вида: chmod go-w /путь/к/файлу для всех исполняемых файлов, запущенных в настоящий момент, и соответствующих библиотек. После этого необходимо осуществить проверку, что директория, содержащая данный файл, а также все родительские директории недоступны для записи непривилегированным пользователям."
+  quote_sha256: "f395bcd1e9dd9648161d6eac735f2b616c59c12e3d57a7cb1e9203cae2834aa5"
+  norm: "norm-v1"
+requirement:
+  stated: "2.3.2. Установить корректные права доступа к файлам запущенных процессов путём выполнения команды вида: chmod go-w /путь/к/файлу для всех исполняемых файлов, запущенных в настоящий момент, и соответствующих библиотек. После этого необходимо осуществить проверку, что директория, содержащая данный файл, а также все родительские директории недоступны для записи непривилегированным пользователям."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "running-process-paths-write-protection"
+  locator: "/proc/<pid>/exe|/proc/<pid>/maps"
+  key: "write-protection"
+expected:
+  op: "runtime-paths-safe"
+  value: "file-go-w;parent-unprivileged-write-denied"
+  type: "string"
+apply:
+  supported: false

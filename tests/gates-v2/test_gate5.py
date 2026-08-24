@@ -32,7 +32,7 @@ def record():
         "apply":{"supported":False},
     }
 
-def payload(status="VALUE", value="1", compliance="PASS"):
+def result_doc(status="VALUE", value="1", compliance="PASS"):
     return {
         "schema":"securelinux-policy-probe-results-v1",
         "probe_kind":"sysctl",
@@ -46,41 +46,41 @@ def payload(status="VALUE", value="1", compliance="PASS"):
     }
 
 class Gate5Tests(unittest.TestCase):
-    def run_payload(self, data):
+    def run_result_doc(self, data):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/"r.json"
             p.write_text(json.dumps(data),encoding="utf-8")
             return mod.gate5([(Path("test.yaml"),record())],p)
 
     def test_value_compliant_passes(self):
-        g=self.run_payload(payload()); self.assertTrue(g["pass"]); self.assertEqual(g["value_observations"],1)
+        g=self.run_result_doc(result_doc()); self.assertTrue(g["pass"]); self.assertEqual(g["value_observations"],1)
 
     def test_value_noncompliant_still_executable(self):
-        g=self.run_payload(payload(value="0",compliance="FAIL"))
+        g=self.run_result_doc(result_doc(value="0",compliance="FAIL"))
         self.assertTrue(g["pass"]); self.assertEqual(g["noncompliant_observations"],1)
 
     def test_not_found_is_explicit_execution_result(self):
-        g=self.run_payload(payload(status="NOT_FOUND",value=None,compliance="NOT_FOUND"))
+        g=self.run_result_doc(result_doc(status="NOT_FOUND",value=None,compliance="NOT_FOUND"))
         self.assertTrue(g["pass"]); self.assertEqual(g["not_found_observations"],1)
 
     def test_missing_results_file_fails(self):
         g=mod.gate5([(Path("test.yaml"),record())],None); self.assertFalse(g["pass"])
 
     def test_identity_mismatch_fails(self):
-        d=payload(); d["results"][0]["key"]="kernel.kptr_restrict"
-        self.assertFalse(self.run_payload(d)["pass"])
+        d=result_doc(); d["results"][0]["key"]="kernel.kptr_restrict"
+        self.assertFalse(self.run_result_doc(d)["pass"])
 
     def test_error_status_fails(self):
-        self.assertFalse(self.run_payload(payload(status="ERROR",value=None,compliance="ERROR"))["pass"])
+        self.assertFalse(self.run_result_doc(result_doc(status="ERROR",value=None,compliance="ERROR"))["pass"])
 
     def test_duplicate_result_fails(self):
-        d=payload(); d["results"].append(dict(d["results"][0]))
-        self.assertFalse(self.run_payload(d)["pass"])
+        d=result_doc(); d["results"].append(dict(d["results"][0]))
+        self.assertFalse(self.run_result_doc(d)["pass"])
 
     def test_extra_result_fails(self):
-        d=payload()
+        d=result_doc()
         x=dict(d["results"][0]); x["control_id"]="EXTRA"; d["results"].append(x)
-        self.assertFalse(self.run_payload(d)["pass"])
+        self.assertFalse(self.run_result_doc(d)["pass"])
 
 if __name__=="__main__":
     unittest.main(verbosity=2)

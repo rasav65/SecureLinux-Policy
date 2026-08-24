@@ -1,5 +1,5 @@
-5a785b2f932f04ef79e4c1c9682c41d59c945bc7cc7a5e6111cb14c600ee3813  ADAPTER-REGISTRY.tsv
-17b71a7a9ed5ee392cadc50899b44c2bd5caf47473c13a5232cd7694e78991d4  README.md
+30925cdfd97583501bd50693457a2f60491e869bb9075b9b688ca295c62fb557  ADAPTER-REGISTRY.tsv
+7d7e9b59937669b0df76435806f52e3ff64cba235422fe6b0fb527450b184ecc  README.md
 aab39b925d1e92b6fe427e50e7545736b47945e6cc9265d8fa7b4cb0029a0020  adapters/product-file-mode-owner-check-v1.json
 8df7c4922cf2b6a79bbcfa23afedb3ffd75343108fd5f373083238c237d260fe  adapters/product-file-mode-owner-check-v1.py
 1f30c66df70df87619fc37e3f4be60c28ae325369701466a3e2d6cbb2dc49c98  adapters/product-home-directories-mode-check-v1.json
@@ -16,6 +16,8 @@ f92af716622ef9ef5c9463e0496a4d5cb636729a087fd8520a89a5d0e6cc6a47  adapters/produ
 9cc727b05337da4cac52142238f64dbb8879a49b3823499ee304f9891e397a23  adapters/product-optional-file-root-files-mode-check-v1.py
 b5dc703267bf6c3ca0488138d92ce3046fd67e547f4e29bd49fbefcbd61c64f2  adapters/product-pam-wheel-access-check-v1.json
 6c8c83d5191eb0787ed89bba77b993ae8697c5b166970fb852fc047fddad6631  adapters/product-pam-wheel-access-check-v1.py
+95ef77bb04aa3a8c535f7050f788cd4cba923081fe6944550cb8049308955dd5  adapters/product-running-process-paths-write-protection-check-v1.json
+33975181554c43e312ef207d9afd9660f83434e096f93dd8e226ca2614fa11e7  adapters/product-running-process-paths-write-protection-check-v1.py
 b66f2500e094932542f3506cf2da99145c805abcf0e8f9e17e8f0fee8cbbb892  adapters/product-sshd-root-login-check-v1.json
 36038293e506b3c3c6b62f90756b44548044c26617bcebec1886a7f3de43b342  adapters/product-sshd-root-login-check-v1.py
 64a315c7702579b77cb63885a62a3aca3daf5395c4e50b37e2ab6823c1b0928e  adapters/product-standard-system-paths-mode-check-v1.json
@@ -38,6 +40,7 @@ ff17e541191574a1ba2a03add49087851679f3e37aed3d9e4bf5f6886c9bd894  contracts/home
 2dbfb302061eab4d698dd5c74c15132ca92d0fd8f98808582986dbe8cd4c2cb1  contracts/local-account-password-state-check-semantic-v1.json
 391d2db8f698fd6c34e0bce7adf830ffd59079402dc2363d1a149d497d0a1aa1  contracts/optional-file-root-files-mode-check-semantic-v1.json
 93a0e24dee2f88e59be813d94e8e65f9f5a31576e335b5966327cb3260eb1de2  contracts/pam-wheel-access-check-semantic-v1.json
+1a3b0522124c2e5ffe07e0f53adcc6421d84b651fec89cc1cd6c800f7a10edaf  contracts/running-process-paths-write-protection-check-semantic-v1.json
 db8f1a56bb13c28cb0fb77eafdbeeac3ccd7439ae11df34a65e1c24ec7c0c6ba  contracts/sshd-root-login-check-semantic-v1.json
 bc44b45c985fd83ce4d0dcd9c87d7f8add24ff57a6cf081040a7f9d7d605fe71  contracts/standard-system-paths-mode-check-semantic-v1.json
 f067dc99a5756351b50d71d2915c647307027d6f7a0a25f7209578a713f9b750  contracts/sudoers-reviewed-policy-check-semantic-v1.json

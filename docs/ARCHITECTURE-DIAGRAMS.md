@@ -69,7 +69,7 @@ flowchart TB
     CORP_FLAG -- "да" --> CORP["Корпоративная парольная политика<br/>password policy · password aging<br/>faillock только для strict/paranoid"]
     CORP_FLAG -- "нет" --> CORP_SKIP["Корпоративная парольная политика пропускается"]
     CORE --> FILES["Файлы и пути<br/>критические файлы · runtime-пути · домашние каталоги<br/>sudo/cron PATH · пользовательский cron · системные пути<br/>SUID/SGID · cron targets · systemd units"]
-    CORE --> KERNEL["Ядро и загрузка<br/>kernel sysctl · параметры GRUB<br/>attack-surface sysctl · userspace-protection sysctl<br/>kernel.modules_disabled"]
+    CORE --> KERNEL["Ядро и загрузка<br/>kernel sysctl · параметры GRUB<br/>kernel-hardening sysctl · userspace-protection sysctl<br/>kernel.modules_disabled"]
 
     EXTRA --> SERVICES["Службы и аудит<br/>SSH hardening · account audit · auditd<br/>rsyslog · chrony · unattended-upgrades"]
     EXTRA --> PROTECTION["Средства защиты<br/>AppArmor · AIDE · Fail2ban · rkhunter"]

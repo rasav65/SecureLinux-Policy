@@ -18,6 +18,7 @@
 - `contracts/sshd-root-login-check-semantic-v1.json` — read-only source-faithful contract SRC-0002: main `/etc/ssh/sshd_config` обязан содержать global `PermitRootLogin no`, а `sshd -t/-T` подтверждают синтаксис и effective `no`; Include/Match ambiguity fail-closed;
 - `contracts/pam-wheel-access-check-semantic-v1.json` — read-only aggregate contract SRC-0003: source-exact PAM rule + local `wheel` membership against explicit local authority;
 - `contracts/sudoers-reviewed-policy-check-semantic-v1.json` — read-only aggregate contract SRC-0004: exact active sudoers policy tree against explicit reviewed local authority;
+- `contracts/running-process-paths-write-protection-check-semantic-v1.json` — read-only aggregate contract SRC-0006 для executable/library population текущих процессов и containing/all-parent directory write protection;
 - `contracts/standard-system-paths-mode-check-semantic-v1.json` — read-only aggregate contract SRC-0012 для standard executable/library/current-kernel-module population с merged-`/usr` aliases, target deduplication и fail-closed observation errors;
 - `contracts/suid-sgid-applications-check-semantic-v1.json` — read-only contract SRC-0013: effective SUID/SGID population, `go-w` mode check и отдельная allowlist-authority проверка отсутствия лишних приложений;
 - `adapters/product-file-mode-owner-check-v1.py` + JSON binding;
@@ -29,6 +30,7 @@
 - `adapters/product-sshd-root-login-check-v1.py` + JSON binding; только чтение SSH config tree и `sshd -t/-T`, без записи/reload/restart/APPLY;
 - `adapters/product-pam-wheel-access-check-v1.py` + JSON binding; только чтение `/etc/pam.d/su`, `/etc/group` и local authority, без group/PAM mutation/APPLY;
 - `adapters/product-sudoers-reviewed-policy-check-v1.py` + JSON binding; только `visudo -c`/read/hash active sudoers closure и reviewed authority, без sudoers mutation/APPLY;
+- `adapters/product-running-process-paths-write-protection-check-v1.py` + JSON binding; isolated `/usr/bin/python3` read-only observation `/proc` принимает все executable file-backed mappings независимо от basename, строго валидирует maps grammar и binding `dev:inode`, контролирует transient process creation через `/proc/stat` `processes`, повторно сверяет per-PID exe/maps и file/parent identity перед verdict; без host mutation/APPLY;
 - `adapters/product-standard-system-paths-mode-check-v1.py` + JSON binding; только `uname/readlink/find/sort/stat`, без chmod/chown/APPLY;
 - `adapters/product-suid-sgid-applications-check-v1.py` + JSON binding; только чтение mountinfo/allowlist и `find/sort/stat`, без chmod/chown/remount/APPLY;
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
@@ -130,6 +132,16 @@ Formal `Gate 5 --probe-results` остаётся отдельным контра
 Один aggregate control `user-cron-files-mode` проверяет только пользовательские cron-файлы под двумя donor-подтверждёнными optional discovery roots: `/var/spool/cron` и `/var/spool/cron/crontabs`. Обычные файлы обнаруживаются рекурсивно, пересечение roots дедуплицируется по абсолютному пути, а вложенные каталоги служат только контейнерами population. Точное source-отношение `chmod go-w` представлено как `mode bits-clear 0022`; требования к owner/group или к режиму root-каталогов не добавляются.
 
 Пустая population compliant: на Ubuntu 24/26 `MINIMIZED` пакет `cron` отсутствовал вместе с обоими roots; на Ubuntu 22 `FULL`, Ubuntu 24 `FULL`, Ubuntu 26 `FULL`, Debian 12 `SERVER` и Debian 13 `GNOME` roots присутствовали, но regular cron-файлов на момент диагностики не было. Эти VM-факты подтверждают layout assumptions, но не расширяют current product target. Symlink/special object, traversal/stat error или неоднозначность population дают `ERROR`; молчаливые donor-skips не переносятся.
+## SRC-0006 / 2.3.2
+
+Один aggregate control `running-process-paths-write-protection` реализует read-only проверку exact source semantics. Bounded observation начинается с `/proc/stat` `processes` counter и exact ASCII-decimal PID→starttime snapshot; `/proc/<pid>/stat` принимается только в полном 52-field layout с exact PID prefix, single-space separators и без пустых/сдвинутых полей; counter и population повторно сверяются после per-PID обхода и перед verdict. Поэтому PID addition/removal/reuse и transient process creation внутри observation window дают `ERROR`. Kernel threads и zombies исключаются только при явном подтверждении status и повторной identity-проверке.
+
+Executable target обязан быть absolute existing regular file; `/proc/<pid>/exe` target и object identity повторно сверяются перед verdict. Runtime-code population берётся из каждого executable file-backed `/proc/<pid>/maps` record независимо от basename. Для каждой строки строго валидируются address range, perms, offset, device, ASCII-decimal inode и pathname; proc octal escaping декодируется, а maps-declared `dev major:minor + inode` обязан совпадать с фактическим target. Deleted/unresolvable/malformed/mismatched mapping даёт `ERROR`. Exact parsed executable maps set каждого PID перечитывается перед verdict, поэтому same-PID `exec`/`mmap` drift не может дать stale `PASS`. File mode condition дословно представляет `chmod go-w`: `(mode & 0022) == 0`.
+
+Для containing directory и всех parent directories до `/` проверяется отсутствие записи для непривилегированных пользователей: group/other write всегда нарушение; owner-write является нарушением, когда owner UID не `0`. File и parent snapshots повторно сверяются по dev/inode/uid/gid/mode/ctime; один file inode дедуплицируется для file-mode проверки, но distinct resolved paths сохраняют свои parent chains. Полностью определённая стабильная population с нарушениями даёт `VALUE/FAIL`, без нарушений — `VALUE/PASS`; partial или изменившаяся observation никогда не становится PASS.
+
+Pinned donor использован только как precedent для `/proc/<pid>/exe` + `/proc/<pid>/maps` discovery. Его silent exception handling и exclusions `/tmp`, `/run`, `/var/tmp`, `/dev/shm`, `/var/log` намеренно не переносятся. APPLY/RESTORE не реализуются.
+
 ## SRC-0012 / 2.3.8
 
 Один aggregate control `standard-system-paths-mode` проверяет системные executable roots `/bin`, `/sbin`, `/usr/bin`, `/usr/sbin`, library roots `/lib`, `/lib64`, `/usr/lib`, `/usr/lib64` и current-kernel root `/lib/modules/<uname-r>`. merged-`/usr` root aliases разрешаются и дедуплицируются по `dev:inode`; regular symlink targets также дедуплицируются.

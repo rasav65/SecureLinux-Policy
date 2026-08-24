@@ -10,13 +10,52 @@
 
 ## [Unreleased]
 
+### Исправлено — SRC-0006 robustness review
+
+- Удалена basename-эвристика `.so`: runtime population теперь включает каждый executable file-backed mapping из `/proc/<pid>/maps`, а proc octal escaping декодируется строго; неоднозначный/deleted path даёт `ERROR`.
+- Bounded observation закрывается exact PID→starttime snapshot до/после обхода и после file/parent recheck; добавление, исчезновение или reuse PID даёт `ERROR`.
+- Для каждого включённого PID требуется собственная complete executable file-backed maps population; глобальный library count больше не скрывает неполное наблюдение отдельного PID.
+- File и parent records повторно сверяются по resolved path, dev/inode, owner, mode и ctime перед verdict; drift даёт `ERROR`, а не stale `PASS`.
+- Добавлены negative-control fixtures для non-`.so` executable mappings, proc octal escaping, malformed escapes, PID population growth, no-exe identity drift и file/parent snapshot drift. Source quote/control identity и read-only scope не меняются.
+- Test fixture setup строит полный synthetic fs/proc state до снятия write bits с parent directories; это устраняет зависимость regression-тестов от прав рабочего каталога и не меняет production adapter semantics.
+- No-exe identity-drift fixture теперь детерминированно выполняет actual embedded `classify_no_exe()` из adapter `_PY` с контролируемым `read_start`: неизменный starttime даёт `excluded`, изменённый — `ERROR`; FIFO/timing dependency удалена без изменения production adapter semantics.
+- Re-audit hardening связывает каждый executable file-backed maps record с фактическими `dev major:minor + inode`, валидирует полную используемую грамматику `address/perms/offset/dev/inode/path` и даёт `ERROR` при identity mismatch или malformed field.
+- Bounded process-lifecycle observation дополнено монотонным `/proc/stat` `processes` counter: любое создание процесса между начальным snapshot и финальным verdict, включая transient PID между дискретными PID snapshots, даёт `ERROR`.
+- Для каждого включённого PID перед verdict повторно сверяются `/proc/<pid>/exe` target/object identity и exact parsed executable maps set; same-PID `exec`/`mmap` drift больше не может завершиться stale `PASS`.
+- File/parent snapshot теперь включает `ctime_ns` вместе с dev/inode/uid/gid/mode, чтобы replacement с повторным использованием inode не выглядел неизменным объектом.
+- Product README синхронизирован с фактическим SRC-0006 mechanism; source closure/control identity не меняются и новых source rows этот hardening не закрывает.
+
+- Финальный parser hardening требует ASCII decimal для maps inode и `/proc/<pid>/stat` starttime; Unicode-цифры и ненумерический starttime теперь дают `ERROR`; добавлены два regression-теста.
+- `/proc/<pid>/stat` parser дополнительно фиксирует полный 52-field layout: exact PID prefix, single-space field boundaries и отсутствие пустых/сдвинутых полей; missing starttime при сохранённых field 23+ теперь даёт `ERROR`; добавлен regression-тест.
+
+### Добавлено — read-only CHECK SRC-0006 / 2.3.2
+
+- Добавлен aggregate control `running-process-paths-write-protection`: dynamic population executable files текущих процессов берётся из `/proc/<pid>/exe`, runtime-library candidates — из `/proc/<pid>/maps`; PID identity повторно сверяется по starttime.
+- Exact source `chmod go-w` представлен как file mode `bits-clear 0022`. Для containing/all-parent directories проверяется отсутствие group/other write и owner-write у non-root owner; incomplete/ambiguous observation даёт `ERROR`, partial PASS запрещён.
+- Добавлены semantic contract, adapter binding/implementation и positive/negative fixtures. Donor используется только как engineering precedent; его silent skips и parent exclusions не перенесены. APPLY/RESTORE отсутствуют.
+- SRC-0006 закрывается одним `atomic-single` control; current counts после шага: `37/349 CLOSED`, `47 controls`, `14 adapters`.
+
+### Добавлено — подготовка closed parameter kind для SRC-0006 / 2.3.2
+
+- В canonical control schema добавлен новый closed kind `running-process-paths-write-protection` с locator `/proc/<pid>/exe|/proc/<pid>/maps`, key `write-protection`, op `runtime-paths-safe` и exact expected token `file-go-w;parent-unprivileged-write-denied`.
+- Это только parent-schema decision point перед экземпляром SRC-0006: source closure, canonical controls, product adapter registry и generated CLI пока не меняются; закрыто **0** source rows.
+- Schema/runtime parity дополнена positive/negative cases для locator/key/op/expected и newline boundary. Existing kinds не расширены и не переопределены.
+- Семантическая причина отдельного kind: 2.3.2 требует dynamic population исполняемых файлов запущенных процессов и соответствующих библиотек плюс проверку containing/all-parent directories; fixed `standard-system-paths-mode` и single-path `file-mode-owner` эту population не выражают.
+
+### Исправлено — нейтральная терминология current review surface
+
+- Current non-frozen code, tests и human-readable documentation переведены на neutral naming для robustness/negative-control/isolation semantics без изменения проверяемого поведения.
+- Frozen Step 7B.0 exact-byte contracts/fixtures, donor-derived indexes и evidence-bound `probes/sysctl-v1/probe.py` не переименовываются in place: их идентичность остаётся доказательным фактом.
+- Следующие targeted review slices не должны включать unrelated frozen/donor material; integrity root manifests подтверждается отдельным hash/check evidence, когда полный manifest не нужен decision point.
+- Source closure и закрытые source rows этим cleanup не меняются.
+
 ### Добавлено — SRC-0004 / 2.2.2: reviewed sudoers policy
 
 - `SRC-0004` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.2.2-SUDOERS-REVIEWED-POLICY`.
 - Новый read-only kind `sudoers-reviewed-policy` не выводит approved set из `%sudo`, `%wheel`, `SUDO_USER`, donor или VM defaults: локальное решение задаётся explicit reviewed authority `/etc/securelinux-policy/sudoers-reviewed-policy-v1`.
 - Pinned `visudo -c -f /etc/sudoers` определяет и валидирует active include/includedir closure; exact pathset и SHA-256 bytes каждого parsed policy file должны совпасть с authority. Drift даёт `VALUE/FAIL`, authority/closure/visudo ambiguity — `ERROR`.
 - 7/7 previously collected privileged VM evidence подтверждают `/etc/sudoers` regular `0440 root:root`, active `@includedir /etc/sudoers.d` и successful full `visudo` check; это evidence discovery assumptions, не normative approved policy.
-- Independent targeted adversarial audit SRC-0004 выявил и исправил два fail-open дефекта implementation без изменения source semantics/contract identity: authority теперь отвергает nonstructural C0/DEL control bytes, а raw stdout `visudo` проверяется через pinned `/usr/bin/od` до Bash line parsing, поэтому NUL больше не может быть silently stripped command substitution.
+- Independent targeted robustness audit SRC-0004 выявил и исправил два fail-open дефекта implementation без изменения source semantics/contract identity: authority теперь отвергает nonstructural C0/DEL control bytes, а raw stdout `visudo` проверяется через pinned `/usr/bin/od` до Bash line parsing, поэтому NUL больше не может быть silently stripped command substitution.
 - Targeted SRC-0004 assurance расширен с 8 до 10 fixtures: добавлены regression для authority path с `0x01` и regression для `<path><NUL>: parsed OK`; оба требуют `ERROR`.
 - После шага: `349 / 36 controlled CLOSED / 313 OPEN`; canonical controls `46`; adapters `13`. Formal Gate5 probe-results, APPLY и RESTORE не создаются.
 
@@ -27,7 +66,7 @@
 - `pam-wheel-access`, `suid-sgid-applications`, `home-sensitive-files-mode` и `home-directories-mode` проверяют NUL до Bash line parsing через pinned `od` под тем же protected executable boundary; удаление NUL shell-ом больше не может превратить malformed input в PASS.
 - PAM raw-byte prevalidation разрешает `CR` только непосредственно перед `LF`; bare CR at EOF и internal CR дают fail-closed `ERROR`, canonical CRLF остаётся допустимым.
 - Generator отклоняет коллизии shell-function names после нормализации control ID и усиливает defense-in-depth scan против quote-splitting; документация больше не объявляет этот scan формальным доказательством read-only.
-- Добавлены adversarial regressions для stat shadowing, NUL/internal-CR, `A-B`/`A.B` collision и `ch''mod`. Source closure не меняется: это implementation/assurance errata уже закрытых controls.
+- Добавлены negative-control regressions для stat shadowing, NUL/internal-CR, `A-B`/`A.B` collision и `ch''mod`. Source closure не меняется: это implementation/assurance errata уже закрытых controls.
 
 ### Добавлено — SRC-0011 / 2.3.7: пользовательские cron-файлы
 
@@ -55,12 +94,12 @@
 - SSH test fixture создаёт fake `sshd` во временном каталоге внутри test workspace, поэтому DEV/RELEASE не зависят от системного `/tmp` с `noexec`; product/adapter semantics не меняются.
 - После шага: `349 / 34 controlled CLOSED / 315 OPEN`; canonical controls `44`; adapters `11`. Formal Gate5 probe-results, APPLY/RESTORE и SSH reload/restart не создаются.
 
-### Исправлено — SRC-0002 parser hardening после adversarial review
+### Исправлено — SRC-0002 parser hardening после robustness review
 
 - Исправлена OpenSSH Include-scope семантика: каждый included file наследует текущий `Match`-scope содержащего файла, но его собственные `Match` не протекают обратно.
 - Tokenizer больше не обрезает `#` внутри token; поддерживает quoted/escaped arguments, CRLF и whitespace/один `=` как separator для проверяемых SSH-директив.
 - Include-glob fail-closed hardened: `builtin compgen`, явный `LC_ALL=C` sort с проверяемым RC, pinned `find/readlink`, проверка newline pathnames; ошибки discovery/sort не могут превратиться в PASS.
-- Неверный lexical-order oracle заменён на scope-restoration fixture; добавлены adversarial случаи для `#` в имени, quoted Include, compgen shadowing, sort failure, newline pathname, quoted/CRLF `PermitRootLogin`.
+- Неверный lexical-order oracle заменён на scope-restoration fixture; добавлены negative fixtures для `#` в имени, quoted Include, compgen shadowing, sort failure, newline pathname, quoted/CRLF `PermitRootLogin`.
 - Project-integrity reverse-completeness обобщена: полный local `SHA256SUMS` определяется по принятому base HEAD и затем обязан покрывать весь текущий Git-visible subtree; scoped/historical manifests сохраняют собственную population.
 
 ### Исправлено — SRC-0002 audit hardening
@@ -68,7 +107,7 @@
 - Include-glob теперь сортируется явно в лексикографическом порядке перед рекурсивным разбором; ambient shell glob order не может изменить CHECK semantics.
 - Parser проверяемых SSH-директив принимает OpenSSH-разделение keyword/value пробелом или одним `=`; malformed relevant directives остаются fail-closed `ERROR`.
 - В `controls/fstec-core/linux-2022/SHA256SUMS` восстановлены пять ранее потерянных действующих YAML; project-integrity теперь проверяет полноту этого local manifest в обе стороны.
-- Добавлены adversarial fixtures для reverse Include-glob order, `=`-форм и malformed `PermitRootLogin`.
+- Добавлены negative fixtures для reverse Include-glob order, `=`-форм и malformed `PermitRootLogin`.
 
 ### Added — UNIFIED CLI / QUICK START v1
 
@@ -194,8 +233,7 @@
   `eq` controls задним числом не меняются.
 - Устаревшее примечание `Gate-1 quote blocked ...` осталось в строках индекса,
   для которых восстановленный текстовый источник уже указан.
-- Две historical observer fixtures (`observer-adversarial-fitness-v2`,
-  `observer-fitness-v1`) не входят в current Phase-A набор и под действующей
+- Две historical observer fixtures из frozen Step 7B.0 Phase A не входят в current Phase-A набор и под действующей
   политикой дают несоответствия. Они не помечены как superseded.
 
 ## [0.0.20] — 2026-08-21
@@ -639,7 +677,7 @@
 - Adapter поддерживает только `key=mode`, `op=eq|bits-clear`; поля
   `owner`, `group`, `owner_group` fail-closed отклоняются.
 - Добавлены `tests/product-v1`: 19 тестов, итог `OK`, без пропусков.
-- Отдельная adversarial-проба механизма перед фиксацией контракта:
+- Отдельная negative-control проба механизма перед фиксацией контракта:
   25/25 `PASS`, запуск от обычного пользователя, без mutation.
 - Добавлены каталожные `product/SHA256SUMS` и `tests/product-v1/SHA256SUMS`.
 
@@ -794,7 +832,7 @@
 - Добавлены четыре постоянные negative fixtures:
   `quoted_tab_basis`, `quoted_newline_basis`, `quoted_cr_basis`,
   `quoted_tab_reason`.
-- Adversarial-правило зафиксировано явно: parser-level атаки сначала применяются
+- Negative-control правило зафиксировано явно: parser-level негативные случаи сначала применяются
   к наименее ограниченному полю, а PASS означает соблюдение объявленного
   инварианта, не просто отсутствие видимого вреда.
 - После R3 Step 7A остаётся `AWAITING_INDEPENDENT_REAUDIT_R3`; Step 7B и первый
@@ -979,7 +1017,7 @@
 - Removed stale README/ROADMAP status text; the single current stage is
   `type/boolean contract cleanup`.
 - No controls, source-index rows, checker semantics, probes, source PDFs or
-  engineering-donor payloads were changed.
+  engineering-donor data objects were changed.
 
 ### Added — project-native v3 architecture map
 
