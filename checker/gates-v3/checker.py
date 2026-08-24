@@ -191,6 +191,18 @@ KIND_RULES = {
             },
         ],
     },
+    "cron-command-paths-write-protection": {
+        "locator": {"const": "/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs"},
+        "key": {"const": "write-protection"},
+        "op": {"const": "cron-command-paths-safe"},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "cron-command-paths-safe"}},
+                "then": {"expected.value": {"const": "file-go-w"}},
+            },
+        ],
+    },
     "running-process-paths-write-protection": {
         "locator": {"const": "/proc/<pid>/exe|/proc/<pid>/maps"},
         "key": {"const": "write-protection"},

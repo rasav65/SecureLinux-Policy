@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0007"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.3.3"
+  quote: "2.3.3. Установить корректные права доступа к файлам, выполняющимся с помощью планировщика задач cron неавторизованными пользователями путём выполнения команды chmod go-w путь_к_файлу для каждого файла (либо команды), который вызывается из заданий cron. В противном случае это может привести к выполнению произвольного кода от имени владельца задания cron (в том числе root, что приведет к полной компрометации операционной системы)."
+  quote_sha256: "87a3b8a9ab953c58d4b04024444d5654019d1036eb0b424ddb3a87f621e68a7a"
+  norm: "norm-v1"
+requirement:
+  stated: "2.3.3. Установить корректные права доступа к файлам, выполняющимся с помощью планировщика задач cron неавторизованными пользователями путём выполнения команды chmod go-w путь_к_файлу для каждого файла (либо команды), который вызывается из заданий cron. В противном случае это может привести к выполнению произвольного кода от имени владельца задания cron (в том числе root, что приведет к полной компрометации операционной системы)."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "cron-command-paths-write-protection"
+  locator: "/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs"
+  key: "write-protection"
+expected:
+  op: "cron-command-paths-safe"
+  value: "file-go-w"
+  type: "string"
+apply:
+  supported: false

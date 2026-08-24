@@ -30,6 +30,7 @@ SSHD_ROOT_LOGIN_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sshd-roo
 PAM_WHEEL_ACCESS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-pam-wheel-access-check-v1.py"
 SUDOERS_REVIEWED_POLICY_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sudoers-reviewed-policy-check-v1.py"
 RUNNING_PROCESS_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-running-process-paths-write-protection-check-v1.py"
+CRON_COMMAND_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-cron-command-paths-write-protection-check-v1.py"
 BASH = shutil.which("bash")
 
 
@@ -145,6 +146,14 @@ def load_running_process_paths_adapter():
 
 RUNNING_PROCESS_PATHS = load_running_process_paths_adapter()
 
+def load_cron_command_paths_adapter():
+    spec = importlib.util.spec_from_file_location("slp_cron_command_paths_adapter", CRON_COMMAND_PATHS_ADAPTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+CRON_COMMAND_PATHS = load_cron_command_paths_adapter()
+
 
 def load_current():
     rows, manifest_sha = GEN.load_manifest(ROOT)
@@ -169,8 +178,8 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy"} <= set(adapters))
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "cron-command-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "cron-command-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy"})
         src0002 = [c for c in controls if c["index_id"] == "SRC-0002"]
         self.assertEqual(len(src0002), 1)
         self.assertEqual(
@@ -2351,8 +2360,8 @@ SLP_POLICY_RC=1
             )
             self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
             self.assertIn("GENERATOR_ID=product-check-generator-v2\n", cp.stdout)
-            self.assertIn("CONTROL_COUNT=47\n", cp.stdout)
-            self.assertIn("ADAPTER_COUNT=14\n", cp.stdout)
+            self.assertIn("CONTROL_COUNT=48\n", cp.stdout)
+            self.assertIn("ADAPTER_COUNT=15\n", cp.stdout)
             self.assertEqual(out.read_bytes(), self.ARTIFACT.read_bytes())
             self.assertEqual(out.with_name(out.name + ".sha256").read_bytes(), self.SIDECAR.read_bytes())
         expected = f"{sha256_file(self.ARTIFACT)}  {self.ARTIFACT.name}\n"
@@ -2439,7 +2448,7 @@ SLP_POLICY_RC=1
         prov = self.run_cli("--provenance")
         self.assertEqual(prov.returncode, 0)
         rows = [json.loads(x) for x in prov.stdout.splitlines()]
-        self.assertEqual(len(rows), 47)
+        self.assertEqual(len(rows), 48)
         one = self.run_cli("--provenance", rows[0]["control_id"])
         self.assertEqual(json.loads(one.stdout)["control_id"], rows[0]["control_id"])
         for args in (("--bogus",), ("--help", "extra"), ("--check", "--format"),
@@ -2450,6 +2459,312 @@ SLP_POLICY_RC=1
         for forbidden in ("sysctl -w", "sysctl --write", "tee /proc/sys", "sed -i",
                           "chmod ", "chown ", "chgrp ", "setfacl ", "truncate ", "column "):
             self.assertNotIn(forbidden, text, forbidden)
+
+
+class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
+    @staticmethod
+    def _base(root):
+        for rel in ("etc/cron.d", "var/spool/cron/crontabs", "usr/bin", "bin"):
+            (root / rel).mkdir(parents=True, exist_ok=True)
+        runner_uid = os.getuid()
+        runner_gid = os.getgid()
+        (root / "etc/passwd").write_text(
+            f"root:x:0:0:root:/root:/bin/sh\nuser:x:{runner_uid}:{runner_gid}:user:/home/user:/bin/sh\nnonroot:x:424242:424242:nonroot:/home/nonroot:/bin/sh\n",
+            encoding="utf-8",
+        )
+        for rel in ("usr/bin/run-parts", "usr/bin/tool"):
+            path = root / rel
+            path.write_text("fixture\n", encoding="utf-8")
+            path.chmod(0o555)
+
+    @staticmethod
+    def _script(root):
+        src = CRON_COMMAND_PATHS._shell_function_for_root("TEST-CRON-PATHS", str(root), os.getuid())
+        script = root / "run.sh"
+        script.write_text(
+            "#!/bin/bash -p\n" + src + "\nslp_check_TEST_CRON_PATHS\n",
+            encoding="utf-8",
+        )
+        script.chmod(0o755)
+        return script
+
+    def _run(self, root):
+        cp = subprocess.run(
+            [str(self._script(root))], cwd=ROOT,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        row = cp.stdout.strip().split("\t")
+        self.assertEqual(len(row), 5, cp.stdout + cp.stderr)
+        return row
+
+    @staticmethod
+    def _user_crontab(root, text, mode=0o600):
+        path = root / "var/spool/cron/crontabs/user"
+        path.write_text(text, encoding="utf-8")
+        path.chmod(mode)
+        return path
+
+    def test_adapter_selftest(self):
+        cp = subprocess.run(
+            [os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", str(CRON_COMMAND_PATHS_ADAPTER_PATH)],
+            cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertIn("ADAPTER_SELFTEST=PASS", cp.stdout)
+
+    def test_empty_population_passes(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+            self.assertIn("jobs=0", row[3])
+
+    def test_default_system_run_parts_population_passes(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            periodic = root / "etc/cron.hourly"; periodic.mkdir()
+            job = periodic / "job"; job.write_text("x\n", encoding="utf-8"); job.chmod(0o555)
+            (root / "etc/crontab").write_text(
+                "PATH=/usr/bin:/bin\n17 * * * * root cd / && run-parts --report /etc/cron.hourly\n",
+                encoding="utf-8",
+            )
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+            self.assertIn("targets=2", row[3])
+            self.assertIn("periodic_dirs=1", row[3])
+
+    def test_periodic_target_go_w_is_fail(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            periodic = root / "etc/cron.hourly"; periodic.mkdir()
+            job = periodic / "job"; job.write_text("x\n", encoding="utf-8"); job.chmod(0o575)
+            (root / "etc/crontab").write_text(
+                "PATH=/usr/bin:/bin\n17 * * * * root run-parts --report /etc/cron.hourly\n",
+                encoding="utf-8",
+            )
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+            self.assertIn("violations=1", row[3])
+
+    def test_direct_absolute_command_go_w_is_fail(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            target = root / "opt/job"; target.parent.mkdir(); target.write_text("x\n"); target.chmod(0o575)
+            (root / "etc/crontab").write_text("0 1 * * * root /opt/job\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+
+    def test_user_absolute_command_passes(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            target = root / "opt/job"; target.parent.mkdir(); target.write_text("x\n"); target.chmod(0o555)
+            self._user_crontab(root, "0 1 * * * /opt/job\n")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+
+    def test_non_root_bare_command_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            (root / "etc/crontab").write_text(
+                "PATH=/usr/bin:/bin\n0 1 * * * nonroot tool\n", encoding="utf-8"
+            )
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_root_bare_command_without_explicit_path_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            (root / "etc/crontab").write_text("0 1 * * * root tool\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_dynamic_shell_expansion_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            (root / "etc/crontab").write_text("PATH=/usr/bin:/bin\n0 1 * * * root $CMD\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_redirection_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            (root / "etc/crontab").write_text("PATH=/usr/bin:/bin\n0 1 * * * root tool >/tmp/out\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_percent_stdin_tail_does_not_add_command(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            target = root / "opt/job"; target.parent.mkdir(); target.write_text("x\n"); target.chmod(0o555)
+            (root / "etc/crontab").write_text("0 1 * * * root /opt/job%/missing/not-a-command\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+            self.assertIn("targets=1", row[3])
+
+    def test_valid_cron_d_file_is_included_and_dot_name_is_ignored(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            target = root / "opt/job"; target.parent.mkdir(); target.write_text("x\n"); target.chmod(0o555)
+            good = root / "etc/cron.d/local_job"; good.write_text("0 1 * * * root /opt/job\n"); good.chmod(0o644)
+            ignored = root / "etc/cron.d/local.job"; ignored.write_text("malformed should be ignored\n"); ignored.chmod(0o644)
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+            self.assertIn("configs=1", row[3])
+
+    def test_unknown_system_user_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            target = root / "opt/job"; target.parent.mkdir(); target.write_text("x\n"); target.chmod(0o555)
+            (root / "etc/crontab").write_text("0 1 * * * missing /opt/job\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_interpreter_invocation_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            shell = root / "bin/sh"; shell.write_text("x\n"); shell.chmod(0o555)
+            script = root / "opt/job.py"; script.parent.mkdir(); script.write_text("x\n"); script.chmod(0o444)
+            (root / "etc/crontab").write_text("0 1 * * * root /bin/sh /opt/job.py\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_absolute_wrapper_path_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            wrapper = root / "usr/bin/env"; wrapper.write_text("x\n"); wrapper.chmod(0o555)
+            target = root / "opt/job"; target.parent.mkdir(); target.write_text("x\n"); target.chmod(0o575)
+            (root / "etc/crontab").write_text("0 1 * * * root /usr/bin/env /opt/job\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_additional_launcher_wrappers_are_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        for launcher_name in (
+            "time", "setpriv", "unshare", "nsenter", "prlimit", "setarch", "linux32", "linux64",
+            "chrt", "watch", "strace", "ltrace", "gdb", "valgrind", "perf", "script",
+            "daemon", "daemonize", "parallel", "numactl", "capsh", "firejail", "bwrap",
+            "fakeroot", "torsocks", "proxychains", "proxychains4", "eatmydata", "sg", "newgrp",
+            "docker", "podman", "systemd-nspawn", "machinectl",
+        ):
+            with self.subTest(launcher=launcher_name):
+                with tempfile.TemporaryDirectory(dir=ROOT) as td:
+                    root = Path(td); self._base(root)
+                    launcher = root / ("usr/bin/" + launcher_name); launcher.write_text("x\n"); launcher.chmod(0o555)
+                    target = root / "opt/job"; target.parent.mkdir(); target.write_text("x\n"); target.chmod(0o575)
+                    (root / "etc/crontab").write_text(f"0 1 * * * root /usr/bin/{launcher_name} /opt/job\n", encoding="utf-8")
+                    row = self._run(root)
+                    self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_symlink_alias_interpreter_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            shell = root / "bin/sh"; shell.write_text("x\n"); shell.chmod(0o555)
+            alias = root / "usr/bin/job-shell"; alias.symlink_to("../../bin/sh")
+            target = root / "opt/hidden-job"; target.parent.mkdir(); target.write_text("x\n"); target.chmod(0o575)
+            (root / "etc/crontab").write_text("0 1 * * * root /usr/bin/job-shell -c /opt/hidden-job\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_symlink_alias_run_parts_expands_population(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            alias = root / "usr/bin/periodic-runner"; alias.symlink_to("run-parts")
+            periodic = root / "etc/cron.hourly"; periodic.mkdir()
+            job = periodic / "job"; job.write_text("x\n"); job.chmod(0o575)
+            (root / "etc/crontab").write_text("0 1 * * * root /usr/bin/periodic-runner /etc/cron.hourly\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+            self.assertIn("periodic_dirs=1", row[3])
+            self.assertIn("violations=1", row[3])
+
+    def test_symlink_alias_launcher_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            launcher = root / "usr/bin/time"; launcher.write_text("x\n"); launcher.chmod(0o555)
+            alias = root / "usr/bin/job-launcher"; alias.symlink_to("time")
+            target = root / "opt/hidden-job"; target.parent.mkdir(); target.write_text("x\n"); target.chmod(0o575)
+            (root / "etc/crontab").write_text("0 1 * * * root /usr/bin/job-launcher /opt/hidden-job\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_hardlink_alias_interpreter_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            shell = root / "bin/sh"; shell.write_text("x\n"); shell.chmod(0o555)
+            alias = root / "usr/bin/job-shell"; os.link(shell, alias)
+            target = root / "opt/hidden-job"; target.parent.mkdir(); target.write_text("x\n"); target.chmod(0o575)
+            (root / "etc/crontab").write_text("0 1 * * * root /usr/bin/job-shell -c /opt/hidden-job\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_hardlink_alias_run_parts_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            alias = root / "usr/bin/periodic-runner"; os.link(root / "usr/bin/run-parts", alias)
+            periodic = root / "etc/cron.hourly"; periodic.mkdir()
+            job = periodic / "job"; job.write_text("x\n"); job.chmod(0o575)
+            (root / "etc/crontab").write_text("0 1 * * * root /usr/bin/periodic-runner /etc/cron.hourly\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_versioned_interpreter_path_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            interpreter = root / "usr/bin/python3.12"; interpreter.write_text("x\n"); interpreter.chmod(0o555)
+            script = root / "opt/job.py"; script.parent.mkdir(); script.write_text("x\n"); script.chmod(0o575)
+            (root / "etc/crontab").write_text("0 1 * * * root /usr/bin/python3.12 /opt/job.py\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_shell_override_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            target = root / "opt/job"; target.parent.mkdir(); target.write_text("x\n"); target.chmod(0o555)
+            (root / "etc/crontab").write_text("SHELL=/bin/bash\n0 1 * * * root /opt/job\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_missing_final_newline_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            target = root / "opt/job"; target.parent.mkdir(); target.write_text("x\n"); target.chmod(0o555)
+            (root / "etc/crontab").write_text("0 1 * * * root /opt/job", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_generation_rejects_wrong_contract_fields(self):
+        bad = (
+            ("CTRL", "/etc/crontab", CRON_COMMAND_PATHS.CANONICAL_KEY, CRON_COMMAND_PATHS.CANONICAL_OP, CRON_COMMAND_PATHS.CANONICAL_EXPECTED),
+            ("CTRL", CRON_COMMAND_PATHS.CANONICAL_LOCATOR, "mode", CRON_COMMAND_PATHS.CANONICAL_OP, CRON_COMMAND_PATHS.CANONICAL_EXPECTED),
+            ("CTRL", CRON_COMMAND_PATHS.CANONICAL_LOCATOR, CRON_COMMAND_PATHS.CANONICAL_KEY, "bits-clear", CRON_COMMAND_PATHS.CANONICAL_EXPECTED),
+            ("CTRL", CRON_COMMAND_PATHS.CANONICAL_LOCATOR, CRON_COMMAND_PATHS.CANONICAL_KEY, CRON_COMMAND_PATHS.CANONICAL_OP, "0022"),
+        )
+        for args in bad:
+            with self.assertRaises(ValueError):
+                CRON_COMMAND_PATHS.shell_function(*args)
 
 
 if __name__ == "__main__":

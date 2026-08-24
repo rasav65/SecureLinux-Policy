@@ -1,5 +1,6 @@
 # Журнал изменений
 
+- Test harness SRC-0007 больше не требует `chown` или mapped UID/GID `1000:1000`: synthetic user-crontab остаётся владельцем текущего runner, а non-root bare-command семантика проверяется отдельным system-cron synthetic UID; production semantics не изменены.
 Формат основан на Keep a Changelog. Записи фиксируют факты, а не намерения:
 каждая запись обязана указывать, сколько строк source index она закрыла, и не
 приписывать себе продвижение, которого не было.
@@ -9,6 +10,15 @@
 не записываются как свершившиеся факты.
 
 ## [Unreleased]
+
+### Добавлено — read-only CHECK SRC-0007 / 2.3.3
+
+- `SRC-0007` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION`; exact source `chmod go-w` представлен как `(mode & 0022) == 0` для однозначно разрешённых target-файлов/команд из persistent cron definitions.
+- Canonical population строится read-only из `/etc/crontab`, active-name entries `/etc/cron.d` и user crontabs `/var/spool/cron/crontabs`, привязанных к `/etc/passwd`; отсутствующие optional sources дают пустую соответствующую population.
+- Cron parser учитывает schedule/user fields, `PATH=`, `%` stdin boundary и direct shell command segments. Bare command разрешается только для uid 0 при explicit absolute `PATH`; non-root bare command, shell expansion/substitution, redirection, non-`/bin/sh` `SHELL`, interpreter families и known launcher/wrapper forms дают `ERROR`. Interpreter/wrapper/`run-parts` classification выполняется после symlink resolution; resolved external command с `st_nlink != 1` также даёт `ERROR`, чтобы symlink/hardlink alias indirection не могла превратить partial population в PASS.
+- Direct `run-parts` дополнительно раскрывает executable regular members с active Debian/Ubuntu names `[A-Za-z0-9_-]+`; source/config/PATH/target snapshots выполняются дважды и любой drift даёт `ERROR`. Non-empty crontab без final LF также считается parser/daemon ambiguity и даёт `ERROR`.
+- Regression suite добавляет 25 targeted SRC-0007 fixtures, включая direct/periodic write violation, user/system jobs, PATH ambiguity, `%`, cron.d names, launcher/wrapper families, symlink-alias interpreter/wrapper/`run-parts` classification, hardlink-alias interpreter/`run-parts` fail-closed cases, versioned interpreters, `SHELL` override и line framing. APPLY/RESTORE отсутствуют.
+- После шага: `349 / 38 controlled CLOSED / 311 OPEN`; canonical controls `48`; adapters `15`. Formal Gate5 probe-results не создаются.
 
 ### Исправлено — SRC-0006 robustness review
 
