@@ -203,6 +203,18 @@ KIND_RULES = {
             },
         ],
     },
+    "sudo-root-command-files-protection": {
+        "locator": {"const": "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1"},
+        "key": {"const": "root-command-files"},
+        "op": {"const": "root-owned-go-w"},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "root-owned-go-w"}},
+                "then": {"expected.value": {"const": "uid0;bits-clear-0022"}},
+            },
+        ],
+    },
     "running-process-paths-write-protection": {
         "locator": {"const": "/proc/<pid>/exe|/proc/<pid>/maps"},
         "key": {"const": "write-protection"},

@@ -1,4 +1,4 @@
-a7f6339e117ed8e2d1ae7f0840c3a3cda20a7592e12acaf84f6be4f0d5fb7216  CONTROL-MANIFEST.tsv
+b8dd66dd09c6c32dc50f193e409dcf8398bc979a7a893b33f2930ef2f362ca78  CONTROL-MANIFEST.tsv
 f4a5b8bd257ea36af176d031c6e43aea1bf73793839d67e8e8d8b26ff9ac4aec  README.md
 82d8121586664ee803efec1f1b4bb93a248ce1f302bdf90a2561468ead86d802  fstec-linux-2022-2.1.1-local-account-password-state.yaml
 2f965f6e8901380f14088a167c77b07fc3b4c1872ac1f38865ba0a236a80b1de  fstec-linux-2022-2.1.2-ssh-root-login.yaml
@@ -11,6 +11,7 @@ f4a5b8bd257ea36af176d031c6e43aea1bf73793839d67e8e8d8b26ff9ac4aec  README.md
 ac070436aa49c1b78cc45972d1fdb41bb8462c4c40c5fcb26ec814ee45f84aed  fstec-linux-2022-2.3.11-home-directories-mode.yaml
 4c622265a9397061ef2edd2f99b6f90f78bf80aef8390f1cf129d8858daf76b3  fstec-linux-2022-2.3.2-running-process-paths-write-protection.yaml
 aaab15a2454a7de6c5560aff10e367170706c6f47e6c5f879e46abe4fe9d6343  fstec-linux-2022-2.3.3-cron-command-paths-write-protection.yaml
+4b61c2330e5f8efd4e5659874e047c9f6bfddbef69defd7a21a9917b60129944  fstec-linux-2022-2.3.4-sudo-root-command-files-protection.yaml
 d1dd9b4af5c49732ec93ac350d82fb138cb1fdc967396dda25062d59ff77527a  fstec-linux-2022-2.3.6-cron-d.yaml
 a6c928414a1091aa8bf7291eee2e7574c9ad5f204831930d39a8536700f1731a  fstec-linux-2022-2.3.6-cron-daily.yaml
 882eec0779eac5f5942f10e6670b2812f8000bf8f3e7600ba1c264362a8f4dce  fstec-linux-2022-2.3.6-cron-hourly.yaml

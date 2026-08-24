@@ -68,3 +68,6 @@ Current sysctl regression covers `eq` and unbounded signed-integer `ge`; `ge` is
 - PAM raw-byte regression distinguishes canonical CRLF from bare CR at EOF and rejects NUL before Bash line parsing.
 
 - Synthetic user-crontab fixtures не выполняют `chown`: владелец файла остаётся UID/GID текущего test runner; отдельная non-root bare-command семантика проверяется system-cron fixture с synthetic nonzero UID. Это test-only portability и не меняет production UID=0 semantics для `/etc/cron.d`.
+
+
+`test_product_generator.py` также содержит 20 targeted fixtures для SRC-0008 `sudo-root-command-files-protection`: exact root-owner/go-w PASS; owner и group/other-write FAIL; final symlink target; root-only invoker и explicit non-root runas exclusion; unbounded/dynamic forms; negation; reviewed-policy drift; `cvtsudoers` failure/malformed JSON; target drift; spaced executable pathname без first-word truncation; ambiguous executable/argument boundary ERROR; shebang execution chain ERROR; adapter selftest и wrong-contract rejection. Fixtures не используют `chown`; owner mismatch моделируется через synthetic logical-root UID, production UID=0 semantics не меняется.

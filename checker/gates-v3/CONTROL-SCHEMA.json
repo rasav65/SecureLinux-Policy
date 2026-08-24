@@ -1012,6 +1012,92 @@
           "parameter": {
             "properties": {
               "kind": {
+                "const": "sudo-root-command-files-protection"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "root-owned-go-w"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "uid0;bits-clear-0022"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "root-owned-go-w"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "root-command-files"
+              },
+              "locator": {
+                "const": "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
                 "const": "running-process-paths-write-protection"
               }
             },
@@ -2052,6 +2138,7 @@
             "user-cron-files-mode",
             "standard-system-paths-mode",
             "cron-command-paths-write-protection",
+            "sudo-root-command-files-protection",
             "running-process-paths-write-protection",
             "suid-sgid-applications",
             "home-directories-mode",

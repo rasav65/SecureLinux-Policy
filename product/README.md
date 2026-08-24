@@ -210,3 +210,15 @@ GID `10` из source-record не фиксируется как portable complian
 CHECK запускает pinned `/usr/sbin/visudo -c -f /etc/sudoers` под `LC_ALL=C`; PASS требует successful syntax validation и exact equality фактической parse closure (`/etc/sudoers` + реально разобранные include/includedir files) с authority по pathset и bytes. До line parsing authority raw bytes допускают только structural TAB/LF и canonical CRLF, а `visudo` stdout сначала переводится pinned `/usr/bin/od` в hex и проверяется как raw-byte stream, чтобы Bash command substitution не мог скрыть NUL/control-byte corruption. Missing/extra file или digest drift даёт `VALUE/FAIL`. Missing/malformed authority, embedded nonstructural control byte, NUL/invalid framing в observation, unexpected/duplicate visudo closure, symlink/nonregular/unreadable policy member либо tool failure дают `ERROR`. `%sudo`, `%wheel`, `SUDO_USER`, donor и VM defaults не используются как approved-policy authority. APPLY/RESTORE отсутствуют.
 
 Семь ранее собранных privileged VM runs подтвердили discovery baseline: `/etc/sudoers` regular `0440 root:root`, `@includedir /etc/sudoers.d` присутствует, `visudo` full check `RC=0` на всех 7/7; это не определяет approved local policy.
+
+
+## SRC-0008 / 2.3.4
+
+Один aggregate control `sudo-root-command-files-protection` проверяет executable command paths из exact reviewed active sudoers tree. Сначала active `visudo` closure exact-byte/pathset сверяется с `/etc/securelinux-policy/sudoers-reviewed-policy-v1`; затем `/usr/bin/cvtsudoers -c /dev/null -e -s aliases -f json` используется как parser authority для alias-expanded policy representation.
+
+В population входят rules, которые могут относиться к ordinary invoking user и допускают root runas. Root-only invoking-user rules не добавляют targets. Positive `ALL`, regex/wildcard/directory executable path и иная форма, для которой нельзя доказать конечную path population, дают `ERROR`, а не partial PASS. Host-qualified rules включаются консервативно, чтобы host matching не мог скрыть target. Любой enabled `runchroot`/`CHROOT` в Defaults либо Cmnd_Spec даёт `ERROR`, потому что меняет file object, адресуемый absolute command path. Поскольку JSON `cvtsudoers` объединяет pathname и arguments и снимает escaping пробелов, boundary executable path определяется только если существует ровно один executable regular-file prefix; zero/multiple candidates дают `ERROR`.
+
+Для каждого stable executable regular target требуется `st_uid == 0` и `(mode & 0022) == 0`. Symlink проверяется по final regular target. Known interpreter/execution frontend, multilink target и shebang-script дают `ERROR`: v1 не возвращает PASS для execution chain, которую не может доказательно раскрыть до конечного executable. Missing/nonregular/non-executable target, policy/tool/JSON ambiguity или source/target drift => `ERROR`. CHECK не выполняет `chown`, `chmod`, APPLY или RESTORE.
+
+- `product/contracts/sudo-root-command-files-protection-check-semantic-v1.json` — semantic contract SRC-0008.
+- `product/adapters/product-sudo-root-command-files-protection-check-v1.py` — read-only adapter SRC-0008.

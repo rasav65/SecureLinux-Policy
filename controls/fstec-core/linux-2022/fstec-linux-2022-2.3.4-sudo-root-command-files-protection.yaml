@@ -1,0 +1,26 @@
+id: "FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0008"
+  doc_id: "fstec-linux-2022"
+  doc_sha256: "350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d"
+  locator: "2.3.4"
+  quote: "2.3.4. Установить корректные права доступа к файлам, выполняемым с помощью sudo путём изменения владельца командой chown root путь_к_файлу для 4 каждого исполняемого файла, который можно запускать с привилегиями суперпользователя root, но владельцем которого является обычный пользователь и выполнения команды chmod go-w путь_к_файлу для каждого исполняемого файла, который можно запускать с привилегиями суперпользователя root и к которому имеют доступ на запись все пользователи."
+  quote_sha256: "64f2c01066ca14b390b56306f184497746c6e19e568fac2b768662a79ef16636"
+  norm: "norm-v1"
+requirement:
+  stated: "2.3.4. Установить корректные права доступа к файлам, выполняемым с помощью sudo путём изменения владельца командой chown root путь_к_файлу для 4 каждого исполняемого файла, который можно запускать с привилегиями суперпользователя root, но владельцем которого является обычный пользователь и выполнения команды chmod go-w путь_к_файлу для каждого исполняемого файла, который можно запускать с привилегиями суперпользователя root и к которому имеют доступ на запись все пользователи."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sudo-root-command-files-protection"
+  locator: "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1"
+  key: "root-command-files"
+expected:
+  op: "root-owned-go-w"
+  value: "uid0;bits-clear-0022"
+  type: "string"
+apply:
+  supported: false

@@ -31,6 +31,7 @@ PAM_WHEEL_ACCESS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-pam-whe
 SUDOERS_REVIEWED_POLICY_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sudoers-reviewed-policy-check-v1.py"
 RUNNING_PROCESS_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-running-process-paths-write-protection-check-v1.py"
 CRON_COMMAND_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-cron-command-paths-write-protection-check-v1.py"
+SUDO_ROOT_COMMAND_FILES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sudo-root-command-files-protection-check-v1.py"
 BASH = shutil.which("bash")
 
 
@@ -154,6 +155,14 @@ def load_cron_command_paths_adapter():
 
 CRON_COMMAND_PATHS = load_cron_command_paths_adapter()
 
+def load_sudo_root_command_files_adapter():
+    spec = importlib.util.spec_from_file_location("slp_sudo_root_command_files_adapter", SUDO_ROOT_COMMAND_FILES_ADAPTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+SUDO_ROOT_COMMAND_FILES = load_sudo_root_command_files_adapter()
+
 
 def load_current():
     rows, manifest_sha = GEN.load_manifest(ROOT)
@@ -178,8 +187,8 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "cron-command-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy"} <= set(adapters))
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "cron-command-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "cron-command-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy", "sudo-root-command-files-protection"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "cron-command-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy", "sudo-root-command-files-protection"})
         src0002 = [c for c in controls if c["index_id"] == "SRC-0002"]
         self.assertEqual(len(src0002), 1)
         self.assertEqual(
@@ -203,6 +212,12 @@ class GeneratorModel(unittest.TestCase):
         self.assertEqual(
             (src0006[0]["parameter_kind"], src0006[0]["parameter_locator"], src0006[0]["parameter_key"], src0006[0]["expected_op"], src0006[0]["expected_value"]),
             ("running-process-paths-write-protection", "/proc/<pid>/exe|/proc/<pid>/maps", "write-protection", "runtime-paths-safe", "file-go-w;parent-unprivileged-write-denied"),
+        )
+        src0008 = [c for c in controls if c["index_id"] == "SRC-0008"]
+        self.assertEqual(len(src0008), 1)
+        self.assertEqual(
+            (src0008[0]["parameter_kind"], src0008[0]["parameter_locator"], src0008[0]["parameter_key"], src0008[0]["expected_op"], src0008[0]["expected_value"]),
+            ("sudo-root-command-files-protection", "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1", "root-command-files", "root-owned-go-w", "uid0;bits-clear-0022"),
         )
         src0001 = [c for c in controls if c["index_id"] == "SRC-0001"]
         self.assertEqual(len(src0001), 1)
@@ -1593,6 +1608,235 @@ class SudoersReviewedPolicyAdapterFixtures(unittest.TestCase):
             with self.subTest(args=args), self.assertRaises(ValueError): SUDOERS_REVIEWED_POLICY.shell_function("TEST",*args)
 
 
+
+class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
+    @staticmethod
+    def _user_spec(user="alice", runas="root", command="/bin/tool", negated=False):
+        spec = {
+            "User_List": [{"username": user}],
+            "Host_List": [{"hostname": "ALL"}],
+            "Cmnd_Specs": [{"Commands": [{"command": command, **({"negated": True} if negated else {})}]}],
+        }
+        if runas is not None:
+            spec["Cmnd_Specs"][0]["runasusers"] = [{"username": runas}]
+        return spec
+
+    def run_fixture(self, specs, mode=0o755, logical_root_uid=None, policy_drift=False, cvt_rc=0, malformed_json=False, symlink=False, mutate_target_second_cvt=False, target_logical="/bin/tool", extra_executables=(), defaults=None, symlink_real_name=None, hardlink_real_name=None, target_bytes=None):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            fsroot = root / "fs"
+            logical_target = Path(target_logical)
+            if not logical_target.is_absolute():
+                raise AssertionError("fixture target must be absolute")
+            link_path = fsroot / str(logical_target).lstrip("/")
+            link_path.parent.mkdir(parents=True, exist_ok=True)
+            if hardlink_real_name is not None:
+                target = link_path.with_name(hardlink_real_name)
+                target.write_bytes(target_bytes if target_bytes is not None else b"\x7fELF-SLP-FIXTURE\n")
+                target.chmod(mode)
+                os.link(target, link_path)
+            else:
+                target = link_path.with_name(symlink_real_name or (link_path.name + ".real")) if symlink else link_path
+                target.write_bytes(target_bytes if target_bytes is not None else b"\x7fELF-SLP-FIXTURE\n")
+                target.chmod(mode)
+                if symlink:
+                    link_path.symlink_to(target.name)
+            for extra in extra_executables:
+                if isinstance(extra, tuple):
+                    extra, extra_mode = extra
+                else:
+                    extra_mode = 0o755
+                extra_path = fsroot / str(extra).lstrip("/")
+                extra_path.parent.mkdir(parents=True, exist_ok=True)
+                extra_path.write_bytes(b"\x7fELF-SLP-FIXTURE\n")
+                extra_path.chmod(extra_mode)
+            sudoers = root / "sudoers"
+            sudoers.write_text("Defaults env_reset\n", encoding="utf-8")
+            authority = root / "authority"
+            digest = hashlib.sha256(sudoers.read_bytes()).hexdigest()
+            authority.write_text("SLP-SUDOERS-REVIEWED-POLICY-V1\n" + digest + "\t" + str(sudoers) + "\n", encoding="utf-8")
+            if policy_drift:
+                sudoers.write_text("Defaults env_reset\nalice ALL=(root) /bin/tool\n", encoding="utf-8")
+            fake_visudo = root / "visudo"
+            fake_visudo.write_text("#!/bin/bash\nprintf '%s\\n' " + shlex.quote(str(sudoers) + ": parsed OK") + "\n", encoding="utf-8")
+            fake_visudo.chmod(0o755)
+            fake_cvt = root / "cvtsudoers"
+            state = root / "cvt-state"
+            if malformed_json:
+                body = "printf '%s\\n' '{bad json'\nexit 0"
+            elif cvt_rc:
+                body = "printf '%s\\n' 'conversion failed' >&2\nexit " + str(cvt_rc)
+            else:
+                payload_obj = {"User_Specs": specs}
+                if defaults is not None:
+                    payload_obj["Defaults"] = defaults
+                payload = json.dumps(payload_obj, sort_keys=True)
+                body = "printf '%s\\n' " + shlex.quote(payload)
+                if mutate_target_second_cvt:
+                    body = (
+                        "if [[ -e " + shlex.quote(str(state)) + " ]]; then /usr/bin/chmod 0775 " + shlex.quote(str(target)) + "; "
+                        "else : > " + shlex.quote(str(state)) + "; fi\n" + body
+                    )
+            fake_cvt.write_text("#!/bin/bash\n" + body + "\n", encoding="utf-8")
+            fake_cvt.chmod(0o755)
+            if logical_root_uid is None:
+                logical_root_uid = os.getuid()
+            src = SUDO_ROOT_COMMAND_FILES.shell_function_for_fixture(
+                "TEST-SUDO-ROOT-FILES",
+                SUDO_ROOT_COMMAND_FILES.CANONICAL_LOCATOR,
+                SUDO_ROOT_COMMAND_FILES.CANONICAL_KEY,
+                SUDO_ROOT_COMMAND_FILES.CANONICAL_OP,
+                SUDO_ROOT_COMMAND_FILES.CANONICAL_EXPECTED,
+                str(fsroot), logical_root_uid, str(sudoers), str(authority), str(fake_visudo), str(fake_cvt),
+            )
+            script = root / "run.sh"
+            script.write_text("#!/bin/bash -p\n" + src + "\nslp_check_TEST_SUDO_ROOT_FILES\n", encoding="utf-8")
+            script.chmod(0o755)
+            cp = subprocess.run([str(script)], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            rows = [line.split("\t") for line in cp.stdout.splitlines() if line.startswith("SLP-CHECK-V1\t")]
+            self.assertEqual(len(rows), 1, cp.stdout + cp.stderr)
+            return rows[0]
+
+    def test_adapter_selftest(self):
+        cp = subprocess.run([str(SUDO_ROOT_COMMAND_FILES_ADAPTER_PATH)], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertIn("ADAPTER_SELFTEST=PASS", cp.stdout)
+
+    def test_exact_root_owned_go_w_passes(self):
+        row = self.run_fixture([self._user_spec()])
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertIn("files=1;owner_violations=0;mode_violations=0", row[3])
+
+    def test_owner_mismatch_is_fail_without_chown_fixture(self):
+        other_uid = os.getuid() + 1 if os.getuid() != (2**32 - 1) else 1
+        row = self.run_fixture([self._user_spec()], logical_root_uid=other_uid)
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+        self.assertIn("owner_violations=1", row[3])
+
+    def test_group_other_write_is_fail(self):
+        row = self.run_fixture([self._user_spec()], mode=0o775)
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+        self.assertIn("mode_violations=1", row[3])
+
+    def test_symlink_final_target_is_checked(self):
+        row = self.run_fixture([self._user_spec()], mode=0o775, symlink=True)
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+        self.assertIn("mode_violations=1", row[3])
+
+    def test_executable_path_with_space_is_not_truncated_to_first_word(self):
+        row = self.run_fixture(
+            [self._user_spec(command="/bin/my tool --flag value")],
+            mode=0o775,
+            target_logical="/bin/my tool",
+        )
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+        self.assertIn("files=1;owner_violations=0;mode_violations=1", row[3])
+
+    def test_executable_path_argument_boundary_ambiguity_is_error(self):
+        row = self.run_fixture(
+            [self._user_spec(command="/bin/tool arg --flag")],
+            extra_executables=("/bin/tool arg",),
+        )
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_root_only_invoker_all_is_outside_population(self):
+        row = self.run_fixture([self._user_spec(user="root", runas="ALL", command="ALL")])
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertIn("files=0", row[3])
+
+    def test_non_root_runas_is_outside_population(self):
+        row = self.run_fixture([self._user_spec(runas="nobody")])
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertIn("files=0", row[3])
+
+    def test_unbounded_and_dynamic_command_forms_are_error(self):
+        for command in ("ALL", "/opt/*/tool", "^/usr/bin/[a-z]+$", "relative", "/opt/tools/"):
+            with self.subTest(command=command):
+                row = self.run_fixture([self._user_spec(command=command)])
+                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_negated_command_does_not_add_target(self):
+        row = self.run_fixture([self._user_spec(command="/bin/missing", negated=True)])
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertIn("files=0", row[3])
+
+    def test_policy_authority_drift_is_error(self):
+        row = self.run_fixture([self._user_spec()], policy_drift=True)
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_cvtsudoers_failure_and_malformed_json_are_error(self):
+        row = self.run_fixture([self._user_spec()], cvt_rc=1)
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        row = self.run_fixture([self._user_spec()], malformed_json=True)
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_target_snapshot_drift_is_error(self):
+        row = self.run_fixture([self._user_spec()], mutate_target_second_cvt=True)
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_runchroot_option_or_default_is_error(self):
+        spec = self._user_spec()
+        spec["Cmnd_Specs"][0]["Options"] = [{"runchroot": "/srv/chroot"}]
+        row = self.run_fixture([spec])
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        row = self.run_fixture(
+            [self._user_spec()],
+            defaults=[{"Options": [{"runchroot": "/srv/chroot"}]}],
+        )
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_interpreter_and_execution_frontend_are_error(self):
+        for path in ("/bin/sh", "/usr/bin/env", "/usr/bin/time", "/usr/bin/run-parts"):
+            with self.subTest(path=path):
+                row = self.run_fixture(
+                    [self._user_spec(command=path + " /opt/job")],
+                    target_logical=path,
+                )
+                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_symlink_alias_to_execution_frontend_is_error(self):
+        row = self.run_fixture(
+            [self._user_spec(command="/bin/tool /opt/job")],
+            target_logical="/bin/tool",
+            symlink=True,
+            symlink_real_name="env",
+        )
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_hardlink_alias_is_error(self):
+        row = self.run_fixture(
+            [self._user_spec(command="/bin/tool /opt/job")],
+            target_logical="/bin/tool",
+            hardlink_real_name="env",
+        )
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+
+    def test_shebang_execution_chain_is_error(self):
+        for interpreter_mode in (0o755, 0o775):
+            with self.subTest(interpreter_mode=oct(interpreter_mode)):
+                row = self.run_fixture(
+                    [self._user_spec()],
+                    target_bytes=b"#!/opt/custominterp\nexit 0\n",
+                    extra_executables=(("/opt/custominterp", interpreter_mode),),
+                )
+                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_generation_rejects_wrong_contract_fields(self):
+        bad = (
+            ("/etc/sudoers", SUDO_ROOT_COMMAND_FILES.CANONICAL_KEY, SUDO_ROOT_COMMAND_FILES.CANONICAL_OP, SUDO_ROOT_COMMAND_FILES.CANONICAL_EXPECTED),
+            (SUDO_ROOT_COMMAND_FILES.CANONICAL_LOCATOR, "mode", SUDO_ROOT_COMMAND_FILES.CANONICAL_OP, SUDO_ROOT_COMMAND_FILES.CANONICAL_EXPECTED),
+            (SUDO_ROOT_COMMAND_FILES.CANONICAL_LOCATOR, SUDO_ROOT_COMMAND_FILES.CANONICAL_KEY, "eq", SUDO_ROOT_COMMAND_FILES.CANONICAL_EXPECTED),
+            (SUDO_ROOT_COMMAND_FILES.CANONICAL_LOCATOR, SUDO_ROOT_COMMAND_FILES.CANONICAL_KEY, SUDO_ROOT_COMMAND_FILES.CANONICAL_OP, "0022"),
+        )
+        for args in bad:
+            with self.assertRaises(ValueError):
+                SUDO_ROOT_COMMAND_FILES.shell_function("TEST", *args)
+
+
 class SshdRootLoginAdapterFixtures(unittest.TestCase):
     def run_fixture(
         self, config_text=None, effective="no", syntax_rc=0, include_files=None,
@@ -2360,8 +2604,8 @@ SLP_POLICY_RC=1
             )
             self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
             self.assertIn("GENERATOR_ID=product-check-generator-v2\n", cp.stdout)
-            self.assertIn("CONTROL_COUNT=48\n", cp.stdout)
-            self.assertIn("ADAPTER_COUNT=15\n", cp.stdout)
+            self.assertIn("CONTROL_COUNT=49\n", cp.stdout)
+            self.assertIn("ADAPTER_COUNT=16\n", cp.stdout)
             self.assertEqual(out.read_bytes(), self.ARTIFACT.read_bytes())
             self.assertEqual(out.with_name(out.name + ".sha256").read_bytes(), self.SIDECAR.read_bytes())
         expected = f"{sha256_file(self.ARTIFACT)}  {self.ARTIFACT.name}\n"
@@ -2448,7 +2692,7 @@ SLP_POLICY_RC=1
         prov = self.run_cli("--provenance")
         self.assertEqual(prov.returncode, 0)
         rows = [json.loads(x) for x in prov.stdout.splitlines()]
-        self.assertEqual(len(rows), 48)
+        self.assertEqual(len(rows), 49)
         one = self.run_cli("--provenance", rows[0]["control_id"])
         self.assertEqual(json.loads(one.stdout)["control_id"], rows[0]["control_id"])
         for args in (("--bogus",), ("--help", "extra"), ("--check", "--format"),

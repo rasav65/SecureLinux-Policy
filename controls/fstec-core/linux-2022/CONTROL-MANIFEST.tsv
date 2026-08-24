@@ -10,6 +10,7 @@ FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE	SRC-0014	2.3.10	mode	0077	fste
 FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE	SRC-0015	2.3.11	mode	0700	fstec-linux-2022-2.3.11-home-directories-mode.yaml	ac070436aa49c1b78cc45972d1fdb41bb8462c4c40c5fcb26ec814ee45f84aed
 FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION	SRC-0006	2.3.2	write-protection	file-go-w;parent-unprivileged-write-denied	fstec-linux-2022-2.3.2-running-process-paths-write-protection.yaml	4c622265a9397061ef2edd2f99b6f90f78bf80aef8390f1cf129d8858daf76b3
 FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION	SRC-0007	2.3.3	write-protection	file-go-w	fstec-linux-2022-2.3.3-cron-command-paths-write-protection.yaml	aaab15a2454a7de6c5560aff10e367170706c6f47e6c5f879e46abe4fe9d6343
+FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION	SRC-0008	2.3.4	root-command-files	uid0;bits-clear-0022	fstec-linux-2022-2.3.4-sudo-root-command-files-protection.yaml	4b61c2330e5f8efd4e5659874e047c9f6bfddbef69defd7a21a9917b60129944
 FSTEC-LINUX-2022-2.3.6-CRON-D	SRC-0010	2.3.6	mode	0033	fstec-linux-2022-2.3.6-cron-d.yaml	d1dd9b4af5c49732ec93ac350d82fb138cb1fdc967396dda25062d59ff77527a
 FSTEC-LINUX-2022-2.3.6-CRON-DAILY	SRC-0010	2.3.6	mode	0033	fstec-linux-2022-2.3.6-cron-daily.yaml	a6c928414a1091aa8bf7291eee2e7574c9ad5f204831930d39a8536700f1731a
 FSTEC-LINUX-2022-2.3.6-CRON-HOURLY	SRC-0010	2.3.6	mode	0033	fstec-linux-2022-2.3.6-cron-hourly.yaml	882eec0779eac5f5942f10e6670b2812f8000bf8f3e7600ba1c264362a8f4dce

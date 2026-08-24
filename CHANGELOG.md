@@ -11,6 +11,16 @@
 
 ## [Unreleased]
 
+### Добавлено — read-only CHECK SRC-0008 / 2.3.4
+
+- `SRC-0008` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION`; source `chown root` и `chmod go-w` представлены read-only predicates `st_uid == 0` и `(mode & 0022) == 0`.
+- Population строится из exact reviewed active sudoers tree: `visudo` closure обязан побайтно/pathset совпасть с `/etc/securelinux-policy/sudoers-reviewed-policy-v1`, после чего pinned `/usr/bin/cvtsudoers -c /dev/null -e -f json` даёт alias-expanded representation.
+- Rules, которые могут относиться к ordinary invoking user и допускают root runas, включаются; root-only invoking-user rules исключаются. `ALL`, regex/wildcard/directory paths, неоднозначная executable/arguments boundary и иные неограниченные формы дают `ERROR`, а не partial PASS. Spaced executable pathname не обрезается по первому пробелу.
+- Для stable executable regular targets non-root owner или group/other write дают `VALUE/FAIL`; missing/nonregular/non-executable target, reviewed-policy/tool/JSON ambiguity и snapshot drift дают `ERROR`. Symlink проверяется по final target.
+- Добавлены parameter kind, semantic contract, adapter и 20 targeted fixtures. Shebang execution chain теперь fail-closed (`ERROR`), чтобы sudo-authorized script не давал ложный PASS при непроверенном interpreter. APPLY/RESTORE и protected-state writes отсутствуют. После шага: `349 / 39 controlled CLOSED / 310 OPEN`; canonical controls `49`; adapters `16`.
+
+
+
 ### Добавлено — read-only CHECK SRC-0007 / 2.3.3
 
 - `SRC-0007` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION`; exact source `chmod go-w` представлен как `(mode & 0022) == 0` для однозначно разрешённых target-файлов/команд из persistent cron definitions.

@@ -6,10 +6,10 @@
 
 ```text
 TOTAL_INDEX_ROWS=349
-CONTROLLED_CLOSED_WITH_CONTRACT=38
+CONTROLLED_CLOSED_WITH_CONTRACT=39
 DISPOSED_CLOSED_ROWS=0
-OPEN_INDEX_ROWS=311
-CANONICAL_CONTROLS=48
+OPEN_INDEX_ROWS=310
+CANONICAL_CONTROLS=49
 ```
 
 Число canonical controls и число закрытых source rows — разные величины: одна строка источника может требовать `exact-control-set` из нескольких controls.
@@ -25,6 +25,7 @@ CANONICAL_CONTROLS=48
 | SRC-0005 | 2.3.1 | exact-control-set | `FSTEC-LINUX-2022-2.3.1-GROUP-MODE`<br>`FSTEC-LINUX-2022-2.3.1-PASSWD-MODE`<br>`FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX` | `file-mode-owner` | `product-file-mode-owner-check-v1` |
 | SRC-0006 | 2.3.2 | atomic-single | `FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION` | `running-process-paths-write-protection` | `product-running-process-paths-write-protection-check-v1` |
 | SRC-0007 | 2.3.3 | atomic-single | `FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION` | `cron-command-paths-write-protection` | `product-cron-command-paths-write-protection-check-v1` |
+| SRC-0008 | 2.3.4 | atomic-single | `FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION` | `sudo-root-command-files-protection` | `product-sudo-root-command-files-protection-check-v1` |
 | SRC-0010 | 2.3.6 | exact-control-set | `FSTEC-LINUX-2022-2.3.6-CRONTAB`<br>`FSTEC-LINUX-2022-2.3.6-CRON-D`<br>`FSTEC-LINUX-2022-2.3.6-CRON-HOURLY`<br>`FSTEC-LINUX-2022-2.3.6-CRON-DAILY`<br>`FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY`<br>`FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY` | `optional-file-root-files-mode` | `product-optional-file-root-files-mode-check-v1` |
 | SRC-0011 | 2.3.7 | atomic-single | `FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE` | `user-cron-files-mode` | `product-user-cron-files-mode-check-v1` |
 | SRC-0012 | 2.3.8 | atomic-single | `FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE` | `standard-system-paths-mode` | `product-standard-system-paths-mode-check-v1` |
@@ -76,6 +77,7 @@ CANONICAL_CONTROLS=48
 | `running-process-paths-write-protection` | `product-running-process-paths-write-protection-check-v1` | yes | 1 |
 | `sshd-root-login` | `product-sshd-root-login-check-v1` | yes | 1 |
 | `standard-system-paths-mode` | `product-standard-system-paths-mode-check-v1` | yes | 1 |
+| `sudo-root-command-files-protection` | `product-sudo-root-command-files-protection-check-v1` | yes | 1 |
 | `sudoers-reviewed-policy` | `product-sudoers-reviewed-policy-check-v1` | yes | 1 |
 | `suid-sgid-applications` | `product-suid-sgid-applications-check-v1` | yes | 2 |
 | `sysctl` | `product-sysctl-check-v2` | yes | 17 |
@@ -86,7 +88,7 @@ CANONICAL_CONTROLS=48
 | Source document | Total rows | Controlled CLOSED | Disposed CLOSED | OPEN | Canonical controls |
 |---|---:|---:|---:|---:|---:|
 | fstec-configuration-2026 | 49 | 0 | 0 | 49 | 0 |
-| fstec-linux-2022 | 40 | 38 | 0 | 2 | 48 |
+| fstec-linux-2022 | 40 | 39 | 0 | 1 | 49 |
 | fstec-logging-2025 | 14 | 0 | 0 | 14 | 0 |
 | fstec-perimeter-2026 | 35 | 0 | 0 | 35 | 0 |
 | fstec-security-update-testing-2022 | 70 | 0 | 0 | 70 | 0 |
@@ -98,6 +100,6 @@ CANONICAL_CONTROLS=48
 
 ## Открытая часть корпуса
 
-`311` source rows остаются `OPEN`. Полный перечень и их source metadata находятся в `index/source-v4/SOURCE-INDEX.tsv`; этот документ не дублирует 349 строк вручную.
+`310` source rows остаются `OPEN`. Полный перечень и их source metadata находятся в `index/source-v4/SOURCE-INDEX.tsv`; этот документ не дублирует 349 строк вручную.
 
 Наличие adapter или canonical control само по себе не закрывает source row: закрытие определяется source status и `CLOSURE-CONTRACT.tsv` либо explicit disposition.
