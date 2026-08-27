@@ -70,7 +70,7 @@ CHECK с RC=3 до выполнения policy checks.
 | Debian 12 (bookworm) | **SERVER** | `3.0pl1-162` | `0755 root:root` | `1730 root:gid101` | 0 | 0 |
 | Debian 13.4 (trixie) | **GNOME** | `3.0pl1-197` | `0755 root:root` | `1730 root:gid997` | 0 | 0 |
 
-Вывод для semantics: оба roots являются optional discovery roots; штатное отсутствие обоих roots и штатно пустая population должны давать compliant результат. Конкретный GID каталога `crontabs` различается между установками и поэтому не является policy condition SRC-0011.
+Вывод для semantics: `/var/spool/cron/crontabs` является canonical user-crontab discovery root для current Ubuntu target; parent `/var/spool/cron` фиксируется как layout evidence, но не является population root. Штатное отсутствие canonical root и штатно пустая population дают compliant результат. Конкретный GID каталога `crontabs` различается между установками и поэтому не является policy condition SRC-0011.
 
 ## VM-наблюдения layout для SRC-0012
 
@@ -88,14 +88,14 @@ CHECK с RC=3 до выполнения policy checks.
 | Debian 12 (bookworm) | **SERVER** | `6.1.0-44-amd64` | `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` | 13613 | 0 |
 | Debian 13 (trixie) | **GNOME** | `6.12.74+deb13+1-amd64` | `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` | 13760 | 0 |
 
-Вывод для semantics: canonical OS executable roots текущего control — `/bin`, `/sbin`, `/usr/bin`, `/usr/sbin`. Они входят и в fixed donor defaults, и во все наблюдавшиеся privileged root PATH. `/usr/local/*` и `/snap/bin` не включаются в current OS-owned population: это local/admin и application paths, а не фиксированные пути файлов ОС текущего target contract. Library roots — `/lib`, `/lib64`, `/usr/lib`, `/usr/lib64`; current-kernel module root определяется через `uname -r`.
+Вывод после retrospective correction: evidence показало, что fixed roots недостаточно для literal `$PATH root` anchor. Current v2 executable population включает canonical roots и каждый absolute entry фактического root-process `$PATH`, поэтому наблюдавшиеся `/usr/local/bin`, `/usr/local/sbin` и `/snap/bin` больше не отбрасываются только из-за прежнего fixed list. Library roots дополнены `/usr/local/lib` и `/usr/local/lib64`; current-kernel module root определяется через `uname -r`. VM numbers остаются diagnostic evidence, не нормативным baseline.
 
 
 ## VM-наблюдения для SRC-0013
 
 Это **не** расширение `SUPPORTED` target и не acceptance полного product CHECK. Evidence v2 снималось привилегированным read-only batch; основной ПК пользователя не использовался для privileged проверки.
 
-Population определялась по mounted filesystems, на которых SUID/SGID semantics не отключена `nosuid`; pseudo/virtual filesystems исключались. На Ubuntu 22 FULL в population также попали SUID/SGID-файлы read-only snap squashfs mounts, что подтвердило недостаточность сканирования только root filesystem.
+Исторический evidence batch исключал `nosuid` mounts. Retrospective audit показал, что это сужало буквальную source population; current v2 исключает только pseudo/virtual filesystems и **не** исключает `nosuid`. Поэтому прежние численные VM counts ниже сохраняются только как historical layout evidence и не являются current v2 population counts. На Ubuntu 22 FULL в population также попали SUID/SGID-файлы read-only snap squashfs mounts, что подтвердило недостаточность сканирования только root filesystem.
 
 | ОС | Тип установки | SUID/SGID regular | SUID | SGID | `GO_W` | Scan errors |
 |---|---|---:|---:|---:|---:|---:|
@@ -109,19 +109,17 @@ Population определялась по mounted filesystems, на которы�
 
 Вывод для semantics: численный состав SUID/SGID population нельзя фиксировать как нормативный baseline — он зависит от пакетов и installation class. Универсальная часть 2.3.9 — отсутствие group/other write. Решение о том, какое найденное приложение является «лишним», требует отдельного локального authority и не выводится автоматически из package ownership или из этой VM-матрицы.
 
-### SRC-0014 / 2.3.10 — sensitive files in selected user homes
+### SRC-0014 / 2.3.10 — sensitive files in local user homes
 
-Перед closure выполнен privileged read-only evidence batch на 7 installation classes. Во всех runs selector `root OR UID>=UID_MIN`, interactive shell и absolute home дал 2 candidate accounts; `HOME_SCAN_ERRORS=0`, host mutation отсутствовала. Source-exact present entries / `go-rwx` violations: Ubuntu 22.04.5 FULL `6/5`; Ubuntu 24.04.4 MINIMIZED `7/5`, FULL `7/5`; Ubuntu 26.04 MINIMIZED `5/5`, FULL `6/5`; Debian 12 SERVER `7/5`; Debian 13 GNOME `6/5`. Эти observed modes не являются normative baseline: нормативное отношение берётся только из source (`bits-clear 0077`).
+Исторический VM batch использовал selector `root OR UID>=UID_MIN` + interactive shell; retrospective audit признал это source-unanchored сужением. **Current v2 не использует этот selector:** в population входят все syntactically valid local `/etc/passwd` accounts с absolute home, включая service/system accounts. Старые 7-run counts сохраняются только как historical evidence и не доказывают current v2 population.
 
-Открытые `и т. п.` выражены обязательным локальным inventory `/etc/securelinux-policy/home-sensitive-files-v1`; без него CHECK даёт `ERROR`, а не делает ложный вывод о полноте восьми примеров. NSS/network-only accounts v1 не включены в current local-account population и требуют отдельной authority model до расширения product scope.
+Open-ended `и т. п.` больше не доверяется одному inventory: восемь source examples остаются mandatory authority entries, а read-only traversal дополнительно обнаруживает standard common-shell history/config artifacts для Bash/zsh/ksh/csh/tcsh/fish/Nushell/Xonsh/Elvish; custom/XDG override paths остаются через local inventory, ambiguity fail-closed. NSS/network-only accounts по-прежнему требуют отдельной authority model и не выводятся из локального `/etc/passwd`.
 
 ## SRC-0015 / 2.3.11 — mode home directory
 
-Current CHECK использует тот же локальный account selector, что и SRC-0014: `root` плюс normal interactive local accounts по `UID_MIN` из `/etc/login.defs`. Это инженерная operationalization source-термина «пользователей», а не расширение target support.
+Current v2 использует все syntactically valid local `/etc/passwd` accounts с absolute home path, включая service/system accounts; прежние `UID_MIN`/interactive-shell exclusions удалены. Для каждого существующего real home требуется exact `0700`; absent path не создаётся, а symlink/non-directory/stat ambiguity => `ERROR`.
 
-Для каждого существующего selected home требуется exact `0700`, потому что source приводит именно `chmod 700`. Отсутствие home path не объявляется нарушением существования; symlink/non-directory/stat ambiguity даёт `ERROR`. Ownership не добавляется.
-
-Семь privileged read-only VM runs подтвердили layout assumptions: Debian 12 `SERVER` и Debian 13 `GNOME` имели `/root` и `/home/user` mode `0700`; Ubuntu 22 `FULL`, Ubuntu 24 `MINIMIZED/FULL` и Ubuntu 26 `MINIMIZED/FULL` имели `/root=0700`, `/home/user=0750`. Эти наблюдения не расширяют current product target и не заменяют source-exact expected `0700`.
+Семь ранее собранных VM runs остаются historical layout evidence: они проверяли более узкий selector и потому не используются как доказательство полноты current v2 population.
 
 ## SRC-0002 / SSH root login — privileged evidence matrix
 
@@ -134,3 +132,7 @@ Read-only evidence helper `slp-vm-batch-src0002-src0004-evidence-v1` выпол�
 ## SRC-0004 / sudoers reviewed policy — privileged evidence matrix
 
 Read-only evidence `slp-vm-evidence-src0002-src0004-v1-*` integrity-verified `7/7`: Ubuntu 22 FULL, Ubuntu 24 MINIMIZED/FULL, Ubuntu 26 MINIMIZED/FULL, Debian 12 SERVER, Debian 13 GNOME. Во всех семи `/etc/sudoers` существовал как regular `0440 root:root`, присутствовал active `@includedir /etc/sudoers.d`, полный `visudo` check завершался `RC=0`. На Ubuntu 26 `sudo`/`visudo` предоставлялись через alternatives symlinks. Эти host facts подтверждают способ discovery/validation; они не задают универсальный approved user/command set и не расширяют current target `ubuntu-24.04-x86_64`.
+
+## Procedural authority SRC-0034
+
+`SRC-0034 / 2.5.11` не получает OS-specific default: source qualifier `после тестирования` представлен explicit local authority `/etc/securelinux-policy/tested-setting-attestations-v1`. Это не VM observation и не предположение о distro defaults. CHECK не запускает тестирование и не изменяет `kernel.randomize_va_space`; отсутствие доверяемой target attestation даёт `ERROR`.

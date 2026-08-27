@@ -175,7 +175,19 @@ def validate_defaults(defaults):
         binding = entry.get("Binding")
         if binding is not None and (not isinstance(binding, list) or not binding):
             error()
-        reject_enabled_runchroot_options(entry["Options"])
+        options = entry["Options"]
+        reject_enabled_runchroot_options(options)
+        if not isinstance(options, list):
+            error()
+        for obj in options:
+            if not isinstance(obj, dict):
+                error()
+            # sudoers runas_default changes the effective target user whenever a
+            # Cmnd_Spec omits an explicit Runas_Spec.  v1 does not evaluate
+            # Defaults binding precedence, so accepting such a policy could
+            # classify a non-root command as root-runnable and false-FAIL its file.
+            if "runas_default" in obj or "case_insensitive_user" in obj:
+                error()
 
 
 def one_selector(obj, allowed):
@@ -190,21 +202,42 @@ def one_selector(obj, allowed):
 def ordinary_invoker_possible(user_list):
     if not isinstance(user_list, list) or not user_list:
         error()
-    positive = []
+    ordinary = False
     allowed = {"netgroup", "nonunixgid", "nonunixgroup", "usergid", "usergroup", "userid", "username"}
     for obj in user_list:
         key, value, neg = one_selector(obj, allowed)
-        if not neg:
-            positive.append((key, value))
-    if not positive:
-        return True
-    for key, value in positive:
-        if key == "username" and value == "root":
+        # Membership- and negation-dependent selectors cannot be over-approximated
+        # into a VALUE/FAIL population without risking a false FAIL.
+        if neg or key not in {"username", "userid"}:
+            error()
+        if key == "username":
+            if not isinstance(value, str) or not value:
+                error()
+            if value.casefold() == "root":
+                continue
+            ordinary = True
             continue
-        if key == "userid" and str(value) == "0":
-            continue
-        return True
-    return False
+        text = str(value)
+        if not text.isdigit():
+            error()
+        if int(text, 10) != 0:
+            ordinary = True
+    return ordinary
+
+
+def host_scope_supported(host_list):
+    if not isinstance(host_list, list) or not host_list:
+        error()
+    # v1 deliberately supports only an unconditional ALL host selector.  Correct
+    # sudo hostname/network/netgroup matching depends on local host/network state;
+    # treating a non-ALL selector as applicable would over-check another host and
+    # could return a false FAIL.  Unsupported host qualification is therefore ERROR.
+    if len(host_list) != 1:
+        error()
+    key, value, neg = one_selector(host_list[0], {"hostname", "networkaddr", "netgroup"})
+    if neg or key != "hostname" or value != "ALL":
+        error()
+    return True
 
 
 def root_runas_possible(spec):
@@ -214,21 +247,25 @@ def root_runas_possible(spec):
     if not isinstance(runas, list) or not runas:
         error()
     allowed = {"netgroup", "nonunixgid", "nonunixgroup", "runasalias", "usergid", "usergroup", "userid", "username"}
-    positive = []
+    root_possible = False
     for obj in runas:
         key, value, neg = one_selector(obj, allowed)
-        if not neg:
-            positive.append((key, value))
-    if not positive:
-        return True
-    for key, value in positive:
-        if key == "username" and value in {"root", "ALL"}:
-            return True
-        if key == "userid" and str(value) == "0":
-            return True
-        if key not in {"username", "userid"}:
-            return True
-    return False
+        # Group/netgroup membership and negated runas selectors are not resolved by
+        # this adapter.  Do not over-approximate them into a FAIL-able population.
+        if neg or key not in {"username", "userid"}:
+            error()
+        if key == "username":
+            if not isinstance(value, str) or not value:
+                error()
+            if value == "ALL" or value.casefold() == "root":
+                root_possible = True
+            continue
+        text = str(value)
+        if not text.isdigit():
+            error()
+        if int(text, 10) == 0:
+            root_possible = True
+    return root_possible
 
 
 def path_shape_ok(path):
@@ -285,15 +322,26 @@ def collect_targets(specs):
             error()
         if not ordinary_invoker_possible(user_spec["User_List"]):
             continue
-        if not isinstance(user_spec["Host_List"], list) or not user_spec["Host_List"]:
-            error()
+        host_scope_supported(user_spec["Host_List"])
         cmnd_specs = user_spec["Cmnd_Specs"]
         if not isinstance(cmnd_specs, list):
             error()
         for spec in cmnd_specs:
             if not isinstance(spec, dict) or "Commands" not in spec or set(spec) - {"Commands", "runasusers", "runasgroups", "Options"}:
                 error()
-            reject_enabled_runchroot_options(spec.get("Options"))
+            options = spec.get("Options")
+            reject_enabled_runchroot_options(options)
+            if options is not None:
+                if not isinstance(options, list):
+                    error()
+                for obj in options:
+                    if not isinstance(obj, dict):
+                        error()
+                    # NOTBEFORE/NOTAFTER are direct applicability predicates.
+                    # v1 does not evaluate sudo generalized-time windows, so an
+                    # inactive rule must never be over-checked into VALUE/FAIL.
+                    if "notbefore" in obj or "notafter" in obj:
+                        error()
             if not root_runas_possible(spec):
                 continue
             commands = spec["Commands"]
@@ -304,8 +352,16 @@ def collect_targets(specs):
                     error()
                 if "command" not in obj or not isinstance(obj.get("negated", False), bool):
                     error()
+                if any(key in obj for key in ("sha224", "sha256", "sha384", "sha512")):
+                    # A sudo command digest is an applicability predicate.  v1 does
+                    # not reimplement sudo digest syntax/matching, so including the
+                    # pathname regardless of digest could over-check a command that
+                    # is not runnable with the current bytes.
+                    error()
                 if obj.get("negated", False):
-                    continue
+                    # Correct command-list override semantics are not reimplemented
+                    # here; silently dropping a negation can over-check a target.
+                    error()
                 target = logical_target(obj["command"])
                 if target is not None:
                     targets.add(target)

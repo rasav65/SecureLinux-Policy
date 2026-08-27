@@ -48,17 +48,21 @@ class GatesV1Tests(unittest.TestCase):
         r=mod.run_all(PROJECT,PROJECT/"index/source-v2/SOURCE-INDEX.tsv",PROJECT/"controls")
         self.assertFalse(r["overall_pass"])
         g1 = self.gate(r,1)
-        # Historical gates-v1 is not current product authority. SRC-0014 uses an
-        # exact pinned inline page-furniture correction that exists only in the
-        # current source-skeleton/gates-v3 path. Legacy Gate1 must therefore fail
-        # closed on that one canonical quote instead of guessing the correction.
+        # Historical gates-v1 is not current product authority. SRC-0008 and
+        # SRC-0014 use exact pinned inline page-furniture corrections that exist
+        # only in the current source-skeleton/gates-v3 path. Legacy Gate1 must
+        # therefore fail closed on both canonical quotes instead of guessing.
         self.assertFalse(g1["pass"])
-        self.assertEqual(g1["passed_records"] + 1, g1["checked_records"])
-        self.assertEqual(len(g1["errors"]), 1)
-        self.assertTrue(any(
-            "fstec-linux-2022-2.3.10-home-sensitive-files-mode.yaml: normalized quote not found in normalized source corpus" in e
-            for e in g1["errors"]
-        ))
+        self.assertEqual(g1["passed_records"] + 2, g1["checked_records"])
+        self.assertEqual(len(g1["errors"]), 2)
+        for filename in (
+            "fstec-linux-2022-2.3.4-sudo-root-command-files-protection.yaml",
+            "fstec-linux-2022-2.3.10-home-sensitive-files-mode.yaml",
+        ):
+            self.assertTrue(any(
+                f"{filename}: normalized quote not found in normalized source corpus" in e
+                for e in g1["errors"]
+            ), filename)
         self.assertFalse(self.gate(r,2)["pass"])
         self.assertEqual(self.gate(r,2)["uncovered_rows"],349)
         # Historical gates-v1 is not current product authority: the current corpus

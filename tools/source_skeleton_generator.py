@@ -76,6 +76,12 @@ INDEX_TRAILING_PAGE_FURNITURE = {
 # internal page break, both the raw fragment and the canonical replacement are
 # pinned to one index row. This makes a recovery-layout change fail closed.
 INDEX_INLINE_PAGE_FURNITURE = {
+    "SRC-0008": (
+        "путём изменения владельца командой chown root путь_к_файлу для 4 "
+        "каждого исполняемого файла, который можно запускать",
+        "путём изменения владельца командой chown root путь_к_файлу для "
+        "каждого исполняемого файла, который можно запускать",
+    ),
     "SRC-0014": (
         ".bash_profile, .bashrc, .profile, .bash_logout и т. п. - "
         "файлы 5 настройки оболочки, .rhosts",

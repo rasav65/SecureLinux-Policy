@@ -11,12 +11,12 @@ source:
   norm: "norm-v1"
 requirement:
   stated: "2.3.8. Установить корректные права доступа к исполняемым файлам и библиотекам операционной системы путём анализа корректности прав доступа к утилитам и системным библиотекам, расположенным по стандартным путям (/bin, /usr/bin, /lib, /lib64 и другим путям), а также к модулям ядра (для Linux: /lib/modules/версия-текущего-ядра). Местоположение большинства стандартных исполняемых файлов указано в переменной $PATH пользователя root."
-  derived: false
-  justification: null
+  derived: true
+  justification: "Источник требует анализа корректности прав, но не задаёт числовой mode; bits-clear 0022 — минимальный derived operational criterion, явно отделённый от дословного source text."
   applicability: "technical"
 parameter:
   kind: "standard-system-paths-mode"
-  locator: "/bin|/sbin|/usr/bin|/usr/sbin|/lib|/lib64|/usr/lib|/usr/lib64|/lib/modules/<uname-r>"
+  locator: "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>"
   key: "mode"
 expected:
   op: "bits-clear"

@@ -168,7 +168,7 @@ KIND_RULES = {
         ],
     },
     "user-cron-files-mode": {
-        "locator": {"const": "/var/spool/cron|/var/spool/cron/crontabs"},
+        "locator": {"const": "/var/spool/cron/crontabs"},
         "key": {"const": "mode"},
         "op": {"const": "bits-clear"},
         "type": {"const": "string"},
@@ -180,7 +180,7 @@ KIND_RULES = {
         ],
     },
     "standard-system-paths-mode": {
-        "locator": {"const": "/bin|/sbin|/usr/bin|/usr/sbin|/lib|/lib64|/usr/lib|/usr/lib64|/lib/modules/<uname-r>"},
+        "locator": {"const": "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>"},
         "key": {"const": "mode"},
         "op": {"const": "bits-clear"},
         "type": {"const": "string"},
@@ -200,6 +200,18 @@ KIND_RULES = {
             {
                 "if": {"expected.op": {"const": "cron-command-paths-safe"}},
                 "then": {"expected.value": {"const": "file-go-w"}},
+            },
+        ],
+    },
+    "startup-files-write-protection": {
+        "locator": {"const": "/etc/rc[0-6].d|systemd-unit-paths"},
+        "key": {"const": "other-write"},
+        "op": {"const": "bits-clear"},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "bits-clear"}},
+                "then": {"expected.value": {"const": "0002"}},
             },
         ],
     },
@@ -254,7 +266,7 @@ KIND_RULES = {
         ],
     },
     "home-directories-mode": {
-        "locator": {"const": "/etc/passwd|/etc/login.defs"},
+        "locator": {"const": "/etc/passwd"},
         "key": {"const": "mode"},
         "op": {"const": "eq"},
         "type": {"const": "string"},
@@ -266,7 +278,7 @@ KIND_RULES = {
         ],
     },
     "home-sensitive-files-mode": {
-        "locator": {"const": "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1"},
+        "locator": {"const": "/etc/passwd|/etc/securelinux-policy/home-sensitive-files-v1"},
         "key": {"const": "mode"},
         "op": {"const": "bits-clear"},
         "type": {"const": "string"},
@@ -322,6 +334,18 @@ KIND_RULES = {
             {
                 "if": {"expected.op": {"const": "eq-reviewed-policy"}},
                 "then": {"expected.value": {"const": "/etc/securelinux-policy/sudoers-reviewed-policy-v1"}},
+            },
+        ],
+    },
+    "tested-setting-attestation": {
+        "locator": {"const": "/etc/securelinux-policy/tested-setting-attestations-v1"},
+        "key": {"const": "SRC-0034"},
+        "op": {"const": "tested-before-use"},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "tested-before-use"}},
+                "then": {"expected.value": {"const": "kernel.randomize_va_space=2"}},
             },
         ],
     },
@@ -931,6 +955,10 @@ def resolve_norm_corpus(project_root: Path, row: dict):
 
 
 INLINE_SOURCE_CORPUS_REWRITES = {
+    "SRC-0008": (
+        "командой chown root путь_к_файлу для 4 каждого исполняемого файла",
+        "командой chown root путь_к_файлу для каждого исполняемого файла",
+    ),
     "SRC-0014": (
         "файлы 5 настройки оболочки",
         "файлы настройки оболочки",

@@ -13,10 +13,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CONTROL_MANIFEST = ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 GEN = ROOT / "tools/source_skeleton_generator.py"
-EXPECTED_GEN_SHA = "c90b04f271ef62920ab8697c5212cae13d010481980b46c10c3137aa3ddcf387"
+EXPECTED_GEN_SHA = "7d1e20c0d393a932d3ccd14f14366f3d3f4695c7e2cfe1d69b403b40feaabcc7"
 EXPECTED_SRC0018_SHA = "016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d"
 EXPECTED_SRC0040_SHA = "f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d"
 EXPECTED_SRC0001_SHA = "799b85637928264e6f43d5e32d8cc6b48af6694e30f6fbf5e4c6ddef3a207f3b"
+EXPECTED_SRC0008_SHA = "0be87131f3aea07d4da4134cd82c960c608b16feff43b6996ea4817d9bb38dfe"
 EXPECTED_SRC0014_SHA = "c243edbafcfee7fadede64b0dec702e3f8f92553d6240a89c36575934958b5f0"
 EXPECTED_REFUSED = {"SRC-0133"}
 
@@ -116,6 +117,28 @@ else:
     raise AssertionError("mismatched pinned page token was accepted")
 fixture_row1["index_id"] = "SRC-0018"
 assert gate.strip_index_trailing_page_furniture("fixture 3", fixture_row1) == "fixture 3"
+
+# Exact pinned inline page boundary for SRC-0008.
+block8 = gate.build_source_block(ROOT, by_id["SRC-0008"], normalize_text)
+assert block8["quote_sha256"] == EXPECTED_SRC0008_SHA
+assert "путь_к_файлу для каждого исполняемого файла" in block8["quote"]
+assert "путь_к_файлу для 4 каждого исполняемого файла" not in block8["quote"]
+raw8 = gate.extract_unit(
+    gate.resolve_corpus(ROOT, by_id["SRC-0008"]).read_text(encoding="utf-8").rstrip("\n"),
+    "2.3.4",
+)
+assert "путь_к_файлу для 4 каждого исполняемого файла" in raw8
+fixture_row8 = dict(by_id["SRC-0008"])
+raw_fragment8, canonical_fragment8 = gate.INDEX_INLINE_PAGE_FURNITURE["SRC-0008"]
+assert gate.strip_index_inline_page_furniture(raw_fragment8, fixture_row8) == canonical_fragment8
+try:
+    gate.strip_index_inline_page_furniture(
+        raw_fragment8.replace("для 4 каждого", "для 5 каждого"), fixture_row8
+    )
+except ValueError as exc:
+    assert "pinned inline page furniture mismatch" in str(exc)
+else:
+    raise AssertionError("mismatched SRC-0008 page token was accepted")
 
 # Exact pinned inline page boundary for SRC-0014. The recovered corpus contains
 # page number "5" between "файлы" and "настройки оболочки"; only this exact

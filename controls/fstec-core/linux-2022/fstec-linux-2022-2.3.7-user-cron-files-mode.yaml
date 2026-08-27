@@ -16,7 +16,7 @@ requirement:
   applicability: "technical"
 parameter:
   kind: "user-cron-files-mode"
-  locator: "/var/spool/cron|/var/spool/cron/crontabs"
+  locator: "/var/spool/cron/crontabs"
   key: "mode"
 expected:
   op: "bits-clear"

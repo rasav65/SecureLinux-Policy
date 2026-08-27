@@ -42,16 +42,25 @@ def selected_paths(root: Path) -> list[str]:
         if raw
     })
 
+    selected = []
     for name in names:
         if "\n" in name or "\r" in name:
             raise ValueError(f"newline forbidden in root-manifest path: {name!r}")
         path = root / name
-        st = path.lstat()
+        try:
+            st = path.lstat()
+        except FileNotFoundError:
+            # `git ls-files --cached` includes tracked paths deleted in the
+            # current worktree. Root manifests bind current Git-visible bytes,
+            # so an intentional unstaged deletion is outside the current
+            # regular-file population.
+            continue
         if stat.S_ISLNK(st.st_mode):
             raise ValueError(f"symlink forbidden in root-manifest population: {name}")
         if not stat.S_ISREG(st.st_mode):
             raise ValueError(f"regular file required in root-manifest population: {name}")
-    return names
+        selected.append(name)
+    return selected
 
 
 def render(root: Path, names: list[str], excluded: set[str]) -> str:

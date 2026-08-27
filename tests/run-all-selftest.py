@@ -21,4 +21,11 @@ assert mod.parse_version("4.10.3") == (4, 10, 3)
 assert mod.parse_version("4.25.1.post1") == (4, 25, 1)
 assert mod.parse_version("unknown") is None
 
-print("RUN_ALL_SELFTEST=PASS release_rc=0/1/2/3 version_parser=3")
+assert mod.DEV_EXPECTED_INTERNAL_SKIPS == {
+    "tests/gates-v3/test_schema_runtime_parity.py": 2,
+}
+assert mod.expected_internal_skips("tests/gates-v3/test_schema_runtime_parity.py") == 2
+assert mod.expected_internal_skips("tests/product-v1/test_file_mode_owner_adapter.py") == 0
+assert mod.expected_internal_skips("tests/product-v1/test_product_generator.py") == 0
+
+print("RUN_ALL_SELFTEST=PASS release_rc=0/1/2/3 version_parser=3 skip_policy=3")

@@ -51,12 +51,16 @@ for manifest in ("PROJECT-FILES.sha256", "SHA256SUMS"):
 cp = run(["sha256sum", "-c", "SHA256SUMS"], ROOT)
 assert cp.returncode == 0, cp.stdout + cp.stderr
 
-visible = set(
+visible_raw = set(
     run(
         ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
         ROOT,
     ).stdout.splitlines()
 )
+visible = {
+    rel for rel in visible_raw
+    if (ROOT / rel).exists() or (ROOT / rel).is_symlink()
+}
 local_manifests = sorted(
     rel for rel in visible
     if rel != "SHA256SUMS" and rel.endswith("/SHA256SUMS")
@@ -189,16 +193,22 @@ with tempfile.TemporaryDirectory(prefix="slp-root-manifest-") as td:
     assert run(["git", "init", "-q"], repo).returncode == 0
     (repo / ".gitignore").write_text(".runtime/\n", encoding="utf-8")
     (repo / "tracked.txt").write_text("tracked\n", encoding="utf-8")
+    (repo / "tracked-deleted.txt").write_text("deleted-after-indexing\n", encoding="utf-8")
     (repo / "untracked.txt").write_text("untracked\n", encoding="utf-8")
     (repo / ".runtime").mkdir()
     (repo / ".runtime/state.txt").write_text("runtime\n", encoding="utf-8")
-    assert run(["git", "add", ".gitignore", "tracked.txt"], repo).returncode == 0
+    assert run(
+        ["git", "add", ".gitignore", "tracked.txt", "tracked-deleted.txt"], repo
+    ).returncode == 0
+    (repo / "tracked-deleted.txt").unlink()
 
     cp = run([sys.executable, "-B", str(TOOL), "--project-root", str(repo)], repo)
     assert cp.returncode == 0, cp.stdout + cp.stderr
     ptext = (repo / "PROJECT-FILES.sha256").read_text(encoding="utf-8")
     rtext = (repo / "SHA256SUMS").read_text(encoding="utf-8")
     assert "tracked.txt" in ptext
+    assert "tracked-deleted.txt" not in ptext
+    assert "tracked-deleted.txt" not in rtext
     assert "untracked.txt" in ptext
     assert ".runtime/state.txt" not in ptext
     assert ".runtime/state.txt" not in rtext
@@ -211,7 +221,7 @@ with tempfile.TemporaryDirectory(prefix="slp-root-manifest-") as td:
 
 print(
     "ROOT_MANIFEST_POLICY=PASS "
-    f"actual=1 fixture=1 ignored_runtime=2 "
+    f"actual=1 fixture=1 deleted_tracked=1 ignored_runtime=2 "
     f"local_manifests={len(local_manifests)} local_entries={checked_entries} "
     f"pinned_historical_exceptions=2 complete_subtree_manifests={len(complete_subtree_manifests)} "
     "active_checker_fresh=2"

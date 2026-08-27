@@ -7,34 +7,41 @@
 
 ## Текущий состав
 
-- `contracts/file-mode-owner-check-semantic-v1.json` — read-only semantic
-  contract для `file-mode-owner`;
+- `contracts/file-mode-owner-check-semantic-v2.json` — current read-only semantic contract для `file-mode-owner`; dereferenced selected object обязан быть regular file до проверки mode; v1 сохранён как предыдущая identity;
 - `contracts/sysctl-check-semantic-v2.json` — current read-only semantic contract для
   `sysctl`; `eq` сохраняет exact semantics, `ge` разрешён только для integer lower bounds;
 - `contracts/kernel-cmdline-check-semantic-v2.json` — current read-only exact-token contract
   для фактической загрузочной строки `/proc/cmdline`; `one-of` кодирует ordered alternatives через `|`, где первое значение preferred, но все перечисленные значения compliant; v1 сохранён как предыдущая product identity;
 - `contracts/optional-file-root-files-mode-check-semantic-v1.json` — read-only contract для optional system-cron root + direct regular files; missing root = `VALUE/PASS`, неоднозначный nested/symlink/special population = `ERROR`;
-- `contracts/local-account-password-state-check-semantic-v1.json` — read-only aggregate contract для локальных `/etc/passwd` accounts + source-anchored `/etc/shadow`; empty password field = `FAIL`, неполная/неоднозначная mapping = `ERROR`;
+- `contracts/local-account-password-state-check-semantic-v2.json` — current read-only aggregate contract для локальных `/etc/passwd` accounts + source-anchored `/etc/shadow`; NUL/CR и malformed mapping отвергаются до Bash line parsing; empty password field = `FAIL`;
 - `contracts/sshd-root-login-check-semantic-v1.json` — read-only source-faithful contract SRC-0002: main `/etc/ssh/sshd_config` обязан содержать global `PermitRootLogin no`, а `sshd -t/-T` подтверждают синтаксис и effective `no`; Include/Match ambiguity fail-closed;
-- `contracts/pam-wheel-access-check-semantic-v1.json` — read-only aggregate contract SRC-0003: source-exact PAM rule + local `wheel` membership against explicit local authority;
+- `contracts/pam-wheel-access-check-semantic-v2.json` — current read-only aggregate contract SRC-0003: source-exact PAM rule + local `wheel` record с literal numeric GID `10` + explicit local authority; group password field не является source predicate; prior `auth`/`-auth` success-short-circuit/include ambiguity fails closed;
 - `contracts/sudoers-reviewed-policy-check-semantic-v1.json` — read-only aggregate contract SRC-0004: exact active sudoers policy tree against explicit reviewed local authority;
 - `contracts/cron-command-paths-write-protection-check-semantic-v1.json` — read-only aggregate contract SRC-0007 для persistent cron command target population и exact `go-w` file protection;
+- `contracts/user-cron-files-mode-check-semantic-v2.json` — current read-only aggregate contract SRC-0011: direct regular user-cron population only; recursive descent into sibling spools such as `atjobs/atspool` is excluded;
 - `contracts/running-process-paths-write-protection-check-semantic-v1.json` — read-only aggregate contract SRC-0006 для executable/library population текущих процессов и containing/all-parent directory write protection;
-- `contracts/standard-system-paths-mode-check-semantic-v1.json` — read-only aggregate contract SRC-0012 для standard executable/library/current-kernel-module population с merged-`/usr` aliases, target deduplication и fail-closed observation errors;
-- `contracts/suid-sgid-applications-check-semantic-v1.json` — read-only contract SRC-0013: effective SUID/SGID population, `go-w` mode check и отдельная allowlist-authority проверка отсутствия лишних приложений;
-- `adapters/product-file-mode-owner-check-v1.py` + JSON binding;
+- `contracts/standard-system-paths-mode-check-semantic-v2.json` — current read-only aggregate contract SRC-0012: executable regular targets from canonical/root `$PATH` roots, standard/local library roots and current-kernel modules; non-executable regular data under exec roots excluded; numeric mode criterion is explicitly derived;
+- `contracts/suid-sgid-applications-check-semantic-v2.json` — current read-only contract SRC-0013: SUID/SGID population across all non-pseudo mounts including `nosuid`, `go-w` mode check и separate allowlist-authority check;
+- `contracts/home-sensitive-files-mode-check-semantic-v2.json` — current SRC-0014 contract: все local passwd accounts плюс mandatory inventory и explicit common shell-history/config discovery для Bash/zsh/ksh/csh/tcsh/fish/Nushell/Xonsh/Elvish; broad suffix matching вроде `*rc` запрещён;
+- `contracts/home-directories-mode-check-semantic-v2.json` — current SRC-0015 contract: exact `0700` for every existing local passwd home, including service/system accounts;
+- `contracts/tested-setting-attestation-check-semantic-v1.json` — read-only procedural-fact contract SRC-0034: explicit local authority должен подтвердить `TESTED-BEFORE-USE` для exact `kernel.randomize_va_space=2`; authority не подменяет отсутствующую в source методику тестирования;
+- `adapters/product-file-mode-owner-check-v2.py` + JSON binding; v1 сохранён как предыдущая identity;
 - `adapters/product-sysctl-check-v2.py` + JSON binding (v1 сохранён как предыдущая product identity);
 - `adapters/product-kernel-cmdline-check-v2.py` + JSON binding; только чтение
   `/proc/cmdline`, без GRUB/APPLY/RESTORE; v1 сохранён как предыдущая product identity;
 - `adapters/product-optional-file-root-files-mode-check-v1.py` + JSON binding; только `stat/find/sort`, без chmod/chown/APPLY;
-- `adapters/product-local-account-password-state-check-v1.py` + JSON binding; только чтение `/etc/passwd` и `/etc/shadow`, без passwd/usermod/APPLY;
+- `adapters/product-local-account-password-state-check-v2.py` + JSON binding; raw-byte validation + read-only `/etc/passwd`/`/etc/shadow`, без passwd/usermod/APPLY;
 - `adapters/product-sshd-root-login-check-v1.py` + JSON binding; только чтение SSH config tree и `sshd -t/-T`, без записи/reload/restart/APPLY;
-- `adapters/product-pam-wheel-access-check-v1.py` + JSON binding; только чтение `/etc/pam.d/su`, `/etc/group` и local authority, без group/PAM mutation/APPLY;
+- `adapters/product-pam-wheel-access-check-v2.py` + JSON binding; только чтение `/etc/pam.d/su`, `/etc/group` и local authority; `-auth` учитывается в PAM stack semantics, group password field не фиксируется в `x`; без group/PAM mutation/APPLY;
+- `adapters/product-tested-setting-attestation-check-v1.py` + JSON binding; только чтение `/etc/securelinux-policy/tested-setting-attestations-v1`, без запуска тестов, изменения sysctl или записи authority;
 - `adapters/product-sudoers-reviewed-policy-check-v1.py` + JSON binding; только `visudo -c`/read/hash active sudoers closure и reviewed authority, без sudoers mutation/APPLY;
 - `adapters/product-cron-command-paths-write-protection-check-v1.py` + JSON binding; isolated `/usr/bin/python3` read-only parser canonical Ubuntu cron sources, fail-closed command resolution и direct `run-parts` target expansion; без host mutation/APPLY;
+- `adapters/product-user-cron-files-mode-check-v2.py` + JSON binding; direct-only read-only traversal admitted cron roots, без recursive `atd` subtree capture и без chmod/chown/APPLY;
 - `adapters/product-running-process-paths-write-protection-check-v1.py` + JSON binding; isolated `/usr/bin/python3` read-only observation `/proc` принимает все executable file-backed mappings независимо от basename, строго валидирует maps grammar и binding `dev:inode`, контролирует transient process creation через `/proc/stat` `processes`, повторно сверяет per-PID exe/maps и file/parent identity перед verdict; без host mutation/APPLY;
-- `adapters/product-standard-system-paths-mode-check-v1.py` + JSON binding; только `uname/readlink/find/sort/stat`, без chmod/chown/APPLY;
-- `adapters/product-suid-sgid-applications-check-v1.py` + JSON binding; только чтение mountinfo/allowlist и `find/sort/stat`, без chmod/chown/remount/APPLY;
+- `adapters/product-standard-system-paths-mode-check-v2.py` + JSON binding; читает root-process `$PATH`, включает в exec population только regular targets с `(mode & 0111) != 0` и использует только read-only `uname/readlink/find/sort/stat`, без chmod/chown/APPLY;
+- `adapters/product-suid-sgid-applications-check-v2.py` + JSON binding; только чтение mountinfo/allowlist и `find/sort/stat`, без chmod/chown/remount/APPLY;
+- `adapters/product-home-sensitive-files-mode-check-v2.py` + JSON binding; local passwd + inventory + read-only home traversal с explicit shell-artifact classifier для стандартных Bash/zsh/ksh/csh/tcsh/fish/Nushell/Xonsh/Elvish artifacts и без broad `*rc/*env`;
+- `adapters/product-home-directories-mode-check-v2.py` + JSON binding; local passwd + read-only mode observation;
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
   semantic contract / binding / implementation с SHA-256;
 - `generate-product-check-v2.py` — current tracked deterministic generator единого read-only CLI;
@@ -88,7 +95,7 @@ failure; `NOT_FOUND`/`ERROR` делают итог `UNEVALUATED`.
 - `/etc/shadow` → `mode bits-clear 0077`.
 
 `/etc/shadow = 0600` из source anchor не выводится. Все три controls используют
-существующий read-only `product-file-mode-owner-check-v1`; APPLY/RESTORE по-прежнему
+current read-only `product-file-mode-owner-check-v2`; APPLY/RESTORE по-прежнему
 не реализованы.
 
 После CHECK-11 product track перешёл к систематическому представлению
@@ -107,9 +114,11 @@ engineering donor: donor уже читал `/proc/cmdline`, делил его н
 tokens и проверял exact boot tokens. В v3 этот механизм ужесточён fail-closed:
 для `eq` конфликтующие дубли одного key дают `ERROR`, отсутствие требуемого
 key — наблюдаемое `VALUE/FAIL`; для bare flag `present` отсутствие также
-`VALUE/FAIL`. v2 добавляет `one-of`: expected list кодируется как `|`-separated
-exact token values; первое значение является preferred, но preference не меняет
-compliance остальных перечисленных значений. Сам donor остаётся только
+`VALUE/FAIL`. v2 добавляет ordered `one-of`: expected list кодируется как
+`|`-separated exact token values. Первое значение является безусловно preferred
+и при совпадении даёт PASS; более поздний source-listed fallback не считается
+автоматически compliant, если источник связывает его с условием, которое adapter
+не умеет доказать — тогда результат fail-closed ERROR. Сам donor остаётся только
 implementation precedent.
 
 Через этот kind source-faithful закрываются `SRC-0018`, `SRC-0019`,
@@ -131,9 +140,9 @@ Formal `Gate 5 --probe-results` остаётся отдельным контра
 Один aggregate control проверяет локальную account population из `/etc/passwd` против source-anchored `/etc/shadow`. Для каждого локального пользователя требуется определимая shadow-запись с непустым password field. Empty field → `VALUE/FAIL`; missing/unreadable/symlink/malformed/duplicate mapping → fail-closed `ERROR`. APPLY/RESTORE не реализованы.
 ## SRC-0011 / 2.3.7
 
-Один aggregate control `user-cron-files-mode` проверяет только пользовательские cron-файлы под двумя donor-подтверждёнными optional discovery roots: `/var/spool/cron` и `/var/spool/cron/crontabs`. Обычные файлы обнаруживаются рекурсивно, пересечение roots дедуплицируется по абсолютному пути, а вложенные каталоги служат только контейнерами population. Точное source-отношение `chmod go-w` представлено как `mode bits-clear 0022`; требования к owner/group или к режиму root-каталогов не добавляются.
+Один aggregate control `user-cron-files-mode` v2 проверяет пользовательские cron-файлы только в canonical target root `/var/spool/cron/crontabs`. В population входят direct regular non-symlink files (`maxdepth 1`); parent `/var/spool/cron` не является population root, поэтому unrelated direct objects и `atd` siblings/subtrees не могут быть ошибочно классифицированы как user crontabs. Точное source-отношение `chmod go-w` представлено как `mode bits-clear 0022`; требования к owner/group или к режиму root-каталога не добавляются.
 
-Пустая population compliant: на Ubuntu 24/26 `MINIMIZED` пакет `cron` отсутствовал вместе с обоими roots; на Ubuntu 22 `FULL`, Ubuntu 24 `FULL`, Ubuntu 26 `FULL`, Debian 12 `SERVER` и Debian 13 `GNOME` roots присутствовали, но regular cron-файлов на момент диагностики не было. Эти VM-факты подтверждают layout assumptions, но не расширяют current product target. Symlink/special object, traversal/stat error или неоднозначность population дают `ERROR`; молчаливые donor-skips не переносятся.
+Пустая population compliant: на Ubuntu 24/26 `MINIMIZED` пакет `cron` отсутствовал; на Ubuntu 22 `FULL`, Ubuntu 24 `FULL`, Ubuntu 26 `FULL`, Debian 12 `SERVER` и Debian 13 `GNOME` `/var/spool/cron/crontabs` присутствовал, но regular user-crontab files на момент диагностики отсутствовали. Эти VM-факты подтверждают layout assumptions, но не расширяют current product target. Symlink/special direct object, traversal/stat error или неоднозначность canonical population дают `ERROR`; молчаливые donor-skips не переносятся.
 ## SRC-0007 / 2.3.3
 
 Один aggregate control `cron-command-paths-write-protection` проверяет persistent configured cron job targets read-only. Canonical source layout — `/etc/crontab`, active-name entries `[A-Za-z0-9_-]+` непосредственно в `/etc/cron.d` и user crontabs `/var/spool/cron/crontabs`, имена которых соответствуют локальному `/etc/passwd`. System rows содержат explicit user field; user-spool rows исполняются от имени соответствующей account. Отсутствие optional cron sources означает пустую соответствующую population, а не `NOT_FOUND`.
@@ -150,45 +159,33 @@ Parser намеренно fail-closed: shell expansion/substitution, redirection
 
 Executable target обязан быть absolute existing regular file; `/proc/<pid>/exe` target и object identity повторно сверяются перед verdict. Runtime-code population берётся из каждого executable file-backed `/proc/<pid>/maps` record независимо от basename. Для каждой строки строго валидируются address range, perms, offset, device, ASCII-decimal inode и pathname; proc octal escaping декодируется, а maps-declared `dev major:minor + inode` обязан совпадать с фактическим target. Deleted/unresolvable/malformed/mismatched mapping даёт `ERROR`. Exact parsed executable maps set каждого PID перечитывается перед verdict, поэтому same-PID `exec`/`mmap` drift не может дать stale `PASS`. File mode condition дословно представляет `chmod go-w`: `(mode & 0022) == 0`.
 
-Для containing directory и всех parent directories до `/` проверяется отсутствие записи для непривилегированных пользователей: group/other write всегда нарушение; owner-write является нарушением, когда owner UID не `0`. File и parent snapshots повторно сверяются по dev/inode/uid/gid/mode/ctime; один file inode дедуплицируется для file-mode проверки, но distinct resolved paths сохраняют свои parent chains. Полностью определённая стабильная population с нарушениями даёт `VALUE/FAIL`, без нарушений — `VALUE/PASS`; partial или изменившаяся observation никогда не становится PASS.
+Для containing directory и всех parent directories до `/` проверяется effective возможность изменения directory entries: permission class должен иметь одновременно write+search (`wx`). Non-root owner `wx` и `other wx` являются доказанным `VALUE/FAIL`. `group wx` по mode alone не доказывает конкретного непривилегированного principal/ACL binding, поэтому при отсутствии уже доказанного нарушения current v1 возвращает fail-closed `ERROR`, а не conservative false `FAIL`. Write без search не выдаётся за фактическую возможность изменения entries. File и parent snapshots повторно сверяются по dev/inode/uid/gid/mode/ctime; один file inode дедуплицируется для file-mode проверки, но distinct resolved paths сохраняют свои parent chains. Полностью определённая стабильная population с доказанными нарушениями даёт `VALUE/FAIL`, без нарушений и ambiguity — `VALUE/PASS`; partial/ambiguous/изменившаяся observation никогда не становится PASS.
 
 Pinned donor использован только как precedent для `/proc/<pid>/exe` + `/proc/<pid>/maps` discovery. Его silent exception handling и exclusions `/tmp`, `/run`, `/var/tmp`, `/dev/shm`, `/var/log` намеренно не переносятся. APPLY/RESTORE не реализуются.
 
 ## SRC-0012 / 2.3.8
 
-Один aggregate control `standard-system-paths-mode` проверяет системные executable roots `/bin`, `/sbin`, `/usr/bin`, `/usr/sbin`, library roots `/lib`, `/lib64`, `/usr/lib`, `/usr/lib64` и current-kernel root `/lib/modules/<uname-r>`. merged-`/usr` root aliases разрешаются и дедуплицируются по `dev:inode`; regular symlink targets также дедуплицируются.
+`standard-system-paths-mode` v2 устраняет прежнее сужение population. Executable roots включают `/bin`, `/sbin`, `/usr/bin`, `/usr/sbin` **и каждый absolute entry фактического `$PATH` процесса root**; в exec population входят только regular targets с хотя бы одним execute bit `(mode & 0111) != 0`, а обычные non-executable data files исключаются. Запуск не от EUID 0 даёт `ERROR`, а не использует PATH непривилегированного пользователя. Library roots: `/lib`, `/lib64`, `/usr/lib`, `/usr/lib64`, `/usr/local/lib`, `/usr/local/lib64`; modules: `/lib/modules/<uname-r>`. merged-`/usr` aliases и targets дедуплицируются по `dev:inode`.
 
-Для executable roots любой non-directory entry является candidate и должен разрешаться в regular target. Для library roots candidate-name ограничен `*.so`, `*.so.*`, `*.a`; для kernel modules — `*.ko`, `*.ko.*`. Это не превращает package metadata под `/usr/lib` или `/lib/modules` в дополнительные policy requirements. Candidate dangling/special target, incomplete traversal или stat/readlink ambiguity дают `ERROR`.
-
-2.3.8 требует «анализа корректности прав», но не задаёт точный mode. Current operational criterion — `bits-clear 0022`: системный executable/library/module target не должен быть writable для group/other. Это минимальная инженерная интерпретация, согласованная с pinned donor и соседними 2.3.2/2.3.9; owner/group и более строгие mode значения не добавляются. Проверка parent directories из donor намеренно не переносится, потому что источник явно требует её в 2.3.2, но не в 2.3.8.
-
-`$PATH` непривилегированного процесса generated CHECK не используется как authority для root PATH. Семь VM-наблюдений подтвердили, что fixed canonical executable roots входят в privileged root PATH на Ubuntu 22/24/26 и Debian 12/13; `/usr/local/*` и `/snap/bin` остаются вне current OS-owned population.
-
+Источник требует «анализа корректности прав», но не задаёт числовой mode. Поэтому `(mode & 0022) == 0` теперь явно обозначен как **derived operational criterion** с justification в control, а не как дословная source semantics. Candidate dangling/special target, incomplete traversal, invalid/non-absolute root PATH или stat/readlink ambiguity => `ERROR`. Parent-directory правило 2.3.2 сюда не переносится. APPLY/RESTORE отсутствуют.
 
 ## SRC-0013 / 2.3.9
 
-Два controls одного kind `suid-sgid-applications` представляют обе части исходной рекомендации отдельно.
+Оба controls v2 используют одну population: все regular SUID/SGID files на всех **non-pseudo mounted filesystems**, включая mounts с `nosuid`. `nosuid` изменяет execution semantics, но не удаляет файл из буквального source-аудита SUID/SGID-приложений. Один underlying file дедуплицируется по `dev:inode`; scan/stat/mountinfo ambiguity => `ERROR`.
 
-`SUID-SGID-MODE` читает `/proc/self/mountinfo`, исключает pseudo/virtual filesystems и mounts с `nosuid`, затем выполняет xdev-поиск regular files с SUID/SGID bits на каждом оставшемся mount root. Один underlying file дедуплицируется по `dev:inode`. Для каждого найденного приложения требуется `bits-clear 0022`; нулевая полностью определённая population допустима, а неполный обход/stat/mountinfo ambiguity даёт `ERROR`.
-
-`SUID-SGID-ALLOWLIST` использует ту же population, но проверяет только `population ⊆ approved set`. Источник требует убедиться, что нет «лишних» SUID/SGID-приложений, но не задаёт универсальный машинный критерий необходимости. Поэтому generated CHECK не угадывает его: authority — явный локальный read-only список `/etc/securelinux-policy/suid-sgid.allowlist-v1`, по одному exact absolute path на строку; comments `#` и пустые строки разрешены. Отсутствующий, symlink, нечитаемый или malformed список означает `ERROR`, а unlisted detected application — `VALUE/FAIL`. Сам путь allowlist является механизмом current product, а не дополнительным требованием ФСТЭК.
-
-Pinned donor использован только как precedent для `mode & 0022`. Его автоматическая трактовка SUID non-root owner как нарушения отклонена: 2.3.9 такого универсального owner rule не устанавливает. Семь privileged VM runs подтвердили, что mode condition штатно имеет `GO_W=0`, а population зависит от состава ОС и установленных пакетов.
+`SUID-SGID-MODE` проверяет exact source relation `chmod go-w` → `bits-clear 0022`. `SUID-SGID-ALLOWLIST` отдельно проверяет `population ⊆ approved set` против explicit local `/etc/securelinux-policy/suid-sgid.allowlist-v1`; missing/malformed authority => `ERROR`, unlisted application => `FAIL`. Owner=root не добавляется. APPLY/RESTORE отсутствуют.
 
 ## SRC-0014 / 2.3.10 — sensitive user-home files
 
-- `home-sensitive-files-mode` — read-only aggregate CHECK для source-отношения `chmod go-rwx`, то есть `mode & 0077 == 0`.
-- Population пользователей: локальный `/etc/passwd`, `root` плюс обычные interactive accounts по `UID_MIN` из `/etc/login.defs`; service accounts с `nologin`/`false` не считаются human-user homes.
-- Source `и т. п.` не урезается до восьми примеров: `/etc/securelinux-policy/home-sensitive-files-v1` — обязательный локальный inventory относительных sensitive paths; он обязан содержать восемь явно названных source entries и может/должен расширяться локально.
-- Отсутствующий/malformed inventory, symlink/ambiguous path или неполный доступ дают `ERROR`; present regular members с group/other rwx дают `VALUE/FAIL`.
-- Owner/group не проверяются: это не требование 2.3.10. Режим самой home directory `0700` относится к `SRC-0015`. APPLY/RESTORE не создаются.
+- v2 включает **все** syntactically valid local `/etc/passwd` accounts с absolute home, включая service/system accounts; `UID_MIN`, `nologin` и `false` больше не являются source-unanchored exclusions.
+- Exact mode relation остаётся source `chmod go-rwx` → `(mode & 0077) == 0`.
+- Восемь явно названных source entries обязательны в `/etc/securelinux-policy/home-sensitive-files-v1`, но inventory больше не считается доказательством полноты сам по себе: read-only traversal дополнительно обнаруживает explicit common shell artifacts для Bash (`.bash_login`), zsh/ksh/csh/tcsh, fish, Linux-default Nushell config/autoload/history, Xonsh rc/history и Elvish rc/history. Broad suffix matching (`*rc`, `*env`) запрещён, поэтому несвязанный `.vimrc` не попадает в population. Custom XDG/override paths остаются в обязательном local inventory augmentation channel.
+- Open-ended «и т. п.» population явно помечена `derived:true` с justification; NUL/CR, malformed passwd/inventory, traversal failure, selected symlink/nonregular object => `ERROR`.
+- Owner/group и home-directory mode сюда не добавляются; APPLY/RESTORE отсутствуют.
 
 ## SRC-0015 / 2.3.11 — режим домашних директорий пользователей
 
-- `home-directories-mode` — read-only aggregate CHECK exact source-команды `chmod 700 домашняя_директория`, то есть строгого `mode == 0700`.
-- Population пользователей совпадает с уже принятой для SRC-0014: локальный `/etc/passwd`, `root` плюс normal interactive accounts по `UID_MIN` из `/etc/login.defs`; это избегает donor `/home`-only restriction и не превращает service-account state directories в human homes.
-- Отсутствующий home path пропускается: 2.3.11 регулирует права существующей home directory, а не её обязательное наличие. Existing symlink/non-directory/stat ambiguity даёт `ERROR`.
-- Owner/group не проверяются. Sensitive-file modes не дублируются: они принадлежат SRC-0014. APPLY/RESTORE не создаются.
+`home-directories-mode` v2 проверяет exact source `chmod 700` как `mode == 0700` для каждой существующей real home directory **каждой syntactically valid local `/etc/passwd` account** с absolute home path, включая service/system accounts. `UID_MIN` и shell-type exclusions удалены как не указанные источником. Absent home не создаётся и не объявляется mode violation; symlink/non-directory/stat ambiguity и malformed NUL/CR passwd input => `ERROR`. Owner/group и sensitive-file modes не добавляются. APPLY/RESTORE отсутствуют.
 
 ## SRC-0002 / 2.1.2
 
@@ -202,7 +199,7 @@ Global duplicates не объявляются ошибкой сами по се�
 
 `root` обязателен непосредственно в fourth field wheel record. Placeholder `<user list>` не угадывается из текущих sudo/admin accounts: current product authority — `/etc/securelinux-policy/wheel-users.allowlist-v1`, по одному дополнительному разрешённому имени на строку. После обязательного `root` фактический supplementary-members set должен точно совпасть с authority; missing/extra member даёт `VALUE/FAIL`. Если PAM/wheel/root уже явно отсутствуют, это definitive `FAIL` без authority; когда structural conditions выполнены, missing/malformed authority даёт `ERROR`.
 
-GID `10` из source-record не фиксируется как portable compliance condition: adapter требует числовой GID, но `pam_wheel` выбирает группу по имени `wheel`, а системные GID allocations различаются. Иной active `pam_wheel.so` rule (`deny`, `trust`, `group=...`, absolute module path, иной control) не заменяет source-exact rule и даёт fail-closed `ERROR`. Donor auto-create/group membership mutation, `WHEEL_USERS` и `SUDO_USER` discovery не переносятся. APPLY/RESTORE отсутствуют.
+v2 сохраняет source-exact numeric GID `10`, но не усиливает example password field до literal `x`: `wheel::10:<members>` и иное syntactically valid passwd field допустимы; иной numeric GID даёт `VALUE/FAIL`. До первой exact `auth required pam_wheel.so use_uid` rule нераскрытые `@include`, `auth/-auth include`, `auth/-auth substack`, `auth/-auth sufficient` и `auth/-auth` extended-control forms дают `ERROR`, чтобы presence строки не маскировал permissive earlier stack. Leading `-` у PAM type не исключает строку из stack-semantics анализа. Include после уже обязательной `required` rule допустим. Иной active `pam_wheel.so` variant также `ERROR`. Donor mutation/discovery не переносится; APPLY/RESTORE отсутствуют.
 ## SRC-0004 / 2.2.2
 
 Один aggregate control `sudoers-reviewed-policy` представляет source-требование пересмотра `/etc/sudoers` без выдумывания универсального списка sudo-пользователей или команд. Current local decision задаётся authority `/etc/securelinux-policy/sudoers-reviewed-policy-v1`: header `SLP-SUDOERS-REVIEWED-POLICY-V1`, затем exact SHA-256 и absolute path каждого утверждённого active sudoers-файла.
@@ -213,12 +210,35 @@ CHECK запускает pinned `/usr/sbin/visudo -c -f /etc/sudoers` под `LC
 
 
 ## SRC-0008 / 2.3.4
+`Defaults runas_default`, override `case_insensitive_user` и command `NOTBEFORE/NOTAFTER` не over-approximate: v1 возвращает `ERROR`, если exact effective applicability не доказуема; default case-insensitive spelling `ROOT` сохраняет root semantics.
+
 
 Один aggregate control `sudo-root-command-files-protection` проверяет executable command paths из exact reviewed active sudoers tree. Сначала active `visudo` closure exact-byte/pathset сверяется с `/etc/securelinux-policy/sudoers-reviewed-policy-v1`; затем `/usr/bin/cvtsudoers -c /dev/null -e -s aliases -f json` используется как parser authority для alias-expanded policy representation.
 
-В population входят rules, которые могут относиться к ordinary invoking user и допускают root runas. Root-only invoking-user rules не добавляют targets. Positive `ALL`, regex/wildcard/directory executable path и иная форма, для которой нельзя доказать конечную path population, дают `ERROR`, а не partial PASS. Host-qualified rules включаются консервативно, чтобы host matching не мог скрыть target. Любой enabled `runchroot`/`CHROOT` в Defaults либо Cmnd_Spec даёт `ERROR`, потому что меняет file object, адресуемый absolute command path. Поскольку JSON `cvtsudoers` объединяет pathname и arguments и снимает escaping пробелов, boundary executable path определяется только если существует ровно один executable regular-file prefix; zero/multiple candidates дают `ERROR`.
+В population входят только rules с детерминированными explicit username/userid selector: ordinary invoker + root runas. Root-only invoking-user rules и explicit non-root-only runas не добавляют targets; group/netgroup/non-Unix membership и selector negation дают `ERROR`, а не over-approximation. Positive `ALL`, regex/wildcard/directory executable path, negated command entry, command digest и иная форма, для которой нельзя доказать exact applicable finite path population, дают `ERROR`, а не partial PASS/over-check FAIL. Для `VALUE` поддерживается только exact alias-expanded `Host_List=[hostname: ALL]`; любая host-qualified hostname/network/netgroup/negation форма даёт `ERROR`, потому что v1 не переimplements current-host matching и не может включать чужой host rule без риска false FAIL. Любой enabled `runchroot`/`CHROOT` в Defaults либо Cmnd_Spec даёт `ERROR`, потому что меняет file object, адресуемый absolute command path. Поскольку JSON `cvtsudoers` объединяет pathname и arguments и снимает escaping пробелов, boundary executable path определяется только если существует ровно один executable regular-file prefix; zero/multiple candidates дают `ERROR`.
 
 Для каждого stable executable regular target требуется `st_uid == 0` и `(mode & 0022) == 0`. Symlink проверяется по final regular target. Known interpreter/execution frontend, multilink target и shebang-script дают `ERROR`: v1 не возвращает PASS для execution chain, которую не может доказательно раскрыть до конечного executable. Missing/nonregular/non-executable target, policy/tool/JSON ambiguity или source/target drift => `ERROR`. CHECK не выполняет `chown`, `chmod`, APPLY или RESTORE.
 
 - `product/contracts/sudo-root-command-files-protection-check-semantic-v1.json` — semantic contract SRC-0008.
 - `product/adapters/product-sudo-root-command-files-protection-check-v1.py` — read-only adapter SRC-0008.
+
+
+## SRC-0034 / 2.5.11
+
+Source clause `2.5.11` содержит не только конечное значение `kernel.randomize_va_space = 2`, но и прямой procedural qualifier `после тестирования`. Поэтому current closure — exact два read-only controls: обычный `sysctl eq 2` проверяет только фактическое текущее значение, а `tested-setting-attestation` отдельно проверяет explicit local procedural fact.
+
+Canonical authority `/etc/securelinux-policy/tested-setting-attestations-v1` начинается строкой `SLP-TESTED-SETTING-ATTESTATIONS-V1`; далее строки имеют вид `SRC-NNNN<TAB>setting<TAB>state`. Для `SRC-0034` допустим exact setting `kernel.randomize_va_space=2` и states `TESTED-BEFORE-USE` / `NOT-TESTED-BEFORE-USE`. Первый даёт PASS только при exact binding; второй или wrong setting — FAIL; missing/malformed/duplicate/symlink/unreadable authority или отсутствующая target row — ERROR.
+
+Этот authority является product mechanism для явного представления локального факта «тестирование выполнено до использования». Он не вводит новую норму ФСТЭК, не задаёт отсутствующую в source методику тестирования и не утверждает, что CHECK способен независимо реконструировать историческое тестирование. APPLY/RESTORE и запуск тестов отсутствуют.
+
+
+## SRC-0009 / 2.3.5
+
+Один aggregate control `startup-files-write-protection` представляет source-exact `chmod o-w`: единственный compliance predicate — отсутствие бита other-write `0002`. Owner/group, запрет group-write и фиксированный mode не добавляются.
+
+Population состоит из direct file-like entries в `/etc/rc0.d`…`/etc/rc6.d` и direct `*.service` в unit load paths, которые возвращает `systemd-analyze unit-paths`. `/etc/rcS.d` остаётся diagnostic-only; `.wants/.requires` не рекурсируются как дополнительные unit files. Merged-`/usr` aliases unit roots и regular targets дедуплицируются по `dev:inode`. Symlink на regular target проверяется по final target; systemd mask, разрешающийся в `/dev/null`, учитывается отдельно и не приводит к проверке `/dev/null`. Dangling/special/unreadable population, discovery ambiguity или snapshot drift дают `ERROR`. CHECK не выполняет `chmod`, APPLY или RESTORE.
+
+Семь read-only v3 layout captures (Ubuntu 22 FULL; Ubuntu 24.04.4 MINIMIZED/FULL; Ubuntu 26 MINIMIZED/FULL; Debian 12; Debian 13) подтвердили необходимые layout edge cases: merged-`/usr` duplicate unit roots на Ubuntu 22/Debian 12, masked units, runtime/generator roots и dangling recursive dependency reference. Эти наблюдения определяют только безопасный discovery contract, а не дополнительные policy predicates.
+
+- `product/contracts/startup-files-write-protection-check-semantic-v1.json` — semantic contract SRC-0009.
+- `product/adapters/product-startup-files-write-protection-check-v1.py` — read-only adapter SRC-0009.

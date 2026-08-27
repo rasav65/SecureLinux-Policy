@@ -1,6 +1,5 @@
 # Журнал изменений
 
-- Test harness SRC-0007 больше не требует `chown` или mapped UID/GID `1000:1000`: synthetic user-crontab остаётся владельцем текущего runner, а non-root bare-command семантика проверяется отдельным system-cron synthetic UID; production semantics не изменены.
 Формат основан на Keep a Changelog. Записи фиксируют факты, а не намерения:
 каждая запись обязана указывать, сколько строк source index она закрыла, и не
 приписывать себе продвижение, которого не было.
@@ -10,6 +9,47 @@
 не записываются как свершившиеся факты.
 
 ## [Unreleased]
+- Исправлен DEV runner contract после SRC-0005 root-run correction: `tests/run-all.py` больше не ожидает два внутренних skip для `test_file_mode_owner_adapter.py` при EUID=0; self-test отдельно фиксирует ожидаемые `0` skip для этого теста даже при смоделированном root-run.
+- Final all-40 robustness re-audit blockers: `SRC-0005` ordinary-user parent-traversal regressions no longer use root-only skips and execute via an unprivileged child when the suite runs as root; `SRC-0014` explicit common-shell discovery now includes standard Xonsh `~/.xonshrc` and a regression that proves mode `0644` is detected as a violation.
+- SRC-0014 robustness correction: explicit common-shell classifier теперь дополнительно покрывает Bash `.bash_login`, Linux-default Nushell config/autoload/history, Xonsh rc/history и Elvish rc/history; broad `*rc/*env` по-прежнему запрещён, custom/XDG override paths остаются через local inventory.
+- Test assurance: SRC-0006 FIFO snapshot-drift fixtures use a 20-second synchronization timeout instead of 5 seconds; this removes scheduler-load false negatives without changing adapter or compliance semantics.
+- SRC-0008 adversarial expansion: command `NOTBEFORE/NOTAFTER`, `Defaults runas_default`, and explicit `case_insensitive_user` overrides now fail closed instead of being over-approximated; default case-insensitive `ROOT` identity is preserved.
+- SRC-0008: all-40 adversarial review additionally found `Defaults runas_default` could make an implicit Runas_Spec non-root while the checker assumed root; current v1 now fails closed with `ERROR` and has a dedicated regression.
+
+### Исправлено — consolidated 40-row retrospective findings
+
+- Fresh all-40 adversarial review: `SRC-0006` parent-directory check no longer equates every group/other write bit with proven unprivileged write access. Definite non-root-owner/other `wx` remains `FAIL`; group-class `wx` without principal/ACL proof is fail-closed `ERROR`; write without search is not misreported as effective directory write.
+
+- Fresh all-40 adversarial review: `SRC-0011` canonical population narrowed to `/var/spool/cron/crontabs`; direct unrelated objects in parent `/var/spool/cron` no longer produce false `FAIL`. Regression explicitly pins the parent-spool nonpopulation boundary.
+
+- Исправлены подтверждённые source-faithfulness defects `SRC-0003`, `SRC-0008`, `SRC-0011`, `SRC-0012` и `SRC-0014`: PAM `-auth` short-circuit учитывается fail-closed; group password field больше не фиксируется в literal `x`; inline page token `4` удаляется только через exact pinned source boundary; user-cron v2 не рекурсирует в `atd` subtrees; exec population SRC-0012 исключает non-executable regular data; SRC-0014 использует explicit shell-artifact discovery без broad `*rc/*env` и включает Nushell config paths.
+
+- Дополнительно исправлена population-semantics `SRC-0008`: host-qualified и membership/negation-зависимые sudo selectors больше не over-approximate в `VALUE/FAIL`; v1 возвращает `ERROR`, если exact applicability к текущему host/ordinary invoker/root runas не доказуема. Добавлены adversarial regressions для чужого host, group-based invoker/runas, command negation и digest applicability.
+- `SRC-0034 / 2.5.11` возвращён `CLOSED → OPEN`: current `sysctl eq 2` не представляет source qualifier `после тестирования`; control/closure удалены, вместо выдумывания procedural semantics.
+- Добавлены targeted negative-control regressions для каждого нового воспроизводимого counterexample. APPLY/RESTORE не добавляются.
+- Ordinary-user permission regressions для SRC-0011 и SRC-0012 теперь выполняют непривилегированный child process даже при root-run test suite; silent `OK` через `geteuid()==0` больше невозможен.
+- Текущее machine state после correction: `349` source rows; `39 CLOSED / 310 OPEN`; `49` canonical controls; `17` adapter kinds. `fstec-linux-2022` остаётся `39/40`, поэтому document-level CHECK acceptance ещё не достигнут.
+- Последующим отдельным decision point `SRC-0034 / 2.5.11` снова закрыт, но уже source-faithful exact двухконтрольным набором: `sysctl kernel.randomize_va_space=2` + новый read-only kind `tested-setting-attestation`, который требует explicit local `TESTED-BEFORE-USE` для exact setting. Authority path/format — product mechanism представления procedural fact, а не придуманная методика тестирования ФСТЭК; missing/malformed authority даёт `ERROR`, explicit `NOT-TESTED-BEFORE-USE`/wrong setting — `FAIL`.
+- Текущее machine state после SRC-0034 decision point: `349` source rows; `40 CLOSED / 309 OPEN`; `51` canonical controls; `18` adapter kinds. `fstec-linux-2022` machine-closed `40/40`, но document-level CHECK acceptance/milestone всё ещё запрещены до свежего независимого adversarial re-audit всех 40 source rows.
+
+## Retrospective correction — fstec-linux-2022 CHECK closure
+
+- Исправлены независимо воспроизведённые blockers SRC-0001/0003/0005/0012/0013/0014/0015 без изменения source quotes и числа CLOSED rows. Для затронутых parameter kinds введены v2 adapter/semantic-contract identities; v1 bytes сохранены как предыдущие identities.
+- SRC-0001 теперь отвергает NUL/CR до line parsing; SRC-0003 сохраняет literal `wheel:x:10:` и fail-closed prior PAM include/success-short-circuit semantics; `file-mode-owner` требует regular final object.
+- SRC-0012 включает actual root-process `$PATH`, `/usr/local/lib*` и явно маркирует numeric `bits-clear 0022` как derived с justification; current generator v2 принимает schema-valid derived requirements.
+- Semantic contract SRC-0012 синхронизирован с фактической v2 population: `canonical_population.library_roots` теперь явно включает `/usr/local/lib` и `/usr/local/lib64`; regression связывает contract roots с `CANONICAL_LIB_ROOTS`.
+- SRC-0013 больше не исключает `nosuid`; SRC-0014/0015 больше не исключают service/system local accounts; SRC-0014 дополняет mandatory inventory dynamic shell-history/config discovery, включая unlisted `.zsh_history`.
+- Добавлены negative-control regressions для каждого reproduced failure mode. APPLY/RESTORE не добавлялись; на этом промежуточном этапе machine state был `40/40` candidate до последующего независимого retrospective audit.
+
+## SRC-0009 / 2.3.5 — read-only startup files write protection
+
+- Добавлен source-exact CHECK `startup-files-write-protection`: direct `/etc/rc0.d`…`/etc/rc6.d` file-like entries и direct `*.service` из `systemd-analyze unit-paths` проверяются только на `bits-clear 0002`.
+- Merged-`/usr` unit-root aliases и regular targets дедуплицируются; masked `.service -> /dev/null` не превращает `/dev/null` в compliance target; recursive `.wants/.requires` references не входят в unit-file population. Dangling/special/discovery/snapshot ambiguity => `ERROR`.
+- Read-only v3 VM matrix собрана на 7/7 установках: Ubuntu 22 FULL; Ubuntu 24.04.4 MINIMIZED/FULL; Ubuntu 26 MINIMIZED/FULL; Debian 12; Debian 13. APPLY/RESTORE отсутствуют.
+- После шага: `349 / 40 controlled CLOSED / 309 OPEN`; canonical controls `50`; adapters `17`.
+
+- Test harness SRC-0007 больше не требует `chown` или mapped UID/GID `1000:1000`: synthetic user-crontab остаётся владельцем текущего runner, а non-root bare-command семантика проверяется отдельным system-cron synthetic UID; production semantics не изменены.
+
 
 ### Добавлено — read-only CHECK SRC-0008 / 2.3.4
 

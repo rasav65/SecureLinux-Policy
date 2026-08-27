@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""product-v1: механические тесты product-file-mode-owner-check-v1.
+"""product-v1: механические тесты product-file-mode-owner-check-v2.
 
 Проверяют emitted bash на фикстурах во временном каталоге.
 Репозиторий и система не изменяются.
@@ -14,11 +14,10 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-ADAPTER_PATH = ROOT / "product" / "adapters" / "product-file-mode-owner-check-v1.py"
-ADAPTER_JSON = ROOT / "product" / "adapters" / "product-file-mode-owner-check-v1.json"
-CONTRACT_PATH = ROOT / "product" / "contracts" / "file-mode-owner-check-semantic-v1.json"
+ADAPTER_PATH = ROOT / "product" / "adapters" / "product-file-mode-owner-check-v2.py"
+ADAPTER_JSON = ROOT / "product" / "adapters" / "product-file-mode-owner-check-v2.json"
+CONTRACT_PATH = ROOT / "product" / "contracts" / "file-mode-owner-check-semantic-v2.json"
 BASH = shutil.which("bash")
-IS_ROOT = (os.geteuid() == 0)
 
 
 def load_adapter():
@@ -88,6 +87,7 @@ class Runtime(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = tempfile.mkdtemp(prefix="slp-product-file-test-")
+        os.chmod(cls.tmp, 0o755)
         t = cls.tmp
         cls.ok = os.path.join(t, "ok")
         Path(cls.ok).write_text("x", encoding="utf-8")
@@ -110,6 +110,8 @@ class Runtime(unittest.TestCase):
         Path(cls.inner).write_text("x", encoding="utf-8")
         os.chmod(cls.inner, 0o644)
         os.chmod(cls.closed, 0o000)
+        cls.directory = os.path.join(t, "directory")
+        os.mkdir(cls.directory); os.chmod(cls.directory, 0o644)
         cls.absent = os.path.join(t, "absent")
 
     @classmethod
@@ -120,7 +122,7 @@ class Runtime(unittest.TestCase):
             pass
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
-    def run_check(self, locator, op, expected, env_extra=None, preamble=""):
+    def run_check(self, locator, op, expected, env_extra=None, preamble="", ordinary_user=False):
         src = ADAPTER.shell_function("CTRL-T", locator, "mode", op, expected)
         script = os.path.join(self.tmp, "run.sh")
         with open(script, "w", encoding="utf-8") as f:
@@ -129,7 +131,10 @@ class Runtime(unittest.TestCase):
         env["LC_ALL"] = "C"
         if env_extra:
             env.update(env_extra)
-        p = subprocess.run([BASH, script], capture_output=True, text=True, env=env)
+        kwargs = {}
+        if ordinary_user and os.geteuid() == 0:
+            kwargs = {"user": 65534, "group": 65534, "extra_groups": []}
+        p = subprocess.run([BASH, script], capture_output=True, text=True, env=env, **kwargs)
         self.assertEqual(p.returncode, 0, p.stderr)
         self.assertEqual(p.stderr, "")
         fields = p.stdout.rstrip("\n").split("\t")
@@ -166,6 +171,10 @@ class Runtime(unittest.TestCase):
         self.assertEqual(self.run_check(self.link_ok, "eq", "0644"),
                          ("VALUE", "0644", "PASS"))
 
+    def test_directory_with_matching_mode_is_error(self):
+        self.assertEqual(self.run_check(self.directory, "eq", "0644"),
+                         ("ERROR", "-", "ERROR"))
+
     def test_absent_name_is_not_found(self):
         self.assertEqual(self.run_check(self.absent, "eq", "0644"),
                          ("NOT_FOUND", "-", "NOT_FOUND"))
@@ -181,13 +190,12 @@ class Runtime(unittest.TestCase):
         self.assertEqual(self.run_check(os.path.join(self.ok, "child"), "eq", "0644"),
                          ("ERROR", "-", "ERROR"))
 
-    @unittest.skipIf(IS_ROOT, "unsearchable parent is meaningless as root")
     def test_existing_under_unsearchable_parent_is_error(self):
-        self.assertEqual(self.run_check(self.inner, "eq", "0644"), ("ERROR", "-", "ERROR"))
+        self.assertEqual(self.run_check(self.inner, "eq", "0644", ordinary_user=True),
+                         ("ERROR", "-", "ERROR"))
 
-    @unittest.skipIf(IS_ROOT, "unsearchable parent is meaningless as root")
     def test_absent_under_unsearchable_parent_is_error(self):
-        self.assertEqual(self.run_check(os.path.join(self.closed, "absent"), "eq", "0644"),
+        self.assertEqual(self.run_check(os.path.join(self.closed, "absent"), "eq", "0644", ordinary_user=True),
                          ("ERROR", "-", "ERROR"))
 
     def test_path_and_function_shadowing_do_not_override_pinned_stat(self):

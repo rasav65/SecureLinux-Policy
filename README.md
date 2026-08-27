@@ -11,13 +11,13 @@
 <!-- BEGIN GENERATED CURRENT STATUS -->
 ```text
 TOTAL_INDEX_ROWS=349
-CONTROLLED_CLOSED_WITH_CONTRACT=39
+CONTROLLED_CLOSED_WITH_CONTRACT=40
 DISPOSED_CLOSED_ROWS=0
-OPEN_INDEX_ROWS=310
-CLOSURE_RATIO=39/349
-CANONICAL_CONTROLS=49
-CLOSURE_CONTRACT_ROWS=39
-ADAPTER_KINDS=16
+OPEN_INDEX_ROWS=309
+CLOSURE_RATIO=40/349
+CANONICAL_CONTROLS=51
+CLOSURE_CONTRACT_ROWS=40
+ADAPTER_KINDS=18
 CHECK_TARGET=ubuntu-24.04-x86_64
 CHECK_STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 CHECK=IMPLEMENTED_READ_ONLY
@@ -28,6 +28,8 @@ FULL_FSTEC_COMPLIANCE_CLAIM=false
 
 CHECK охватывает только требования, представленные текущими canonical controls. Этот статус не является заявлением о полном соответствии требованиям ФСТЭК.
 <!-- END GENERATED CURRENT STATUS -->
+
+Для документа `fstec-linux-2022` machine truth сейчас показывает `40/40 CLOSED`: `SRC-0034 / 2.5.11` закрывается только exact двумя read-only controls — текущим `kernel.randomize_va_space=2` и explicit local attestation `TESTED-BEFORE-USE`, которая сохраняет source qualifier `после тестирования` без выдумывания методики тестирования ФСТЭК. Последующий свежий all-40 adversarial review дополнительно ужесточил source-faithfulness `SRC-0006`, `SRC-0008` и `SRC-0011`: effective parent-directory write semantics, sudo applicability и canonical user-crontab population теперь не over-approximate. Число закрытых строк при этих исправлениях не меняется. Это пока implementation candidate: source-scoped `CHECK COMPLETE` и milestone `fstec-linux-2022-check-complete-v1` не принимаются до свежего независимого adversarial re-audit финальных bytes всех 40 строк.
 
 Полная машинно формируемая карта текущего покрытия:
 [`docs/fstec-coverage.md`](docs/fstec-coverage.md).

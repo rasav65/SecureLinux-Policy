@@ -11,12 +11,12 @@ source:
   norm: "norm-v1"
 requirement:
   stated: "2.3.10. Установить корректные права доступа к содержимому домашних директорий пользователей (.bash_history, .history, .sh_history и т. п. - файлы истории команд оболочек, .bash_profile, .bashrc, .profile, .bash_logout и т. п. - файлы настройки оболочки, .rhosts - настройки R-подсистем) путём установки на каждый из указанных файлов корректных прав доступа с помощью команды вида: chmod go-rwx путь_к_файлу."
-  derived: false
-  justification: null
+  derived: true
+  justification: "Источник задаёт точный chmod go-rwx, но population содержит открытые категории «и т. п.»; v2 консервативно дополняет восемь дословных имён динамическим обнаружением распространённых shell history/config names и обязательным локальным inventory."
   applicability: "technical"
 parameter:
   kind: "home-sensitive-files-mode"
-  locator: "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1"
+  locator: "/etc/passwd|/etc/securelinux-policy/home-sensitive-files-v1"
   key: "mode"
 expected:
   op: "bits-clear"

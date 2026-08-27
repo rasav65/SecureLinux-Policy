@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import ast
 import importlib.metadata
-import os
 from pathlib import Path
 import re
 import subprocess
@@ -18,12 +17,13 @@ MIN_JSONSCHEMA = (4, 10, 3)
 # Exact internal-skip policy for DEV. Unexpected skips are failures.
 # schema/runtime uses a real-validator branch only when jsonschema is importable
 # under the isolated DEV interpreter; -S deliberately makes DEV stdlib-only.
+DEV_EXPECTED_INTERNAL_SKIPS = {
+    "tests/gates-v3/test_schema_runtime_parity.py": 2,
+}
+
+
 def expected_internal_skips(rel: str) -> int:
-    if rel == "tests/gates-v3/test_schema_runtime_parity.py":
-        return 2
-    if rel == "tests/product-v1/test_file_mode_owner_adapter.py" and os.geteuid() == 0:
-        return 2
-    return 0
+    return DEV_EXPECTED_INTERNAL_SKIPS.get(rel, 0)
 
 
 def git_lines(*args: str) -> list[str]:

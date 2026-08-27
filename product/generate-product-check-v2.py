@@ -229,8 +229,16 @@ def load_control(repo: Path, row: dict[str, str]) -> dict[str, object]:
         raise RuntimeError(f"quote SHA mismatch: {cid}")
     if requirement["stated"] != source["quote"]:
         raise RuntimeError(f"requirement.stated != source.quote: {cid}")
-    if requirement["derived"] is not False or requirement["justification"] is not None:
-        raise RuntimeError(f"derived requirement unsupported: {cid}")
+    derived = requirement["derived"]
+    justification = requirement["justification"]
+    if derived is False:
+        if justification is not None:
+            raise RuntimeError(f"non-derived requirement has justification: {cid}")
+    elif derived is True:
+        if not isinstance(justification, str) or not justification.strip():
+            raise RuntimeError(f"derived requirement missing justification: {cid}")
+    else:
+        raise RuntimeError(f"invalid requirement.derived: {cid}")
     if requirement["applicability"] != "technical":
         raise RuntimeError(f"unsupported applicability: {cid}")
     if not isinstance(parameter["kind"], str) or not parameter["kind"]:

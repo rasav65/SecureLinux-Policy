@@ -154,21 +154,26 @@ CASES = [
     ("optional file-root-files key rejected", record("optional-file-root-files-mode", "/etc/cron.d", "owner", "bits-clear", "0033", "string")),
     ("optional file-root-files op rejected", record("optional-file-root-files-mode", "/etc/cron.d", "mode", "eq", "0033", "string")),
     ("optional file-root-files mask rejected", record("optional-file-root-files-mode", "/etc/cron.d", "mode", "bits-clear", "0077", "string")),
-    ("user cron files accepted", record("user-cron-files-mode", "/var/spool/cron|/var/spool/cron/crontabs", "mode", "bits-clear", "0022", "string")),
-    ("user cron locator rejected", record("user-cron-files-mode", "/var/spool/cron", "mode", "bits-clear", "0022", "string")),
-    ("user cron key rejected", record("user-cron-files-mode", "/var/spool/cron|/var/spool/cron/crontabs", "owner", "bits-clear", "0022", "string")),
-    ("user cron op rejected", record("user-cron-files-mode", "/var/spool/cron|/var/spool/cron/crontabs", "mode", "eq", "0022", "string")),
-    ("user cron mask rejected", record("user-cron-files-mode", "/var/spool/cron|/var/spool/cron/crontabs", "mode", "bits-clear", "0033", "string")),
-    ("standard system paths accepted", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|/lib|/lib64|/usr/lib|/usr/lib64|/lib/modules/<uname-r>", "mode", "bits-clear", "0022", "string")),
+    ("user cron files accepted", record("user-cron-files-mode", "/var/spool/cron/crontabs", "mode", "bits-clear", "0022", "string")),
+    ("user cron locator rejected", record("user-cron-files-mode", "/var/spool/cron|/var/spool/cron/crontabs", "mode", "bits-clear", "0022", "string")),
+    ("user cron key rejected", record("user-cron-files-mode", "/var/spool/cron/crontabs", "owner", "bits-clear", "0022", "string")),
+    ("user cron op rejected", record("user-cron-files-mode", "/var/spool/cron/crontabs", "mode", "eq", "0022", "string")),
+    ("user cron mask rejected", record("user-cron-files-mode", "/var/spool/cron/crontabs", "mode", "bits-clear", "0033", "string")),
+    ("standard system paths accepted", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>", "mode", "bits-clear", "0022", "string")),
     ("standard system paths locator rejected", record("standard-system-paths-mode", "/bin|/usr/bin", "mode", "bits-clear", "0022", "string")),
-    ("standard system paths key rejected", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|/lib|/lib64|/usr/lib|/usr/lib64|/lib/modules/<uname-r>", "owner", "bits-clear", "0022", "string")),
-    ("standard system paths op rejected", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|/lib|/lib64|/usr/lib|/usr/lib64|/lib/modules/<uname-r>", "mode", "eq", "0022", "string")),
-    ("standard system paths mask rejected", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|/lib|/lib64|/usr/lib|/usr/lib64|/lib/modules/<uname-r>", "mode", "bits-clear", "0033", "string")),
+    ("standard system paths key rejected", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>", "owner", "bits-clear", "0022", "string")),
+    ("standard system paths op rejected", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>", "mode", "eq", "0022", "string")),
+    ("standard system paths mask rejected", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>", "mode", "bits-clear", "0033", "string")),
     ("cron command paths accepted", record("cron-command-paths-write-protection", "/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs", "write-protection", "cron-command-paths-safe", "file-go-w", "string")),
     ("cron command paths locator rejected", record("cron-command-paths-write-protection", "/etc/crontab", "write-protection", "cron-command-paths-safe", "file-go-w", "string")),
     ("cron command paths key rejected", record("cron-command-paths-write-protection", "/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs", "mode", "cron-command-paths-safe", "file-go-w", "string")),
     ("cron command paths op rejected", record("cron-command-paths-write-protection", "/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs", "write-protection", "bits-clear", "file-go-w", "string")),
     ("cron command paths expected rejected", record("cron-command-paths-write-protection", "/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs", "write-protection", "cron-command-paths-safe", "0022", "string")),
+    ("startup files accepted", record("startup-files-write-protection", "/etc/rc[0-6].d|systemd-unit-paths", "other-write", "bits-clear", "0002", "string")),
+    ("startup files locator rejected", record("startup-files-write-protection", "/etc/rc#.d", "other-write", "bits-clear", "0002", "string")),
+    ("startup files key rejected", record("startup-files-write-protection", "/etc/rc[0-6].d|systemd-unit-paths", "mode", "bits-clear", "0002", "string")),
+    ("startup files op rejected", record("startup-files-write-protection", "/etc/rc[0-6].d|systemd-unit-paths", "other-write", "eq", "0002", "string")),
+    ("startup files expected rejected", record("startup-files-write-protection", "/etc/rc[0-6].d|systemd-unit-paths", "other-write", "bits-clear", "0022", "string")),
     ("sudo root command files accepted", record("sudo-root-command-files-protection", "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1", "root-command-files", "root-owned-go-w", "uid0;bits-clear-0022", "string")),
     ("sudo root command files locator rejected", record("sudo-root-command-files-protection", "/etc/sudoers", "root-command-files", "root-owned-go-w", "uid0;bits-clear-0022", "string")),
     ("sudo root command files key rejected", record("sudo-root-command-files-protection", "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1", "mode", "root-owned-go-w", "uid0;bits-clear-0022", "string")),
@@ -186,16 +191,16 @@ CASES = [
     ("suid-sgid mode mask rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "mode", "bits-clear", "0033", "string")),
     ("suid-sgid allowlist path rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "approved-set", "subset-of-file", "/tmp/list", "string")),
     ("suid-sgid allowlist key rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "mode", "subset-of-file", "/etc/securelinux-policy/suid-sgid.allowlist-v1", "string")),
-    ("home sensitive files accepted", record("home-sensitive-files-mode", "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "bits-clear", "0077", "string")),
+    ("home sensitive files accepted", record("home-sensitive-files-mode", "/etc/passwd|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "bits-clear", "0077", "string")),
     ("home sensitive files locator rejected", record("home-sensitive-files-mode", "/etc/passwd", "mode", "bits-clear", "0077", "string")),
-    ("home sensitive files key rejected", record("home-sensitive-files-mode", "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1", "owner", "bits-clear", "0077", "string")),
-    ("home sensitive files op rejected", record("home-sensitive-files-mode", "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "eq", "0077", "string")),
-    ("home sensitive files mask rejected", record("home-sensitive-files-mode", "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "bits-clear", "0022", "string")),
-    ("home directories accepted", record("home-directories-mode", "/etc/passwd|/etc/login.defs", "mode", "eq", "0700", "string")),
+    ("home sensitive files key rejected", record("home-sensitive-files-mode", "/etc/passwd|/etc/securelinux-policy/home-sensitive-files-v1", "owner", "bits-clear", "0077", "string")),
+    ("home sensitive files op rejected", record("home-sensitive-files-mode", "/etc/passwd|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "eq", "0077", "string")),
+    ("home sensitive files mask rejected", record("home-sensitive-files-mode", "/etc/passwd|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "bits-clear", "0022", "string")),
+    ("home directories accepted", record("home-directories-mode", "/etc/passwd", "mode", "eq", "0700", "string")),
     ("home directories locator rejected", record("home-directories-mode", "/etc/passwd", "mode", "eq", "0700", "string")),
-    ("home directories key rejected", record("home-directories-mode", "/etc/passwd|/etc/login.defs", "owner", "eq", "0700", "string")),
-    ("home directories op rejected", record("home-directories-mode", "/etc/passwd|/etc/login.defs", "mode", "bits-clear", "0700", "string")),
-    ("home directories mode rejected", record("home-directories-mode", "/etc/passwd|/etc/login.defs", "mode", "eq", "0750", "string")),
+    ("home directories key rejected", record("home-directories-mode", "/etc/passwd", "owner", "eq", "0700", "string")),
+    ("home directories op rejected", record("home-directories-mode", "/etc/passwd", "mode", "bits-clear", "0700", "string")),
+    ("home directories mode rejected", record("home-directories-mode", "/etc/passwd", "mode", "eq", "0750", "string")),
     ("local account password-state accepted", record("local-account-password-state", "/etc/shadow", "password-field", "all-nonempty", True, "boolean")),
     ("local account locator rejected", record("local-account-password-state", "/tmp/shadow", "password-field", "all-nonempty", True, "boolean")),
     ("local account key rejected", record("local-account-password-state", "/etc/shadow", "password", "all-nonempty", True, "boolean")),
@@ -211,6 +216,11 @@ CASES = [
     ("sudoers reviewed key rejected", record("sudoers-reviewed-policy", "/etc/sudoers", "users", "eq-reviewed-policy", "/etc/securelinux-policy/sudoers-reviewed-policy-v1", "string")),
     ("sudoers reviewed op rejected", record("sudoers-reviewed-policy", "/etc/sudoers", "policy-tree", "eq", "/etc/securelinux-policy/sudoers-reviewed-policy-v1", "string")),
     ("sudoers reviewed authority rejected", record("sudoers-reviewed-policy", "/etc/sudoers", "policy-tree", "eq-reviewed-policy", "/tmp/sudoers-policy", "string")),
+    ("tested setting attestation accepted", record("tested-setting-attestation", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0034", "tested-before-use", "kernel.randomize_va_space=2", "string")),
+    ("tested setting attestation locator rejected", record("tested-setting-attestation", "/tmp/attest", "SRC-0034", "tested-before-use", "kernel.randomize_va_space=2", "string")),
+    ("tested setting attestation key rejected", record("tested-setting-attestation", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0028", "tested-before-use", "kernel.randomize_va_space=2", "string")),
+    ("tested setting attestation op rejected", record("tested-setting-attestation", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0034", "eq", "kernel.randomize_va_space=2", "string")),
+    ("tested setting attestation expected rejected", record("tested-setting-attestation", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0034", "tested-before-use", "kernel.randomize_va_space=1", "string")),
     ("sshd root-login accepted", record("sshd-root-login", "/etc/ssh/sshd_config", "PermitRootLogin", "eq", "no", "string")),
     ("sshd root-login locator rejected", record("sshd-root-login", "/etc/ssh/sshd_config.d/x.conf", "PermitRootLogin", "eq", "no", "string")),
     ("sshd root-login key rejected", record("sshd-root-login", "/etc/ssh/sshd_config", "permitrootlogin", "eq", "no", "string")),
@@ -282,12 +292,13 @@ NEWLINE_CASES = [
     ("local account locator with LF", record("local-account-password-state", "/etc/shadow\n", "password-field", "all-nonempty", True, "boolean")),
     ("pam wheel locator with LF", record("pam-wheel-access", "/etc/pam.d/su|/etc/group\n", "policy", "eq-authority-file", "/etc/securelinux-policy/wheel-users.allowlist-v1", "string")),
     ("sshd root-login locator with LF", record("sshd-root-login", "/etc/ssh/sshd_config\n", "PermitRootLogin", "eq", "no", "string")),
-    ("standard system paths locator with LF", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|/lib|/lib64|/usr/lib|/usr/lib64|/lib/modules/<uname-r>\n", "mode", "bits-clear", "0022", "string")),
+    ("standard system paths locator with LF", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>\n", "mode", "bits-clear", "0022", "string")),
     ("cron command paths locator with LF", record("cron-command-paths-write-protection", "/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs\n", "write-protection", "cron-command-paths-safe", "file-go-w", "string")),
+    ("startup files locator with LF", record("startup-files-write-protection", "/etc/rc[0-6].d|systemd-unit-paths\n", "other-write", "bits-clear", "0002", "string")),
     ("sudo root command files locator with LF", record("sudo-root-command-files-protection", "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1\n", "root-command-files", "root-owned-go-w", "uid0;bits-clear-0022", "string")),
     ("running process paths locator with LF", record("running-process-paths-write-protection", "/proc/<pid>/exe|/proc/<pid>/maps\n", "write-protection", "runtime-paths-safe", "file-go-w;parent-unprivileged-write-denied", "string")),
     ("suid-sgid locator with LF", record("suid-sgid-applications", "/proc/self/mountinfo\n", "mode", "bits-clear", "0022", "string")),
-    ("home sensitive files locator with LF", record("home-sensitive-files-mode", "/etc/passwd|/etc/login.defs|/etc/securelinux-policy/home-sensitive-files-v1\n", "mode", "bits-clear", "0077", "string")),
+    ("home sensitive files locator with LF", record("home-sensitive-files-mode", "/etc/passwd|/etc/securelinux-policy/home-sensitive-files-v1\n", "mode", "bits-clear", "0077", "string")),
     ("mount-option locator with LF", record("mount-option", "/tmp\n", "fstype", "eq", "tmpfs", "string")),
     ("mount-option key with LF", record("mount-option", "/tmp", "option::noexec\n", "eq", "noexec", "string")),
     ("pam-line locator with LF", record("pam-line", "/etc/pam.d/x\n", "active_line::a", "contains", "x", "string")),
@@ -416,6 +427,11 @@ class DifferentialAcceptanceTests(unittest.TestCase):
 
 
 class InlineSourceBoundaryTests(unittest.TestCase):
+    def test_src0008_exact_inline_page_furniture_is_accepted(self):
+        raw = "prefix командой chown root путь_к_файлу для 4 каждого исполняемого файла suffix"
+        canonical = "prefix командой chown root путь_к_файлу для каждого исполняемого файла suffix"
+        self.assertTrue(checker.source_quote_in_corpus("SRC-0008", canonical, raw))
+
     def test_src0014_exact_inline_page_furniture_is_accepted(self):
         raw = "prefix файлы 5 настройки оболочки suffix"
         canonical = "prefix файлы настройки оболочки suffix"
@@ -427,6 +443,10 @@ class InlineSourceBoundaryTests(unittest.TestCase):
         self.assertFalse(checker.source_quote_in_corpus("SRC-0015", canonical, raw))
         self.assertFalse(checker.source_quote_in_corpus("SRC-0014", canonical, raw + " / " + raw))
         self.assertFalse(checker.source_quote_in_corpus("SRC-0014", "prefix файлы настройки оболочки suffix", "prefix файлы 6 настройки оболочки suffix"))
+        raw8 = "prefix командой chown root путь_к_файлу для 4 каждого исполняемого файла suffix"
+        canonical8 = "prefix командой chown root путь_к_файлу для каждого исполняемого файла suffix"
+        self.assertFalse(checker.source_quote_in_corpus("SRC-0007", canonical8, raw8))
+        self.assertFalse(checker.source_quote_in_corpus("SRC-0008", canonical8, raw8 + " / " + raw8))
 
 class ParserInvariantTests(unittest.TestCase):
     """Defence in depth: a control file cannot even carry a control character
