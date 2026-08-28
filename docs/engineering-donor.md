@@ -16,17 +16,18 @@ Pinned final architecture review:
 
 ## What is adopted now
 
-The following are adopted as future implementation invariants, not as claims
-that apply/restore already exists:
+The following are adopted as future APPLY implementation invariants, not as claims
+that APPLY already exists:
 
 - fail-closed backup before mutation;
 - atomic critical-file replacement;
 - exclusive locking for mutating runs;
 - atomic manifest updates;
 - explicit warnings and irreversible/partial changes;
-- targeted sysctl apply plus live-value snapshot and targeted restore;
+- targeted sysctl APPLY plus live-value pre-state capture for transaction-local failure handling;
 - package pre-state/delta tracking;
-- restore from recorded evidence rather than guessed prior state;
+- exact compensating rollback inside a failed, uncommitted APPLY transaction where the contract proves it;
+- external snapshot rollback after a completed APPLY; no user-invokable RESTORE mode;
 - executable architecture regression tests.
 
 Exact evidence is machine-indexed in
@@ -40,7 +41,7 @@ Exact evidence is machine-indexed in
 - all 18,928 source lines covered by 190 deterministic 100-line chunks;
 - 141 semantic candidates;
 - 478 raw evidence rows;
-- 15 engineering contracts.
+- 20 engineering contracts.
 
 This addresses preservation of the donor implementation without treating it as
 normative truth.
@@ -69,6 +70,31 @@ normative evidence or source-row closure.
 
 See `docs/testing-strategy.md`.
 
+
+## DONOR_TO_V3_MAPPING
+
+Перед roadmap step 8 построен machine-readable candidate
+`index/engineering-donor-v1/DONOR-TO-V3-MAPPING.tsv`.
+
+Текущий candidate mapping:
+
+- покрывает 310/310 donor-функций;
+- покрывает 38/38 donor test files;
+- отдельно учитывает все 16 mature families из
+  `docs/DONOR-V3-ADOPTION-POLICY.md`;
+- связывает 20 existing engineering contracts и 32 generalized donor test
+  contracts;
+- использует только `REUSE | ADAPT | REJECT | DEFER`;
+- имеет `normative_effect=NONE` и закрывает 0 source-index rows.
+
+Статус mapping: `BUILT_AWAITING_REVIEW`. После APPLY-only correction: `REUSE=1`, `ADAPT=178`, `REJECT=91`, `DEFER=94`; `RESTORE_OPERATIONAL_CONTOUR=EXCLUDED`, post-APPLY recovery=`EXTERNAL_SNAPSHOT`. Поэтому
+`APPLY_SEMANTIC_CONTRACT` пока остаётся запрещён до отдельного review.
+
+`password-policy-regression.sh` остаётся donor `DEFER` для будущей
+corporate/APPLY-фазы. В current `fstec-linux-2022 CHECK` он не переносится.
+Сохранённые будущие engineering details: PAM multiarch, preflight словарей до
+mutation, выбор активных аккаунтов и dry-run плана `chage`.
+
 ## What this does not change
 
 This adoption does not:
@@ -78,7 +104,7 @@ This adoption does not:
 - change `index/source-v4`;
 - change Gate 1–5 semantics;
 - provide reference-VM evidence;
-- implement apply or restore.
+- implement APPLY or RESTORE. RESTORE is not planned; APPLY remains future work.
 
 Donor adoption itself closes zero FSTEC source rows. Current live coverage is
 owned by `SOURCE-INDEX.tsv` and generated `docs/fstec-coverage.md`.

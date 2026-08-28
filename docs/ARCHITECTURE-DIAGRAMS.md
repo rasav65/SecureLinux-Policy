@@ -12,11 +12,12 @@ SecureLinux-NG. Они не описывают текущую структуру
 # SecureLinux-Policy v3 — визуальная архитектура
 
 > **Статус:** целевая runtime-архитектура, сохранённая из инженерного донора
-> SecureLinux-NG и закреплённая для v3.
+> SecureLinux-NG. Она сохранена как donor evidence и **не закрепляет RESTORE как цель v3**.
 >
 > Эти схемы не утверждают, что все показанные runtime-механизмы уже реализованы
-> в v3. Их перенос идёт через `DONOR_TO_V3_MAPPING`, а apply/restore — через
-> отдельный semantic contract.
+> в v3. Их перенос идёт через `DONOR_TO_V3_MAPPING`. Будущий v3 runtime имеет
+> только APPLY semantic contract; показанные ниже RESTORE-ветви являются
+> историческими donor-механизмами и не входят в целевую архитектуру.
 >
 > GitHub отрисовывает блоки `mermaid` ниже как диаграммы.
 
@@ -130,5 +131,7 @@ flowchart TB
 Актуальная primary-карта — [`PROJECT-MAP-v3.md`](PROJECT-MAP-v3.md), а
 машинный macro-roadmap — `ROADMAP-v3.tsv`.
 
-До открытия `apply/restore semantic contract` показанные apply/restore ветви
-остаются donor/future reference, а не заявлением о готовой реализации v3.
+До открытия `APPLY semantic contract` показанные APPLY-ветви остаются donor/future
+reference. Показанные RESTORE-ветви — только историческая donor reference:
+пользовательский RESTORE в v3 не планируется, post-APPLY recovery выполняется
+внешним snapshot rollback.

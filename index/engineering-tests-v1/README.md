@@ -14,7 +14,9 @@ Facts pinned from the uploaded artifact:
 
 Normative isolation is mandatory: legacy `fstec-mapping-regression.sh` and
 `wheel-fstec-regression.sh` are historical evidence only. They cannot create
-or close v3 FSTEC source-index rows.
+or close v3 FSTEC source-index rows. Donor filenames/classes containing `restore`
+are preserved as evidence identifiers where needed; active future contract areas
+use APPLY compensation/external-recovery terminology rather than a RESTORE stage.
 
 `DONOR-VM-EVIDENCE.tsv` records donor-project VM history only; it never
 substitutes v3 Gate 5 or the v3 final VM matrix.

@@ -13,14 +13,14 @@ monolith.
 
 Every old mechanism considered for v3 must pass through:
 
-`DONOR -> v3 contract mapping -> REUSE | ADAPT | REJECT | DEFER -> apply/restore semantic contract -> implementation adapter -> tests -> deterministic build`
+`DONOR -> v3 contract mapping -> REUSE | ADAPT | REJECT | DEFER -> APPLY semantic contract -> implementation adapter -> tests -> deterministic build`
 
 No donor mechanism is copied into the generated final script merely because it
 was mature or previously tested.
 
 ## Mandatory precondition before roadmap step 8
 
-Before `APPLY_RESTORE_SEMANTIC_CONTRACT` begins, the project MUST create and
+Before `APPLY_SEMANTIC_CONTRACT` begins, the project MUST create and
 review a complete `DONOR_TO_V3_MAPPING` over the preserved engineering donor.
 
 For every adopted/rejected/deferred mechanism the mapping must identify, at
@@ -45,19 +45,28 @@ SecureLinux-NG:
 1. preflight / compatibility classification;
 2. transactional apply;
 3. manifest-backed state tracking;
-4. controlled restore from recorded pre-state;
+4. transaction-local compensation from recorded pre-state;
 5. atomic writes for critical files and manifests;
 6. fail-closed backup before mutation;
 7. exact package delta tracking;
 8. preservation of already stricter sysctl values;
 9. isolated per-module sysctl application;
-10. runtime sysctl snapshot / restore;
+10. runtime sysctl pre-state capture / transaction-local compensation;
 11. network-online reapply for managed network sysctl;
 12. dry-run with no host mutation;
-13. apply/restore run locking;
+13. exclusive APPLY run locking;
 14. profile / additional-measures / corporate separation;
-15. crash/journal patterns and the preserved regression contracts;
-16. explicit partial/manual/reboot restore classifications.
+15. crash/journal patterns;
+16. explicit partial/manual/reboot external-recovery classifications.
+
+Donor RESTORE mechanisms are not an adoptable mature family. They are accounted
+explicitly at function/test/contract level: user-invokable or post-APPLY RESTORE
+mechanics are `REJECT`; only fragments required for compensation inside a failed
+uncommitted APPLY may be `ADAPT`.
+
+The project-level post-APPLY rollback model is `EXTERNAL_SNAPSHOT`. A successful
+APPLY is not reversed by SecureLinux-Policy. Snapshot creation/restoration is
+an infrastructure responsibility outside the product.
 
 The mapping may conclude `REJECT` or `DEFER`; it may not omit a family without
 an explicit reason.
@@ -67,10 +76,11 @@ an explicit reason.
 No implementation adapter may be accepted unless:
 
 - its relevant normative control has passed the required source gates;
-- the apply/restore semantic contract for that adapter family exists;
+- the APPLY semantic contract for that adapter family exists;
 - its donor mapping decision is recorded when donor behavior is being reused;
 - positive and negative tests exist;
-- restore/irreversibility behavior is explicit;
+- transaction-local failure/compensation behavior is explicit;
+- post-APPLY rollback responsibility is explicitly external snapshot recovery;
 - generated output can carry machine-checkable provenance.
 
 ## Final monolith rule
@@ -107,9 +117,11 @@ The authoritative order remains:
 5. index-generic source skeleton generator
 6. source-block regeneration parity gate
 7. FSTEC + corporate index expansion / dispositions
-8. apply/restore semantic contract
-9. implementation adapters
+8. APPLY semantic contract
+9. APPLY implementation adapters
 10. deterministic build
 11. single distributable securelinux-ng.sh
 
 `DONOR_TO_V3_MAPPING` is a mandatory precondition to starting step 8.
+
+`RESTORE` is not a roadmap stage and MUST NOT be introduced by donor reuse. The preserved donor restore code remains evidence only unless a fragment is explicitly adapted for transaction-local APPLY failure handling.

@@ -68,7 +68,7 @@ generator. Compliance execution выполняется как executable (`./sec
 - `--check --format json` — `SLP-REPORT-V1`;
 - `--report` — compact human report с `FAIL`/`ERROR`;
 - `--build-info`, `--provenance`, `--version`, `--help` — metadata/UI;
-- `--apply`, `--restore` — fail-closed `NOT_IMPLEMENTED`, RC=2, mutation implementation отсутствует.
+- `--apply`, `--restore` — fail-closed `NOT_IMPLEMENTED`, RC=2. `--apply` зарезервирован для будущей mutation-line; `--restore` — compatibility stub принятого CHECK, реализация RESTORE не планируется.
 
 `tests/product-v1/test_product_generator.py` содержит `UnifiedCliArtifact`, который
 детерминированно пересобирает artifact в temp и требует byte-exact equality с tracked root script и sidecar.
@@ -79,7 +79,7 @@ CHECK по current manifest population реализован и regression-tested
 artifact имеет статус `NON_RELEASE_PRODUCT_CANDIDATE` и target
 `ubuntu-24.04-x86_64`.
 
-CHECK не содержит APPLY/RESTORE. Policy noncompliance не равен execution
+CHECK не содержит APPLY. RESTORE не входит в целевую mutation-архитектуру. Policy noncompliance не равен execution
 failure; `NOT_FOUND`/`ERROR` делают итог `UNEVALUATED`.
 
 Принцип отсутствия — `proven-absence-only`: `NOT_FOUND` допустим только при

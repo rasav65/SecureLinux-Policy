@@ -14,8 +14,8 @@ expected = [
     "INDEX_GENERIC_SOURCE_SKELETON_GENERATOR",
     "SOURCE_BLOCK_REGENERATION_PARITY",
     "FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS",
-    "APPLY_RESTORE_SEMANTIC_CONTRACT",
-    "APPLY_RESTORE_IMPLEMENTATION_ADAPTERS",
+    "APPLY_SEMANTIC_CONTRACT",
+    "APPLY_IMPLEMENTATION_ADAPTERS",
     "FINAL_DETERMINISTIC_PACKAGING",
     "SINGLE_DISTRIBUTABLE_ARTIFACT",
 ]
@@ -30,6 +30,8 @@ assert rows[6]["status"] == "NEXT"
 assert all(r["status"] == "BLOCKED_BY_PREVIOUS" for r in rows[7:])
 roadmap_md = (root / "docs/ROADMAP-v3.md").read_text(encoding="utf-8")
 assert "Единый распространяемый `securelinux-ng.sh`" not in roadmap_md
-assert "APPLY/RESTORE implementation adapters" in roadmap_md
+assert "APPLY implementation adapters" in roadmap_md
+assert "пользовательский режим RESTORE не входит в целевую архитектуру" in roadmap_md
+assert "external snapshot" in roadmap_md
 assert "Единый распространяемый артефакт (имя не закреплено)" in roadmap_md
 print("ROADMAP_V3_ORDER=PASS")

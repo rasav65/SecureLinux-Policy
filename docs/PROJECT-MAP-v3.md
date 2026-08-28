@@ -220,10 +220,11 @@ flowchart LR
 пинует semantic contract, adapter binding и implementation по SHA-256.
 Tracked `securelinux-policy.sh` и sidecar входят в root manifests и обязаны
 byte-exact совпадать со свежим generator-v2 output. `dist/` остаётся optional
-gitignored rebuild output. APPLY/RESTORE mutation capability здесь отсутствует;
-одноимённые CLI flags являются только fail-closed `NOT_IMPLEMENTED` stubs.
+gitignored rebuild output. APPLY mutation capability здесь отсутствует. Принятый
+CHECK CLI сохраняет `--apply`/`--restore` как fail-closed `NOT_IMPLEMENTED` stubs;
+`--restore` не является future feature.
 
-## 4. Инженерный донор → будущий APPLY/RESTORE runtime
+## 4. Инженерный донор → будущий APPLY runtime
 
 ```mermaid
 flowchart LR
@@ -234,7 +235,7 @@ flowchart LR
     DONOR_TESTS["engineering-tests-v1<br/>38 donor tests<br/>32 generalized contracts"]:::component
 
     MAP["DONOR_TO_V3_MAPPING<br/>REUSE / ADAPT / REJECT / DEFER"]:::future
-    APPLY["apply/restore<br/>semantic contract"]:::future
+    APPLY["APPLY<br/>semantic contract"]:::future
     ADAPTERS["future APPLY implementation adapters"]:::future
     BUILD["future final distributable build"]:::future
     SCRIPT["future final<br/>distributable artifact"]:::future
@@ -312,34 +313,35 @@ flowchart LR
     P9["kernel-cmdline exact-token batch<br/>7 source rows · 9 controls + CHECK-28<br/>DONE"]:::closed
     P9A["SRC-0010 / 2.3.6<br/>system cron roots + direct files · 6 controls<br/>DONE"]:::closed
     P9B["UNIFIED CLI / QUICK START v1<br/>securelinux-policy.sh · pretty/raw/json<br/>DONE"]:::closed
-    P10["МЫ ЗДЕСЬ<br/>systematic FSTEC expansion<br/>remaining OPEN rows"]:::current
-    P11["APPLY semantic contract<br/>NOT IMPLEMENTED"]:::future
+    P10["fstec-linux-2022 CHECK COMPLETE<br/>tag fstec-linux-2022-check-complete-v1<br/>DONE"]:::closed
+    P10A["МЫ ЗДЕСЬ<br/>DONOR_TO_V3_MAPPING<br/>precondition"]:::current
+    P11["APPLY semantic contract<br/>future"]:::future
     P12["APPLY implementation<br/>future"]:::future
-    P13["RESTORE contract + implementation<br/>future"]:::future
-    P14["final distributable artifact<br/>future"]:::future
+    P13["final distributable artifact<br/>future"]:::future
+    SNAP["post-APPLY rollback<br/>EXTERNAL SNAPSHOT<br/>outside product"]:::note
 
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P9A --> P9B --> P10 --> P11 --> P12 --> P13 --> P14
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P9A --> P9B --> P10 --> P10A --> P11 --> P12 --> P13
+    P12 -. operational recovery boundary .-> SNAP
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
     classDef current fill:#ffe2a8,stroke:#c77800,color:#111,stroke-width:4px;
     classDef future fill:#eeeeee,stroke:#888,color:#444,stroke-dasharray: 5 5;
+    classDef note fill:#fff8d8,stroke:#9d8730,color:#111;
 ```
 
-`docs/ROADMAP-v3.tsv` по-прежнему хранит более крупный macro-roadmap: Step 7B
-остаётся общим этапом FSTEC expansion. Текущий product checkpoint внутри него —
-систематическое представление оставшихся `OPEN` source rows после закрытия
-`SRC-0005 / 2.3.1`, CHECK-11, exact-eq sysctl batch `SRC-0030`, `SRC-0031`,
-`SRC-0036`–`SRC-0039` с CHECK-17, `SRC-0040 / 2.6.6` после точечного
-terminal source-boundary fix с CHECK-18, `SRC-0033 / 2.5.10` через
-source-faithful `sysctl ge 4096` с CHECK-19 и donor-backed exact-token batch
-`SRC-0018`, `SRC-0019`, `SRC-0020`, `SRC-0021`, `SRC-0022`, `SRC-0024`,
-`SRC-0032` через read-only `kernel-cmdline`, затем `SRC-0010 / 2.3.6` через
-шесть source-listed optional cron roots с `bits-clear 0033`. Read-only
-`product-sysctl-check-v2`, `product-file-mode-owner-check-v1`,
-`product-kernel-cmdline-check-v1`, `product-optional-file-root-files-mode-check-v1`,
-`product/generate-product-check-v2.py` и tracked `securelinux-policy.sh` уже
-реализованы; v1 generator сохранён как предыдущая identity. Unified read-only CLI
-не открывает будущий APPLY/RESTORE track.
+`fstec-linux-2022` read-only CHECK vertical принят и закреплён tag
+`fstec-linux-2022-check-complete-v1` на commit
+`219b4cc3c0673c55575fb558e160431c11c2a681`. Project-wide source index при этом
+по-прежнему содержит OPEN rows других документов, но следующий source-scoped
+этап — не новый нормативный документ: сначала завершается `DONOR_TO_V3_MAPPING`,
+затем отдельные APPLY semantic contract и implementation для уже принятого
+`fstec-linux-2022`. Read-only CHECK bytes/controls/adapters при этом не меняются.
+Unified read-only CLI не открывает будущий APPLY track; RESTORE исключён из
+целевой архитектуры.
+
+Операционная модель rollback после завершённого APPLY — внешний snapshot.
+Транзакционно-локальный compensating rollback внутри незавершённого APPLY
+остаётся допустимым failure-handling mechanism, но отдельного RESTORE mode нет.
 
 ## Что является источником истины
 
@@ -350,7 +352,7 @@ implementation adapters и tests.
 
 Направление проекта:
 
-`source → text corpus → index → control/disposition → gates → semantic contract → read-only adapter → generator v2 → tracked unified CHECK CLI → future APPLY/RESTORE`
+`source → text corpus → index → control/disposition → gates → semantic contract → read-only adapter → generator v2 → tracked unified CHECK CLI → future APPLY`
 
 а не:
 

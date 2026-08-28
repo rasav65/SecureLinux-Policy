@@ -8,5 +8,5 @@ legacy normative isolation, and the active portable SHA helper.
 tests only `tools/write-sha256.py` and has no dependency on the old monolithic
 script.
 
-These tests do not claim that future apply/restore contracts are implemented.
-They only prevent losing the donor evidence and registry while v3 is built.
+These tests do not claim that future APPLY or failed-transaction compensation contracts are implemented.
+They only prevent losing the donor evidence and registry while v3 is built. Post-APPLY RESTORE remains excluded.

@@ -22,14 +22,21 @@ CHECK_TARGET=ubuntu-24.04-x86_64
 CHECK_STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 CHECK=IMPLEMENTED_READ_ONLY
 APPLY=NOT_IMPLEMENTED
-RESTORE=NOT_IMPLEMENTED
+RESTORE=NOT_PLANNED
+ROLLBACK_MODEL=EXTERNAL_SNAPSHOT
 FULL_FSTEC_COMPLIANCE_CLAIM=false
 ```
 
 CHECK охватывает только требования, представленные текущими canonical controls. Этот статус не является заявлением о полном соответствии требованиям ФСТЭК.
 <!-- END GENERATED CURRENT STATUS -->
 
-Для документа `fstec-linux-2022` machine truth сейчас показывает `40/40 CLOSED`: `SRC-0034 / 2.5.11` закрывается только exact двумя read-only controls — текущим `kernel.randomize_va_space=2` и explicit local attestation `TESTED-BEFORE-USE`, которая сохраняет source qualifier `после тестирования` без выдумывания методики тестирования ФСТЭК. Последующий свежий all-40 adversarial review дополнительно ужесточил source-faithfulness `SRC-0006`, `SRC-0008` и `SRC-0011`: effective parent-directory write semantics, sudo applicability и canonical user-crontab population теперь не over-approximate. Число закрытых строк при этих исправлениях не меняется. Это пока implementation candidate: source-scoped `CHECK COMPLETE` и milestone `fstec-linux-2022-check-complete-v1` не принимаются до свежего независимого adversarial re-audit финальных bytes всех 40 строк.
+Для документа `fstec-linux-2022` read-only CHECK vertical принят: независимый
+final all-40 robustness audit завершён `PASS`, commit
+`219b4cc3c0673c55575fb558e160431c11c2a681` опубликован, а milestone
+`fstec-linux-2022-check-complete-v1` привязан к этому exact commit. Machine
+truth для документа — `40/40 CLOSED`, 51 canonical controls, 18 adapter kinds.
+Следующий source-scoped track — `DONOR_TO_V3_MAPPING` как precondition будущего
+APPLY. Пользовательский RESTORE в целевую архитектуру больше не входит.
 
 Полная машинно формируемая карта текущего покрытия:
 [`docs/fstec-coverage.md`](docs/fstec-coverage.md).
@@ -61,8 +68,8 @@ read-only проверки:
 недостаточно.
 
 CHECK и изменение системы разделены принципиально. На текущей стадии реализован
-только CHECK. APPLY и RESTORE относятся к будущему отдельному этапу и не
-подразумеваются текущими гарантиями.
+только CHECK. APPLY относится к будущему отдельному этапу. Пользовательский
+RESTORE не планируется; post-APPLY rollback выполняется внешним snapshot recovery.
 
 ---
 
@@ -122,8 +129,10 @@ Metadata и provenance не требуют запуска policy checks:
 ./securelinux-policy.sh --provenance
 ```
 
-`--apply` и `--restore` уже зарезервированы в едином CLI, но сейчас обязаны
-завершаться `NOT_IMPLEMENTED` с RC=2 и ничего не менять на хосте.
+`--apply` и `--restore` уже присутствуют в принятом CHECK CLI и сейчас обязаны
+завершаться `NOT_IMPLEMENTED` с RC=2 и ничего не менять на хосте. `--apply`
+зарезервирован для будущей mutation-line; `--restore` сохраняется только как
+fail-closed compatibility stub принятого CHECK и не будет получать реализацию.
 
 Sidecar текущего tracked artifact:
 
@@ -158,7 +167,7 @@ generator identity и не является текущей пользовате�
 
 | Гарантия | Статус | Чем проверяется |
 |---|---|---|
-| APPLY/RESTORE mutation modes не реализованы | PASS | CLI stubs + adapter contracts; forbidden-token scan — только defense-in-depth, а не формальное доказательство произвольного shell-кода |
+| APPLY mutation mode пока не реализован; RESTORE намеренно не планируется | PASS | accepted CLI stubs + adapter contracts; forbidden-token scan — только defense-in-depth |
 | Детерминированная генерация CHECK | PASS | `tests/product-v1/test_product_generator.py` |
 | Adapter/contract bytes закреплены SHA-256 | PASS | `ADAPTER-REGISTRY.tsv` + product regressions |
 | CHECK provenance доступен машинно | PASS | generator regression / `--provenance` |
@@ -169,7 +178,7 @@ generator identity и не является текущей пользовате�
 | Current nested `SHA256SUMS` валидны; 2 historical donor runtime entries пинованы как исключения | PASS | `tests/project-integrity-v1/test_root_manifests.py` |
 | Gates-v3 evidence с маркировкой `ACTIVE` совпадает со свежим checker run | PASS | `tests/project-integrity-v1/test_root_manifests.py` |
 | APPLY | NOT IMPLEMENTED | — |
-| RESTORE | NOT IMPLEMENTED | — |
+| RESTORE | NOT PLANNED / OUT OF SCOPE | post-APPLY recovery = external snapshot |
 
 Гарантии относятся только к текущему scope. Конкретный policy-result CHECK
 описывает состояние проверяемого хоста и не является свойством самого generator.
@@ -238,7 +247,8 @@ sources
 ```
 
 [`docs/ARCHITECTURE-DIAGRAMS.md`](docs/ARCHITECTURE-DIAGRAMS.md) сохранён как
-**donor/future runtime reference** для будущего APPLY/RESTORE и не является
+**donor runtime reference**; RESTORE-ветви в нём являются историей донора, а
+будущий v3 runtime — APPLY-only с external snapshot rollback. Документ не является
 источником текущего product status.
 
 Индекс всей документации и её ролей:
@@ -368,7 +378,7 @@ source-index row.
 - formal Gate 5 `--probe-results` для текущей product population остаётся
   отдельным контрактным артефактом;
 - `SRC-0005 / 2.3.1` закрыт exact-control-set из трёх file-mode controls;
-- APPLY и RESTORE не реализованы;
+- APPLY пока не реализован; RESTORE исключён из целевой архитектуры, rollback model — external snapshot;
 - historical Step 7B.0 не является current product authority;
 - engineering donor не является нормативным доказательством.
 

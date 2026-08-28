@@ -305,7 +305,7 @@ FUNC-0303	restore_user_cron_permissions_module	18618	18646	20e057d664c5d0cd6c6cf
 FUNC-0304	restore_grub_kernel_params_module	18647	18651	e53d37ba2554c8dbc1250831091bfe6591a8729678f029cf450d624bda360489	pending-review	not yet reviewed for a v3 invariant; absence of a contract is NOT a decision that none is needed
 FUNC-0305	check_unattended_upgrades_module	18652	18663	420655080dba9133af5631debac98dfe84dee56a89a3431effe665208dea252c	evidence-only	named as source_function in RAW-EVIDENCE.tsv only
 FUNC-0306	run_mode_step	18664	18684	b19d64ca5599e238a90d5efa78f6e1aadef9d3d162167253c0b8325f8b62a189	pending-review	not yet reviewed for a v3 invariant; absence of a contract is NOT a decision that none is needed
-FUNC-0307	run_apply_mode	18685	18795	f493d471abf42a93512f72ae12d2360d4fcc977190775f0772f8d7f9046e3e18	contracted	named as evidence_function in ENGINEERING-CONTRACTS.tsv
+FUNC-0307	run_apply_mode	18685	18795	f493d471abf42a93512f72ae12d2360d4fcc977190775f0772f8d7f9046e3e18	pending-review	not yet reviewed for a v3 invariant; absence of a contract is NOT a decision that none is needed
 FUNC-0308	run_restore_mode	18796	18892	415a9b966fc152174dc42003cc0bc2acf770907ee8366ba5405a0892dbafa779	pending-review	not yet reviewed for a v3 invariant; absence of a contract is NOT a decision that none is needed
 FUNC-0309	run_report_mode	18893	18909	e22284fba2af12232daa60b27bb46dad8b0838101fab37af95151540b3c3a8cc	pending-review	not yet reviewed for a v3 invariant; absence of a contract is NOT a decision that none is needed
 FUNC-0310	main	18910	18928	72face52daee423339636b8ff05396a4bb43fcdec9b27a8f27a0aae78e11937c	contracted	named as evidence_function in ENGINEERING-CONTRACTS.tsv

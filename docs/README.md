@@ -38,7 +38,8 @@ Machine truth порядка и статуса roadmap находится в `RO
 ## DONOR-REFERENCE
 
 Эти документы содержат инженерные знания донора и будущие runtime patterns.
-Они **не описывают current product как уже реализованный APPLY/RESTORE**.
+Они **не описывают current product как уже реализованный APPLY**. RESTORE-схемы
+в donor reference являются историческими и не входят в целевую архитектуру v3.
 
 | Документ | Роль |
 |---|---|

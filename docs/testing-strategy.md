@@ -36,18 +36,20 @@ closure contract, control manifest and adapter registry.
 Regression compares expected and committed bytes. Changing `5 → 8 → 11` must
 not require editing a test merely to replace one hardcoded count with another.
 
-## Mandatory transaction test pattern for future apply/restore
+## Mandatory transaction test pattern for future APPLY
 
 Every mutation class should eventually have tests for:
 
-- pre-state captured successfully before mutation;
-- journal/manifest intent recorded before mutation;
+- external snapshot precondition is represented honestly; no fake snapshot evidence is synthesized;
+- pre-state required for transaction-local safety is captured successfully before mutation;
+- journal/intent is recorded before mutation when the APPLY contract requires it;
 - writer failure before mutation => target unchanged;
-- crash after intent but before mutation => safe restore/no unintended change;
-- crash after mutation but before commit => restore from pending state;
-- commit records the actual result, not intended result;
-- restore returns exact representable pre-state;
-- irreversible state is explicit and never silently reported as restored.
+- crash/failure after intent but before mutation => no unintended target change;
+- crash/failure after mutation but before transaction commit => exact local compensating rollback where the APPLY contract proves it, otherwise explicit failure requiring external snapshot recovery;
+- transaction commit records the actual result, not intended result;
+- repeated APPLY is idempotent and creates no unnecessary mutation;
+- no public/user-invokable RESTORE path exists;
+- post-APPLY recovery is explicitly `EXTERNAL_SNAPSHOT`, outside product mutation code.
 
 ## Filesystem safety matrix
 

@@ -133,8 +133,13 @@ assert "kernel-cmdline exact-token batch" in current
 assert "7 source rows · 9 controls + CHECK-28" in current
 assert "UNIFIED CLI / QUICK START v1" in current
 assert "securelinux-policy.sh · pretty/raw/json" in current
-assert "systematic FSTEC expansion" in current
-assert "МЫ ЗДЕСЬ<br/>systematic FSTEC expansion" in current
+assert "fstec-linux-2022 CHECK COMPLETE" in current
+assert "fstec-linux-2022-check-complete-v1" in current
+assert "DONOR_TO_V3_MAPPING" in current
+assert "МЫ ЗДЕСЬ<br/>DONOR_TO_V3_MAPPING" in current
+assert "EXTERNAL SNAPSHOT" in current
+assert "RESTORE исключён" in current
+assert "целевой архитектуры" in current
 assert "МЫ ЗДЕСЬ<br/>Step 7B" not in current
 
 with (ROOT / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream:

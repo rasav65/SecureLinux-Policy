@@ -57,7 +57,8 @@ assert 'P7["SRC-0040 / 2.6.6<br/>terminal source-boundary fix + CHECK-18<br/>DON
 assert 'P8["SRC-0033 / 2.5.10<br/>sysctl lower-bound ge 4096 + CHECK-19<br/>DONE"]:::closed' in current
 assert 'P9["kernel-cmdline exact-token batch<br/>7 source rows · 9 controls + CHECK-28<br/>DONE"]:::closed' in current
 assert 'P9B["UNIFIED CLI / QUICK START v1<br/>securelinux-policy.sh · pretty/raw/json<br/>DONE"]:::closed' in current
-assert 'P10["МЫ ЗДЕСЬ<br/>systematic FSTEC expansion<br/>remaining OPEN rows"]:::current' in current
+assert 'P10["fstec-linux-2022 CHECK COMPLETE<br/>tag fstec-linux-2022-check-complete-v1<br/>DONE"]:::closed' in current
+assert 'P10A["МЫ ЗДЕСЬ<br/>DONOR_TO_V3_MAPPING<br/>precondition"]:::current' in current
 for marker in (
     "CHECK-8 product-line",
     "TEST BASELINE",
@@ -75,11 +76,12 @@ for marker in (
     "CHECK-28",
     "UNIFIED CLI / QUICK START v1",
     "securelinux-policy.sh · pretty/raw/json",
-    "systematic FSTEC expansion",
+    "fstec-linux-2022 CHECK COMPLETE",
+    "DONOR_TO_V3_MAPPING",
     "APPLY semantic contract",
     "APPLY implementation",
-    "RESTORE contract + implementation",
     "final distributable artifact",
+    "EXTERNAL SNAPSHOT",
 ):
     assert marker in current, marker
 
@@ -99,10 +101,10 @@ positions = [current.index(marker) for marker in (
     "CHECK-28",
     "UNIFIED CLI / QUICK START v1",
     "securelinux-policy.sh · pretty/raw/json",
-    "systematic FSTEC expansion",
+    "fstec-linux-2022 CHECK COMPLETE",
+    "DONOR_TO_V3_MAPPING",
     "APPLY semantic contract",
     "APPLY implementation",
-    "RESTORE contract + implementation",
     "final distributable artifact",
 )]
 assert positions == sorted(positions)
@@ -123,7 +125,7 @@ assert "Gate 0 PASS" in text
 assert "только byte-generation parity" in text
 assert "docs/PROJECT-MAP-v3.md" in readme
 print(
-    "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=systematic-expansion "
+    "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=donor-to-v3-mapping "
     "src0005_check11_done=1 exact_eq_check17_done=1 src0040_check18_done=1 "
-    "src0033_check19_done=1 kernel_cmdline_check28_done=1 unified_cli_done=1 future_apply_restore=1"
+    "src0033_check19_done=1 kernel_cmdline_check28_done=1 unified_cli_done=1 future_apply=1 restore_out_of_scope=1"
 )

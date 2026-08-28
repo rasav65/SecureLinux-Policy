@@ -61,6 +61,23 @@ for row in contracts:
 legacy={r["test_name"]:r["adoption_status"] for r in rows}
 for name in ("fstec-mapping-regression.sh","wheel-fstec-regression.sh"):
     if legacy.get(name)!="historical-only": fail("LEGACY_NORMATIVE_ISOLATION:"+name)
+forbidden_stages={"future-apply-restore","future-restore","future-sysctl-restore"}
+for row in rows:
+    if row["adoption_status"] in forbidden_stages:
+        fail("STALE_RESTORE_INVENTORY_STAGE:"+row["test_name"])
+for row in contracts:
+    if row["target_stage"] in forbidden_stages:
+        fail("STALE_RESTORE_CONTRACT_STAGE:"+row["contract_id"])
+if legacy.get("manifest-resolution-regression.sh")!="historical-only":
+    fail("RESTORE_MANIFEST_TEST_NOT_HISTORICAL")
+manifest_contract=next(r for r in contracts if r["contract_id"]=="TST-010")
+if manifest_contract["target_stage"]!="historical-only":
+    fail("RESTORE_MANIFEST_CONTRACT_NOT_HISTORICAL")
+contract_by_id={r["contract_id"]:r for r in contracts}
+if contract_by_id["TST-002"]["invariant"].startswith("restore-critical"):
+    fail("STALE_RESTORE_MANIFEST_WRITER_TERMINOLOGY")
+if contract_by_id["TST-019"]["area"]!="package-compensation":
+    fail("STALE_PACKAGE_RESTORE_CONTRACT_AREA")
 if sha(ROOT/"tools/write-sha256.py") != sha(ROOT/"archive/engineering-donor-v16.2.11/snapshot/tools/write-sha256.py"):
     fail("ACTIVE_TOOL_NOT_PINNED_DONOR")
 print("RESULT=ENGINEERING_TEST_DONOR_V1_OK")

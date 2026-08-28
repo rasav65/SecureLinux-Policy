@@ -53,7 +53,9 @@ for name in doc_names:
 # One primary map; donor runtime diagrams are explicitly not primary.
 assert docs_index.count("**PRIMARY**") == 1
 assert "PROJECT-MAP-v3.md" in readme
-assert "donor/future runtime reference" in readme
+assert "donor runtime reference" in readme
+assert "RESTORE-ветви" in readme
+assert "APPLY-only" in readme
 assert "ARCHITECTURE-DIAGRAMS.md" in docs_index
 
 assert "FSTEC core ≠ recommended ≠ corporate standard ≠ firewall" in policy
@@ -178,7 +180,9 @@ assert "SRC-0033 / 2.5.10" in current_map
 assert "CHECK-19" in current_map
 assert "kernel-cmdline exact-token batch" in current_map
 assert "CHECK-28" in current_map
-assert "МЫ ЗДЕСЬ<br/>systematic FSTEC expansion" in current_map
+assert "МЫ ЗДЕСЬ<br/>DONOR_TO_V3_MAPPING" in current_map
+assert "fstec-linux-2022 CHECK COMPLETE" in current_map
+assert "EXTERNAL SNAPSHOT" in current_map
 for stale in (
     "МЫ ЗДЕСЬ<br/>Step 7B",
     'implementation<br/>adapters"]:::future',

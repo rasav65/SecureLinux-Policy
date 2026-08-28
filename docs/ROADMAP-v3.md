@@ -11,8 +11,8 @@ Step 5. Нельзя начинать более поздний этап, пок
 5. Универсальный по индексу генератор блока `source:`
 6. Gate паритета регенерации `source:`
 7. Расширение FSTEC + corporate index / dispositions
-8. Семантический контракт apply/restore
-9. APPLY/RESTORE implementation adapters
+8. Семантический контракт APPLY
+9. APPLY implementation adapters
 10. Детерминированная финальная упаковка
 11. Единый распространяемый артефакт (имя не закреплено)
 
@@ -31,7 +31,9 @@ Step 5. Нельзя начинать более поздний этап, пок
   `source_role=transitive-process` в source-v4, а не прогноз disposition;
 - corporate — самостоятельный policy layer и должен иметь собственную
   популяцию index;
-- семантика apply/restore должна быть определена до implementation adapters;
+- семантика APPLY должна быть определена до implementation adapters;
+- пользовательский режим RESTORE не входит в целевую архитектуру; аварийный откат после завершённого APPLY выполняется внешним snapshot rollback;
+- локальный compensating rollback внутри незавершённой APPLY-транзакции допустим как механизм fail-safe и не является режимом RESTORE;
 - финальный монолит — детерминированный артефакт сборки, а не источник истины;
 - генерируемый результат не должен зависеть от timestamps, абсолютных путей,
   порядка обхода файловой системы или timing `unittest`;
@@ -51,7 +53,7 @@ Step 7A `CLOSED`, а текущий разрешённый подэтап — St
 Это **macro-roadmap status**. Он не означает, что read-only CHECK adapters или
 tracked deterministic CHECK generator ещё не реализованы: current product-line
 уже содержит оба adapters, `ADAPTER-REGISTRY.tsv`, generator и CHECK-8.
-Roadmap steps 8–11 относятся к будущему APPLY/RESTORE и финальной упаковке, а
+Roadmap steps 8–11 относятся к будущему APPLY и финальной упаковке, а
 не к уже существующей CHECK product-line. `SRC-0005 / 2.3.1` и CHECK-11
 закрыты; затем закрыт exact-eq sysctl batch `SRC-0030`, `SRC-0031`,
 `SRC-0036`–`SRC-0039`, `SRC-0040 / 2.6.6` закрыт после точечного
@@ -68,14 +70,37 @@ sysctl adapter v2. Следующий donor-backed read-only kind `kernel-cmdlin
 
 Сохранённый проект SecureLinux-NG v16.2.11 остаётся **инженерным донором**, а
 не нормативным источником. До начала этапа 8
-(`apply/restore semantic contract`) проект ОБЯЗАН завершить и проверить
+(`APPLY semantic contract`) проект ОБЯЗАН завершить и проверить
 `DONOR_TO_V3_MAPPING` с решениями `REUSE | ADAPT | REJECT | DEFER`.
 
 Mapping должен явно учитывать зрелые механизмы донора, перечисленные в
 `docs/DONOR-V3-ADOPTION-POLICY.md`. Сам mapping закрывает 0 строк FSTEC или
 corporate source index. Ни один implementation adapter не может обходить
-контракт apply/restore только потому, что эквивалентный код существовал в
+контракт APPLY только потому, что эквивалентный код существовал в
 доноре.
+
+## Модель отката для будущего APPLY
+
+Проект не реализует пользовательский режим `RESTORE`.
+
+Эксплуатационный контракт будущей mutation-line:
+
+`external snapshot -> CHECK -> APPLY -> CHECK`
+
+Если после успешно завершённого APPLY обнаружена несовместимость со сторонним
+ПО или иная эксплуатационная проблема, восстановление системы выполняется
+внешним snapshot rollback средствами инфраструктуры. SecureLinux-Policy не
+создаёт snapshot, не восстанавливает snapshot и не заявляет собственный
+post-APPLY RESTORE.
+
+При этом APPLY обязан оставаться транзакционно безопасным: до каждой mutation
+проверяются preconditions, а ошибка внутри ещё не завершённой APPLY-транзакции
+не должна молча оставлять частично применённое состояние. Точечный compensating
+rollback текущей незавершённой транзакции допустим там, где exact rollback
+доказуем; это внутренний failure-handling APPLY, а не отдельный RESTORE mode.
+
+Точный способ подтверждения внешнего snapshot precondition будет определён
+семантическим контрактом APPLY. До этого не выдумывать fake snapshot evidence.
 
 ## Закрытие Gate 6
 

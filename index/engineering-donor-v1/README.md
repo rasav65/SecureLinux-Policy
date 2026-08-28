@@ -19,7 +19,8 @@ Contents:
 - `SEMANTIC-CANDIDATES.tsv` — 141 previously extracted parameter candidates.
 - `RAW-EVIDENCE.tsv` — 478 raw evidence rows used to derive those candidates.
 - `ENGINEERING-CONTRACTS.tsv` — 20 reviewed implementation invariants to
-  preserve when v3 eventually gains apply/restore.
+  preserve or explicitly classify when v3 gains APPLY. Donor RESTORE-specific
+  mechanisms are evidence, not a current roadmap commitment.
 - `SOURCE.tsv` — provenance of the donor script, the final architecture review
   and the four donor design documents.
 
@@ -45,13 +46,38 @@ the stored value disagrees with that derivation, so the column cannot drift.
 | `evidence-only` | named as `source_function` in `RAW-EVIDENCE.tsv` only |
 | `pending-review` | not yet reviewed for a v3 invariant |
 
-`pending-review` is a statement about the review, not about the function.
-It does **not** mean that no invariant is needed. Distinguishing the two is the
-whole purpose of the column: before this, an unreviewed function and a function
-deliberately judged uninteresting looked identical.
+`pending-review` в `FUNCTION-INDEX.tsv` — исходная классификация reverse
+index, вычисляемая только из `ENGINEERING-CONTRACTS.tsv`,
+`SEMANTIC-CANDIDATES.tsv` и `RAW-EVIDENCE.tsv`. После появления отдельного
+`DONOR-TO-V3-MAPPING.tsv` она больше не является current-статусом mapping:
+решение по каждой функции хранится только в mapping.
 
-Current distribution: contracted 19, candidate 31, evidence-only 53,
-pending-review 207. Total 310.
+Исходное распределение reverse index остаётся неизменным:
+contracted 18, candidate 31, evidence-only 53, pending-review 208. Всего 310.
+
+## DONOR_TO_V3_MAPPING
+
+`DONOR-TO-V3-MAPPING.tsv` — machine-readable candidate mapping перед roadmap
+step 8. Он:
+
+- покрывает все 310 donor-функций ровно по одному разу;
+- покрывает все 38 donor test files;
+- отдельно фиксирует все 16 mature families, обязательные по
+  `docs/DONOR-V3-ADOPTION-POLICY.md`;
+- использует только решения `REUSE | ADAPT | REJECT | DEFER`;
+- связывает существующие `ENG-*` и `TST-*` contracts, когда они применимы;
+- для каждой строки фиксирует `normative_effect=NONE` и
+  `closes_source_rows=0`.
+
+Статус `BUILT_AWAITING_REVIEW` не разрешает начало
+`APPLY_SEMANTIC_CONTRACT`: сначала mapping должен пройти отдельный review.
+Machine truth mapping дополнительно фиксирует `RESTORE_OPERATIONAL_CONTOUR=EXCLUDED`
+и `POST_APPLY_RECOVERY_MODEL=EXTERNAL_SNAPSHOT`. В `ADAPT` rationale operational
+RESTORE terminology запрещена: допускается только transaction-local compensation
+незавершённого APPLY; donor restore-named identifiers сохраняются лишь как exact
+historical/evidence references или явно ограниченные compensation fragments.
+`password-policy-regression.sh` явно остаётся `DEFER` donor для будущей
+corporate/APPLY-фазы и не переносится в current `fstec-linux-2022 CHECK`.
 
 ## Non-function evidence origins
 
@@ -62,10 +88,11 @@ explicitly in the test rather than silently tolerated.
 
 ## Registered donor documents
 
-`restore-model.md` is the design source for restore semantics and is the natural
-input to roadmap step `APPLY_RESTORE_SEMANTIC_CONTRACT`. It and the other three
-donor documents are now pinned by SHA-256 in `SOURCE.tsv`, so they are evidence
-with provenance rather than files that merely happen to sit in `archive/`.
+`restore-model.md` remains pinned donor evidence. It is no longer a target design
+source for a v3 RESTORE mode. During `DONOR_TO_V3_MAPPING`, its mechanisms must
+be classified as `REJECT` for user-invokable RESTORE or `ADAPT` only where a
+fragment is needed for transaction-local APPLY failure handling. The document
+and the other three donor documents remain pinned by SHA-256 in `SOURCE.tsv`.
 
 `fstec-mapping.md` is registered as `engineering-donor-claimed-mapping-non-normative`:
 it is the donor's own claim about FSTEC coverage and mixes FSTEC clause numbers

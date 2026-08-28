@@ -17,7 +17,8 @@ for marker in (
     "backup_file_checked()",
     "--restore",
     "DONOR_TO_V3_MAPPING",
-    "apply/restore semantic contract",
+    "APPLY semantic contract",
+    "пользовательский RESTORE в v3 не планируется",
 ):
     assert marker in text, marker
 

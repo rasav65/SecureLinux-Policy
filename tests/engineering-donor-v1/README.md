@@ -13,3 +13,15 @@
   donor script and archived `docs/architecture.md`.
 
 The test does not treat any donor item as a FSTEC control.
+
+`test_donor_index.py` дополнительно проверяет candidate `DONOR_TO_V3_MAPPING`:
+
+- 310/310 donor-функций с exact segment SHA;
+- 38/38 donor test files с exact SHA;
+- все 20 `ENG-*` и 32 `TST-*` contracts;
+- все 16 mandatory mature families;
+- только `REUSE | ADAPT | REJECT | DEFER`;
+- `normative_effect=NONE`, `closes_source_rows=0`;
+- `password-policy-regression.sh` остаётся `DEFER` для будущей
+  corporate/APPLY-фазы;
+- status `BUILT_AWAITING_REVIEW` не разрешает roadmap step 8.
