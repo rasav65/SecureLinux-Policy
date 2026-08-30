@@ -1,137 +1,71 @@
-# Важно: это donor runtime reference, а не основная карта v3
+# SecureLinux-Policy v3 — исторический справочник runtime-архитектуры донора
 
-Основная карта текущего SecureLinux-Policy v3:
+Основная карта текущего состояния проекта:
 [`PROJECT-MAP-v3.md`](PROJECT-MAP-v3.md).
 
-Схемы ниже сохранены как полезная целевая runtime-модель из старого
-SecureLinux-NG. Они не описывают текущую структуру v3 целиком и не являются
-источником статуса проекта.
+Этот документ — **historical donor runtime reference**. Он не является current
+project map, не является future target model и не является источником статуса
+реализации v3. Его задача — сохранить проверяемую инженерную историю донора и
+показать границу между historical mechanics и принятыми решениями v3.
 
----
+Исторический donor `SecureLinux-NG` содержал полноценный standalone operational-контур
+RESTORE: отдельный CLI `--restore`, `run_restore_mode()`, выбор manifest/backups,
+модульное восстановление и специализированные regression-тесты. Это был реально
+реализованный механизм донора, а не stub. В v3 этот operational-контур целиком не
+переносится: он сохраняется как historical donor evidence в `archive/**` и
+`DONOR_TO_V3_MAPPING`; отдельные доказанные primitives могут использоваться только
+через `ADAPT` для transaction-local compensation внутри failed/uncommitted APPLY.
 
-# SecureLinux-Policy v3 — визуальная архитектура
+Принятые границы v3:
 
-> **Статус:** целевая runtime-архитектура, сохранённая из инженерного донора
-> SecureLinux-NG. Она сохранена как donor evidence и **не закрепляет RESTORE как цель v3**.
->
-> Эти схемы не утверждают, что все показанные runtime-механизмы уже реализованы
-> в v3. Их перенос идёт через `DONOR_TO_V3_MAPPING`. Будущий v3 runtime имеет
-> только APPLY semantic contract; показанные ниже RESTORE-ветви являются
-> историческими donor-механизмами и не входят в целевую архитектуру.
->
-> GitHub отрисовывает блоки `mermaid` ниже как диаграммы.
+- `RESTORE_OPERATIONAL_CONTOUR=EXCLUDED`;
+- `POST_APPLY_RECOVERY_MODEL=EXTERNAL_SNAPSHOT`;
+- `TRANSACTION_LOCAL_COMPENSATION=FAILED_UNCOMMITTED_APPLY_ONLY`;
+- `--report` — human-readable CHECK report с runtime route
+  `slp_run_check pretty 1 REPORT`;
+- metadata/provenance обслуживаются `--build-info` и `--provenance`, а не REPORT.
 
-## 1. CLI и основные режимы
-
-```mermaid
-flowchart TB
-    CLI["Аргументы CLI"] --> PARSE["parse_args()"]
-    PARSE --> EARLY{"--help или --version?"}
-
-    EARLY -- "да" --> EXIT["Вывод результата<br/>exit 0"]
-    EARLY -- "нет" --> COMMON["require_cmds()<br/>validate_args()<br/>load_config()<br/>validate_args_post_config()<br/>validate_execution_context()<br/>finalize_paths()"]
-
-    COMMON --> MODE{"MODE"}
-
-    MODE --> CHECK["run_check_mode()"]
-    CHECK --> CHECK_PRE["run_preflight()"]
-    CHECK_PRE --> CHECK_MODULES["Проверка основных<br/>и включённых дополнительных модулей"]
-    CHECK_MODULES --> CHECK_OUT["check-report<br/>JSON report<br/>stdout summary"]
-
-    MODE --> APPLY["run_apply_mode()"]
-    APPLY --> APPLY_PRE["run_preflight()<br/>check_memory_requirements()"]
-    APPLY_PRE --> APPLY_STATE["ensure_state_dir()<br/>acquire_run_lock()<br/>manifest_init()"]
-    APPLY_STATE --> APPLY_MODULES["Применение основных<br/>и включённых дополнительных модулей"]
-    APPLY_MODULES --> APPLY_OUT["Manifest<br/>JSON report<br/>stdout summary"]
-
-    MODE --> RESTORE["run_restore_mode()"]
-    RESTORE --> RESTORE_PRE["run_preflight()<br/>resolve_restore_manifest()"]
-    RESTORE_PRE --> RESTORE_STATE["ensure_state_dir()<br/>acquire_run_lock()<br/>чтение параметров manifest"]
-    RESTORE_STATE --> RESTORE_MODULES["Откат модулей<br/>по данным manifest"]
-    RESTORE_MODULES --> RESTORE_OUT["JSON report<br/>stdout summary"]
-
-    MODE --> REPORT["run_report_mode()"]
-    REPORT --> REPORT_PRE["run_preflight()<br/>ensure_state_dir()"]
-    REPORT_PRE --> REPORT_OUT["Статическое покрытие политики<br/>JSON report<br/>stdout summary"]
-```
-
-## 2. Модули, дополнительные меры и restore
+## 1. Исторический runtime-контур SecureLinux-NG
 
 ```mermaid
 flowchart TB
-    CHECK_APPLY["Режимы check и apply"] --> CORE["Основной набор модулей<br/>(вызывается всегда)"]
-    CHECK_APPLY --> FLAG{"ENABLE_ADDITIONAL_MEASURES = 1?"}
+    HIST["HISTORICAL DONOR ONLY — SecureLinux-NG v16.2.11"] --> CLI["CLI"]
+    CLI --> CHECK["historical CHECK"]
+    CLI --> APPLY["historical APPLY"]
+    CLI --> RESTORE["historical RESTORE — --restore / run_restore_mode()"]
+    CLI --> REPORT["historical REPORT"]
 
-    FLAG -- "да" --> EXTRA["Дополнительные семейства модулей"]
-    FLAG -- "нет" --> EXTRA_SKIP["Дополнительные модули пропускаются"]
-
-    CORE --> ACCESS["Учётные записи и доступ<br/>пустые пароли · SSH root login · pam_wheel · sudo"]
-    CORE --> CORP_FLAG{"ENABLE_CORPORATE_PASSWORD_POLICY = 1?"}
-    CORP_FLAG -- "да" --> CORP["Корпоративная парольная политика<br/>password policy · password aging<br/>faillock только для strict/paranoid"]
-    CORP_FLAG -- "нет" --> CORP_SKIP["Корпоративная парольная политика пропускается"]
-    CORE --> FILES["Файлы и пути<br/>критические файлы · runtime-пути · домашние каталоги<br/>sudo/cron PATH · пользовательский cron · системные пути<br/>SUID/SGID · cron targets · systemd units"]
-    CORE --> KERNEL["Ядро и загрузка<br/>kernel sysctl · параметры GRUB<br/>kernel-hardening sysctl · userspace-protection sysctl<br/>kernel.modules_disabled"]
-
-    EXTRA --> SERVICES["Службы и аудит<br/>SSH hardening · account audit · auditd<br/>rsyslog · chrony · unattended-upgrades"]
-    EXTRA --> PROTECTION["Средства защиты<br/>AppArmor · AIDE · Fail2ban · rkhunter"]
-    EXTRA --> PLATFORM["Платформа и сеть<br/>blacklist kernel modules · mount hardening · /tmp tmpfs<br/>firewall · Apport · coredump · network sysctl"]
-
-    RESTORE["Режим restore"] --> CORE_RESTORE["Откат обязательных модулей<br/>по данным manifest"]
-    RESTORE --> MANIFEST_FLAG{"manifest:<br/>additional_measures_enabled"}
-    MANIFEST_FLAG -- "true" --> EXTRA_RESTORE["Откат дополнительных модулей"]
-    MANIFEST_FLAG -- "false" --> EXTRA_RESTORE_SKIP["Дополнительные модули не откатываются,<br/>если не применялись"]
-
-    REPORT["Режим report"] --> STATIC["Статическое покрытие политики<br/>модули не проверяются и не применяются"]
+    APPLY --> MANIFEST["manifest / pre-state / backups"]
+    MANIFEST --> RESTORE
+    RESTORE --> MODULES["historical modular restore"]
 ```
 
-## 3. Apply → manifest → restore
+Эта схема описывает только фактически существовавший donor runtime. Она не
+предлагает RESTORE как current или future contour v3.
+
+## 2. Historical donor → `DONOR_TO_V3_MAPPING`
 
 ```mermaid
-flowchart TB
-    APPLY["--apply"] --> INIT["manifest_init()"]
-
-    INIT --> PRESTATE["Фиксация исходного состояния"]
-    PRESTATE --> FILE_BACKUP["Файлы<br/>backup_file_checked()"]
-    PRESTATE --> SNAPSHOTS["Metadata и runtime snapshots<br/>права · sysctl · password aging"]
-    PRESTATE --> PACKAGES["Список пакетов<br/>до установки"]
-
-    FILE_BACKUP --> BACKUP_OK{"Backup успешен?"}
-    BACKUP_OK -- "нет" --> SKIP["Изменение объекта пропускается<br/>warning записывается в manifest"]
-    BACKUP_OK -- "да" --> CHANGE["Применение изменения"]
-    SNAPSHOTS --> CHANGE
-    PACKAGES --> CHANGE
-
-    CHANGE --> RECORD["Атомарное обновление manifest"]
-    RECORD --> MANIFEST["backups · created_files · created_groups<br/>modified_files · added_group_memberships<br/>password_aging_snapshots · installed_packages<br/>apply_report · warnings · irreversible_changes"]
-
-    RESTORE["--restore"] --> RESOLVE["Выбор manifest<br/>--manifest FILE<br/>последний manifest-*.json<br/>manifest.json"]
-    RESOLVE --> READ["Чтение profile<br/>additional_measures_enabled<br/>и записей исходного состояния"]
-    READ --> MODULES["Модульный restore"]
-
-    MANIFEST --> MODULES
-
-    MODULES --> FILES["Восстановление файлов<br/>из backup"]
-    MODULES --> CREATED["Удаление объектов,<br/>созданных текущим apply"]
-    MODULES --> METADATA["Восстановление владельцев,<br/>групп и режимов доступа"]
-    MODULES --> RUNTIME["Адресный runtime restore<br/>sysctl и password aging"]
-    MODULES --> PACKAGE_DIFF["Purge только новых пакетов,<br/>установленных текущим apply"]
-    MODULES --> LIMITS["Partial · manual · reboot<br/>для несимметричных изменений"]
-
-    FILES --> REPORT["Restore report и stdout summary"]
-    CREATED --> REPORT
-    METADATA --> REPORT
-    RUNTIME --> REPORT
-    PACKAGE_DIFF --> REPORT
-    LIMITS --> REPORT
+flowchart LR
+    DONOR["SecureLinux-NG v16.2.11 — historical donor"] --> MAP["DONOR_TO_V3_MAPPING"]
+    MAP --> REJECT["REJECT — standalone / user-invokable operational recovery"]
+    MAP --> ADAPT["ADAPT — только пригодные primitives для transaction-local compensation"]
+    MAP --> DEFER["DEFER — вне текущего decision point"]
 ```
 
-## Текущее место в проекте
+Для RESTORE-related subset mapping механически проверяет 68 function rows:
+`REJECT 45 / ADAPT 16 / DEFER 7`; `run_restore_mode` относится к `REJECT`.
+Эти числа относятся к принятому immutable mapping checkpoint и проверяются
+напрямую по `DONOR-TO-V3-MAPPING.tsv`, а не используются как live project counts.
 
-Эти donor runtime diagrams не являются источником текущего статуса.
-Актуальная primary-карта — [`PROJECT-MAP-v3.md`](PROJECT-MAP-v3.md), а
-машинный macro-roadmap — `ROADMAP-v3.tsv`.
+## Граница с v3
 
-До открытия `APPLY semantic contract` показанные APPLY-ветви остаются donor/future
-reference. Показанные RESTORE-ветви — только историческая donor reference:
-пользовательский RESTORE в v3 не планируется, post-APPLY recovery выполняется
-внешним snapshot rollback.
+В v3 standalone/user-invokable/post-APPLY operational RESTORE исключён. После
+успешного APPLY SecureLinux-Policy не выполняет встроенное восстановление среды:
+если требуется вернуть окружение к прежнему состоянию, используется внешний
+snapshot/backup-механизм вне продукта. Внутренняя компенсация допустима только
+для `FAILED_UNCOMMITTED_APPLY` и только в пределах mutation текущей попытки.
+
+Текущий substantive checkpoint, порядок будущих стадий и статус реализации
+определяются только [`PROJECT-MAP-v3.md`](PROJECT-MAP-v3.md) и
+`ROADMAP-v3.tsv`; этот historical reference их не дублирует и не заменяет.

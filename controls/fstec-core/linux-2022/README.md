@@ -1,11 +1,11 @@
-# FSTEC-LINUX-2022 canonical controls
+# FSTEC-LINUX-2022 — канонические controls
 
-Machine truth состава этого каталога — `CONTROL-MANIFEST.tsv`; README не пинует
-ручное число controls.
+Машинный источник истины состава этого каталога — `CONTROL-MANIFEST.tsv`; README не закрепляет
+вручную число controls.
 
-Каждый canonical control относится к `fstec-core`, содержит source anchor и
-имеет `apply.supported=false`. Наличие control само по себе не закрывает source
-row: completeness задаётся `index/source-v4/CLOSURE-CONTRACT.tsv`.
+Каждый канонический control относится к `fstec-core`, содержит якорь source и
+имеет `apply.supported=false`. Наличие control само по себе не закрывает строку source:
+полнота задаётся `index/source-v4/CLOSURE-CONTRACT.tsv`.
 
-Текущую human-readable карту покрытия и CHECK adapter support формирует
+Текущую человекочитаемую карту покрытия и поддержки адаптеров CHECK формирует
 `docs/fstec-coverage.md` через `tools/render-current-docs.py`.

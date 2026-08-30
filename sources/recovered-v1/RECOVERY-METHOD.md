@@ -1,29 +1,33 @@
-# Glyph-ID text recovery v1
+# Восстановление текста по Glyph-ID v1
 
-Purpose: recover a machine-searchable readable text representation for the two
-pinned PDFs whose native ToUnicode/text layer is broken.
+Назначение: получить пригодное для машинного поиска читаемое текстовое
+представление для двух закреплённых PDF, у которых повреждён встроенный слой
+`ToUnicode`/text.
 
-This is NOT OCR.
+Это **НЕ OCR**.
 
-Algorithm:
-1. Read glyph IDs and character origins with PyMuPDF `get_texttrace()`.
-2. Build a glyph-ID -> Unicode reference map from the other eight readable
-   pinned FSTEC PDFs.
-3. Only accept a cross-document mapping when the same `(font family, glyph ID)`
-   has one unambiguous Unicode character in the readable reference corpus.
-4. Preserve ordinary low-GID Unicode supplied by the PDF toolchain.
-5. Apply only three classes of explicit exceptions:
-   - Times New Roman GID 178 -> em dash, visually verified in pinned
-     `fstec-linux-2022.pdf`, page 2;
-   - the six Calibri glyphs in the visually verified heading `Таблица 3`,
-     pinned `fstec-vulnerability-analysis-2025.pdf`, page 21;
-   - low-GID guillemets/en-dash are accepted only when the readable reference
-     corpus confirms them unambiguously.
-6. Reconstruct line order using `rawdict(sort=True)` and exact character-origin
-   matching against `get_texttrace()`.
-7. Require zero missing/colliding origin matches, zero U+FFFD, zero unresolved
-   high glyphs, and deterministic double recovery.
-8. Verify every previously blocked source-index locator exactly once.
-9. Normalize recovered raw text with the exact archived `norm-v1` implementation.
+Алгоритм:
+1. Прочитать glyph ID и координаты символов через PyMuPDF `get_texttrace()`.
+2. Построить эталонную карту glyph-ID -> Unicode по остальным восьми читаемым
+   закреплённым PDF ФСТЭК.
+3. Принимать междокументное сопоставление только тогда, когда один и тот же
+   `(font family, glyph ID)` имеет ровно один однозначный символ Unicode в
+   читаемом эталонном корпусе.
+4. Сохранять обычный low-GID Unicode, предоставленный PDF toolchain.
+5. Применять только три класса явных исключений:
+   - Times New Roman GID 178 -> длинное тире, визуально проверено в закреплённом
+     `fstec-linux-2022.pdf`, страница 2;
+   - шесть глифов Calibri в визуально проверенном заголовке `Таблица 3`,
+     закреплённый `fstec-vulnerability-analysis-2025.pdf`, страница 21;
+   - low-GID кавычки-ёлочки и короткое тире принимаются только тогда, когда
+     читаемый эталонный корпус подтверждает их однозначно.
+6. Восстановить порядок строк через `rawdict(sort=True)` и точное сопоставление
+   координат символов относительно `get_texttrace()`.
+7. Требовать нулевое число пропущенных или конфликтующих совпадений координат,
+   нулевое число U+FFFD и неразрешённых high-GID глифов, а также
+   детерминированное повторное восстановление.
+8. Проверить каждый ранее заблокированный locator source-index ровно один раз.
+9. Нормализовать восстановленный исходный текст с помощью точной архивной
+   реализации `norm-v1`.
 
-The original PDFs, Step-2 extraction and source-v1 index remain immutable.
+Исходные PDF, этап извлечения Step 2 и индекс source-v1 остаются неизменяемыми.

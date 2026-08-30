@@ -4,32 +4,45 @@
 каждая запись обязана указывать, сколько строк source index она закрыла, и не
 приписывать себе продвижение, которого не было.
 
-Раздел `[Unreleased]` содержит проверяемые изменения, уже выполненные в
+Раздел `[Не выпущено]` содержит проверяемые изменения, уже выполненные в
 рабочем дереве, но ещё не включённые в датированную версию. Незавершённые планы
 не записываются как свершившиеся факты.
 
-## [Unreleased]
+## [Не выпущено]
+- По current semantic audit пять controls с локальным authority-product-mechanism переведены на `requirement.derived=true` с явным `justification`; `2.3.10` уже был классифицирован так. Gate 3 теперь fail-closed требует эту provenance-классификацию для authority-backed resolver semantics. Source quotes, closure identities и runtime adapter logic не усилены; unified CHECK меняет только provenance/control-manifest binding. Закрыто source rows: 0.
+- По полному self-re-audit tree `6f4e3e19…` current Markdown population расширена до Git-visible tracked + non-ignored untracked candidate paths, чтобы новый документ до commit не обходил review-bound semantic gate. Три current `PROGRESS.txt` (`source-v4`, `engineering-donor-v1`, `engineering-tests-v1`) переведены на exact fail-closed key-set/value parity с запретом duplicate/malformed/extra/stale machine truth. Historical PROGRESS не переписывались; source/control/mapping/CHECK authorities не изменены; закрыто 0 source rows.
+- По полному self-re-audit после tree `1fcb1b4…` natural-language contradiction guards переведены в fail-closed двухслойную модель: существующие semantic detectors сохранены, а exact bytes всей current Markdown population дополнительно закреплены review-bound baseline, который не обновляется generic root-manifest rebuild. Любая новая current prose требует отдельного semantic re-review; это закрывает неизвестные synonym/rephrase false-PASS без выдачи byte-baseline за semantic proof. Source/control/mapping/CHECK authorities не изменены; закрыто 0 source rows.
+- По собственному полному re-audit candidate `09ea7b13…` закрыты два новых blocker-класса: contradiction-aware documentation guard расширен на весь current Markdown и новые естественные перефразирования current counts/roadmap/RESTORE/determinism/future-name claims; source-skeleton documentation больше не пинит исторические `72 exact / 2 refused` и `SRC-0001` как refused. `SRC-0001` отражён как exact pinned page-furniture exception, а supported/exact/refused population и свежесть `TEST-RESULTS.txt` теперь проверяются машинно current regression-тестом. Source/control/mapping/CHECK authorities не изменены; закрыто 0 source rows.
+- По последнему полному независимому re-audit усилены contradiction-aware documentation guards ещё для семи естественных перефразирований: повторной активации Step 7B, отмены APPLY-adapters через «не предусмотрена», встроенного возврата исходной конфигурации после успешного APPLY, обесценивания donor RESTORE как прототипа, отрицания детерминизма через «не гарантирует одинаковый результат», произвольного имени будущего executable и того же post-APPLY recovery в Mermaid. Current project claims и machine/runtime authorities не менялись.
+- По отдельному независимому Claude-review устранена неоднозначность historical Step 7B.0: `step7b0/ARTIFACT-STATUS-RU.md` теперь явно `HISTORICAL_REFERENCE_ONLY`, `CURRENT_PROJECT_AUTHORITY=false`; внутренние `ACTIVE`/«текущий»/«следующий шаг» квалифицированы как historical snapshots и больше не могут конкурировать с `docs/ROADMAP-v3.tsv`/current machine authority. Исправлена ложная ссылка на `.git/info/exclude`; historical Build Contract/freeze bytes не переписывались.
+- После стороннего полного независимого аудита усилены fail-closed documentation guards для inline-code live counts, любого будущего `.sh` distributable-name pin, post-APPLY «возврата состояния» и отмены будущего этапа APPLY-adapters. Восемь невоспроизводимых B1.1b stage-sidecar сохранены byte-exact и явно классифицированы как historical records с машинной проверкой 40 несовпадений; frozen engineering-review README не изменён, а пять старых относительных ссылок разрешены через три явно маркированных companion-файла, не выдаваемых за original archive bytes. Source/mapping/CHECK semantics не изменены.
+- Дочищена русская presentation-prose после независимого review: исправлены остаточная грамматика disposition ledger, формулировки Gate 6, recovery method и RELEASE README, а также терминология элемента 9 в историческом status/changelog; технические identifiers и machine semantics не изменены.
+- После повторной независимой проверки исправлена визуальная семантика `PROJECT-MAP-v3.md`: принятый `DONOR_TO_V3_MAPPING` не только помечен `:::closed`, но и получает определение класса `closed` в том же Mermaid-блоке; также исправлена грамматика списка детерминизма в donor policy. Mapping/runtime semantics не изменены.
+- Исправлен consolidated documentation parity review: machine roadmap теперь однозначно ставит `APPLY_SEMANTIC_CONTRACT=NEXT`, а Step 7B — `PAUSED_BY_CURRENT_DOCUMENT_APPLY`; устранены stale current-status claims, mapping в PROJECT-MAP помечен как `ACCEPTED + COMMITTED`, исправлена семантика `--report`, восстановлены ослабленные semantic guards документационных tests, исправлены доказанные ошибки перевода/грамматики. Mapping TSV и generated CHECK semantics не изменены.
+- Актуализирован current status после принятого и опубликованного `DONOR_TO_V3_MAPPING`: mapping отмечен `ACCEPTED + COMMITTED` на commit `1db91b0…`, а следующим substantive этапом показан отдельный `APPLY semantic contract`; accepted CHECK semantics не менялись.
+- После независимого documentation parity re-audit v3 исправлены три подтверждённых blocker-класса: удалены ручные live-count copies из root README/roadmap, `docs/ARCHITECTURE-DIAGRAMS.md` возвращён к роли historical donor runtime reference и явно не является future target model, а semantic guards усилены против rephrase false-PASS для недетерминированного distributable, обесценивания зрелого donor RESTORE и встроенного post-APPLY recovery. Operational RESTORE в v3 остаётся исключённым; post-APPLY recovery — `EXTERNAL_SNAPSHOT`.
+- Русифицирована текущая редактируемая документация, которая оставалась полностью или преимущественно англоязычной: donor policy/index/test docs, Gate 6, gates-v2, release-v1, source-v4 scope и glyph-recovery method. Technical identifiers/tokens и 16 exact `donor_label` сохранены без перевода. Добавлен documentation regression, запрещающий полностью англоязычный current Markdown вне явно historical/frozen классов; normative semantics, mapping decisions и source-row closure не изменены.
 - Исправлена function-level provenance donor-тестов для 10 доказанных FUNCTION-строк: `profile_allows` теперь ссылается только на профильный `TST-022`; добавлены byte-backed `TST-020` для `add_restore_irreversible`, `TST-027` для четырёх runtime-path APPLY-функций и `TST-022` для четырёх profile-aware additional-measures функций. `TST-028` у file-permission функций сохранён; historical-only `TST-010/TST-032` не добавлялись. Добавлен fail-closed regression на этот exact доказанный provenance-set без недоказанного универсального правила по упоминанию имени функции. Решения mapping, capability-граф и закрытие source rows не изменены.
 - Исправлена stale capability-метка `CAP-12` у активной `MAP-FUNC-0016 profile_allows`: функция остаётся связана только с `CAP-14`, где её profile/policy gating действительно используется. Добавлен общий fail-closed regression: для каждой non-REJECT FUNCTION capability-метки обязан существовать current `MATURE_FAMILY -> FUNCTION` forward-edge; REJECT/historical function-side метки разрешены как исторические. Решения mapping и закрытие source rows не изменены.
 - Исправлена полнота capability cross-reference: каждый текущий `MATURE_FAMILY donor_ref` теперь отражён в `mandatory_capability_refs` соответствующей FUNCTION-строки; добавлен общий fail-closed regression для направления `MAP-CAP -> MAP-FUNC`. Исторические function-side capability-метки не удаляются. Решения mapping и закрытие source rows не изменены.
 - Исправлены три blocker’а независимого mapping re-audit: `PROGRESS.txt` синхронизирован с derived function index (`contracted=18`, `pending-review=208`); `MAP-CAP-12` теперь ссылается на donor-функции с фактической обработкой `DRY_RUN`; `MAP-FUNC-0269 restore_manifest_has_report_text` остаётся `REJECT`, потому что проверяет free-text `apply_report`, а не recorded pre-state, пригодный для transaction-local compensation. Решения остаются `REUSE=1`, `ADAPT=178`, `REJECT=91`, `DEFER=94`; закрытие source rows остаётся `0`.
-- Fresh independent mapping review correction: source-faithful families now map `acquire_run_lock` to `apply-foundation/run-lock` and `profile_allows` to `apply-foundation/policy-layer-gating`; active/deferred mature families no longer cite rejected `run_apply_mode` or `restore_sysctl_network_module`; `ENG-015` evidence is rebound to accepted `manifest_init`. Added general regressions forbidding non-historical contracts and active/deferred mature families from depending on rejected function mappings. Mapping decisions/counts and source-row closure are unchanged.
-- Corrected donor mapping test provenance so active REUSE/ADAPT rows cannot reference historical-only donor test contracts; MAP-FUNC-0110..0113 no longer cite TST-010 manifest-resolution evidence.
-- Post-review semantic cleanup removes residual operational RESTORE wording from accepted `ADAPT` rationale: `run_mode_step` no longer preserves restore sequencing; file/sysctl/service/group/cron/package mechanics are described only as failed-uncommitted APPLY compensation. `ENG-012` is `historical-only`; active `TST-002/TST-019` terminology is transaction/package compensation. Mapping decisions/counts and source-row closure remain unchanged.
+- Исправление по fresh independent mapping review: source-faithful families теперь связывают `acquire_run_lock` с `apply-foundation/run-lock`, а `profile_allows` — с `apply-foundation/policy-layer-gating`; active/deferred mature families больше не ссылаются на rejected `run_apply_mode` или `restore_sysctl_network_module`; evidence `ENG-015` перепривязан к принятому `manifest_init`. Добавлены общие regressions, запрещающие non-historical contracts и active/deferred mature families зависеть от rejected function mappings. Решения/counts mapping и закрытие source rows не изменены.
+- Исправлена provenance donor mapping tests: active `REUSE/ADAPT` rows больше не могут ссылаться на historical-only donor test contracts; `MAP-FUNC-0110..0113` больше не цитируют evidence `TST-010` для manifest resolution.
+- Post-review semantic cleanup удалил остаточную operational RESTORE wording из принятого rationale `ADAPT`: `run_mode_step` больше не сохраняет restore sequencing; file/sysctl/service/group/cron/package mechanics описываются только как failed-uncommitted APPLY compensation. `ENG-012` имеет статус `historical-only`; active terminology `TST-002/TST-019` — transaction/package compensation. Решения/counts mapping и закрытие source rows не изменены.
 - `DONOR_TO_V3_MAPPING` построен как отдельный machine-readable candidate перед roadmap step 8: покрыты 310/310 donor-функций, 38/38 donor test files и все 16 mandatory mature families; решения ограничены `REUSE | ADAPT | REJECT | DEFER`, normative effect=`NONE`, source rows closed=`0`. После APPLY-only correction решения: `REUSE=1`, `ADAPT=178`, `REJECT=91`, `DEFER=94`; статус `BUILT_AWAITING_REVIEW`; APPLY semantic contract ещё не разрешён, `RESTORE_OPERATIONAL_CONTOUR=EXCLUDED`. `password-policy-regression.sh` сохранён как `DEFER` donor для будущей corporate/APPLY-фазы.
 - Архитектурное решение: будущая mutation-line становится APPLY-only. Пользовательский RESTORE исключён из roadmap; post-APPLY recovery закреплён за внешним snapshot rollback. Внутренний exact compensating rollback незавершённой APPLY-транзакции остаётся допустимым failure-handling, но не отдельным режимом RESTORE. Принятый `fstec-linux-2022` CHECK и tag `fstec-linux-2022-check-complete-v1` не изменяются.
 - Исправлен DEV runner contract после SRC-0005 root-run correction: `tests/run-all.py` больше не ожидает два внутренних skip для `test_file_mode_owner_adapter.py` при EUID=0; self-test отдельно фиксирует ожидаемые `0` skip для этого теста даже при смоделированном root-run.
-- Final all-40 robustness re-audit blockers: `SRC-0005` ordinary-user parent-traversal regressions no longer use root-only skips and execute via an unprivileged child when the suite runs as root; `SRC-0014` explicit common-shell discovery now includes standard Xonsh `~/.xonshrc` and a regression that proves mode `0644` is detected as a violation.
+- Финальные blocker’ы all-40 robustness re-audit: regressions `SRC-0005` для parent traversal обычного пользователя больше не используют root-only skips и выполняются через непривилегированный child при запуске suite от root; explicit common-shell discovery для `SRC-0014` теперь включает стандартный Xonsh `~/.xonshrc` и regression, доказывающий обнаружение mode `0644` как нарушения.
 - SRC-0014 robustness correction: explicit common-shell classifier теперь дополнительно покрывает Bash `.bash_login`, Linux-default Nushell config/autoload/history, Xonsh rc/history и Elvish rc/history; broad `*rc/*env` по-прежнему запрещён, custom/XDG override paths остаются через local inventory.
-- Test assurance: SRC-0006 FIFO snapshot-drift fixtures use a 20-second synchronization timeout instead of 5 seconds; this removes scheduler-load false negatives without changing adapter or compliance semantics.
-- SRC-0008 adversarial expansion: command `NOTBEFORE/NOTAFTER`, `Defaults runas_default`, and explicit `case_insensitive_user` overrides now fail closed instead of being over-approximated; default case-insensitive `ROOT` identity is preserved.
-- SRC-0008: all-40 adversarial review additionally found `Defaults runas_default` could make an implicit Runas_Spec non-root while the checker assumed root; current v1 now fails closed with `ERROR` and has a dedicated regression.
+- Надёжность tests: fixtures FIFO snapshot-drift для SRC-0006 используют 20-секундный timeout синхронизации вместо 5 секунд; это устраняет false negatives при нагрузке scheduler без изменения семантики adapter или compliance.
+- Расширение robustness для SRC-0008: command `NOTBEFORE/NOTAFTER`, `Defaults runas_default` и явные overrides `case_insensitive_user` теперь работают fail-closed вместо over-approximation; default case-insensitive identity `ROOT` сохраняется.
+- SRC-0008: all-40 robustness review дополнительно обнаружил, что `Defaults runas_default` может сделать неявный Runas_Spec non-root, тогда как checker предполагал root; current v1 теперь работает fail-closed с `ERROR` и имеет отдельный regression.
 
-### Исправлено — consolidated 40-row retrospective findings
+### Исправлено — сводные ретроспективные findings по 40 строкам
 
-- Fresh all-40 adversarial review: `SRC-0006` parent-directory check no longer equates every group/other write bit with proven unprivileged write access. Definite non-root-owner/other `wx` remains `FAIL`; group-class `wx` without principal/ACL proof is fail-closed `ERROR`; write without search is not misreported as effective directory write.
+- Fresh all-40 robustness review: проверка parent-directory для `SRC-0006` больше не приравнивает каждый group/other write bit к доказанному непривилегированному write access. Однозначный non-root-owner/other `wx` остаётся `FAIL`; group-class `wx` без доказательства principal/ACL даёт fail-closed `ERROR`; write без search не выдаётся ошибочно за эффективную запись в каталог.
 
-- Fresh all-40 adversarial review: `SRC-0011` canonical population narrowed to `/var/spool/cron/crontabs`; direct unrelated objects in parent `/var/spool/cron` no longer produce false `FAIL`. Regression explicitly pins the parent-spool nonpopulation boundary.
+- Fresh all-40 robustness review: каноническая population `SRC-0011` сужена до `/var/spool/cron/crontabs`; прямые посторонние объекты в родительском `/var/spool/cron` больше не создают ложный `FAIL`. Regression явно фиксирует границу nonpopulation родительского spool.
 
 - Исправлены подтверждённые source-faithfulness defects `SRC-0003`, `SRC-0008`, `SRC-0011`, `SRC-0012` и `SRC-0014`: PAM `-auth` short-circuit учитывается fail-closed; group password field больше не фиксируется в literal `x`; inline page token `4` удаляется только через exact pinned source boundary; user-cron v2 не рекурсирует в `atd` subtrees; exec population SRC-0012 исключает non-executable regular data; SRC-0014 использует explicit shell-artifact discovery без broad `*rc/*env` и включает Nushell config paths.
 
@@ -41,7 +54,7 @@
 - Последующим отдельным decision point `SRC-0034 / 2.5.11` снова закрыт, но уже source-faithful exact двухконтрольным набором: `sysctl kernel.randomize_va_space=2` + новый read-only kind `tested-setting-attestation`, который требует explicit local `TESTED-BEFORE-USE` для exact setting. Authority path/format — product mechanism представления procedural fact, а не придуманная методика тестирования ФСТЭК; missing/malformed authority даёт `ERROR`, explicit `NOT-TESTED-BEFORE-USE`/wrong setting — `FAIL`.
 - Текущее machine state после SRC-0034 decision point: `349` source rows; `40 CLOSED / 309 OPEN`; `51` canonical controls; `18` adapter kinds. `fstec-linux-2022` machine-closed `40/40`, но document-level CHECK acceptance/milestone всё ещё запрещены до свежего независимого adversarial re-audit всех 40 source rows.
 
-## Retrospective correction — fstec-linux-2022 CHECK closure
+## Ретроспективное исправление — закрытие CHECK для fstec-linux-2022
 
 - Исправлены независимо воспроизведённые blockers SRC-0001/0003/0005/0012/0013/0014/0015 без изменения source quotes и числа CLOSED rows. Для затронутых parameter kinds введены v2 adapter/semantic-contract identities; v1 bytes сохранены как предыдущие identities.
 - SRC-0001 теперь отвергает NUL/CR до line parsing; SRC-0003 сохраняет literal `wheel:x:10:` и fail-closed prior PAM include/success-short-circuit semantics; `file-mode-owner` требует regular final object.
@@ -50,7 +63,7 @@
 - SRC-0013 больше не исключает `nosuid`; SRC-0014/0015 больше не исключают service/system local accounts; SRC-0014 дополняет mandatory inventory dynamic shell-history/config discovery, включая unlisted `.zsh_history`.
 - Добавлены negative-control regressions для каждого reproduced failure mode. APPLY/RESTORE не добавлялись; на этом промежуточном этапе machine state был `40/40` candidate до последующего независимого retrospective audit.
 
-## SRC-0009 / 2.3.5 — read-only startup files write protection
+## SRC-0009 / 2.3.5 — read-only защита startup-файлов от записи
 
 - Добавлен source-exact CHECK `startup-files-write-protection`: direct `/etc/rc0.d`…`/etc/rc6.d` file-like entries и direct `*.service` из `systemd-analyze unit-paths` проверяются только на `bits-clear 0002`.
 - Merged-`/usr` unit-root aliases и regular targets дедуплицируются; masked `.service -> /dev/null` не превращает `/dev/null` в compliance target; recursive `.wants/.requires` references не входят в unit-file population. Dangling/special/discovery/snapshot ambiguity => `ERROR`.
@@ -153,7 +166,7 @@
 - Семь ранее собранных privileged read-only VM evidence имеют integrity `7/7`: во всех active pam_wheel=0 и local wheel=0 при установленном module; это definitive baseline `FAIL`, но не расширение product target.
 - После шага: `349 / 35 controlled CLOSED / 314 OPEN`; canonical controls `45`; adapters `12`. Formal Gate5 probe-results, APPLY и RESTORE не создаются.
 
-### Added — SRC-0002 / 2.1.2 SSH root-login CHECK
+### Добавлено — SRC-0002 / 2.1.2 read-only CHECK root-login SSH
 
 - `SRC-0002` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN`.
 - Source-exact `PermitRootLogin no` закреплён именно за main `/etc/ssh/sshd_config`; managed drop-in без main directive source row не закрывает.
@@ -178,7 +191,7 @@
 - В `controls/fstec-core/linux-2022/SHA256SUMS` восстановлены пять ранее потерянных действующих YAML; project-integrity теперь проверяет полноту этого local manifest в обе стороны.
 - Добавлены negative fixtures для reverse Include-glob order, `=`-форм и malformed `PermitRootLogin`.
 
-### Added — UNIFIED CLI / QUICK START v1
+### Добавлено — единый CLI / QUICK START v1
 
 - Добавлен tracked user-facing `securelinux-policy.sh` с sidecar SHA-256; обычному пользователю для current CHECK больше не требуется запускать Python generator.
 - Current generator — `product/generate-product-check-v2.py`; v1 сохраняется как предыдущая deterministic generator identity.
@@ -189,7 +202,7 @@
 - Расширен `tests/product-v1/test_product_generator.py`: byte-exact rebuild parity unified CLI, pretty/raw/json, sidecar/mode и fail-closed stubs без увеличения tracked test-file population.
 - Source index/controls/closure не меняются: этим product-interface шагом закрыто **0** source rows; состояние остаётся `349 / 33 controlled CLOSED / 316 OPEN`, canonical controls `43`, adapters `10`.
 
-### Added — SRC-0015 / 2.3.11 user home-directory mode CHECK
+### Добавлено — SRC-0015 / 2.3.11 CHECK режима домашних каталогов пользователей
 
 - `SRC-0015` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE`.
 - Exact source command `chmod 700 домашняя_директория` представлен как строгий `mode == 0700`; `0750`, special bits и другие mode значения не считаются эквивалентными.
@@ -199,7 +212,7 @@
 - Семь privileged read-only VM runs подтверждают selector/layout assumptions: Debian 12 `SERVER` и Debian 13 `GNOME` имели оба selected homes `0700`; Ubuntu 22/24/26 в проверенных установках имели `/root=0700`, `/home/user=0750`. Observed modes являются evidence, а normative expected остаётся exact `0700` из source.
 - После шага: `349 / 33 controlled CLOSED / 316 OPEN`; canonical controls `43`; adapters `10`. Formal Gate5 probe-results, APPLY и RESTORE не создаются.
 
-### Added — SRC-0014 / 2.3.10 sensitive user-home files CHECK
+### Добавлено — SRC-0014 / 2.3.10 CHECK чувствительных файлов в домашних каталогах
 
 - `SRC-0014` переводится `OPEN → CLOSED` одним aggregate control `FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE`.
 - Exact source relation `chmod go-rwx` представлено как `mode & 0077 == 0`; owner/group и mode home directory `0700` не добавляются.
@@ -242,12 +255,12 @@
 - Добавлена regression-проверка, запрещающая возврат прежних английских абзацев в этом актуальном v3-контуре.
 - Исторические v1/v2 и pinned donor/evidence артефакты этим изменением не переписываются.
 
-### Added — SRC-0026 / 2.5.3 debugfs kernel-cmdline CHECK
+### Добавлено — SRC-0026 / 2.5.3 CHECK параметра kernel-cmdline для debugfs
 
 - Закрыт `SRC-0026 / 2.5.3`: `debugfs=no-mount (по возможности off)` представлен одним `kernel-cmdline` control с `op=one-of` и ordered value `off|no-mount`; `off` сохраняется как preferred, оба source-разрешённых значения дают PASS.
 - `kernel-cmdline` product adapter/semantic contract подняты до v2: `eq`/`present` совместимы с v1, добавлен read-only `one-of`, конфликтующие дубли остаются `ERROR`, APPLY/RESTORE не добавлены.
 
-### Added — SRC-0034 / 2.5.11 ASLR sysctl CHECK
+### Добавлено — SRC-0034 / 2.5.11 CHECK sysctl для ASLR
 
 - `SRC-0034` переводится `OPEN → CLOSED` одним существующим `sysctl` control.
 - Source-exact requirement `kernel.randomize_va_space = 2` представлено без расширения semantics как `sysctl / eq / integer 2`.
@@ -255,7 +268,7 @@
 - После batch: `349 / 27 controlled CLOSED / 322 OPEN`; canonical controls `36`; current adapters `5`.
 - CHECK остаётся read-only; APPLY/RESTORE и formal Gate5 probe-results не создаются.
 
-### Added — SRC-0001 / 2.1.1 local account password-state CHECK
+### Добавлено — SRC-0001 / 2.1.1 CHECK состояния паролей локальных учётных записей
 
 - `SRC-0001` переводится `OPEN → CLOSED` одним aggregate control.
 - Новый kind `local-account-password-state` использует локальную population `/etc/passwd` и source-anchored state `/etc/shadow`.
@@ -264,7 +277,7 @@
 - Adapter read-only: никаких `passwd`/`usermod`/`chpasswd`/APPLY/RESTORE.
 - После batch: `349 / 26 controlled CLOSED / 323 OPEN`; canonical controls `35`; current adapters `5`.
 
-### Fixed — SRC-0001 source quote boundary
+### Исправлено — SRC-0001: граница source quote
 
 - `source_skeleton_generator.py` получил одну exact pinned exception для `SRC-0001`: trailing page token `3` после `/etc/shadow.` удаляется как page furniture только для этой строки.
 - Generic удаление bare integers по-прежнему запрещено; `SRC-0133` остаётся fail-closed `REFUSED`.
@@ -272,7 +285,7 @@
 - `tests/source-skeleton-v1/TEST-RESULTS.txt` синхронизирован с current regression (`pilot=34`, `exact=73`, `refused=1`).
 - Coverage не меняется: `349 / 25 controlled CLOSED / 324 OPEN`, controls `34`.
 
-### Added — SRC-0010 / 2.3.6 system cron file-set CHECK
+### Добавлено — SRC-0010 / 2.3.6 CHECK набора системных cron-файлов
 
 - `SRC-0010` переводится `OPEN → CLOSED` через exact-control-set из шести source-listed roots.
 - Новый kind `optional-file-root-files-mode` выражает только `bits-clear 0033` (`chmod go-wx`): regular-file root проверяется сам; directory root — сам + direct regular files.
@@ -290,7 +303,7 @@
 - Step 7B.0 остаётся historical assurance line: Phase C item 19 — `REVISE`;
   authoritative builder не признан, публикация не выполнялась.
 - Build Contract v0.9.6 существует только как черновик и не является current
-  product authority.
+  источником истины продукта.
 
 ### Известные незакрытые замечания
 
@@ -307,32 +320,32 @@
 
 ## [0.0.20] — 2026-08-21
 
-### Added — read-only kernel command-line CHECK
+### Добавлено — read-only CHECK командной строки ядра
 
 - Добавлен новый current parameter kind `kernel-cmdline` для фактической
   загрузочной строки `/proc/cmdline`.
 - Semantic contract `kernel-cmdline-check-semantic-v1` поддерживает:
-  - `eq` — exact `key=value` token;
-  - `present` — exact bare token.
+  - `eq` — точный токен `key=value`;
+  - `present` — точный отдельный токен.
 - Adapter `product-kernel-cmdline-check-v1` только читает `/proc/cmdline`.
   GRUB, загрузчик, APPLY и RESTORE не изменяются.
 - Отсутствие требуемого boot token — наблюдаемое `VALUE/FAIL`, а не
   `NOT_FOUND`; конфликтующие значения одного key дают `ERROR`.
 
-### Added — exact boot-token batch
+### Добавлено — пакет exact boot-token
 
 - `SRC-0018 / 2.4.3` → `init_on_alloc=1`.
-- `SRC-0019 / 2.4.4` → bare flag `slab_nomerge`.
-- `SRC-0020 / 2.4.5` → exact-control-set:
+- `SRC-0019 / 2.4.4` → отдельный флаг `slab_nomerge`.
+- `SRC-0020 / 2.4.5` → `exact-control-set`:
   `iommu=force`, `iommu.strict=1`, `iommu.passthrough=0`.
 - `SRC-0021 / 2.4.6` → `randomize_kstack_offset=1`.
 - `SRC-0022 / 2.4.7` → `mitigations=auto,nosmt` для current x86_64 target.
 - `SRC-0024 / 2.5.1` → `vsyscall=none`.
 - `SRC-0032 / 2.5.9` → `tsx=off`.
 - Corpus после batch: `349 / 24 controlled CLOSED / 325 OPEN`;
-  canonical controls: `28`.
+  канонические controls: `28`.
 
-### Donor review
+### Проверка инженерного донора
 
 - Pinned SecureLinux-NG v16.2.11 использован только как engineering precedent:
   его `grub_kernel_params_check_module` уже читает `/proc/cmdline`, выполняет
@@ -345,7 +358,7 @@
 - `SRC-0034 / 2.5.11` остаётся `OPEN` из-за procedural qualifier
   `после тестирования`.
 
-### Tested
+### Проверено
 
 - Schema/runtime parity включает positive/negative `kernel-cmdline` cases.
 - Product generator registry содержит 3 current adapters и 28 controls.
@@ -366,7 +379,7 @@
 
 ## [0.0.19] — 2026-08-20
 
-### Added — source-faithful sysctl lower bound / SRC-0033
+### Добавлено — source-faithful нижняя граница sysctl / SRC-0033
 
 - Добавлен current read-only `product-sysctl-check-v2` и semantic contract v2:
   `eq` сохраняет exact integer semantics; новый `ge` реализует математическое
@@ -380,30 +393,30 @@
   precedent: в SecureLinux-NG `vm.mmap_min_addr` уже сравнивался как
   `actual >= expected`; нормативным основанием остаётся pinned FSTEC source.
 
-### Changed — generated coverage
+### Изменено — generated coverage
 
 - `docs/fstec-coverage.md` теперь содержит генерируемую таблицу по каждому
-  `source_id`: total / controlled CLOSED / disposed CLOSED / OPEN /
-  canonical controls.
+  `source_id`: всего / controlled CLOSED / disposed CLOSED / OPEN /
+  канонические controls.
 - Таблица устраняет двусмысленность общего знаменателя 349, не утверждая, что
   каждая `OPEN` строка обязана стать host CHECK.
 - Текущий corpus: `349 / 17 controlled CLOSED / 332 OPEN`; controls: `19`.
 
-### Fixed — current documentation / regressions
+### Исправлено — текущая документация / regressions
 
 - `product/README.md` больше не описывает уже завершённый SRC-0040 как следующий
   шаг и фиксирует current sysctl adapter v2.
 - Source-skeleton/source-parity/roadmap docs больше не пинят исторические
   `18/18` или `8/8`; population выводится из current manifests.
 - Schema/runtime parity добавляет positive `sysctl ge integer` и negative
-  `sysctl ge string` cases.
+  случаи `sysctl ge string`.
 - Product adapter regression покрывает equal/greater/less, отрицательные и
-  200-digit lower-bound cases.
+  случаи с 200-значной нижней границей.
 
-### Tested
+### Проверено
 
-- Source-skeleton verify: `19/19`.
-- Production source-block regeneration parity: `19/19`.
+- Проверка Source-skeleton: `19/19`.
+- Production-паритет регенерации блока `source:`: `19/19`.
 - Schema/runtime differential parity: PASS; real jsonschema остаётся
   обязательным RELEASE gate.
 - Product sysctl adapter v2 и generator regressions: PASS.
@@ -413,21 +426,21 @@
 
 ## [0.0.18] — 2026-08-20
 
-### Fixed — terminal source boundary / SRC-0040
+### Исправлено — конечная граница source / SRC-0040
 
 - `fstec-linux-2022` source-skeleton удаляет точный terminal token
   `________________________` только как exact EOF page furniture после `2.6.6`.
 - `SRC-0040 / 2.6.6` переведён `OPEN → CLOSED`; canonical quote имеет SHA-256
   `f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d`.
 
-### Added — SRC-0040 / CHECK-18
+### Добавлено — SRC-0040 / CHECK-18
 
 - Добавлен `FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE`:
   `sysctl / fs.suid_dumpable / eq / 0`.
 - Используется существующий read-only sysctl adapter без расширения semantic contract.
-- Corpus: `349 / 16 controlled CLOSED / 333 OPEN`; controls: `18`.
+- Корпус: `349 / 16 controlled CLOSED / 333 OPEN`; controls: `18`.
 
-### Fixed — regression semantics
+### Исправлено — regression semantics
 
 - Project-integrity больше не пинует исторические числа `17 / 15 / 334`.
 - `product/SHA256SUMS` получил обратную проверку полноты.
@@ -436,10 +449,10 @@
 - Source-parity fixture report сохраняет фактическое `positive=5`; production
   parity проверяется отдельно `18/18`.
 
-### Tested
+### Проверено
 
-- Source-skeleton verify: `18/18`.
-- Production source-block regeneration parity: `18/18`; fixture harness `positive=5`.
+- Проверка Source-skeleton: `18/18`.
+- Production-паритет регенерации блока `source:`: `18/18`; fixture harness `positive=5`.
 - Gate 1/3/4 PASS; Gate 2 ожидаемо FAIL из-за 333 OPEN; Gate 5 остаётся fail-closed.
 - Project-integrity, DEV 21/21, RELEASE и root manifests PASS.
 - CHECK-18 выполняется read-only; formal Gate5 probe-results не создаются.
@@ -447,7 +460,7 @@
 
 ## [0.0.17] — 2026-08-20
 
-### Fixed — local SHA256SUMS / ACTIVE checker evidence errata
+### Исправлено — локальные SHA256SUMS / errata ACTIVE checker evidence
 
 - Исправлен stale SHA `product/README.md` в `product/SHA256SUMS`; product bytes
   и source/canonical semantics этим исправлением не меняются.
@@ -458,11 +471,11 @@
   `tests/**/SHA256SUMS` на repository-wide current nested manifests; ровно две
   historical donor runtime entries разрешены только как pinned exceptions с
   точными manifest/path/SHA; отдельно требуется byte-exact freshness обоих
-  gates-v3 `ACTIVE` snapshots.
+  снимки `ACTIVE` gates-v3.
 - Corpus остаётся `349 / 15 controlled CLOSED / 334 OPEN`; canonical controls:
   `17`; закрыто строк source index этим шагом: **0**.
 
-### Tested
+### Проверено
 
 - До mutation repository-wide local-manifest scan обязан находить ровно известный
   stale `product/SHA256SUMS -> README.md`, иначе шаг fail-closed останавливается.
@@ -470,13 +483,13 @@
   exception population: ровно 2 pinned entries.
 - Оба `ACTIVE` snapshots побайтово равны свежему gates-v3 checker stdout для
   текущего состояния 17/15/334.
-- DEV baseline: 21/21 PASS; RELEASE baseline: PASS.
+- Базовая линия DEV: 21/21 PASS; базовая линия RELEASE: PASS.
 - Root manifests: 742/743 PASS; Gate 2 и Gate 5 остаются ожидаемо FAIL по
   текущим контрактным причинам.
 
 ## [0.0.16] — 2026-08-20
 
-### Added — sysctl exact-eq expansion batch / CHECK-17
+### Добавлено — пакет расширения sysctl exact-eq / CHECK-17
 
 - Шесть source rows представлены существующим read-only `sysctl eq` adapter без
   расширения semantic contract:
@@ -495,9 +508,9 @@
   разделительную строку после последнего numbered-position; сначала требуется
   исправить границу извлечения, а не закреплять page furniture как quote.
 
-### Changed
+### Изменено
 
-- Corpus state: `349 / 15 controlled CLOSED / 334 OPEN`; canonical controls: `17`.
+- Состояние корпуса: `349 / 15 controlled CLOSED / 334 OPEN`; canonical controls: `17`.
 - Generated README/map/coverage перестроены из machine truth.
 - PRIMARY map сохраняет текущую точку `systematic FSTEC expansion`, но отдельно
   фиксирует завершённый exact-eq batch и CHECK-17 как уже пройденный checkpoint.
@@ -507,12 +520,12 @@
 - Документы source-skeleton/source-parity больше не содержат быстро устаревающие
   ручные значения corpus progress; current population определяется из manifests.
 
-### Tested
+### Проверено
 
 - Gate 1/3/4 проходят на 17 controls; Gate 2 ожидаемо `FAIL` только из-за 334
   оставшихся `OPEN`; formal Gate 5 без `--probe-results` остаётся fail-closed.
-- Source-block regeneration parity: `controls=17 supported=17 matched=17`.
-- Source skeleton pilot verification: `controls=17 mismatches=0`.
+- Паритет регенерации блока source: `controls=17 supported=17 matched=17`.
+- Проверка pilot source skeleton: `controls=17 mismatches=0`.
 - Product generator regression закрепляет exact semantics всех шести controls
   этого batch и сохраняет запрет на mutating shell tokens.
 - CHECK-17 выполняется read-only; host-specific вывод сохраняется как derived
@@ -521,7 +534,7 @@
 
 ## [0.0.15] — 2026-08-20
 
-### Fixed — TEST SHA256SUMS cache contamination errata
+### Исправлено — errata загрязнения TEST SHA256SUMS cache-данными
 
 - Удалены четыре ошибочные `__pycache__/*.pyc` записи из tracked test-local
   `SHA256SUMS`; сами cache-файлы не являются tracked project bytes.
@@ -535,7 +548,7 @@
 
 ## [0.0.14] — 2026-08-20
 
-### Added — SRC-0005 / CHECK-11
+### Добавлено — SRC-0005 / CHECK-11
 
 - `SRC-0005 / 2.3.1` представлен `exact-control-set` из трёх canonical controls:
   - `FSTEC-LINUX-2022-2.3.1-PASSWD-MODE` → `/etc/passwd`, `mode eq 0644`;
@@ -546,20 +559,20 @@
 - `chmod go-rwx /etc/shadow` намеренно не усилен до неследующего из source anchor
   равенства `/etc/shadow = 0600`.
 
-### Changed
+### Изменено
 
 - `SRC-0005` переведён `OPEN → CLOSED`; прогресс корпуса теперь `349 / 9 / 340`.
 - `CONTROL-MANIFEST.tsv` содержит 11 canonical controls; closure contract содержит
-  9 controlled source rows.
+  9 контролируемых строк source.
 - Generated README/map/coverage перестроены из machine truth; CHECK-11 завершает
   этот точечный expansion step, после чего current checkpoint — systematic FSTEC expansion.
 
-### Tested
+### Проверено
 
 - Gate 1/3/4 проходят на 11 controls; Gate 2 остаётся ожидаемо красным только из-за
   340 оставшихся `OPEN`; formal Gate 5 без `--probe-results` остаётся fail-closed.
-- Source-block regeneration parity: `controls=11 supported=11 matched=11`.
-- Source skeleton pilot verification: `controls=11 mismatches=0`.
+- Паритет регенерации блока source: `controls=11 supported=11 matched=11`.
+- Проверка pilot source skeleton: `controls=11 mismatches=0`.
 - Product generator regression больше не пинует историческое число 8 и отдельно
   проверяет exact SRC-0005 file-mode semantics.
 - Historical gates-v1 regression теперь явно требует fail-closed на новом
@@ -570,7 +583,7 @@
 
 ## [0.0.13] — 2026-08-20
 
-### Fixed — DOCUMENTATION BASELINE ERRATA
+### Исправлено — ERRATA базовой линии документации
 
 - Исправлена PRIMARY `docs/PROJECT-MAP-v3.md`: раздел «Где мы находимся»
   теперь показывает текущий product checkpoint `SRC-0005 / 2.3.1`, а уже
@@ -583,10 +596,10 @@
 - В macro-roadmap явно разъяснено, что будущие roadmap steps 8–11 относятся к
   APPLY/RESTORE/final packaging и не описывают уже существующую CHECK line.
 - Semantic часть current FSTEC controls больше не помечена на PRIMARY map как
-  future.
+  будущее.
 - Закрыто строк source index: **0**.
 
-### Tested
+### Проверено
 
 - Roadmap regression проверяет порядок
   `CHECK-8 → TEST BASELINE → DOCUMENTATION BASELINE → SRC-0005 → CHECK-11`.
@@ -598,17 +611,17 @@
 
 ## [0.0.12] — 2026-08-20
 
-### Added — TEST BASELINE
+### Добавлено — базовая линия тестирования
 
 - Добавлен tracked `tests/run-all.py` как canonical точка запуска tracked
-  Python regressions.
+  регрессии Python.
 - Test population разделена на DEV и RELEASE; release dependency объявлена в
   `requirements-release.txt` как `jsonschema>=4.10.3`.
 - Добавлен `tests/run-all-selftest.py`, проверяющий runner RC `0/1/2/3`.
 - Runner требует доказательство фактического выполнения test-file, запрещает
   неожиданные skip, `ResourceWarning` и untracked `test_*.py`.
 
-### Fixed — TEST BASELINE
+### Исправлено — базовая линия тестирования
 
 - Удалены historical numeric pins на `controls=5` и `74/72`; ожидаемые
   populations берутся из current machine truth.
@@ -618,7 +631,7 @@
 - `PROJECT-MAP-v3.md` синхронизирован с current product CHECK line.
 - Закрыто строк source index: **0**.
 
-### Added — DOCUMENTATION BASELINE
+### Добавлено — базовая линия документации
 
 - Добавлен `docs/README.md`, который классифицирует документы как PRODUCT,
   ENGINEERING, ROADMAP и DONOR-REFERENCE.
@@ -635,7 +648,7 @@
 - Добавлен focused regression `tests/documentation-v1/`, требующий exact
   documentation parity и полноту docs index.
 
-### Changed — DOCUMENTATION BASELINE
+### Изменено — базовая линия документации
 
 - Root README перестроен в product-facing форму: назначение, generated current
   status, quick start, гарантии с проверками, policy layers, coverage,
@@ -646,21 +659,21 @@
   `docs/testing-strategy.md` актуализированы под current product/test model.
 - Закрыто строк source index: **0**.
 
-### Tested
+### Проверено
 
 - TEST BASELINE A1 на development host: DEV `20/20 PASS`, RELEASE `PASS`;
   release interpreter использовал `jsonschema 4.10.3`.
 - A1 local CHECK-8 diagnostic воспроизвёл ровно один execution `ERROR`:
   `FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN`,
-  `/proc/sys/net/core/bpf_jit_harden`, mode `0600`, read `EACCES`/errno 13.
+  `/proc/sys/net/core/bpf_jit_harden`, режим `0600`, чтение `EACCES`/errno 13.
   Это host evaluability observation, не defect canonical control и не
-  compatibility evidence.
+  доказательства совместимости.
 - Documentation renderer проходит `--write → --check`; documentation regression
   проверяет exact parity и отсутствие известных stale product-status strings.
 - Documentation Baseline добавляет один DEV test-file; успешный commit требует
   полного current DEV PASS и RELEASE PASS.
 
-### Docs
+### Документация
 
 - README является human entry point, но machine-readable registries остаются
   источниками истины для counts/status.
@@ -685,9 +698,9 @@
 ### Проверено — CHECK-8 regression
 
 - `product-v1`: 40 тестов, итог `OK`.
-- Generator SHA-256: `cc75c216e685c792e5dd14a1b056e9f8f6602f772bc8622f04be95bc88d501d3`.
-- Adapter registry SHA-256: `e1fabfad1cd66770783b4096f7cdaebe562b5861e43d71e9f9bc55df0dcbbc2f`.
-- Generated CHECK SHA-256: `cc58acae18a79b92c7d4b234dc0505bb065a42209392d7c7541e21ea328511d5`.
+- SHA-256 генератора: `cc75c216e685c792e5dd14a1b056e9f8f6602f772bc8622f04be95bc88d501d3`.
+- SHA-256 реестра адаптеров: `e1fabfad1cd66770783b4096f7cdaebe562b5861e43d71e9f9bc55df0dcbbc2f`.
+- SHA-256 сгенерированного CHECK: `cc58acae18a79b92c7d4b234dc0505bb065a42209392d7c7541e21ea328511d5`.
 - Deterministic rebuild дал те же bytes; sidecar SHA совпал; `bash -n`,
   `--help`, `--build-info`, `--provenance` для восьми controls и usage-RC
   прошли.
@@ -724,10 +737,10 @@
 ### Проверено
 
 - `product-v1`: 30 тестов, итог `OK`.
-- Sysctl adapter self-test: `PASS`.
+- Самотест адаптера sysctl: `PASS`.
 - Корневые манифесты после Step 2:
   `PROJECT_FILES_ENTRIES=719`, `SHA256SUMS_ENTRIES=720`, `--check=PASS`.
-- Post-Step2 gates: `GATE0 PASS`, `GATE1 PASS checked=8`,
+- Гейты после Step2: `GATE0 PASS`, `GATE1 PASS checked=8`,
   `GATE3 PASS`, `GATE4 PASS`; `GATE2 FAIL` ожидаемо из-за 341 `OPEN`,
   `GATE5 FAIL` ожидаемо из-за отсутствующего formal `probe-results`.
 - Controls, source index, checker и historical Step 7B.0 не изменялись.
@@ -754,7 +767,7 @@
 
 - Корневые манифесты после Step 1: `PROJECT_FILES_ENTRIES=714`,
   `SHA256SUMS_ENTRIES=715`, `--check=PASS`.
-- Post-Step1 gates: `GATE0 PASS`, `GATE1 PASS checked=8`,
+- Гейты после Step1: `GATE0 PASS`, `GATE1 PASS checked=8`,
   `GATE3 PASS`, `GATE4 PASS`; `GATE2 FAIL` ожидаемо из-за 341 `OPEN`,
   `GATE5 FAIL` ожидаемо из-за отсутствующего formal `probe-results`.
 - Historical `step7b0/`, controls, source index и checker не изменялись.
@@ -773,8 +786,8 @@
   v0.9.2 → v0.9.3 R4-FINAL → v0.9.4 → v0.9.5; принятой остаётся
   `step7b0/BUILD-CONTRACT-v0.9.5.md`.
 - Зафиксировано ранее завершённое состояние Phase A под v0.9.5:
-  16 статических предусловий, SHA-bound member/admission; Item 9 закрыт
-  fail-closed observer policy.
+  16 статических предусловий, SHA-bound member/admission; элемент 9 закрыт
+  политика наблюдения fail-closed.
 - Зафиксирован ранее выполненный Phase-B measurement: прежний
   `(futex, null)` разрешён только как exact `FUTEX_WAKE_PRIVATE` с
   `thread_synchronization_local`; shared/wait/альтернативные формы не получили
@@ -886,7 +899,7 @@
   contract/API (`EXACT | REFUSED | UNSUPPORTED`), где integrity failures
   остаются исключениями.
 - Corporate multi-index/descriptor остаётся отложен до первого реального
-  corporate primary source.
+  первичный источник corporate.
 - R3 non-blocking findings по NUL/Unicode line separators/CRLF и прежние
   замечания disposition-контракта сохранены как backlog, но не расширяют
   закрытый scope Step 7A задним числом.
@@ -1039,140 +1052,140 @@
   изменений, preserve-stricter semantics, profile gating, транзакционной
   семантики созданных файлов и order-sensitive политики faillock.
 - Валидация donor index усилена: неизвестный `source_function` приводит к
-  fail-closed.
+  в режиме fail-closed.
 - Controls, строки source-v4, семантика checker, probes, evidence и source PDF
   не изменялись; закрыто 0 строк FSTEC source index.
 
-### Fixed — type/boolean observation contract cleanup
+### Исправлено — очистка контракта наблюдений type/boolean
 
-- Removed accidental global `"true"` / `"false"` string-to-boolean coercion
-  from `_expected_compliance`.
-- Separated control semantic `expected.type` from probe `VALUE.value` wire
-  encoding.
-- Preserved sysctl wire behavior: integer/string observations are JSON strings;
-  sysctl boolean remains forbidden by `KIND_RULES`.
-- Reserved exact future boolean wire format for `systemd-unit-state` and
-  `package-presence`: JSON boolean only, not quoted strings and not `0/1`.
-- Kept both future runners unimplemented; format definition does not claim
-  Gate 5 executability.
-- Marked file-kv boolean observation mapping explicitly deferred until a
-  file-kv probe design defines source-specific textual semantics.
-- `KIND_RULES` and generated `CONTROL-SCHEMA.json` are unchanged.
-- Added focused observation-contract regression tests.
-- Advanced the roadmap to the mandatory real-jsonschema release gate.
-- No source-index rows were closed.
+- Удалено случайное глобальное преобразование строк `"true"` / `"false"` в boolean
+  внутри `_expected_compliance`.
+- Семантический `expected.type` control отделён от wire-кодирования
+  `VALUE.value` пробой.
+- Сохранено wire-поведение sysctl: integer/string-наблюдения передаются как JSON-строки;
+  boolean для sysctl по-прежнему запрещён `KIND_RULES`.
+- Для будущих `systemd-unit-state` и `package-presence` закреплён точный boolean
+  wire-формат: только JSON boolean, не строки в кавычках и не `0/1`.
+- Оба будущих runner остаются нереализованными; определение формата не заявляет
+  их исполнимость для Gate 5.
+- Отображение boolean-наблюдений file-kv явно отложено до появления дизайна
+  file-kv probe с source-specific текстовой семантикой.
+- `KIND_RULES` и сгенерированный `CONTROL-SCHEMA.json` не изменены.
+- Добавлены целевые regression-тесты контракта наблюдений.
+- Roadmap продвинут к обязательному release-gate с реальным `jsonschema`.
+- Строки source index этим изменением не закрывались.
 
-### Fixed — project-map audit findings and clean-checkout manifests
+### Исправлено — findings аудита project map и manifests чистого checkout
 
-- Corrected the text-corpus graph: normal pdftotext/norm-v1 covers 10 pinned
-  PDFs, while glyph recovery is a separate PDF-origin branch for exactly two
-  documents and is normalized separately under `recovered-v1/norm-v1`.
-- Added Gate 1 corpus selection by `SOURCE-INDEX.text_quality` and the exact
-  extraction/recovery manifests.
-- Added `CLOSURE-CONTRACT.tsv` and explicit disposition+reason as the two Gate 2
-  closure mechanisms.
-- Added the schema/runtime differential suite and separated it from Gate 0
-  generation parity; mandatory real Draft202012Validator remains the next
-  release-validation roadmap item after type/boolean cleanup.
-- Scoped Gate 5 to the five-sysctl/one-VM pilot and Gate 6 to the current
-  sysctl-v1 evidence directory.
-- Added audit/Git/bundle provenance and clean-checkout reproducibility to the
-  project map.
-- Replaced the direct index->control implication with a dashed "currently
-  manual" relationship.
-- Connected the future adapter branch to an explicit normative controls input.
-- Fixed root manifests so Git-ignored donor runtime state is excluded by a
-  canonical Git-visible population builder.
-- Removed stale README/ROADMAP status text; the single current stage is
+- Исправлен граф текстового корпуса: обычный `pdftotext/norm-v1` покрывает 10 закреплённых
+  PDF, а glyph recovery является отдельной ветвью PDF-origin ровно для двух
+  документов и отдельно нормализуется в `recovered-v1/norm-v1`.
+- В Gate 1 добавлен выбор корпуса по `SOURCE-INDEX.text_quality` и точным
+  извлечение/восстановление manifests.
+- Добавлены `CLOSURE-CONTRACT.tsv` и явные disposition+reason как два механизма
+  закрытия Gate 2.
+- Добавлен differential-набор schema/runtime и отделён от generation parity Gate 0;
+  обязательный реальный `Draft202012Validator` остаётся следующим пунктом
+  release-validation roadmap после очистки type/boolean.
+- Gate 5 ограничен pilot из пяти sysctl на одной VM, а Gate 6 — текущим
+  каталогом evidence `sysctl-v1`.
+- В project map добавлены provenance audit/Git/bundle и воспроизводимость из
+  чистого checkout.
+- Прямая импликация index→control заменена пунктирной связью «в настоящее время
+  вручную».
+- Будущая ветвь adapter соединена с явным нормативным входом controls.
+- Исправлены корневые manifests: Git-ignored runtime state донора исключается
+  каноническим builder Git-visible population.
+- Удалён stale status-текст README/ROADMAP; единственный текущий этап —
   `type/boolean contract cleanup`.
-- No controls, source-index rows, checker semantics, probes, source PDFs or
-  engineering-donor data objects were changed.
+- Controls, строки source index, семантика checker, probes, source PDF и
+  объекты engineering-donor не изменялись.
 
-### Added — project-native v3 architecture map
+### Добавлено — нативная для v3 архитектурная карта проекта
 
-- Added `docs/PROJECT-MAP-v3.md` as the primary visual map of the current
-  SecureLinux-Policy v3 project.
-- The map covers sources, normalization/recovery, source-v4, controls,
-  Gates 0–6, reference-VM evidence, policy layers, engineering donor flow and
-  the future deterministic build.
-- Exactly one roadmap node is marked current: `type/boolean contract cleanup`.
-- Existing `docs/ARCHITECTURE-DIAGRAMS.md` is explicitly reclassified as a
-  donor runtime reference, not the primary v3 project map.
-- No normative/runtime behavior changed.
+- `docs/PROJECT-MAP-v3.md` добавлен как основная визуальная карта текущего
+  проекта SecureLinux-Policy v3.
+- Карта охватывает sources, normalization/recovery, source-v4, controls,
+  Gates 0–6, reference-VM evidence, policy layers, поток engineering donor и
+  будущую детерминированную сборку.
+- Ровно один узел roadmap отмечен текущим: `type/boolean contract cleanup`.
+- Существующий `docs/ARCHITECTURE-DIAGRAMS.md` явно переклассифицирован как
+  donor runtime reference, а не основная project map v3.
+- Нормативное/runtime-поведение не изменено.
 
-### Added — visual architecture diagrams
+### Добавлено — визуальные архитектурные схемы
 
-- Added three GitHub-rendered Mermaid diagrams: CLI/runtime modes,
-  module/additional-measures/restore flow, and apply/manifest/restore flow.
-- Marked them as target runtime architecture inherited from the engineering
-  donor, not as claims that every runtime mechanism is already implemented.
-- README links directly to the rendered diagrams.
-- No normative/runtime behavior changed.
+- Добавлены три Mermaid-схемы, отображаемые GitHub: режимы CLI/runtime,
+  поток module/additional-measures/restore и поток apply/manifest/restore.
+- Они были обозначены как целевая runtime-архитектура, унаследованная от engineering
+  donor, а не как заявление, что каждый runtime-механизм уже реализован.
+- README содержит прямую ссылку на отображаемые схемы.
+- Нормативное/runtime-поведение не изменено.
 
-### Added — Gate 6 evidence_binding
+### Добавлено — Gate 6 `evidence_binding`
 
-- Added a closed-schema evidence-binding checker for the factual `sysctl-v1`
-  reference-VM evidence.
-- Gate 6 verifies the evidence checksum set, VM metadata schema, current
-  probe/plan hashes, both result hashes and `read_only=true` result roots.
-- Added positive and nine negative regression cases.
-- Gate 6 explicitly emits `VM_ORIGIN_ATTESTATION=NOT_PROVEN`; it proves
-  integrity/binding, not cryptographic VM-origin attestation.
-- No FSTEC/corporate source rows are closed by this change.
-- Next roadmap step: `type/boolean contract cleanup`.
+- Добавлен checker привязки evidence с закрытой схемой для фактического
+  evidence эталонной VM `sysctl-v1`.
+- Gate 6 проверяет набор checksum evidence, схему metadata VM, текущие
+  hashes probe/plan, оба result hash и корневые `read_only=true` в результатах.
+- Добавлены положительный и девять отрицательных regression-cases.
+- Gate 6 явно выводит `VM_ORIGIN_ATTESTATION=NOT_PROVEN`: он доказывает
+  integrity/binding, а не криптографическую аттестацию происхождения от VM.
+- Это изменение не закрывает строки FSTEC/corporate source.
+- Следующий шаг roadmap: `type/boolean contract cleanup`.
 
-### Pinned — engineering donor adoption policy
+### Закреплено — политика переноса инженерного донора
 
-- SecureLinux-NG v16.2.11 is formally pinned as an engineering donor, not a
-  normative source of truth.
-- Mature donor mechanisms must pass through
-  `DONOR_TO_V3_MAPPING -> REUSE|ADAPT|REJECT|DEFER` before apply/restore
-  contract and implementation-adapter work.
-- `DONOR_TO_V3_MAPPING` is now a mandatory precondition to roadmap step 8.
-- The donor mapping itself closes zero FSTEC/corporate source-index rows.
-- Explicitly protected donor families include preflight, transactional apply,
-  manifest/restore, atomic writes, backup fail-closed, package delta,
-  preserve-stricter sysctl, isolated sysctl, network-online reapply, dry-run,
-  run locking, layer/profile separation and preserved regression contracts.
-- Final `securelinux-ng.sh` remains a deterministic generated artifact with
-  machine-checkable provenance per emitted block.
+- SecureLinux-NG v16.2.11 формально закреплён как engineering donor, а не как
+  нормативный источник истины.
+- Зрелые механизмы донора обязаны пройти через
+  `DONOR_TO_V3_MAPPING -> REUSE|ADAPT|REJECT|DEFER` до работ над apply/restore
+  contract и implementation-adapter.
+- `DONOR_TO_V3_MAPPING` стал обязательным precondition шага 8 roadmap.
+- Сам donor mapping закрывает ноль строк FSTEC/corporate source index.
+- Явно защищённые donor families включают preflight, transactional apply,
+  manifest/restore, атомарные записи, fail-closed backup, delta пакетов,
+  сохранение более строгих sysctl, изолированный sysctl, повторное применение network-online, dry-run,
+  run locking, layer/profile separation и сохранённые regression contracts.
+- Итоговый `securelinux-ng.sh` остаётся детерминированным generated artifact с
+  machine-checkable provenance для каждого выдаваемого блока.
 
-### Recorded — Step 5 audit provenance closure
+### Зафиксировано — закрытие audit provenance Step 5
 
-- Stored three Step 5 reference-VM ACCEPT verdict records.
-- Did not claim "3 independent reviews": reviewer independence is provenance,
-  not a count derived from verdict texts.
-- Recorded the known limitation that one reviewer participated in v3 format
-  design and authored two verdicts; exact review-id mapping is not asserted.
-- Preserved 349 total / 5 controlled CLOSED / 344 OPEN.
-- Added the authoritative forward roadmap.
-- Next authorized engineering step: Gate 6 `evidence_binding`.
+- Сохранены три записи verdict `ACCEPT` для reference VM Step 5.
+- Не заявлялось «3 независимых review»: независимость reviewer является provenance,
+  а не числом, выведенным из текстов verdict.
+- Зафиксировано известное ограничение: один reviewer участвовал в дизайне формата v3
+  и подготовил два verdict; точное отображение review-id не утверждается.
+- Сохранено состояние: 349 всего / 5 controlled CLOSED / 344 OPEN.
+- Добавлен authoritative forward roadmap.
+- Следующий разрешённый engineering step: Gate 6 `evidence_binding`.
 
-### Added — reference VM Gate 5 evidence
+### Добавлено — reference VM Gate 5 evidence
 
 - Выполнен фактический read-only `sysctl-v1` probe на Ubuntu 24.04.4 LTS
-  minimized (`testmin`, kernel `6.8.0-134-generic`).
+  в минимальной установке (`testmin`, kernel `6.8.0-134-generic`).
 - Непривилегированный прогон: 5 результатов, 4 `VALUE`, 1 `ERROR`;
   `/proc/sys/net/core/bpf_jit_harden` имеет mode `0600 root:root` и обычному
   пользователю не читается. Этот результат сохранён как environment evidence.
 - Повторный read-only прогон через `sudo`: 5 `VALUE`, 0 `NOT_FOUND`,
-  0 `ERROR`, 4 noncompliant observations.
+  0 `ERROR`, 4 несоответствующих наблюдения.
 - Активный checker с реальным evidence:
   `GATE5=PASS checked=5 value=5 not_found=0 noncompliant=4 errors=0`.
 - `OVERALL=FAIL` ожидаем и вызван Gate 2: 344 source-index rows остаются OPEN.
-- SHA-256 privileged evidence:
+- SHA-256 привилегированного evidence:
   `43c574a68d3478f35e4c7a5a50571ab4408d43a3e3a3cfed9ac3f50fbb1fc29c`.
-- SHA-256 unprivileged evidence:
+- SHA-256 непривилегированного evidence:
   `53e3bea08d07bcdf4210d125a026c1d1a4ce1481b2ee7d1415d4baf112389203`.
 
-### Added — engineering donor preservation
+### Добавлено — engineering donor preservation
 
 - Полный SecureLinux-NG v16.2.11 test/development snapshot сохранён byte-for-byte
   и разложен в inspectable archive; source ZIP SHA-256
   `1b25f554a5ad1509037aa9613b7851a595159fd44291913cc2dba63280e50494`.
 - Добавлен `index/engineering-tests-v1`: 38 test-файлов, 36 focused regressions,
   36/36 smoke wiring, 32 generalized engineering test contracts и отдельная
-  donor VM evidence table.
+  таблица VM-evidence донора.
 - Добавлена `docs/testing-strategy.md`: differential, failure-injection,
   crash-consistency, filesystem safety и VM acceptance как разные test layers.
 - Активно принят переносимый `tools/write-sha256.py` вместе с адаптированным
@@ -1189,7 +1202,7 @@
   `architecture-regression.sh` против pinned donor/docs.
 - Зафиксировано, что donor-index не создаёт controls и не закрывает FSTEC rows.
 
-### Pending
+### Ожидает выполнения
 
 - Независимый аудит Step 0–5 с фактическим reference-VM evidence.
 - Дальнейшее закрытие source-index rows только после прохождения
@@ -1197,7 +1210,7 @@
 
 ## [0.0.5-r3] — 2026-08-14
 
-### Fixed after third independent audit
+### Исправлено после третьего независимого аудита
 
 - B-R2-01: одной строки регулярного выражения недостаточно для одной семантики.
   Runtime сопоставляет шаблоны через `re.fullmatch`, а JSON Schema `pattern`
@@ -1213,7 +1226,7 @@
   равенство закоммиченной и порождённой схемы, а не семантический паритет.
   Семантический паритет обеспечивают дифференциальные тесты.
 
-### Added
+### Добавлено
 
 - 16 граничных случаев с CR/LF в дифференциальной матрице (всего 50).
 - `PatternSemanticsTests`: для каждого шаблона fullmatch и search обязаны
@@ -1222,18 +1235,18 @@
 - Прогон настоящим `jsonschema.Draft202012Validator`, когда библиотека
   установлена; при её отсутствии тесты пропускаются явно.
 
-### Fixed
+### Исправлено
 
 - `README.md`: устаревший SHA checker-v3; добавлен SHA схемы и правило,
   что схема не редактируется вручную.
 
-### Preserved
+### Сохранено
 
 - Pilot controls: 5, не изменялись. `index/source-v4`: не изменялся.
 - Sysctl probe: не изменялся. 349 / CLOSED 5 / OPEN 344.
-- Reference VM evidence: `NOT_YET_PROVIDED`.
+- Evidence эталонной VM: `NOT_YET_PROVIDED`.
 
-### Checker
+### Проверяющий модуль
 
 `checker/gates-v3/checker.py`
 
@@ -1243,7 +1256,7 @@ SHA-256:
 
 ## [0.0.5-r2] — 2026-08-14
 
-### Fixed after second independent audit
+### Исправлено после второго независимого аудита
 
 - B-R1-01: `CONTROL-SCHEMA.json` и runtime-проверка расходились в двух точках
   (`parameter.key` ровно `option::` и ровно `active_line::` принимались
@@ -1259,21 +1272,21 @@ SHA-256:
 - Схема: `$id` → `securelinux-policy-v3-control-schema-v3`; шаблоны приведены
   к якорной форме, эквивалентной `re.fullmatch` в runtime.
 
-### Added
+### Добавлено
 
 - `tests/gates-v3/test_schema_runtime_parity.py` — два независимых
   предохранителя: генерационный паритет и дифференциальная матрица из 34
   записей по всем восьми kinds в обе стороны (accept и reject).
 
-### Preserved
+### Сохранено
 
 - Pilot controls: 5, не изменялись.
 - `index/source-v4`: не изменялся.
 - Sysctl probe: не изменялся, SHA `e454d691e6433c2bfb8588884575fa4f5b880a6a0cb328682a5dbe1135dabd5e`.
-- Source population: 349. CLOSED: 5. OPEN: 344.
-- Reference VM evidence: `NOT_YET_PROVIDED`.
+- Population source: 349. Статусы: CLOSED 5 / OPEN 344.
+- Evidence эталонной VM: `NOT_YET_PROVIDED`.
 
-### Checker
+### Проверяющий модуль
 
 `checker/gates-v3/checker.py`
 
@@ -1283,7 +1296,7 @@ SHA-256:
 
 ## [0.0.5-r1] — 2026-08-14
 
-### Fixed after independent audit
+### Исправлено после независимого аудита
 
 - B-01 / A-01: controlled source row больше не закрывается просто по факту
   наличия одного control. Добавлен `index/source-v4/CLOSURE-CONTRACT.tsv`.
@@ -1295,16 +1308,16 @@ SHA-256:
 - Divergent cross-layer values не разрешаются автоматически и fail-closed как
   `unresolved cross-scope parameter conflict`.
 
-### Preserved
+### Сохранено
 
-- Pilot controls: 5.
-- Source population: 349.
+- Пилотные controls: 5.
+- Популяция source: 349.
 - CLOSED: 5.
 - OPEN: 344.
-- Sysctl probe unchanged.
-- Reference VM evidence: `NOT_YET_PROVIDED`.
+- Проба sysctl не изменена.
+- Evidence эталонной VM: `NOT_YET_PROVIDED`.
 
-### Checker
+### Проверяющий модуль
 
 `checker/gates-v3/checker.py`
 
@@ -1314,7 +1327,7 @@ SHA-256:
 
 ## [0.0.5] — 2026-08-14
 
-### Added
+### Добавлено
 
 - Первый активный FSTEC-LINUX-2022 sysctl pilot.
 - Пять controls:
@@ -1324,30 +1337,30 @@ SHA-256:
   - `kernel.perf_event_paranoid=3` — 2.5.2;
   - `kernel.kexec_load_disabled=1` — 2.5.4.
 - `index/source-v3`.
-- Read-only probe `probes/sysctl-v1/probe.py`.
+- Read-only проба `probes/sysctl-v1/probe.py`.
 - `checker/gates-v2` с Gate 5.
-- Focused Gate-5 tests.
+- Точечные тесты Gate 5.
 
-### Changed
+### Изменено
 
-- Source-index progress:
-  - total: 349;
-  - closed: 5;
-  - open: 344;
-  - closure ratio: `5/349`.
+- Прогресс source-index:
+  - всего: 349;
+  - закрыто: 5;
+  - открыто: 344;
+  - доля закрытия: `5/349`.
 - Exact control quotes теперь формируются непосредственно из verified
   recovered FSTEC-LINUX-2022 corpus по locator и нормализуются `norm-v1`.
 
-### Verification
+### Проверка
 
 - Gate 1: PASS для пяти pilot controls.
-- Gate 2: FAIL expected, 344 uncovered.
+- Gate 2: ожидаемый FAIL, 344 строки без покрытия.
 - Gate 3: PASS.
 - Gate 4: PASS.
-- Gate 5 implementation synthetic selftest: PASS.
-- Reference VM evidence: `NOT_YET_PROVIDED`.
+- Синтетический self-test реализации Gate 5: PASS.
+- Evidence эталонной VM: `NOT_YET_PROVIDED`.
 
-### Fixed
+### Исправлено
 
 - Исправлена первая версия Step-5 installer, которая сравнивала hardcoded
   quote с recovered corpus и корректно завершилась fail-closed до публикации.
@@ -1357,31 +1370,31 @@ SHA-256:
 
 ## [0.0.4] — 2026-08-14
 
-### Added
+### Добавлено
 
 - `checker/gates-v1`.
-- Gates 1–4:
-  - source/quote anchor;
-  - reverse source coverage;
-  - closed schema / parameter closure;
-  - uniqueness / parameter conflicts.
-- 13 positive/negative fixtures.
+- Gate 1–4:
+  - якорь source/quote;
+  - обратное покрытие source;
+  - закрытая schema / замыкание параметров;
+  - уникальность / конфликты параметров.
+- 13 положительных/отрицательных fixtures.
 
-### Verification
+### Проверка
 
 На пустом active control corpus:
 
 - Gate 1: PASS;
-- Gate 2: FAIL expected — 349 uncovered;
+- Gate 2: ожидаемый FAIL — 349 строк без покрытия;
 - Gate 3: PASS;
 - Gate 4: PASS;
-- overall: FAIL expected.
+- итоговый FAIL ожидаем.
 
 Это зафиксировало fail-closed поведение до появления первых controls.
 
 ## [0.0.3] — 2026-08-14
 
-### Added
+### Добавлено
 
 - `index/source-v1` — первоначальная source-first population.
 - `TOTAL_INDEX_ROWS=349`.
@@ -1391,44 +1404,44 @@ SHA-256:
 - `sources/recovered-v1` для non-OCR glyph-ID recovery.
 - `index/source-v2`.
 
-### Changed
+### Изменено
 
 - После recovery:
   - `QUOTE_ANCHOR_READY_ROWS=349`;
   - `QUOTE_ANCHOR_BLOCKED_ROWS=0`;
   - `CLOSED_INDEX_ROWS=0`.
 
-### Verification
+### Проверка
 
-- `fstec-linux-2022`: 40/40 locators recovered.
-- `fstec-vulnerability-analysis-2025`: 61/61 locators recovered.
-- Double recovery: 2/2.
-- Unresolved glyphs: 0.
+- `fstec-linux-2022`: восстановлено 40/40 локаторов.
+- `fstec-vulnerability-analysis-2025`: восстановлено 61/61 локаторов.
+- Двойное восстановление: 2/2.
+- Неразрешённых глифов: 0.
 
 ## [0.0.2] — 2026-08-14
 
-### Added
+### Добавлено
 
-- Pinned FSTEC source bundle:
+- Закреплённый пакет источников FSTEC:
   - 10 PDF;
   - `sources/fstec/SHA256SUMS`.
-- Deterministic `pdftotext` extraction.
-- Raw extracted text.
-- `norm-v1` normalized text.
+- Детерминированное извлечение `pdftotext`.
+- Сырой извлечённый текст.
+- Нормализованный текст `norm-v1`.
 - `EXTRACTION-MANIFEST.tsv`.
-- Toolchain metadata.
+- Метаданные toolchain.
 
-### Verification
+### Проверка
 
-- Pinned source SHA verification: PASS.
-- Double extraction: 10/10.
-- Raw texts: 10.
-- Norm texts: 10.
-- `norm-v1` selftest/idempotence: PASS.
+- Проверка SHA закреплённых источников: PASS.
+- Двойное извлечение: 10/10.
+- Сырых текстов: 10.
+- Текстов norm-v1: 10.
+- Самотест/идемпотентность `norm-v1`: PASS.
 
 ## [0.0.1] — 2026-08-14
 
-### Added
+### Добавлено
 
 - Новый sibling-проект `SecureLinux-Policy-v3`.
 - Базовая структура:
@@ -1445,9 +1458,9 @@ SHA-256:
   - `N-01 -> B-06`
   - `N-02 -> B-07`
   - `N-03 -> B-08`
-- Engineering donor `securelinux-ng.sh`.
+- Инженерный donor `securelinux-ng.sh`.
 
-### Policy
+### Политика
 
 - Старая модель не конвертируется массово.
 - Старые records рассматриваются только как candidate input.

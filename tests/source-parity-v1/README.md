@@ -1,8 +1,8 @@
-# Source-block regeneration parity regression
+# Регрессия паритета регенерации source-блоков
 
-Permanent regression for roadmap step 6.
+Постоянный regression для шага 6 roadmap.
 
-Production coverage выводится из полной current population
+Production coverage выводится из полной текущей population
 `CONTROL-MANIFEST.tsv` и обязана регенерироваться byte-for-byte. Историческое
 число controls не пинуется.
 
@@ -10,11 +10,11 @@ Production coverage выводится из полной current population
 fixture harness. Оно НЕ является числом canonical controls. Полная production
 parity проверяется отдельно по фактической current control population.
 
-Negative fixtures prove fail-closed behavior for:
+Отрицательные fixtures доказывают fail-closed поведение для:
 
-- `quote` mutation;
-- `quote_sha256` mutation;
-- `locator` mutation;
-- unsupported `unit_kind`;
-- missing index row;
-- duplicate/malformed top-level `source:` block.
+- изменения `quote`;
+- изменения `quote_sha256`;
+- изменения `locator`;
+- неподдерживаемого `unit_kind`;
+- отсутствующей строки index;
+- дублированного/некорректного верхнеуровневого блока `source:`.

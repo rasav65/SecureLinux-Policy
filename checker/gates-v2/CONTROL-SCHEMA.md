@@ -1,4 +1,4 @@
-# Control record v1
+# Запись контроля v1
 
 Одна запись = один наблюдаемый параметр.
 
@@ -13,8 +13,8 @@
 `derived=false`: конкретное значение явно задано источником.
 `derived=true`: значение выбрано/выведено проектом; justification обязателен.
 
-Поддерживаемые checker-v1 kind:
+Поддерживаемые виды `kind` в checker-v1:
 `sysctl`, `file-kv`, `file-mode-owner`, `mount-option`,
 `systemd-unit-state`, `package-presence`, `pam-line`, `audit-rule`.
 
-GRUB token membership и UFW policy/rules намеренно не маскируются под эти типы.
+Проверки наличия токенов GRUB и policy/rules UFW намеренно не маскируются под эти типы.

@@ -1,5 +1,5 @@
 a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3  ADAPTER-REGISTRY.tsv
-8a84c6fc4567ad187f44ea6c860bbee5e3ab659da205e9263fac0aa64dc4aa3b  README.md
+3c07b1b5f814d458acb7c17f9c6b7954c04335f6cb6de9454a7c34b14d3031c9  README.md
 7373f3df058b88b20cdb50d3aaf7e26a6697ac116452bd18c334b56dfadf2c0c  adapters/product-cron-command-paths-write-protection-check-v1.json
 5da2f01e2094983a7f278697585b506cd885768a97751ca0a453738b7e4a877b  adapters/product-cron-command-paths-write-protection-check-v1.py
 aab39b925d1e92b6fe427e50e7545736b47945e6cc9265d8fa7b4cb0029a0020  adapters/product-file-mode-owner-check-v1.json

@@ -18,5 +18,7 @@ Negative-control правило для этого контракта: parser-lev
 свободнотекстовому полю (`reason`). Критерий PASS — буквальное соблюдение
 заявленного инварианта, а не отсутствие видимого вреда из-за побочной проверки.
 
-Реальный `index/source-v4/DISPOSITION-LEDGER.tsv` после Step 7A содержит только
-заголовок. Поэтому прогресс FSTEC остаётся `349 / 5 / 344`.
+Реальный `index/source-v4/DISPOSITION-LEDGER.tsv` после Step 7A по-прежнему содержит
+только заголовок. Этот README намеренно не закрепляет live-счётчики coverage: они
+выводятся из `SOURCE-INDEX.tsv`, `CLOSURE-CONTRACT.tsv` и control manifest, а
+человекочитаемое текущее покрытие формирует `docs/fstec-coverage.md`.

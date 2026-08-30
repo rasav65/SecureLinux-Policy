@@ -1,25 +1,36 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import csv
+import re
 
 root = Path(__file__).resolve().parents[2]
 policy = (root / "docs/DONOR-V3-ADOPTION-POLICY.md").read_text(encoding="utf-8")
 roadmap = (root / "docs/ROADMAP-v3.md").read_text(encoding="utf-8")
 
 for marker in (
-    "engineering donor",
     "DONOR_TO_V3_MAPPING",
-    "REUSE`, `ADAPT`, `REJECT`, or `DEFER",
+    "REUSE",
+    "ADAPT",
+    "REJECT",
+    "DEFER",
     "APPLY semantic contract",
-    "deterministic build artifact",
     "`control_id`",
     "`quote_sha256`",
+    "<!-- BEGIN MATURE DONOR FAMILIES -->",
+    "<!-- END MATURE DONOR FAMILIES -->",
 ):
     assert marker in policy, marker
 
-# Donor adoption never acts as normative closure.
-assert "mapping itself closes zero source-index rows" in policy
-assert "The mapping is engineering provenance. It is not normative evidence." in policy
+# Donor adoption never acts as normative closure. Human prose is Russian;
+# tests pin semantic tokens/markers rather than obsolete English sentences.
+for marker in (
+    "ненормативный",
+    "инженерный донор",
+    "сам mapping закрывает 0 строк source index",
+    "не является нормативным evidence",
+    "`EXTERNAL_SNAPSHOT`",
+):
+    assert marker in policy, marker
 
 # Roadmap must retain the donor precondition, but wording is not pinned.
 assert "DONOR_TO_V3_MAPPING" in roadmap
@@ -30,9 +41,283 @@ with (root / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream
     rows = list(csv.DictReader(stream, delimiter="\t"))
 orders = [int(row["order"]) for row in rows]
 assert orders == list(range(1, len(rows) + 1))
+assert rows[6]["step_id"] == "FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"
+assert rows[6]["status"] == "PAUSED_BY_CURRENT_DOCUMENT_APPLY"
 assert rows[7]["step_id"] == "APPLY_SEMANTIC_CONTRACT"
-assert rows[7]["status"] == "BLOCKED_BY_PREVIOUS"
-assert "post-APPLY rollback model is `EXTERNAL_SNAPSHOT`" in policy
-assert "`RESTORE` is not a roadmap stage" in policy
+assert rows[7]["status"] == "NEXT"
+def section(text: str, heading: str, next_heading: str | None = None) -> str:
+    assert heading in text, heading
+    body = text.split(heading, 1)[1]
+    if next_heading is not None:
+        assert next_heading in body, next_heading
+        body = body.split(next_heading, 1)[0]
+    return body
 
+
+def validate_restore_roadmap_boundary(text: str) -> None:
+    roadmap_part = section(text, "## Связь с утверждённым roadmap")
+    assert "`RESTORE` не является этапом roadmap" in roadmap_part
+    # Проверяем не только literal RESTORE, но и русские/английские синонимы recovery.
+    # Положительный user/post-APPLY recovery средствами v3 запрещён независимо от wording.
+    recovery_atom = (
+        r"(?:\bRESTORE\b|восстанов\w*|откат\w*|rollback|"
+        r"возврат\w*[^\n]{0,40}(?:состояни\w*|конфигурац\w*|настройк\w*|сред\w*)|"
+        r"возвращ\w*[^\n]{0,40}(?:состояни\w*|конфигурац\w*|настройк\w*|сред\w*)|"
+        r"вернут\w*[^\n]{0,40}(?:состояни\w*|конфигурац\w*|настройк\w*|сред\w*)|"
+        r"исходн\w*[^\n]{0,24}(?:состояни\w*|конфигурац\w*|настройк\w*))"
+    )
+    recovery = re.compile(rf"(?i){recovery_atom}")
+    paragraphs = [p for p in re.split(r"\n\s*\n", text) if recovery.search(p)]
+    assert paragraphs
+    allowed_boundary = (
+        "не являются", "`REJECT`", "не является", "НЕ ДОЛЖЕН", "historical evidence",
+        "не принимает", "не откатывается", "EXTERNAL_SNAPSHOT", "external snapshot",
+        "ответственность инфраструктуры", "вне продукта", "не переносится",
+    )
+    forbidden_positive = (
+        rf"(?i)(?:обязател\w*|предусмотрен\w*|требуется|должен\w*|реализован\w*|встроен\w*)[^\n]{{0,100}}{recovery_atom}",
+        rf"(?i){recovery_atom}[^\n]{{0,100}}(?:обязател\w*|предусмотрен\w*|требуется|должен\w*|реализован\w*|встроен\w*)",
+    )
+    for paragraph in paragraphs:
+        lower = paragraph.lower()
+        semantic = re.sub(
+            r"(?i)\bне\s+(?:должен\w*|является|являются|принимает|откатывается|переносится|реализуется|реализован\w*)",
+            "", paragraph,
+        )
+        for pattern in forbidden_positive:
+            assert not re.search(pattern, semantic), paragraph
+        # Если paragraph относится к current v3/APPLY boundary, он обязан явно
+        # указывать отрицание operational recovery или внешний snapshot.
+        if re.search(r"(?i)(?:\bv3\b|SecureLinux-Policy|post-APPLY|после[^\n]{0,30}APPLY|пользовательск)", paragraph):
+            assert any(marker.lower() in lower for marker in allowed_boundary), paragraph
+
+
+def validate_artifact_contract(text: str) -> None:
+    artifact = section(text, "## Правило итогового распространяемого артефакта", "## Связь с утверждённым roadmap")
+    assert "имя пока не закреплено" in artifact
+    assert "детерминированным артефактом сборки" in artifact
+    assert "не вручную поддерживаемым источником истины" in artifact
+    assert "исторического donor artifact" in artifact
+    assert "не закрепляет\nимя будущего distributable v3" in artifact
+    normalized = text.lower().replace("не вручную поддерживаемым", "")
+    for forbidden in (
+        "недетерминированным артефактом",
+        "поддерживается вручную",
+        "вручную поддерживаем",
+        "ручная сборка",
+        "сборка может отличаться",
+        "повторная сборка может отличаться",
+        "не воспроизводим",
+        "вправе иметь разные байты",
+        "разрешено иметь разные байты",
+    ):
+        assert forbidden not in normalized, forbidden
+    for pattern in (
+        r"(?i)(?:сборк\w*|артефакт\w*|distributable)[^\n]{0,100}не\s+обязан\w*[^\n]{0,40}совпад\w*",
+        r"(?i)(?:сборк\w*|артефакт\w*|distributable)[^\n]{0,100}(?:может|могут|допускает\w*)[^\n]{0,40}(?:отличаться|различаться)",
+        r"(?i)(?:артефакт\w*|сборк\w*|distributable)[^\n]{0,80}(?:не\s+детерминирован\w*|недетерминирован\w*|не\s+воспроизводим\w*)",
+        r"(?i)(?:не\s+детерминирован\w*|недетерминирован\w*|не\s+воспроизводим\w*)[^\n]{0,80}(?:артефакт\w*|сборк\w*|distributable)",
+        r"(?i)(?:distributable|артефакт\w*|сборк\w*)[^\n]{0,100}(?:вправе|разрешен\w*|допускает\w*)[^\n]{0,80}разн\w*\s+байт",
+        r"(?i)одинаков\w*\s+вход\w*[^\n]{0,100}разн\w*\s+байт",
+        r"(?i)разн\w*\s+байт[^\n]{0,100}одинаков\w*\s+вход\w*",
+        r"(?i)одинаков\w*[^\n]{0,24}вход\w*[^\n]{0,120}не\s+гарантир\w*[^\n]{0,80}одинаков\w*[^\n]{0,30}(?:результат\w*|байт\w*|артефакт\w*)",
+        r"(?i)не\s+гарантир\w*[^\n]{0,80}одинаков\w*[^\n]{0,30}(?:результат\w*|байт\w*|артефакт\w*)[^\n]{0,120}одинаков\w*[^\n]{0,24}вход\w*",
+        r"(?i)(?:результат\w*|сборк\w*|артефакт\w*)[^\n]{0,80}(?:при|для)\s+(?:тех\s+же|одинаков\w*)[^\n]{0,30}вход\w*[^\n]{0,80}(?:может|могут|способен\w*)\s+(?:меняться|изменяться|различаться)",
+        r"(?i)(?:тех\s+же|одинаков\w*)[^\n]{0,30}вход\w*[^\n]{0,100}(?:результат\w*|сборк\w*|артефакт\w*)[^\n]{0,40}(?:может|могут|способен\w*)\s+(?:меняться|изменяться|различаться)",
+    ):
+        assert not re.search(pattern, normalized), pattern
+    paragraphs = [p for p in re.split(r"\n\s*\n", text) if p.strip()]
+    future_name_binding = re.compile(
+        r"(?i)(?:будущ\w*|future)[^\n]{0,100}(?:distributable|артефакт\w*)"
+        r"[^\n]{0,100}(?:обязан\w*\s+называться|будет\s+называться|называется|"
+        r"закрепля\w*\s+(?:имя|названи\w*))[^\n]{0,60}`?[A-Za-z0-9_.-]+\.sh`?"
+    )
+    reverse_future_name_binding = re.compile(
+        r"(?i)`?[A-Za-z0-9_.-]+\.sh`?[^\n]{0,80}(?:имя|названи\w*)?[^\n]{0,40}"
+        r"(?:будущ\w*|future)[^\n]{0,60}(?:distributable|артефакт\w*)"
+    )
+    for paragraph in paragraphs:
+        normalized_paragraph = re.sub(
+            r"(?i)не\s+закрепля\w*[^\n]{0,60}(?:имя|названи\w*)",
+            "", paragraph,
+        )
+        assert not future_name_binding.search(normalized_paragraph), paragraph
+        assert not reverse_future_name_binding.search(normalized_paragraph), paragraph
+        shell_names = re.findall(r"`?([A-Za-z0-9_.-]+\.sh)`?", paragraph)
+        if shell_names and re.search(r"(?i)(?:будущ\w*|future)", paragraph):
+            donor_nonbinding = (
+                set(shell_names) == {"securelinux-ng.sh"}
+                and "исторического donor artifact" in paragraph
+                and re.search(r"(?i)не\s+закрепля\w*", paragraph)
+            )
+            assert donor_nonbinding, paragraph
+        if "securelinux-ng.sh" in paragraph:
+            # В current policy donor-name допустим только как явно historical и non-binding.
+            assert "исторического donor artifact" in paragraph, paragraph
+            assert "не закрепляет" in paragraph, paragraph
+
+
+def validate_donor_restore_history_boundary(text: str) -> None:
+    # Политика обязана одновременно признавать зрелость donor RESTORE и запрещать
+    # перенос standalone/post-APPLY operational contour в v3.
+    for marker in (
+        "RESTORE у донора был зрелым и протестированным operational-семейством",
+        "v3\nне принимает его как user-invokable или post-APPLY RESTORE",
+    ):
+        assert marker in text, marker
+    roadmap_part = section(text, "## Связь с утверждённым roadmap")
+    for marker in (
+        "исторический `SecureLinux-NG` имел полноценный",
+        "standalone operational-контур RESTORE",
+        "manifest/backups",
+        "модульным восстановлением",
+        "специализированными regression-тестами",
+        "В v3 этот operational-контур целиком не",
+        "`ADAPT` исключительно для transaction-local compensation",
+    ):
+        assert marker in roadmap_part, marker
+    assert "`RESTORE` не является этапом roadmap" in roadmap_part
+    # Любое отрицание факта реализации donor RESTORE запрещено, даже без literal SecureLinux-NG.
+    for paragraph in re.split(r"\n\s*\n", text):
+        lower = paragraph.lower()
+        if not re.search(r"донор|donor|историческ", lower):
+            continue
+        if not re.search(r"restore|восстанов", lower):
+            continue
+        for pattern in (
+            r"не\s+(?:существовал\w*|реализован\w*|имел\w*|содержал\w*|поддерживал\w*)",
+            r"(?:реализован\w*|реализовывал\w*|существовал\w*|поддерживал\w*)\s+не\s+был\w*",
+            r"(?:restore|восстанов\w*)[^\n]{0,80}отсутствовал\w*",
+            r"(?:restore|восстанов\w*)[^\n]{0,100}(?:лишь|только)\s+(?:экспериментальн\w*|прототип\w*|заготовк\w*|чернов\w*)",
+            r"(?:лишь|только)\s+(?:экспериментальн\w*|прототип\w*|заготовк\w*|чернов\w*)[^\n]{0,100}(?:restore|восстанов\w*)",
+            r"(?:restore|восстанов\w*)[^\n]{0,100}не\s+(?:был\w*\s+)?(?:зрел\w*|полноценн\w*)",
+            r"(?:restore|восстанов\w*)[^\n]{0,100}(?:демонстрационн\w*|экспериментальн\w*|прототип\w*|заготовк\w*|чернов\w*|макет\w*|stub\w*)",
+            r"(?:демонстрационн\w*|экспериментальн\w*|прототип\w*|заготовк\w*|чернов\w*|макет\w*|stub\w*)[^\n]{0,100}(?:restore|восстанов\w*)",
+        ):
+            assert not re.search(pattern, lower), paragraph
+
+
+def validate_no_roadmap_status_copy(text: str) -> None:
+    roadmap_part = section(text, "## Связь с утверждённым roadmap")
+    assert "не дублирует текущие статусы roadmap" in roadmap_part
+    assert "ROADMAP-v3.tsv" in roadmap_part
+    # Policy задаёт правила adoption, но не копирует live row statuses из machine truth.
+    for status in ("PAUSED_BY_CURRENT_DOCUMENT_APPLY", "BLOCKED_BY_PREVIOUS"):
+        assert status not in roadmap_part, status
+    assert not re.search(r"(?m)^\s*\d+\.\s+`[A-Z0-9_]+`\s+—\s+`(?:CLOSED|NEXT|PAUSED_BY_CURRENT_DOCUMENT_APPLY|BLOCKED_BY_PREVIOUS)`", roadmap_part)
+
+
+def expect_rejected(check, mutated: str, label: str) -> None:
+    try:
+        check(mutated)
+    except AssertionError:
+        return
+    raise AssertionError(f"negative fixture unexpectedly accepted: {label}")
+
+
+assert "Модель отката после успешно завершённого APPLY" in policy
+assert "`EXTERNAL_SNAPSHOT`" in policy
+validate_restore_roadmap_boundary(policy)
+validate_donor_restore_history_boundary(policy)
+validate_artifact_contract(policy)
+validate_no_roadmap_status_copy(policy)
+assert "single distributable securelinux-ng.sh" not in policy
+assert not any("RESTORE" in row["step_id"].upper() for row in rows)
+
+expect_rejected(
+    validate_restore_roadmap_boundary,
+    policy + "\nRESTORE является этапом roadmap и ДОЛЖЕН появляться.\n",
+    "restore_as_roadmap_stage",
+)
+expect_rejected(
+    validate_donor_restore_history_boundary,
+    policy.replace("исторический `SecureLinux-NG` имел полноценный", "исторический `SecureLinux-NG` сохранён в archive", 1),
+    "donor_restore_history_omitted",
+)
+expect_rejected(
+    validate_restore_roadmap_boundary,
+    policy + "\nПользовательский RESTORE обязателен после APPLY.\n",
+    "restore_operational_rephrase",
+)
+expect_rejected(
+    validate_restore_roadmap_boundary,
+    policy + "\nПосле APPLY предусматривается обязательное пользовательское восстановление системы средствами SecureLinux-Policy.\n",
+    "restore_operational_euphemism",
+)
+expect_rejected(
+    validate_artifact_contract,
+    policy.replace(
+        "детерминированным артефактом сборки, а не вручную поддерживаемым источником истины",
+        "вручную поддерживаемым недетерминированным артефактом и источником истины",
+        1,
+    ),
+    "manual_nondeterministic_artifact",
+)
+expect_rejected(
+    validate_artifact_contract,
+    policy + "\nИтоговый distributable поддерживается вручную, повторная сборка может отличаться.\n",
+    "manual_nondeterministic_artifact_rephrase",
+)
+expect_rejected(
+    validate_artifact_contract,
+    policy + "\nПовторная сборка итогового артефакта не обязана совпадать побайтно с предыдущей.\n",
+    "manual_nondeterministic_artifact_semantic_rephrase",
+)
+expect_rejected(
+    validate_artifact_contract,
+    policy + "\nБудущий итоговый distributable обязан называться `securelinux-ng.sh`.\n",
+    "future_securelinux_ng_name",
+)
+expect_rejected(
+    validate_donor_restore_history_boundary,
+    policy + "\nИсторический режим восстановления у донора реализован не был.\n",
+    "donor_restore_false_denial_rephrase",
+)
+expect_rejected(
+    validate_artifact_contract,
+    policy + "\nБудущий distributable вправе иметь разные байты при одинаковых входах.\n",
+    "determinism_opposite_same_inputs_different_bytes",
+)
+expect_rejected(
+    validate_donor_restore_history_boundary,
+    policy + "\nИсторический donor RESTORE был лишь экспериментальной заготовкой.\n",
+    "donor_restore_maturity_downgrade_rephrase",
+)
+expect_rejected(
+    validate_artifact_contract,
+    policy + "\nБудущий итоговый distributable обязан называться `securelinux-policy-v3.sh`.\n",
+    "future_generic_shell_name_pin",
+)
+expect_rejected(
+    validate_restore_roadmap_boundary,
+    policy + "\nПосле APPLY обязателен возврат состояния средствами SecureLinux-Policy.\n",
+    "post_apply_state_return_euphemism",
+)
+expect_rejected(
+    validate_restore_roadmap_boundary,
+    policy + "\nПосле успешного APPLY SecureLinux-Policy самостоятельно возвращает исходную конфигурацию средствами продукта.\n",
+    "post_apply_original_configuration_return",
+)
+expect_rejected(
+    validate_donor_restore_history_boundary,
+    policy + "\nИсторический donor RESTORE представлял собой демонстрационный прототип.\n",
+    "donor_restore_prototype_downgrade",
+)
+expect_rejected(
+    validate_artifact_contract,
+    policy + "\nДля будущего distributable одинаковый набор входов не гарантирует одинаковый результат генерации.\n",
+    "determinism_not_guaranteed_same_inputs",
+)
+expect_rejected(
+    validate_artifact_contract,
+    policy + "\nИмя будущего исполняемого файла — `securelinux-policy-v3.sh`.\n",
+    "future_executable_filename_pin",
+)
+
+expect_rejected(
+    validate_artifact_contract,
+    policy + "\nДля будущего distributable результат сборки при тех же входах может меняться.\n",
+    "determinism_same_inputs_result_may_change",
+)
+print("DONOR_POLICY_NEGATIVE_FIXTURES=PASS_18 restore_stage=5 donor_restore_history=4 artifact_truth=6 future_name=3")
 print("DONOR_V3_POLICY=PASS donor_is_non_normative=1 roadmap_precondition=1")

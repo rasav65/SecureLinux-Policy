@@ -4,7 +4,7 @@
 engineering contracts, roadmap и donor reference, чтобы несколько файлов не
 конкурировали за роль «главного описания проекта».
 
-## PRODUCT
+## PRODUCT — продуктовые документы
 
 Документы, с которых следует начинать пользователю текущей product-line.
 
@@ -15,7 +15,7 @@ engineering contracts, roadmap и donor reference, чтобы несколько
 | [`fstec-coverage.md`](fstec-coverage.md) | **GENERATED** карта текущего FSTEC coverage из machine truth |
 | [`compatibility.md`](compatibility.md) | SUPPORTED / TESTED / UNSUPPORTED для current product target |
 
-## ENGINEERING
+## ENGINEERING — инженерные документы
 
 | Документ | Роль |
 |---|---|
@@ -23,11 +23,11 @@ engineering contracts, roadmap и donor reference, чтобы несколько
 | [`observation-value-contract.md`](observation-value-contract.md) | формат и типизация observation values |
 | [`release-validation.md`](release-validation.md) | обязательная release-validation и real jsonschema policy |
 | [`root-manifest-policy.md`](root-manifest-policy.md) | canonical population корневых manifests |
-| [`source-block-regeneration-parity.md`](source-block-regeneration-parity.md) | parity generated `source:` blocks |
-| [`source-skeleton-generator.md`](source-skeleton-generator.md) | contract source-skeleton generator |
-| [`disposition-ledger.md`](disposition-ledger.md) | explicit disposition closure route |
+| [`source-block-regeneration-parity.md`](source-block-regeneration-parity.md) | паритет сгенерированных блоков `source:` |
+| [`source-skeleton-generator.md`](source-skeleton-generator.md) | контракт генератора source-skeleton |
+| [`disposition-ledger.md`](disposition-ledger.md) | явный путь закрытия через disposition |
 
-## ROADMAP
+## ROADMAP — план работ
 
 | Документ | Роль |
 |---|---|
@@ -35,18 +35,41 @@ engineering contracts, roadmap и donor reference, чтобы несколько
 
 Machine truth порядка и статуса roadmap находится в `ROADMAP-v3.tsv`.
 
-## DONOR-REFERENCE
+## DONOR-REFERENCE — справочные материалы донора
 
-Эти документы содержат инженерные знания донора и будущие runtime patterns.
-Они **не описывают current product как уже реализованный APPLY**. RESTORE-схемы
-в donor reference являются историческими и не входят в целевую архитектуру v3.
+Эти документы содержат инженерные знания донора и архитектурные ориентиры для
+будущего APPLY. Они **не описывают current product как уже реализованный APPLY**.
+Historical RESTORE-механика хранится в donor archive/mapping, но не показывается
+как operational/future ветвь целевой архитектуры v3.
 
 | Документ | Роль |
 |---|---|
-| [`ARCHITECTURE-DIAGRAMS.md`](ARCHITECTURE-DIAGRAMS.md) | donor/future runtime reference; не primary map |
+| [`ARCHITECTURE-DIAGRAMS.md`](ARCHITECTURE-DIAGRAMS.md) | historical donor runtime reference + границы v3; не primary map и не future target model |
 | [`DONOR-V3-ADOPTION-POLICY.md`](DONOR-V3-ADOPTION-POLICY.md) | правила REUSE / ADAPT / REJECT / DEFER |
 | [`engineering-donor.md`](engineering-donor.md) | состав и индекс engineering donor |
-| [`testing-strategy.md`](testing-strategy.md) | donor-derived test invariants + current DEV/RELEASE baseline |
+| [`testing-strategy.md`](testing-strategy.md) | инварианты tests, полученные из донора, + текущий baseline DEV/RELEASE |
+
+## Язык current-документации
+
+Человекочитаемая current-документация ведётся по-русски. Технические identifiers,
+filenames, CLI/schema/status tokens, exact donor labels и protocol/wire literals
+сохраняются без перевода, когда это нужно для совместимости или machine binding.
+
+Historical/frozen SHA-bound material не переводится на месте. В частности,
+не выполняется in-place перевод `archive/**`, `audit/**`, superseded
+`index/source-v1..v3`, reference-VM evidence и принятых `step7b0/BUILD-CONTRACT-*`.
+Для них при необходимости создаётся отдельный русский companion, не меняющий
+исходную identity.
+
+В отдельном контролируемом documentation-only этапе текущий `CHANGELOG.md` был
+русифицирован вместе с остальной редактируемой current-документацией, включая
+накопленную секцию `[Не выпущено]` и старые release sections, которые остаются
+частью текущего файла. Это не распространяется на frozen/SHA-bound historical
+artifacts из исключённых областей выше. Exact donor labels, roadmap step/status
+identifiers, CLI/schema/protocol tokens и source quotes сохраняются без перевода.
+
+Documentation regression проверяет, что каждый Git-tracked current Markdown вне
+этих historical/frozen классов содержит русскую человекочитаемую prose.
 
 ## Правило актуальности
 

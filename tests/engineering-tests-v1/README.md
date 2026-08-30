@@ -1,12 +1,15 @@
-# engineering-tests-v1 tests
+# Тесты engineering-tests-v1
 
-`test_donor_test_suite.py` mechanically verifies the pinned v16.2.11 ZIP,
-all 38 donor tests, the 36/36 smoke wiring, the 32 generalized contract rows,
-legacy normative isolation, and the active portable SHA helper.
+`test_donor_test_suite.py` механически проверяет закреплённый ZIP v16.2.11, все
+38 donor tests, wiring 36/36 через smoke, 32 generalized contract rows,
+изоляцию legacy normative evidence и active portable SHA helper.
 
-`portable-sha256-regression.sh` is the donor test adopted directly because it
-tests only `tools/write-sha256.py` and has no dependency on the old monolithic
-script.
+`portable-sha256-regression.sh` — donor test, принятый напрямую, потому что он
+проверяет только `tools/write-sha256.py` и не зависит от старого монолитного
+скрипта.
 
-These tests do not claim that future APPLY or failed-transaction compensation contracts are implemented.
-They only prevent losing the donor evidence and registry while v3 is built. Post-APPLY RESTORE remains excluded.
+Эти tests не утверждают, что future APPLY или contracts failed-transaction
+compensation уже реализованы. Они только не дают потерять donor evidence и
+registry в процессе построения v3. Post-APPLY RESTORE остаётся исключённым.
+
+Current `PROGRESS.txt` проверяется как exact machine contract: полный key-set и derived counts должны совпадать с ZIP/inventory/contracts; stale, duplicate и extra keys завершаются fail-closed.

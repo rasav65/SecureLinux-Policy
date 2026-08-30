@@ -11,8 +11,8 @@ source:
   norm: "norm-v1"
 requirement:
   stated: "2.2.1. Обеспечить ограничение доступа к команде su путём добавления в файл /etc/pam.d/su следующей строки: auth required pam_wheel.so use_uid. Задать список пользователей в записи для группы wheel в файле /etc/group: wheel:x:10:root,<user list>."
-  derived: false
-  justification: null
+  derived: true
+  justification: "Источник задаёт обязательные PAM/wheel условия и placeholder <user list>, но exact additional-user set и путь local authority являются product mechanism для представления локального решения, а не отдельным требованием ФСТЭК."
   applicability: "technical"
 parameter:
   kind: "pam-wheel-access"

@@ -12,7 +12,7 @@ Step 5. Нельзя начинать более поздний этап, пок
 6. Gate паритета регенерации `source:`
 7. Расширение FSTEC + corporate index / dispositions
 8. Семантический контракт APPLY
-9. APPLY implementation adapters
+9. Адаптеры реализации APPLY
 10. Детерминированная финальная упаковка
 11. Единый распространяемый артефакт (имя не закреплено)
 
@@ -43,28 +43,28 @@ Step 5. Нельзя начинать более поздний этап, пок
   фиксирует его версию;
 - будущие Git bundles должны активно проверяться и сравниваться по дереву со
   снимком проекта; сами по себе они не доказывают происхождение из конкретного
-  remote.
+  удалённого репозитория.
 
-ТЕКУЩИЙ СТАТУС: этапы roadmap 1–6 `CLOSED`; макроэтап 7
-FSTEC + corporate index expansion / dispositions остаётся `NEXT`. Внутри него
-Step 7A `CLOSED`, а текущий разрешённый подэтап — Step 7B: FSTEC expansion
-без real dispositions.
+ТЕКУЩИЙ СТАТУС: этапы roadmap 1–6 `CLOSED`. Макроэтап 7
+`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` ещё не завершён, но временно
+имеет статус `PAUSED_BY_CURRENT_DOCUMENT_APPLY`: Step 7A закрыт, а дальнейшее
+расширение Step 7B отложено до вертикального завершения текущего нормативного
+документа `fstec-linux-2022`.
 
-Это **macro-roadmap status**. Он не означает, что read-only CHECK adapters или
-tracked deterministic CHECK generator ещё не реализованы: current product-line
-уже содержит оба adapters, `ADAPTER-REGISTRY.tsv`, generator и CHECK-8.
-Roadmap steps 8–11 относятся к будущему APPLY и финальной упаковке, а
-не к уже существующей CHECK product-line. `SRC-0005 / 2.3.1` и CHECK-11
-закрыты; затем закрыт exact-eq sysctl batch `SRC-0030`, `SRC-0031`,
-`SRC-0036`–`SRC-0039`, `SRC-0040 / 2.6.6` закрыт после точечного
-исправления terminal page-furniture boundary и CHECK-18, а `SRC-0033 /
-2.5.10` закрыт source-faithful lower-bound `sysctl ge 4096` через current
-sysctl adapter v2. Следующий donor-backed read-only kind `kernel-cmdline`
-закрывает exact boot-token rows `SRC-0018`, `SRC-0019`, `SRC-0020`,
-`SRC-0021`, `SRC-0022`, `SRC-0024`, `SRC-0032`; `SRC-0026` остаётся OPEN
-из-за альтернативной/предпочтительной формулировки `debugfs=no-mount
-(по возможности off)`. Текущий product checkpoint внутри Step 7B —
-систематическое представление оставшихся `OPEN` source rows.
+Для `fstec-linux-2022` read-only CHECK принят (`40/40 CLOSED`), обязательный
+`DONOR_TO_V3_MAPPING` принят и опубликован. Поэтому единственный текущий
+substantive checkpoint — отдельный `APPLY semantic contract`, и в
+`ROADMAP-v3.tsv` именно `APPLY_SEMANTIC_CONTRACT` имеет статус `NEXT`.
+До прохождения локальных APPLY gates, применимой VM-матрицы и точки
+`DOCUMENT COMPLETE` следующий нормативный документ ФСТЭК не начинается.
+
+Существующая read-only CHECK product-line уже содержит adapters,
+`ADAPTER-REGISTRY.tsv`, детерминированный generator и единый CLI. Исторические
+закрытия Step 7B (`SRC-0005/CHECK-11`, sysctl batches, `kernel-cmdline` и
+последующие controls) остаются принятыми фактами и не являются текущим NEXT.
+Оставшиеся `OPEN` строки других документов сохраняются в backlog макроэтапа 7
+до разрешённого возврата к расширению после `DOCUMENT COMPLETE` текущей
+вертикали.
 
 ## Правило сохранения инженерного донора
 
@@ -91,7 +91,7 @@ corporate source index. Ни один implementation adapter не может о�
 ПО или иная эксплуатационная проблема, восстановление системы выполняется
 внешним snapshot rollback средствами инфраструктуры. SecureLinux-Policy не
 создаёт snapshot, не восстанавливает snapshot и не заявляет собственный
-post-APPLY RESTORE.
+RESTORE после APPLY.
 
 При этом APPLY обязан оставаться транзакционно безопасным: до каждой mutation
 проверяются preconditions, а ошибка внутри ещё не завершённой APPLY-транзакции
@@ -113,7 +113,7 @@ evidence `sysctl-v1` с reference VM.
 
 Он **не** доказывает криптографическое происхождение от указанной VM.
 
-TYPE/BOOLEAN CONTRACT CLEANUP: CLOSED.
+TYPE/BOOLEAN CONTRACT CLEANUP: CLOSED — этап закрыт.
 
 ## Закрытие очистки контракта type/boolean
 
@@ -133,7 +133,7 @@ TYPE/BOOLEAN CONTRACT CLEANUP: CLOSED.
 Этот этап не меняет ни одной записи `KIND_RULES` и ни одного байта
 сгенерированного control-schema.
 
-MANDATORY REAL-JSONSCHEMA RELEASE GATE: CLOSED.
+MANDATORY REAL-JSONSCHEMA RELEASE GATE: CLOSED — этап закрыт.
 
 ## Закрытие обязательного release-gate с реальным `jsonschema`
 
@@ -147,20 +147,20 @@ emulator↔real-validator обязаны иметь нулевое число р
 
 Это отдельное доказательство и не является Gate 0 generation parity.
 
-INDEX-GENERIC SOURCE SKELETON GENERATOR: CLOSED.
+INDEX-GENERIC SOURCE SKELETON GENERATOR: CLOSED — этап закрыт.
 
 ## Закрытие универсального по индексу генератора `source:`
 
 `tools/source_skeleton_generator.py` является каноническим производителем
 `source:` для поддерживаемых `unit_kind`.
 
-Текущая область намеренно узкая и измеримая. Числа supported/exact
-вычисляются regression-тестом из текущего index, а не являются roadmap-pin:
-
-- source index: 349 строк / 13 типов `unit_kind`;
-- поддерживаемый тип: только `numbered-position`;
-- отказ без угадывания: `SRC-0001`, `SRC-0133`;
-- текущие принятые controls воспроизводятся побайтово; число выводится из current `CONTROL-MANIFEST.tsv` и не пинуется roadmap-текстом.
+Текущая область намеренно узкая и измеримая. Supported/exact/refused
+population вычисляется regression-тестом из текущего index и не закрепляется
+roadmap-числами или ручным списком refused identities. Поддерживаемый тип —
+`numbered-position`; `SRC-0001` допускается только через exact pinned
+page-furniture exception и не является current refused identity. Текущие
+принятые controls воспроизводятся побайтово, а их population читается из
+`CONTROL-MANIFEST.tsv`.
 
 Генератор принимает явный путь к index и использует его общий контракт. Он
 fail-closed проверяет normalizer, corpus manifests и hash нормализованного
@@ -172,7 +172,7 @@ fail-closed проверяет normalizer, corpus manifests и hash нормал
 
 Это закрытие не меняет controls и закрывает 0 строк FSTEC source index.
 
-SOURCE-BLOCK REGENERATION PARITY: CLOSED.
+SOURCE-BLOCK REGENERATION PARITY: CLOSED — этап закрыт.
 
 ## Закрытие паритета регенерации блока `source:`
 
@@ -180,10 +180,9 @@ SOURCE-BLOCK REGENERATION PARITY: CLOSED.
 механически обеспечивает правило единственного нормативного производителя для
 каждого закоммиченного control.
 
-Результат на текущем HEAD вычисляется из `CONTROL-MANIFEST.tsv`, а не
-пинуется числом исторического pilot: все 8 current controls поддержаны и
-побайтово совпадают; `unsupported=0`, `missing_index=0`, `mismatches=0`,
-`errors=0`.
+Результат на текущем HEAD вычисляется из `CONTROL-MANIFEST.tsv` и
+`ADAPTER-REGISTRY.tsv`; roadmap не пинует число current controls, adapter kinds
+или parity-result counters вручную.
 
 Будущий control, чей `unit_kind` ещё не поддерживается, классифицируется как
 `UNSUPPORTED` и приводит к fail-closed, а не обходит parity.
@@ -217,11 +216,12 @@ controlled-строк. Для этого используется соседни
 закрывает 0 строк FSTEC, поэтому состояние остаётся `349 / 5 / 344`.
 
 Quote-anchor в ledger v1 не добавляется искусственно. Текущий generator умеет
-канонически извлекать не все `unit_kind`, а две строки поддержанного типа
-намеренно REFUSED. Пока невозможно машинно отличить все допустимые случаи
-отказа от integrity failure единым стабильным состоянием, обязательный hash
-создал бы ложную гарантию. Этот вопрос возвращается по мере расширения
-канонического generator.
+канонически извлекать не все `unit_kind`, а deliberate REFUSED остаётся
+fail-closed состоянием для части поддержанной population. Exact/refused set
+вычисляется regression-тестом и не пинуется roadmap-текстом. Пока невозможно
+машинно отличить все допустимые случаи отказа от integrity failure единым
+стабильным состоянием, обязательный hash создал бы ложную гарантию. Этот вопрос
+возвращается по мере расширения канонического generator.
 
 Multi-index/population descriptor не является частью 7A. Он вводится перед
 первым реальным corporate primary source, когда понадобится убрать hard-coded
@@ -241,7 +241,7 @@ R2 требует одновременно:
 - fail-closed `7 fields` и `5 fields` fixtures;
 - сохранение всех прежних disposition negative fixtures;
 - полный прогон `tests/` до и после изменения без новых падений;
-- `349 / 5 / 344`, real ledger rows `0`.
+- `349 / 5 / 344`, реальных строк ledger `0`.
 
 Повторный аудит R2 выявил `S7A-R2-B01`: `csv.reader` с включённой
 CSV quoting-семантикой позволял спрятать `TAB` внутри кавычек и объединять две
@@ -257,7 +257,7 @@ R3 требует:
 - quoted `LF` и quoted `CR` в `basis` → FAIL;
 - quoted `TAB` в `reason` → FAIL независимо от index↔ledger equality;
 - полный `tests/` без новых регрессий;
-- `349 / 5 / 344`, real ledger rows `0`.
+- `349 / 5 / 344`, реальных строк ledger `0`.
 
 Negative-control методика: parser-level негативные случаи проверяются прежде всего на
 наименее ограниченном поле (`basis`), затем на других свободнотекстовых полях.
@@ -267,9 +267,10 @@ Negative-control методика: parser-level негативные случа�
 Повторные независимые R3-аудиты дали `ACCEPT`: `S7A-R2-B01` закрыт,
 новых блокеров `S7A-R3-Bxx` не выявлено. Статус Step 7A — `CLOSED`.
 
-### Step 7B — FSTEC expansion
+### Step 7B — расширение FSTEC
 
-Step 7B разрешён только для расширения FSTEC по source-first пути:
+Step 7B сейчас приостановлен (`PAUSED_BY_CURRENT_DOCUMENT_APPLY`). После снятия
+этой паузы расширение FSTEC выполняется только по source-first пути:
 
 - новые технические controls должны проходить generator/parity/gates;
 - real disposition остаётся запрещён до quote-anchor contract/API;
@@ -290,4 +291,4 @@ Carry-forward non-blocking findings R3: NUL, `U+2028/U+2029`, VT/FF и CRLF
 `source_role ↔ disposition`, multi-index ledger и устаревшим notes сохраняются
 в backlog и должны учитываться перед соответствующими изменениями.
 
-NEXT: Step 7B — FSTEC expansion без real dispositions.
+NEXT: `APPLY_SEMANTIC_CONTRACT` для принятой вертикали `fstec-linux-2022`. Step 7B остаётся приостановленным backlog до `DOCUMENT COMPLETE`.

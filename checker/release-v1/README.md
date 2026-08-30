@@ -1,9 +1,9 @@
 # release-v1
 
-Mandatory release/audit validation with a real JSON Schema Draft 2020-12
-implementation.
+Обязательная release/audit validation с реальной реализацией JSON Schema Draft
+2020-12.
 
-Run:
+Запуск:
 
 ```bash
 python3 -B checker/release-v1/real_jsonschema_gate.py \
@@ -11,6 +11,7 @@ python3 -B checker/release-v1/real_jsonschema_gate.py \
   --json-out checker/release-v1/RELEASE-EVIDENCE.json
 ```
 
-`jsonschema` absence is a hard failure, never a skip.
+Отсутствие `jsonschema` является hard failure и никогда не превращается в skip.
 
-Minimum supported distribution version: `jsonschema 4.10.3`; lower or unparseable versions fail closed.
+Минимальная поддерживаемая version distribution: `jsonschema 4.10.3`; более
+низкие или непарсируемые versions завершаются fail-closed.

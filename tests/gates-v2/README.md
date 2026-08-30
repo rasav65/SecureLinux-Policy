@@ -1,3 +1,3 @@
-# gates-v2 tests
+# Тесты gates-v2
 
-Eight focused Gate-5 positive/negative tests.
+Восемь целевых положительных и отрицательных tests для Gate 5.

@@ -307,7 +307,38 @@ with tempfile.TemporaryDirectory(prefix="slp-manifest-tamper-") as td:
     else:
         raise AssertionError("corrupted norm SHA was accepted")
 
-print(
+# Current documentation must not pin a historical supported/exact/refused
+# population. Those values are derived above from current index/generator bytes.
+doc_paths = (
+    ROOT / "docs/source-skeleton-generator.md",
+    ROOT / "docs/ROADMAP-v3.md",
+    ROOT / "docs/disposition-ledger.md",
+)
+for doc_path in doc_paths:
+    doc = doc_path.read_text(encoding="utf-8")
+    lower = doc.lower()
+    for stale in (
+        "точных извлечений: 72",
+        "отказов: 2",
+        "две строки с отказом",
+        "два известных явных отказа",
+        "две строки поддержанного типа",
+        "отказ без угадывания: `src-0001`, `src-0133`",
+    ):
+        assert stale not in lower, (doc_path, stale)
+    assert not __import__("re").search(
+        r"(?i)(?:supported|exact|refused|точн\w*\s+извлеч|отказ\w*)"
+        r"[^\n]{0,36}(?:population|строк\w*|извлеч\w*|отказ\w*)?"
+        r"\s*[:=—-]\s*`?\d+",
+        doc,
+    ), doc_path
+
+source_doc = (ROOT / "docs/source-skeleton-generator.md").read_text(encoding="utf-8")
+assert "больше не относится к refused population" in source_doc
+assert "test-owned machine truth" in source_doc
+assert "supported/exact/refused population" in source_doc.lower()
+
+expected_summary = (
     "SOURCE_SKELETON_TESTS=PASS "
     f"pilot={control_count} unit_kinds=1/{len({row['unit_kind'] for row in rows})} "
     f"supported_rows={len(supported)} exact={len(ok)} refused={len(refused)} "
@@ -315,5 +346,9 @@ print(
     "negative_quote_anchor=1 negative_normalizer_sha=1 "
     "negative_norm_sha=1 internal_page_exact=1 internal_page_negative=2 "
     "inline_page_exact=1 inline_page_negative=2 "
-    "terminal_footer_exact=1 terminal_footer_negative=2"
+    "terminal_footer_exact=1 terminal_footer_negative=2 "
+    "documentation_population_parity=3 test_results_fresh=1"
 )
+stored_summary = (ROOT / "tests/source-skeleton-v1/TEST-RESULTS.txt").read_text(encoding="utf-8").strip()
+assert stored_summary == expected_summary, (stored_summary, expected_summary)
+print(expected_summary)

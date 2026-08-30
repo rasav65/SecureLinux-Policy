@@ -27,6 +27,8 @@
 
 Runtime-семантика не изменена, но `CONTROL-SCHEMA.json` теперь является полным вложенным контрактом для всех обязательных полей, правил `derived/justification`, правила `layer/profile`, типизации ожидаемых значений и всех 8 видов параметров.
 
+Authority-backed product mechanisms не маскируются под дословное source-значение. Если `parameter`/`expected` опираются на локальный authority для разрешения source placeholder, open-ended population, reviewed policy или procedural prerequisite, record обязан иметь `requirement.derived=true` и непустой `justification`. Runtime KIND rules и публикуемая JSON Schema проверяют это fail-closed.
+
 ## Gate 4 — уникальность в scope и явная межscope-семантика
 
 Жёсткая идентичность внутри одного scope:
@@ -54,7 +56,7 @@ Runtime-семантика не изменена, но `CONTROL-SCHEMA.json` т�
 
 Зарезервированные форматы для будущих runners:
 
-- boolean `systemd-unit-state` -> JSON boolean;
-- boolean `package-presence` -> JSON boolean.
+- логическое значение `systemd-unit-state` -> JSON boolean;
+- логическое значение `package-presence` -> JSON boolean.
 
 Строки `"true"` / `"false"` и числовые `0/1` не принимаются как boolean-наблюдения. Отображение boolean-наблюдений для `file-kv` явно отложено до появления дизайна соответствующего `file-kv` probe.

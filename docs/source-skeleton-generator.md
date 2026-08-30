@@ -1,7 +1,7 @@
 # Универсальный по индексу генератор блока `source:`
 
 Этап 5 roadmap вводит канонический способ построения блока `source:` записи
-control.
+контроля.
 
 ## Контракт
 
@@ -27,30 +27,22 @@ control.
 
 ## Текущая область извлечения
 
-Текущий source index содержит 349 строк и 13 значений `unit_kind`.
+Текущая population source index и набор `unit_kind` читаются машинно из
+`index/source-v4/SOURCE-INDEX.tsv`; документ не закрепляет их live-counts.
 
-Эта версия поддерживает ровно один тип:
+Эта версия поддерживает `numbered-position`. Supported/exact/refused population
+вычисляется при каждом regression-прогоне и не пинуется числами или списком
+refused identities в документации. Fail-closed refusal остаётся допустимым
+результатом там, где exact page-furniture boundary не доказана.
 
-`numbered-position`
+`SRC-0001 / 2.1.1` больше не относится к refused population: для него принят
+только exact pinned trailing page token `3`; generic bare-integer stripping
+по-прежнему запрещён. Актуальный refused set является test-owned machine truth
+`tests/source-skeleton-v1/test_source_skeleton_generator.py`, а не ручным
+документационным списком.
 
-Измеренная область:
-
-- строк этого типа: 74;
-- точных извлечений: 72;
-- отказов: 2;
-- текущие принятые controls воспроизводятся побайтово; число берётся из current `CONTROL-MANIFEST.tsv` и не пинуется текстом документа.
-
-Две строки с отказом:
-
-- `SRC-0001` / `2.1.1`;
-- `SRC-0133` / `6.2`.
-
-Оба фрагмента пересекают разрыв страницы и заканчиваются номером страницы,
-попавшим в `norm-v1`. Генератор отказывается от результата, а не угадывает,
-является ли конечное целое число служебной разметкой страницы.
-
-Остальные 12 типов `unit_kind` этой версией не поддерживаются. Для этих строк
-не заявляется автоматическая генерация цитаты.
+Остальные неподдерживаемые `unit_kind` не получают заявленной автоматической
+генерации цитаты. Их population также определяется текущим source index.
 
 ## Правило границ для `numbered-position`
 
@@ -93,9 +85,11 @@ control.
 
 - все current controls, число которых берётся из `CONTROL-MANIFEST.tsv`,
   воспроизводятся побайтово;
-- supported/exact population вычисляется из текущего index при каждом прогоне,
-  а не пинуется историческими числами;
-- два известных явных отказа (`SRC-0001`, `SRC-0133`);
+- supported/exact/refused population вычисляется из текущего index при каждом
+  прогоне, а не пинуется историческими числами или ручным списком identities;
+- explicit refused set сверяется fail-closed с test-owned machine truth;
+- `SRC-0001` отдельно подтверждается как exact pinned page-furniture exception,
+  а не как refused identity;
 - известный hash цитаты `SRC-0018`;
 - точную границу конечного `SRC-0040 / 2.6.6`: footer-line исключается,
   а два отрицательных fixture доказывают отсутствие общего underscore-strip;
@@ -107,4 +101,4 @@ control.
 
 Сам генератор блока `source:` не закрывает строки FSTEC source index.
 Актуальный нормативный прогресс не дублируется вручную здесь и читается из
-`index/source-v4/PROGRESS.txt` / generated `docs/fstec-coverage.md`.
+`index/source-v4/PROGRESS.txt` / сгенерированный `docs/fstec-coverage.md`.

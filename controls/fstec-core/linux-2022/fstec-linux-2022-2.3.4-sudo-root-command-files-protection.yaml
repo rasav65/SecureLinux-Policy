@@ -11,8 +11,8 @@ source:
   norm: "norm-v1"
 requirement:
   stated: "2.3.4. Установить корректные права доступа к файлам, выполняемым с помощью sudo путём изменения владельца командой chown root путь_к_файлу для каждого исполняемого файла, который можно запускать с привилегиями суперпользователя root, но владельцем которого является обычный пользователь и выполнения команды chmod go-w путь_к_файлу для каждого исполняемого файла, который можно запускать с привилегиями суперпользователя root и к которому имеют доступ на запись все пользователи."
-  derived: false
-  justification: null
+  derived: true
+  justification: "Источник задаёт root ownership и chmod go-w для файлов, запускаемых через sudo; определение exact active sudo policy closure через reviewed-policy authority является product mechanism для полноты population."
   applicability: "technical"
 parameter:
   kind: "sudo-root-command-files-protection"

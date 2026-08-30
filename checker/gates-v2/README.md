@@ -1,3 +1,4 @@
 # checker/gates-v2
 
-Adds Gate 5 for the first sysctl pilot. No reference-VM evidence is fabricated by the installer.
+Добавляет Gate 5 для первого sysctl pilot. Installer не фабрикует reference-VM
+доказательства.

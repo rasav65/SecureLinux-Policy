@@ -19,8 +19,8 @@ for marker in (
     "SOURCE-INDEX.text_quality",
     "CLOSURE-CONTRACT.tsv",
     "Draft202012Validator",
-    "source skeleton generator",
-    "source-block parity",
+    "generator source skeleton",
+    "parity source-block",
     "DONOR_TO_V3_MAPPING",
     "REUSE / ADAPT / REJECT / DEFER",
     "product/ADAPTER-REGISTRY.tsv",
@@ -38,74 +38,88 @@ product_line = text.split("## 3. Текущая read-only product-line CHECK", 1
     "## 4. Инженерный донор", 1
 )[0]
 for marker in (
-    'product-sysctl-check-v2<br/>read-only eq + integer ge"]:::closed',
+    'product-sysctl-check-v2<br/>read-only `eq` + integer `ge`"]:::closed',
     'product-file-mode-owner-check-v1<br/>read-only"]:::closed',
-    'product/generate-product-check-v2.py<br/>current deterministic generator"]:::closed',
-    'securelinux-policy.sh<br/>tracked unified read-only CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE<br/>pretty · raw · JSON"]:::closed',
+    'product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed',
+    'securelinux-policy.sh<br/>tracked единый read-only CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE<br/>pretty · raw · JSON"]:::closed',
 ):
     assert marker in product_line, marker
+
+# Accepted mapping must be represented as closed, not as future work.
+donor_runtime = text.split("## 4. Инженерный донор", 1)[1].split(
+    "## 5. Provenance", 1
+)[0]
+assert 'MAP["DONOR_TO_V3_MAPPING<br/>ACCEPTED + COMMITTED<br/>REUSE / ADAPT / REJECT / DEFER"]:::closed' in donor_runtime
+assert 'MAP["DONOR_TO_V3_MAPPING<br/>REUSE / ADAPT / REJECT / DEFER"]:::future' not in donor_runtime
+assert 'classDef closed fill:#d9f7df' in donor_runtime
 
 # "Где мы" is a product checkpoint, not a replay of old macro-roadmap labels.
 current = text.split("## 6. Где мы находимся", 1)[1].split(
     "## Что является источником истины", 1
 )[0]
 assert current.count(":::current") == 1
-assert 'P4["SRC-0005 / 2.3.1<br/>3 canonical file-mode controls<br/>DONE"]:::closed' in current
-assert 'P5["CHECK-11<br/>regenerate + read-only run<br/>DONE"]:::closed' in current
-assert 'P6["sysctl exact-eq batch<br/>SRC-0030,0031,0036–0039 + CHECK-17<br/>DONE"]:::closed' in current
-assert 'P7["SRC-0040 / 2.6.6<br/>terminal source-boundary fix + CHECK-18<br/>DONE"]:::closed' in current
-assert 'P8["SRC-0033 / 2.5.10<br/>sysctl lower-bound ge 4096 + CHECK-19<br/>DONE"]:::closed' in current
-assert 'P9["kernel-cmdline exact-token batch<br/>7 source rows · 9 controls + CHECK-28<br/>DONE"]:::closed' in current
-assert 'P9B["UNIFIED CLI / QUICK START v1<br/>securelinux-policy.sh · pretty/raw/json<br/>DONE"]:::closed' in current
-assert 'P10["fstec-linux-2022 CHECK COMPLETE<br/>tag fstec-linux-2022-check-complete-v1<br/>DONE"]:::closed' in current
-assert 'P10A["МЫ ЗДЕСЬ<br/>DONOR_TO_V3_MAPPING<br/>precondition"]:::current' in current
+assert "текущий substantive checkpoint — отдельный `APPLY semantic contract`" in current
+assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" in current
+assert "текущий product checkpoint внутри макроэтапа Step 7B" not in current
+assert "Step 7B разрешён" not in current
+assert 'P4["SRC-0005 / 2.3.1<br/>3 canonical file-mode controls<br/>ГОТОВО"]:::closed' in current
+assert 'P5["CHECK-11<br/>регенерация + read-only запуск<br/>ГОТОВО"]:::closed' in current
+assert 'P6["batch sysctl exact-eq<br/>SRC-0030,0031,0036–0039 + CHECK-17<br/>ГОТОВО"]:::closed' in current
+assert 'P7["SRC-0040 / 2.6.6<br/>исправление terminal source-boundary + CHECK-18<br/>ГОТОВО"]:::closed' in current
+assert 'P8["SRC-0033 / 2.5.10<br/>sysctl lower-bound `ge 4096` + CHECK-19<br/>ГОТОВО"]:::closed' in current
+assert 'P9["batch kernel-cmdline exact-token<br/>7 source rows · 9 controls + CHECK-28<br/>ГОТОВО"]:::closed' in current
+assert 'P9B["ЕДИНЫЙ CLI / БЫСТРЫЙ СТАРТ v1<br/>securelinux-policy.sh · pretty/raw/json<br/>ГОТОВО"]:::closed' in current
+assert 'P10["fstec-linux-2022 CHECK COMPLETE<br/>tag fstec-linux-2022-check-complete-v1<br/>ГОТОВО"]:::closed' in current
+assert 'P10A["DONOR_TO_V3_MAPPING<br/>ACCEPTED + COMMITTED<br/>1db91b0…<br/>ГОТОВО"]:::closed' in current
+assert 'P11["МЫ ЗДЕСЬ<br/>APPLY semantic contract<br/>СЛЕДУЮЩИЙ SUBSTANTIVE ЭТАП"]:::current' in current
+diagram = current.split("```mermaid", 1)[1].split("```", 1)[0]
 for marker in (
     "CHECK-8 product-line",
-    "TEST BASELINE",
-    "DOCUMENTATION BASELINE",
+    "БАЗОВЫЙ НАБОР ТЕСТОВ",
+    "БАЗОВАЯ ДОКУМЕНТАЦИЯ",
     "SRC-0005 / 2.3.1",
     "3 canonical file-mode controls",
     "CHECK-11",
-    "sysctl exact-eq batch",
+    "batch sysctl exact-eq",
     "CHECK-17",
     "SRC-0040 / 2.6.6",
     "CHECK-18",
     "SRC-0033 / 2.5.10",
     "CHECK-19",
-    "kernel-cmdline exact-token batch",
+    "batch kernel-cmdline exact-token",
     "CHECK-28",
-    "UNIFIED CLI / QUICK START v1",
+    "ЕДИНЫЙ CLI / БЫСТРЫЙ СТАРТ v1",
     "securelinux-policy.sh · pretty/raw/json",
     "fstec-linux-2022 CHECK COMPLETE",
     "DONOR_TO_V3_MAPPING",
     "APPLY semantic contract",
     "APPLY implementation",
-    "final distributable artifact",
+    "итоговый distributable artifact",
     "EXTERNAL SNAPSHOT",
 ):
     assert marker in current, marker
 
-positions = [current.index(marker) for marker in (
+positions = [diagram.index(marker) for marker in (
     "CHECK-8 product-line",
-    "TEST BASELINE",
-    "DOCUMENTATION BASELINE",
+    "БАЗОВЫЙ НАБОР ТЕСТОВ",
+    "БАЗОВАЯ ДОКУМЕНТАЦИЯ",
     "SRC-0005 / 2.3.1",
     "CHECK-11",
-    "sysctl exact-eq batch",
+    "batch sysctl exact-eq",
     "CHECK-17",
     "SRC-0040 / 2.6.6",
     "CHECK-18",
     "SRC-0033 / 2.5.10",
     "CHECK-19",
-    "kernel-cmdline exact-token batch",
+    "batch kernel-cmdline exact-token",
     "CHECK-28",
-    "UNIFIED CLI / QUICK START v1",
+    "ЕДИНЫЙ CLI / БЫСТРЫЙ СТАРТ v1",
     "securelinux-policy.sh · pretty/raw/json",
     "fstec-linux-2022 CHECK COMPLETE",
     "DONOR_TO_V3_MAPPING",
     "APPLY semantic contract",
     "APPLY implementation",
-    "final distributable artifact",
+    "итоговый distributable artifact",
 )]
 assert positions == sorted(positions)
 
@@ -119,13 +133,13 @@ for stale in (
 
 assert "путь к конечному `securelinux-ng.sh`" not in text
 assert "Финальный `securelinux-ng.sh`" not in text
-assert "final distributable artifact" in text
-assert "tracked unified read-only CLI" in text
+assert "итоговый distributable artifact" in text
+assert "tracked единый read-only CLI" in text
 assert "Gate 0 PASS" in text
 assert "только byte-generation parity" in text
 assert "docs/PROJECT-MAP-v3.md" in readme
 print(
-    "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=donor-to-v3-mapping "
+    "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=apply-semantic-contract "
     "src0005_check11_done=1 exact_eq_check17_done=1 src0040_check18_done=1 "
     "src0033_check19_done=1 kernel_cmdline_check28_done=1 unified_cli_done=1 future_apply=1 restore_out_of_scope=1"
 )

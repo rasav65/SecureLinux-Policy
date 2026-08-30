@@ -223,7 +223,10 @@ KIND_RULES = {
         "relations": [
             {
                 "if": {"expected.op": {"const": "root-owned-go-w"}},
-                "then": {"expected.value": {"const": "uid0;bits-clear-0022"}},
+                "then": {
+                    "expected.value": {"const": "uid0;bits-clear-0022"},
+                    "requirement.derived": {"const": True},
+                },
             },
         ],
     },
@@ -261,6 +264,7 @@ KIND_RULES = {
                 "then": {
                     "parameter.key": {"const": "approved-set"},
                     "expected.value": {"const": "/etc/securelinux-policy/suid-sgid.allowlist-v1"},
+                    "requirement.derived": {"const": True},
                 },
             },
         ],
@@ -285,7 +289,10 @@ KIND_RULES = {
         "relations": [
             {
                 "if": {"expected.op": {"const": "bits-clear"}},
-                "then": {"expected.value": {"const": "0077"}},
+                "then": {
+                    "expected.value": {"const": "0077"},
+                    "requirement.derived": {"const": True},
+                },
             },
         ],
     },
@@ -321,7 +328,10 @@ KIND_RULES = {
         "relations": [
             {
                 "if": {"expected.op": {"const": "eq-authority-file"}},
-                "then": {"expected.value": {"const": "/etc/securelinux-policy/wheel-users.allowlist-v1"}},
+                "then": {
+                    "expected.value": {"const": "/etc/securelinux-policy/wheel-users.allowlist-v1"},
+                    "requirement.derived": {"const": True},
+                },
             },
         ],
     },
@@ -333,7 +343,10 @@ KIND_RULES = {
         "relations": [
             {
                 "if": {"expected.op": {"const": "eq-reviewed-policy"}},
-                "then": {"expected.value": {"const": "/etc/securelinux-policy/sudoers-reviewed-policy-v1"}},
+                "then": {
+                    "expected.value": {"const": "/etc/securelinux-policy/sudoers-reviewed-policy-v1"},
+                    "requirement.derived": {"const": True},
+                },
             },
         ],
     },
@@ -345,7 +358,10 @@ KIND_RULES = {
         "relations": [
             {
                 "if": {"expected.op": {"const": "tested-before-use"}},
-                "then": {"expected.value": {"const": "kernel.randomize_va_space=2"}},
+                "then": {
+                    "expected.value": {"const": "kernel.randomize_va_space=2"},
+                    "requirement.derived": {"const": True},
+                },
             },
         ],
     },

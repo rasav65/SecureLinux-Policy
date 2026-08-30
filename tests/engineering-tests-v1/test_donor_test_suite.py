@@ -80,6 +80,50 @@ if contract_by_id["TST-019"]["area"]!="package-compensation":
     fail("STALE_PACKAGE_RESTORE_CONTRACT_AREA")
 if sha(ROOT/"tools/write-sha256.py") != sha(ROOT/"archive/engineering-donor-v16.2.11/snapshot/tools/write-sha256.py"):
     fail("ACTIVE_TOOL_NOT_PINNED_DONOR")
+
+def parse_progress_text(text: str) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if not line or "=" not in line:
+            raise ValueError(f"format:{lineno}")
+        key, value = line.split("=", 1)
+        if not key or key in result:
+            raise ValueError(f"duplicate-or-empty-key:{lineno}:{key}")
+        result[key] = value
+    return result
+
+progress_text=(IDX/"PROGRESS.txt").read_text(encoding="utf-8")
+expected_progress={
+    "INDEX_VERSION":"engineering-tests-v1",
+    "SOURCE_ZIP_SHA256":PINNED_ZIP_SHA,
+    "TEST_FILES":str(len(tests)),
+    "TEST_LINES":str(sum(data.count(b"\n") for data in tests.values())),
+    "REGRESSION_FILES":str(len(regressions)),
+    "SMOKE_WIRED_REGRESSIONS":str(len(wired)),
+    "GENERALIZED_TEST_CONTRACTS":str(len(contracts)),
+    "ACTIVE_TOOL_ADOPTIONS":"1",
+    "V3_FSTEC_ROWS_CLOSED_BY_THIS_INDEX":"0",
+    "REFERENCE_VM_EVIDENCE":"NOT_YET_PROVIDED",
+}
+def validate_progress(progress: dict[str,str]) -> None:
+    if progress != expected_progress:
+        raise ValueError(f"progress mismatch: {progress!r} != {expected_progress!r}")
+try:
+    validate_progress(parse_progress_text(progress_text))
+except ValueError as exc:
+    fail("PROGRESS_PARITY:"+str(exc))
+for label,mutated in (
+    ("stale_count",progress_text.replace("TEST_FILES=38","TEST_FILES=999",1)),
+    ("duplicate","TEST_FILES=999\n"+progress_text),
+    ("extra",progress_text+"CURRENT_STAGE=RESTORE\n"),
+):
+    try:
+        validate_progress(parse_progress_text(mutated))
+    except ValueError:
+        pass
+    else:
+        fail("PROGRESS_NEGATIVE_FIXTURE:"+label)
+print("PROGRESS_CONTRACT=PASS_EXACT_KEYS_VALUES negative_fixtures=3")
 print("RESULT=ENGINEERING_TEST_DONOR_V1_OK")
 print("ZIP_FILES=52")
 print("TEST_FILES=38")

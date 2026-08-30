@@ -11,8 +11,8 @@ source:
   norm: "norm-v1"
 requirement:
   stated: "2.5.11. Реализовать рандомизацию адресного пространства, которая защищает от атак на переполнение буфера, путём использования команды после тестирования kernel.randomize_va_space = 2."
-  derived: false
-  justification: null
+  derived: true
+  justification: "Источник прямо требует kernel.randomize_va_space=2 после тестирования, но не задаёт формат доказательства; local attestation authority является product mechanism для представления procedural prerequisite в read-only CHECK."
   applicability: "technical"
 parameter:
   kind: "tested-setting-attestation"

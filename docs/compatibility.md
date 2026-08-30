@@ -11,10 +11,10 @@
 ubuntu-24.04-x86_64
 ```
 
-Target задаётся current `product/generate-product-check-v2.py` и binding/semantic
-contracts adapters. Tracked `securelinux-policy.sh` является byte-exact output этого
-generator и выполняет target preflight до проверки controls. Historical v1
-generator остаётся предыдущей product identity.
+Target задаётся текущим `product/generate-product-check-v2.py` и binding/semantic
+contracts адаптеров. Отслеживаемый `securelinux-policy.sh` является byte-exact output этого
+generator и выполняет target preflight до проверки controls. Исторический generator v1
+остаётся предыдущей product identity.
 
 `SUPPORTED` означает: текущий product contract разрешает этот target. Это не
 утверждение, что все возможные варианты Ubuntu 24.04 уже прошли VM acceptance.
@@ -46,7 +46,7 @@ CHECK с RC=3 до выполнения policy checks.
 `Docker` или `Kubernetes` заранее не объявляются поддержанными только по названию
 окружения.
 
-## Evidence rule
+## Правило evidence
 
 Чтобы строка появилась здесь как `TESTED`, запись должна указывать минимум:
 
@@ -54,7 +54,7 @@ CHECK с RC=3 до выполнения policy checks.
 - архитектуру;
 - тип среды;
 - дату;
-- exact product/control identity;
+- exact identity продукта/control;
 - ссылку на tracked evidence или его SHA-256.
 ## VM-наблюдения layout для SRC-0011
 
@@ -109,30 +109,30 @@ CHECK с RC=3 до выполнения policy checks.
 
 Вывод для semantics: численный состав SUID/SGID population нельзя фиксировать как нормативный baseline — он зависит от пакетов и installation class. Универсальная часть 2.3.9 — отсутствие group/other write. Решение о том, какое найденное приложение является «лишним», требует отдельного локального authority и не выводится автоматически из package ownership или из этой VM-матрицы.
 
-### SRC-0014 / 2.3.10 — sensitive files in local user homes
+### SRC-0014 / 2.3.10 — чувствительные файлы в домашних каталогах локальных пользователей
 
 Исторический VM batch использовал selector `root OR UID>=UID_MIN` + interactive shell; retrospective audit признал это source-unanchored сужением. **Current v2 не использует этот selector:** в population входят все syntactically valid local `/etc/passwd` accounts с absolute home, включая service/system accounts. Старые 7-run counts сохраняются только как historical evidence и не доказывают current v2 population.
 
 Open-ended `и т. п.` больше не доверяется одному inventory: восемь source examples остаются mandatory authority entries, а read-only traversal дополнительно обнаруживает standard common-shell history/config artifacts для Bash/zsh/ksh/csh/tcsh/fish/Nushell/Xonsh/Elvish; custom/XDG override paths остаются через local inventory, ambiguity fail-closed. NSS/network-only accounts по-прежнему требуют отдельной authority model и не выводятся из локального `/etc/passwd`.
 
-## SRC-0015 / 2.3.11 — mode home directory
+## SRC-0015 / 2.3.11 — режим доступа домашнего каталога
 
 Current v2 использует все syntactically valid local `/etc/passwd` accounts с absolute home path, включая service/system accounts; прежние `UID_MIN`/interactive-shell exclusions удалены. Для каждого существующего real home требуется exact `0700`; absent path не создаётся, а symlink/non-directory/stat ambiguity => `ERROR`.
 
 Семь ранее собранных VM runs остаются historical layout evidence: они проверяли более узкий selector и потому не используются как доказательство полноты current v2 population.
 
-## SRC-0002 / SSH root login — privileged evidence matrix
+## SRC-0002 / SSH root login — матрица привилегированного evidence
 
 Read-only evidence helper `slp-vm-batch-src0002-src0004-evidence-v1` выполнен на семи reference installations: Ubuntu 22 FULL, Ubuntu 24 MINIMIZED/FULL, Ubuntu 26 MINIMIZED/FULL, Debian 12 SERVER, Debian 13 GNOME. Во всех runs main `/etc/ssh/sshd_config` не содержал active global `PermitRootLogin`; syntax `sshd -t` был valid. Effective root-context был `without-password` на Ubuntu 22/24 и Debian 12/13, `prohibit-password` на Ubuntu 26. Поэтому все семь являются отрицательными current-state примерами относительно source-exact expected `no`. Эти наблюдения подтверждают необходимость effective-config semantics, но не расширяют current product target `ubuntu-24.04-x86_64`.
 
-## SRC-0003 / pam_wheel — privileged evidence matrix
+## SRC-0003 / pam_wheel — матрица привилегированного evidence
 
 Тот же read-only batch имеет integrity-verified evidence `7/7` для 2.2.1. На всех семи installations `/etc/pam.d/su` и `/etc/group` были regular root-owned files mode `0644`; active `pam_wheel` lines и exact required line count равнялись `0`, local `wheel` group count равнялся `0`, при этом `pam_wheel.so` module был обнаружен в standard security-module paths. Поэтому baseline однозначно `FAIL` ещё до необходимости локальной `<user list>` authority. Наличие module file само по себе compliance не доказывает. Evidence подтверждает assumptions CHECK и не расширяет current product target `ubuntu-24.04-x86_64`.
 
-## SRC-0004 / sudoers reviewed policy — privileged evidence matrix
+## SRC-0004 / sudoers reviewed policy — матрица привилегированного evidence
 
 Read-only evidence `slp-vm-evidence-src0002-src0004-v1-*` integrity-verified `7/7`: Ubuntu 22 FULL, Ubuntu 24 MINIMIZED/FULL, Ubuntu 26 MINIMIZED/FULL, Debian 12 SERVER, Debian 13 GNOME. Во всех семи `/etc/sudoers` существовал как regular `0440 root:root`, присутствовал active `@includedir /etc/sudoers.d`, полный `visudo` check завершался `RC=0`. На Ubuntu 26 `sudo`/`visudo` предоставлялись через alternatives symlinks. Эти host facts подтверждают способ discovery/validation; они не задают универсальный approved user/command set и не расширяют current target `ubuntu-24.04-x86_64`.
 
-## Procedural authority SRC-0034
+## Процедурный authority SRC-0034
 
 `SRC-0034 / 2.5.11` не получает OS-specific default: source qualifier `после тестирования` представлен explicit local authority `/etc/securelinux-policy/tested-setting-attestations-v1`. Это не VM observation и не предположение о distro defaults. CHECK не запускает тестирование и не изменяет `kernel.randomize_va_space`; отсутствие доверяемой target attestation даёт `ERROR`.

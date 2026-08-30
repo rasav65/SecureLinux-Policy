@@ -4,8 +4,10 @@ Original archive SHA-256:
 
 `7a62c1304a423e4431b08c34e999ed221777d63ecfb0aec180767fadf80759d2`
 
-The original archive is stored byte-for-byte in this directory and its six
-members are extracted under `review/`.
+The original archive is stored byte-for-byte in this directory. Its six original
+members remain byte-exact under `review/`. Three additional files under
+`review/docs/` are clearly marked current link-resolution companions; they were
+not members of the original archive and do not claim original stage bytes.
 
 Classification:
 

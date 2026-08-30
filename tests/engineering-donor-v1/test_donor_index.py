@@ -393,47 +393,110 @@ for name in ("fstec-mapping-regression.sh", "wheel-fstec-regression.sh"):
     if next(row for row in test_mapping if row["donor_refs"] == name)["decision"] != "REJECT":
         fail("MAPPING_LEGACY_NORMATIVE_ISOLATION:" + name)
 
-progress = {}
-for line in (IDX / "PROGRESS.txt").read_text(encoding="utf-8").splitlines():
-    if "=" in line:
+def parse_progress(path: Path) -> dict[str, str]:
+    progress: dict[str, str] = {}
+    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line or "=" not in line:
+            raise ValueError(f"format:{lineno}")
         key, value = line.split("=", 1)
+        if not key or key in progress:
+            raise ValueError(f"duplicate-or-empty-key:{lineno}:{key}")
         progress[key] = value
+    return progress
+
+
+decision_counts = Counter(row["decision"] for row in mapping_rows)
 expected_progress = {
+    "INDEX_VERSION": "engineering-donor-v1",
+    "SOURCE_SHA256": EXPECTED_DONOR_SHA,
+    "SOURCE_LINES": str(len(source_text.splitlines())),
+    "FUNCTION_ROWS": str(len(function_rows)),
+    "SOURCE_CHUNKS_100_LINES": str(len(chunks)),
+    "SEMANTIC_CANDIDATES": str(len(candidates)),
+    "RAW_EVIDENCE_ROWS": str(len(raw)),
+    "REGISTERED_SOURCES": str(len(sources)),
     "FUNCTIONS_CONTRACTED": str(counts["contracted"]),
     "FUNCTIONS_CANDIDATE": str(counts["candidate"]),
     "FUNCTIONS_EVIDENCE_ONLY": str(counts["evidence-only"]),
     "FUNCTIONS_PENDING_REVIEW": str(counts["pending-review"]),
-    "STATUS": "MAPPING_BUILT_AWAITING_REVIEW",
-    "DONOR_TO_V3_MAPPING": "BUILT_AWAITING_REVIEW",
-    "MAPPING_ROWS": "364",
-    "MAPPING_FUNCTION_ROWS": "310",
-    "MAPPING_TEST_FILE_ROWS": "38",
-    "MAPPING_MATURE_FAMILY_ROWS": "16",
+    "ENGINEERING_CONTRACTS": str(len(contracts)),
+    "IMPLEMENTED_AS_V3_CONTROLS": "0",
+    "CLOSES_FSTEC_SOURCE_ROWS": "0",
+    "REFERENCE_VM_EVIDENCE": "NOT_YET_PROVIDED",
+    "STATUS": "MAPPING_ACCEPTED_COMMITTED",
+    "DONOR_TO_V3_MAPPING": "ACCEPTED_COMMITTED",
+    "MAPPING_ACCEPTED_COMMIT": "1db91b0e17d6ef37e4c42cd41dca77eeb2b743da",
+    "MAPPING_ACCEPTED_TREE": "d3f624651bf13f1174619cef881fababbc768553",
+    "MAPPING_ROWS": str(len(mapping_rows)),
+    "MAPPING_FUNCTION_ROWS": str(kind_counts["FUNCTION"]),
+    "MAPPING_TEST_FILE_ROWS": str(kind_counts["TEST_FILE"]),
+    "MAPPING_MATURE_FAMILY_ROWS": str(kind_counts["MATURE_FAMILY"]),
     "MAPPING_UNMAPPED_FUNCTIONS": "0",
     "MAPPING_UNMAPPED_TEST_FILES": "0",
     "MAPPING_NORMATIVE_EFFECT": "NONE",
     "MAPPING_CLOSES_SOURCE_ROWS": "0",
-    "APPLY_SEMANTIC_CONTRACT_ALLOWED": "false",
+    "MAPPING_DECISION_REUSE": str(decision_counts["REUSE"]),
+    "MAPPING_DECISION_ADAPT": str(decision_counts["ADAPT"]),
+    "MAPPING_DECISION_REJECT": str(decision_counts["REJECT"]),
+    "MAPPING_DECISION_DEFER": str(decision_counts["DEFER"]),
+    "APPLY_SEMANTIC_CONTRACT_ALLOWED": "true",
     "RESTORE_OPERATIONAL_CONTOUR": "EXCLUDED",
     "POST_APPLY_RECOVERY_MODEL": "EXTERNAL_SNAPSHOT",
     "TRANSACTION_LOCAL_COMPENSATION": "FAILED_UNCOMMITTED_APPLY_ONLY",
     "MAPPING_RESTORE_TARGET_FAMILIES": "0",
     "MAPPING_USER_RESTORE_ENTRYPOINTS_ACCEPTED": "0",
+    "RESTORE_ONLY_ENGINEERING_CONTRACTS_REJECTED": "1",
+    "RESTORE_ONLY_TEST_CONTRACTS_HISTORICAL": "1",
 }
-for key, expected in expected_progress.items():
-    if progress.get(key) != expected:
-        fail("MAPPING_PROGRESS:" + key)
-decision_counts = Counter(row["decision"] for row in mapping_rows)
-for decision in DECISIONS:
-    if progress.get("MAPPING_DECISION_" + decision) != str(decision_counts[decision]):
-        fail("MAPPING_PROGRESS_DECISION:" + decision)
+
+def validate_progress(progress: dict[str, str]) -> None:
+    if set(progress) != set(expected_progress):
+        raise ValueError(
+            f"key-set missing={sorted(set(expected_progress)-set(progress))} "
+            f"extra={sorted(set(progress)-set(expected_progress))}"
+        )
+    for key, expected in expected_progress.items():
+        if progress[key] != expected:
+            raise ValueError(f"value:{key}:{progress[key]}!={expected}")
+
+try:
+    progress = parse_progress(IDX / "PROGRESS.txt")
+    validate_progress(progress)
+except ValueError as exc:
+    fail("MAPPING_PROGRESS_PARSE_OR_PARITY:" + str(exc))
+
+with tempfile.TemporaryDirectory(prefix="slp-donor-progress-") as td:
+    base = (IDX / "PROGRESS.txt").read_text(encoding="utf-8")
+    mutations = {
+        "duplicate": "APPLY_SEMANTIC_CONTRACT_ALLOWED=false\n" + base,
+        "malformed": "THIS IS NOT KEY VALUE\n" + base,
+        "extra": base + "CURRENT_CHECKPOINT=STEP7B_ACTIVE\n",
+        "stale": base.replace("SOURCE_LINES=18928", "SOURCE_LINES=1", 1),
+    }
+    for label, text in mutations.items():
+        fixture = Path(td) / f"{label}.txt"
+        fixture.write_text(text, encoding="utf-8")
+        try:
+            parsed = parse_progress(fixture)
+            validate_progress(parsed)
+        except ValueError:
+            pass
+        else:
+            fail("MAPPING_PROGRESS_NEGATIVE_FIXTURE:" + label)
+
 policy = (ROOT / "docs/DONOR-V3-ADOPTION-POLICY.md").read_text(encoding="utf-8")
 roadmap = (ROOT / "docs/ROADMAP-v3.md").read_text(encoding="utf-8")
-if "DONOR_TO_V3_MAPPING" not in policy or "REUSE`, `ADAPT`, `REJECT`, or `DEFER" not in policy:
+if "DONOR_TO_V3_MAPPING" not in policy or not all(
+    token in policy for token in ("`REUSE`", "`ADAPT`", "`REJECT`", "`DEFER`")
+):
     fail("MAPPING_POLICY_PRECONDITION")
 if "DONOR_TO_V3_MAPPING" not in roadmap:
     fail("MAPPING_ROADMAP_PRECONDITION")
-policy_family_block = policy.split("At minimum the mapping must explicitly account for these mature families from\nSecureLinux-NG:\n", 1)[1].split("\nDonor RESTORE mechanisms are not an adoptable mature family.", 1)[0]
+_family_begin = "<!-- BEGIN MATURE DONOR FAMILIES -->"
+_family_end = "<!-- END MATURE DONOR FAMILIES -->"
+if policy.count(_family_begin) != 1 or policy.count(_family_end) != 1:
+    fail("MAPPING_POLICY_FAMILY_MARKERS")
+policy_family_block = policy.split(_family_begin, 1)[1].split(_family_end, 1)[0]
 policy_family_labels = []
 for line in policy_family_block.splitlines():
     match = re.match(r"^([0-9]+)\. (.+?)[.;]$", line)
@@ -546,7 +609,11 @@ print("MAPPING_DECISION_REJECT=%d" % decision_counts["REJECT"])
 print("MAPPING_DECISION_DEFER=%d" % decision_counts["DEFER"])
 print("MAPPING_NORMATIVE_EFFECT=NONE")
 print("MAPPING_SOURCE_ROWS_CLOSED=0")
-print("APPLY_SEMANTIC_CONTRACT_ALLOWED=false")
+print("MAPPING_STATUS=ACCEPTED_COMMITTED")
+print("MAPPING_ACCEPTED_COMMIT=1db91b0e17d6ef37e4c42cd41dca77eeb2b743da")
+print("MAPPING_ACCEPTED_TREE=d3f624651bf13f1174619cef881fababbc768553")
+print("PROGRESS_CONTRACT=PASS_EXACT_KEYS_VALUES negative_fixtures=4")
+print("APPLY_SEMANTIC_CONTRACT_ALLOWED=true")
 print("RESTORE_OPERATIONAL_CONTOUR=EXCLUDED")
 print("POST_APPLY_RECOVERY_MODEL=EXTERNAL_SNAPSHOT")
 print("TRANSACTION_LOCAL_COMPENSATION=FAILED_UNCOMMITTED_APPLY_ONLY")

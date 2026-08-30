@@ -16,7 +16,7 @@
 
 Любой другой результат обрабатывается fail-closed.
 
-Parity-checker:
+Проверка паритета:
 
 `checker/source-parity-v1/source_block_regeneration_parity.py`
 

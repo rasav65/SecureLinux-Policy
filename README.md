@@ -34,9 +34,13 @@ CHECK охватывает только требования, представл
 final all-40 robustness audit завершён `PASS`, commit
 `219b4cc3c0673c55575fb558e160431c11c2a681` опубликован, а milestone
 `fstec-linux-2022-check-complete-v1` привязан к этому exact commit. Machine
-truth для документа — `40/40 CLOSED`, 51 canonical controls, 18 adapter kinds.
-Следующий source-scoped track — `DONOR_TO_V3_MAPPING` как precondition будущего
-APPLY. Пользовательский RESTORE в целевую архитектуру больше не входит.
+truth и текущие counts для документа берутся из generated status выше и
+`docs/fstec-coverage.md`; этот prose-блок не закрепляет live counts вручную.
+`DONOR_TO_V3_MAPPING` принят независимым re-audit, прошёл precommit и опубликован
+commit `1db91b0e17d6ef37e4c42cd41dca77eeb2b743da` с tree
+`d3f624651bf13f1174619cef881fababbc768553`. Следующий substantive track —
+отдельный `APPLY semantic contract` для уже принятого `fstec-linux-2022` CHECK.
+Пользовательский RESTORE в целевую архитектуру не входит.
 
 Полная машинно формируемая карта текущего покрытия:
 [`docs/fstec-coverage.md`](docs/fstec-coverage.md).
@@ -89,9 +93,9 @@ securelinux-policy.sh
 sudo ./securelinux-policy.sh --check
 ```
 
-Compliance execution contract: tracked CLI запускается **как executable**, чтобы kernel
-применил shebang `#!/bin/bash -p`. Privileged-mode Bash не импортирует shell functions
-из environment, поэтому функция `command` не может подменить pinned external calls.
+Контракт compliance execution: tracked CLI запускается **как executable**, чтобы kernel
+применил shebang `#!/bin/bash -p`. Bash в privileged mode не импортирует shell-функции
+из окружения, поэтому функция `command` не может подменить закреплённые внешние вызовы.
 Эквивалентный явный запуск — `/bin/bash -p ./securelinux-policy.sh ...`. Обычный
 `bash securelinux-policy.sh ...` и `source securelinux-policy.sh` не являются поддерживаемым
 режимом compliance execution.
@@ -142,10 +146,10 @@ sha256sum -c securelinux-policy.sh.sha256
 
 ### Для разработчика: детерминированная пересборка
 
-Current user-facing artifact строится `product/generate-product-check-v2.py`.
-Tracked `securelinux-policy.sh` обязан побайтно совпадать со свежей генерацией;
+Текущий пользовательский артефакт строится `product/generate-product-check-v2.py`.
+Отслеживаемый `securelinux-policy.sh` обязан побайтно совпадать со свежей генерацией;
 это проверяется DEV regression. Для ручной проверки можно собрать копию вне
-tracked root:
+отслеживаемого корня Git:
 
 ```bash
 mkdir -p dist
@@ -158,7 +162,7 @@ cmp -s securelinux-policy.sh dist/securelinux-policy.sh
 echo "RC_PARITY=$?"
 ```
 
-Historical `product/generate-product-check-v1.py` сохраняется как предыдущая
+Исторический `product/generate-product-check-v1.py` сохраняется как предыдущая
 generator identity и не является текущей пользовательской точкой входа.
 
 ---
@@ -177,8 +181,8 @@ generator identity и не является текущей пользовате�
 | Реальный Draft 2020-12 валидатор обязателен для RELEASE | PASS | `tests/release-v1/test_real_jsonschema_gate.py` |
 | Current nested `SHA256SUMS` валидны; 2 historical donor runtime entries пинованы как исключения | PASS | `tests/project-integrity-v1/test_root_manifests.py` |
 | Gates-v3 evidence с маркировкой `ACTIVE` совпадает со свежим checker run | PASS | `tests/project-integrity-v1/test_root_manifests.py` |
-| APPLY | NOT IMPLEMENTED | — |
-| RESTORE | NOT PLANNED / OUT OF SCOPE | post-APPLY recovery = external snapshot |
+| APPLY | НЕ РЕАЛИЗОВАН | — |
+| RESTORE | НЕ ПЛАНИРУЕТСЯ / ВНЕ SCOPE | post-APPLY recovery = внешний snapshot |
 
 Гарантии относятся только к текущему scope. Конкретный policy-result CHECK
 описывает состояние проверяемого хоста и не является свойством самого generator.
@@ -246,10 +250,11 @@ sources
   → generated CHECK
 ```
 
-[`docs/ARCHITECTURE-DIAGRAMS.md`](docs/ARCHITECTURE-DIAGRAMS.md) сохранён как
-**donor runtime reference**; RESTORE-ветви в нём являются историей донора, а
-будущий v3 runtime — APPLY-only с external snapshot rollback. Документ не является
-источником текущего product status.
+[`docs/ARCHITECTURE-DIAGRAMS.md`](docs/ARCHITECTURE-DIAGRAMS.md) —
+**historical donor runtime reference**, а не current project map и не future target
+model. Он сохраняет проверяемую историю donor mechanics и отдельно фиксирует
+границу v3: operational RESTORE исключён, post-APPLY recovery выполняется внешним
+snapshot/backup-механизмом.
 
 Индекс всей документации и её ролей:
 [`docs/README.md`](docs/README.md).
@@ -275,12 +280,12 @@ sources
 
 ## Тестовая модель
 
-Tracked [`tests/run-all.py`](tests/run-all.py) — единая точка запуска всех
-tracked Python regressions.
+Отслеживаемый [`tests/run-all.py`](tests/run-all.py) — единая точка запуска всех
+отслеживаемых Python regressions.
 
 **DEV**:
 
-- stdlib-only;
+- только stdlib;
 - должен быть полностью зелёным;
 - проверяет фактическое выполнение тестов, а не только RC=0;
 - неожиданные skip и `ResourceWarning` являются ошибкой.
@@ -321,7 +326,7 @@ archive/    historical audit material и engineering donor
 
 Корневые манифесты:
 
-- `PROJECT-FILES.sha256` — canonical project population;
+- `PROJECT-FILES.sha256` — каноническая project population;
 - `SHA256SUMS` — SHA-256 файлов этой population.
 
 Проверка:
@@ -333,7 +338,7 @@ PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B \
   --check
 ```
 
-Machine-owned documentation blocks и coverage также проверяются отдельно:
+Машинно формируемые блоки документации и coverage также проверяются отдельно:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B \
@@ -361,8 +366,8 @@ SecureLinux-NG v16.2.11 сохранён как **engineering donor**, а не �
 источник. Донорская логика может попасть в v3 только через явное решение
 `REUSE | ADAPT | REJECT | DEFER`.
 
-Donor mapping сам по себе не создаёт FSTEC controls и не закрывает ни одной
-source-index row.
+Mapping донора сам по себе не создаёт FSTEC controls и не закрывает ни одной
+строки source-index.
 
 См. [`docs/DONOR-V3-ADOPTION-POLICY.md`](docs/DONOR-V3-ADOPTION-POLICY.md) и
 [`docs/engineering-donor.md`](docs/engineering-donor.md).
@@ -382,11 +387,13 @@ source-index row.
 - historical Step 7B.0 не является current product authority;
 - engineering donor не является нормативным доказательством.
 
-Generated CHECK всегда строится из текущей `CONTROL-MANIFEST.tsv`; точная
-population показана в machine-generated статусе выше. Текущий product-step —
-систематическое расширение оставшихся `OPEN` строк FSTEC core. Семантика
-`chmod go-rwx /etc/shadow` представлена как `mode bits-clear 0077` и не усилена
-до выдуманного `0600`.
+Сгенерированный CHECK всегда строится из текущей `CONTROL-MANIFEST.tsv`; точная
+population показана в машинно сформированном статусе выше. Текущий substantive
+этап — отдельный `APPLY semantic contract` для уже принятого
+`fstec-linux-2022 CHECK`. Оставшиеся `OPEN` строки других документов FSTEC
+сохраняются в backlog и не расширяются до `DOCUMENT COMPLETE` текущей вертикали.
+Семантика `chmod go-rwx /etc/shadow` представлена как `mode bits-clear 0077` и
+не усилена до выдуманного `0600`.
 
 ---
 
@@ -394,18 +401,18 @@ population показана в machine-generated статусе выше. Тек
 
 | Область | Канонический источник |
 |---|---|
-| source population/status | `index/source-v4/SOURCE-INDEX.tsv` |
-| completeness closure | `index/source-v4/CLOSURE-CONTRACT.tsv` |
-| dispositions | `index/source-v4/DISPOSITION-LEDGER.tsv` |
-| canonical controls | `controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv` + YAML |
-| parameter schema | `checker/gates-v3/checker.py` → generated `CONTROL-SCHEMA.json` |
-| CHECK adapter mapping | `product/ADAPTER-REGISTRY.tsv` |
-| current CHECK/CLI generator | `product/generate-product-check-v2.py` |
-| tracked user entrypoint | `securelinux-policy.sh` + `.sha256` |
-| macro-roadmap | `docs/ROADMAP-v3.tsv` |
-| generated current docs | `tools/render-current-docs.py` |
+| population/status источников | `index/source-v4/SOURCE-INDEX.tsv` |
+| закрытие полноты | `index/source-v4/CLOSURE-CONTRACT.tsv` |
+| решения | `index/source-v4/DISPOSITION-LEDGER.tsv` |
+| канонические controls | `controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv` + YAML |
+| схема параметров | `checker/gates-v3/checker.py` → generated `CONTROL-SCHEMA.json` |
+| mapping адаптеров CHECK | `product/ADAPTER-REGISTRY.tsv` |
+| текущий генератор CHECK/CLI | `product/generate-product-check-v2.py` |
+| отслеживаемая пользовательская точка входа | `securelinux-policy.sh` + `.sha256` |
+| макро-roadmap | `docs/ROADMAP-v3.tsv` |
+| сгенерированные current docs | `tools/render-current-docs.py` |
 
-README является входной точкой для человека, но не заменяет эти machine-readable
+README является входной точкой для человека, но не заменяет эти машиночитаемые
 источники истины.
 
 ---

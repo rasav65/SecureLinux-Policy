@@ -1,8 +1,8 @@
-# sysctl-v1 read-only probe
+# sysctl-v1 — read-only проба
 
-Probe only reads `/proc/sys`; it does not call `sysctl -w`, write `/proc/sys`, or change configuration. `VALUE` and `NOT_FOUND` are valid execution outcomes.
+Probe только читает `/proc/sys`; он не вызывает `sysctl -w`, не пишет в `/proc/sys` и не меняет configuration. `VALUE` и `NOT_FOUND` являются допустимыми execution outcomes.
 
-Reference VM:
+Reference VM — команды запуска:
 `python3 probe.py --selftest`
 `python3 probe.py --plan probe-plan.tsv --output probe-results.json`
 

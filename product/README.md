@@ -1,4 +1,4 @@
-# Product CHECK line
+# Продуктовая линия CHECK
 
 Постоянная read-only product-line SecureLinux-Policy v3.
 
@@ -10,20 +10,20 @@
 - `contracts/file-mode-owner-check-semantic-v2.json` — current read-only semantic contract для `file-mode-owner`; dereferenced selected object обязан быть regular file до проверки mode; v1 сохранён как предыдущая identity;
 - `contracts/sysctl-check-semantic-v2.json` — current read-only semantic contract для
   `sysctl`; `eq` сохраняет exact semantics, `ge` разрешён только для integer lower bounds;
-- `contracts/kernel-cmdline-check-semantic-v2.json` — current read-only exact-token contract
+- `contracts/kernel-cmdline-check-semantic-v2.json` — текущий read-only контракт точных токенов
   для фактической загрузочной строки `/proc/cmdline`; `one-of` кодирует ordered alternatives через `|`, где первое значение preferred, но все перечисленные значения compliant; v1 сохранён как предыдущая product identity;
 - `contracts/optional-file-root-files-mode-check-semantic-v1.json` — read-only contract для optional system-cron root + direct regular files; missing root = `VALUE/PASS`, неоднозначный nested/symlink/special population = `ERROR`;
 - `contracts/local-account-password-state-check-semantic-v2.json` — current read-only aggregate contract для локальных `/etc/passwd` accounts + source-anchored `/etc/shadow`; NUL/CR и malformed mapping отвергаются до Bash line parsing; empty password field = `FAIL`;
 - `contracts/sshd-root-login-check-semantic-v1.json` — read-only source-faithful contract SRC-0002: main `/etc/ssh/sshd_config` обязан содержать global `PermitRootLogin no`, а `sshd -t/-T` подтверждают синтаксис и effective `no`; Include/Match ambiguity fail-closed;
 - `contracts/pam-wheel-access-check-semantic-v2.json` — current read-only aggregate contract SRC-0003: source-exact PAM rule + local `wheel` record с literal numeric GID `10` + explicit local authority; group password field не является source predicate; prior `auth`/`-auth` success-short-circuit/include ambiguity fails closed;
-- `contracts/sudoers-reviewed-policy-check-semantic-v1.json` — read-only aggregate contract SRC-0004: exact active sudoers policy tree against explicit reviewed local authority;
+- `contracts/sudoers-reviewed-policy-check-semantic-v1.json` — read-only aggregate contract SRC-0004: точное активное дерево policy sudoers сверяется с явным локальным reviewed authority;
 - `contracts/cron-command-paths-write-protection-check-semantic-v1.json` — read-only aggregate contract SRC-0007 для persistent cron command target population и exact `go-w` file protection;
-- `contracts/user-cron-files-mode-check-semantic-v2.json` — current read-only aggregate contract SRC-0011: direct regular user-cron population only; recursive descent into sibling spools such as `atjobs/atspool` is excluded;
+- `contracts/user-cron-files-mode-check-semantic-v2.json` — текущий read-only aggregate contract SRC-0011: только прямая population regular user-cron; рекурсивный обход соседних spool, таких как `atjobs/atspool`, исключён;
 - `contracts/running-process-paths-write-protection-check-semantic-v1.json` — read-only aggregate contract SRC-0006 для executable/library population текущих процессов и containing/all-parent directory write protection;
-- `contracts/standard-system-paths-mode-check-semantic-v2.json` — current read-only aggregate contract SRC-0012: executable regular targets from canonical/root `$PATH` roots, standard/local library roots and current-kernel modules; non-executable regular data under exec roots excluded; numeric mode criterion is explicitly derived;
-- `contracts/suid-sgid-applications-check-semantic-v2.json` — current read-only contract SRC-0013: SUID/SGID population across all non-pseudo mounts including `nosuid`, `go-w` mode check и separate allowlist-authority check;
+- `contracts/standard-system-paths-mode-check-semantic-v2.json` — текущий read-only aggregate contract SRC-0012: executable regular targets из canonical/root `$PATH`, standard/local library roots и модулей current kernel; non-executable regular data под exec roots исключены; числовой критерий mode явно derived;
+- `contracts/suid-sgid-applications-check-semantic-v2.json` — текущий read-only contract SRC-0013: SUID/SGID population на всех non-pseudo mounts, включая `nosuid`, проверка mode `go-w` и отдельная проверка authority allowlist;
 - `contracts/home-sensitive-files-mode-check-semantic-v2.json` — current SRC-0014 contract: все local passwd accounts плюс mandatory inventory и explicit common shell-history/config discovery для Bash/zsh/ksh/csh/tcsh/fish/Nushell/Xonsh/Elvish; broad suffix matching вроде `*rc` запрещён;
-- `contracts/home-directories-mode-check-semantic-v2.json` — current SRC-0015 contract: exact `0700` for every existing local passwd home, including service/system accounts;
+- `contracts/home-directories-mode-check-semantic-v2.json` — текущий contract SRC-0015: точный `0700` для каждого существующего домашнего каталога локальной passwd-записи, включая service/system accounts;
 - `contracts/tested-setting-attestation-check-semantic-v1.json` — read-only procedural-fact contract SRC-0034: explicit local authority должен подтвердить `TESTED-BEFORE-USE` для exact `kernel.randomize_va_space=2`; authority не подменяет отсутствующую в source методику тестирования;
 - `adapters/product-file-mode-owner-check-v2.py` + JSON binding; v1 сохранён как предыдущая identity;
 - `adapters/product-sysctl-check-v2.py` + JSON binding (v1 сохранён как предыдущая product identity);
@@ -41,19 +41,19 @@
 - `adapters/product-standard-system-paths-mode-check-v2.py` + JSON binding; читает root-process `$PATH`, включает в exec population только regular targets с `(mode & 0111) != 0` и использует только read-only `uname/readlink/find/sort/stat`, без chmod/chown/APPLY;
 - `adapters/product-suid-sgid-applications-check-v2.py` + JSON binding; только чтение mountinfo/allowlist и `find/sort/stat`, без chmod/chown/remount/APPLY;
 - `adapters/product-home-sensitive-files-mode-check-v2.py` + JSON binding; local passwd + inventory + read-only home traversal с explicit shell-artifact classifier для стандартных Bash/zsh/ksh/csh/tcsh/fish/Nushell/Xonsh/Elvish artifacts и без broad `*rc/*env`;
-- `adapters/product-home-directories-mode-check-v2.py` + JSON binding; local passwd + read-only mode observation;
+- `adapters/product-home-directories-mode-check-v2.py` + JSON binding; локальный passwd + read-only наблюдение mode;
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
   semantic contract / binding / implementation с SHA-256;
-- `generate-product-check-v2.py` — current tracked deterministic generator единого read-only CLI;
+- `generate-product-check-v2.py` — текущий отслеживаемый детерминированный generator единого read-only CLI;
 - `generate-product-check-v1.py` — сохранённая предыдущая generator identity;
-- `/securelinux-policy.sh` + `/securelinux-policy.sh.sha256` — tracked byte-exact user entrypoint current product population;
+- `/securelinux-policy.sh` + `/securelinux-policy.sh.sha256` — отслеживаемая byte-exact пользовательская точка входа текущей product population;
 - `dist/` — optional derived gitignored rebuild output, не источник истины.
 
 Generator читает текущий `CONTROL-MANIFEST.tsv`, проверяет canonical YAML и
 registry SHA bindings и fail-closed выбирает adapter по `parameter.kind`.
 
 
-## Unified CLI / Quick Start v1
+## Единый CLI / быстрый старт v1
 
 Текущая пользовательская точка входа — один tracked executable
 `securelinux-policy.sh`. Для обычного CHECK пользователь не запускает Python
@@ -75,7 +75,7 @@ generator. Compliance execution выполняется как executable (`./sec
 
 ## Текущий статус
 
-CHECK по current manifest population реализован и regression-tested. Generated
+CHECK для current population из manifest реализован и покрыт regression tests. Generated
 artifact имеет статус `NON_RELEASE_PRODUCT_CANDIDATE` и target
 `ubuntu-24.04-x86_64`.
 
@@ -86,7 +86,7 @@ failure; `NOT_FOUND`/`ERROR` делают итог `UNEVALUATED`.
 доказанном отсутствии имени. Нечитаемый объект, dangling symlink, symlink loop
 или отсутствие обязательного observation tool классифицируются как `ERROR`.
 
-## Текущее расширение FSTEC core
+## Принятое покрытие FSTEC core для `fstec-linux-2022`
 
 `SRC-0005 / 2.3.1` закрыт через `exact-control-set` из трёх canonical controls:
 
@@ -98,8 +98,9 @@ failure; `NOT_FOUND`/`ERROR` делают итог `UNEVALUATED`.
 current read-only `product-file-mode-owner-check-v2`; APPLY/RESTORE по-прежнему
 не реализованы.
 
-После CHECK-11 product track перешёл к систематическому представлению
-оставшихся `OPEN` source rows. Exact-eq batch закрыл `SRC-0030`, `SRC-0031`,
+После CHECK-11 CHECK-линия продолжила закрытие строк текущего документа и в итоге
+достигла `fstec-linux-2022 CHECK COMPLETE` (`40/40 CLOSED`). В этой истории
+exact-eq batch закрыл `SRC-0030`, `SRC-0031`,
 `SRC-0036`–`SRC-0039`; затем `SRC-0040 / 2.6.6` закрыт через
 `fs.suid_dumpable eq 0` после точечного удаления terminal page furniture.
 
@@ -119,7 +120,7 @@ key — наблюдаемое `VALUE/FAIL`; для bare flag `present` отсу
 и при совпадении даёт PASS; более поздний source-listed fallback не считается
 автоматически compliant, если источник связывает его с условием, которое adapter
 не умеет доказать — тогда результат fail-closed ERROR. Сам donor остаётся только
-implementation precedent.
+прецедент реализации.
 
 Через этот kind source-faithful закрываются `SRC-0018`, `SRC-0019`,
 `SRC-0020`, `SRC-0021`, `SRC-0022`, `SRC-0024`, `SRC-0026`, `SRC-0032`. Для
@@ -175,7 +176,7 @@ Pinned donor использован только как precedent для `/proc/
 
 `SUID-SGID-MODE` проверяет exact source relation `chmod go-w` → `bits-clear 0022`. `SUID-SGID-ALLOWLIST` отдельно проверяет `population ⊆ approved set` против explicit local `/etc/securelinux-policy/suid-sgid.allowlist-v1`; missing/malformed authority => `ERROR`, unlisted application => `FAIL`. Owner=root не добавляется. APPLY/RESTORE отсутствуют.
 
-## SRC-0014 / 2.3.10 — sensitive user-home files
+## SRC-0014 / 2.3.10 — чувствительные файлы домашних каталогов пользователей
 
 - v2 включает **все** syntactically valid local `/etc/passwd` accounts с absolute home, включая service/system accounts; `UID_MIN`, `nologin` и `false` больше не являются source-unanchored exclusions.
 - Exact mode relation остаётся source `chmod go-rwx` → `(mode & 0077) == 0`.
@@ -191,7 +192,7 @@ Pinned donor использован только как precedent для `/proc/
 
 Один aggregate control `sshd-root-login` представляет source-exact требование `PermitRootLogin no` именно в основном `/etc/ssh/sshd_config`. Простого grep и наличия managed drop-in недостаточно: CHECK рекурсивно учитывает активные `Include` в явном лексикографическом порядке путей, восстанавливает `Match`-scope содержащего файла после каждого Include, проверяет `sshd -t` и effective root-context через `sshd -T -C`. Main-файл должен содержать активную global директиву с семантическим значением `no`; effective value также должен быть `no`.
 
-Global duplicates не объявляются ошибкой сами по себе: first-obtained-value semantics проверяется effective выводом OpenSSH. Parser проверяемых SSH-директив поддерживает whitespace/один `=` как separator, quoted/escaped arguments, CRLF и token-boundary comment semantics (`#` внутри token не обрезается). Glob population получает явную сортировку; function-shadowing `compgen`, ошибка sort/find/compgen и pathname с переводом строки не могут тихо скрыть Include — это fail-closed `ERROR`. `Match`-scope `PermitRootLogin no` безопасен; non-`no` conditional value, include-cycle, symlink/unreadable/malformed config или иная parser ambiguity дают `ERROR`, а не ложный PASS. APPLY/RESTORE, reload/restart SSH отсутствуют.
+Глобальные дубли сами по себе не объявляются ошибкой: семантика первого полученного значения проверяется effective-выводом OpenSSH. Парсер проверяемых SSH-директив поддерживает whitespace/один `=` как separator, quoted/escaped arguments, CRLF и token-boundary comment semantics (`#` внутри token не обрезается). Glob population получает явную сортировку; function-shadowing `compgen`, ошибка sort/find/compgen и pathname с переводом строки не могут тихо скрыть Include — это fail-closed `ERROR`. `Match`-scope `PermitRootLogin no` безопасен; non-`no` conditional value, include-cycle, symlink/unreadable/malformed config или иная parser ambiguity дают `ERROR`, а не ложный PASS. APPLY/RESTORE, reload/restart SSH отсутствуют.
 
 ## SRC-0003 / 2.2.1
 
@@ -219,8 +220,8 @@ CHECK запускает pinned `/usr/sbin/visudo -c -f /etc/sudoers` под `LC
 
 Для каждого stable executable regular target требуется `st_uid == 0` и `(mode & 0022) == 0`. Symlink проверяется по final regular target. Known interpreter/execution frontend, multilink target и shebang-script дают `ERROR`: v1 не возвращает PASS для execution chain, которую не может доказательно раскрыть до конечного executable. Missing/nonregular/non-executable target, policy/tool/JSON ambiguity или source/target drift => `ERROR`. CHECK не выполняет `chown`, `chmod`, APPLY или RESTORE.
 
-- `product/contracts/sudo-root-command-files-protection-check-semantic-v1.json` — semantic contract SRC-0008.
-- `product/adapters/product-sudo-root-command-files-protection-check-v1.py` — read-only adapter SRC-0008.
+- `product/contracts/sudo-root-command-files-protection-check-semantic-v1.json` — семантический контракт SRC-0008.
+- `product/adapters/product-sudo-root-command-files-protection-check-v1.py` — read-only adapter для SRC-0008.
 
 
 ## SRC-0034 / 2.5.11
@@ -240,5 +241,5 @@ Population состоит из direct file-like entries в `/etc/rc0.d`…`/etc/
 
 Семь read-only v3 layout captures (Ubuntu 22 FULL; Ubuntu 24.04.4 MINIMIZED/FULL; Ubuntu 26 MINIMIZED/FULL; Debian 12; Debian 13) подтвердили необходимые layout edge cases: merged-`/usr` duplicate unit roots на Ubuntu 22/Debian 12, masked units, runtime/generator roots и dangling recursive dependency reference. Эти наблюдения определяют только безопасный discovery contract, а не дополнительные policy predicates.
 
-- `product/contracts/startup-files-write-protection-check-semantic-v1.json` — semantic contract SRC-0009.
-- `product/adapters/product-startup-files-write-protection-check-v1.py` — read-only adapter SRC-0009.
+- `product/contracts/startup-files-write-protection-check-semantic-v1.json` — семантический контракт SRC-0009.
+- `product/adapters/product-startup-files-write-protection-check-v1.py` — read-only adapter для SRC-0009.

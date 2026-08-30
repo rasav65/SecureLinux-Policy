@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import csv
 import hashlib
 import re
 import subprocess
@@ -186,6 +187,71 @@ for rel in (
 ):
     assert (ROOT / rel).read_text(encoding="utf-8") == checker.stdout, rel
 
+# Historical B1.1b sidecars are preserved records, not current reproducibility proof.
+status_path = ROOT / "archive/B1.1b/ARCHIVAL-SIDECAR-STATUS.tsv"
+with status_path.open(encoding="utf-8", newline="") as f:
+    archival_rows = list(csv.DictReader(f, delimiter="\t"))
+assert len(archival_rows) == 8
+assert {row["status"] for row in archival_rows} == {"NON_REPRODUCIBLE_HISTORICAL_RECORD"}
+
+visible_regular_hashes = {}
+for rel in sorted(visible):
+    path = ROOT / rel
+    if path.is_file() and not path.is_symlink():
+        visible_regular_hashes.setdefault(sha256(path), []).append(rel)
+
+archival_mismatch_entries = 0
+for row in archival_rows:
+    sidecar_rel = row["sidecar"]
+    sidecar = ROOT / sidecar_rel
+    assert sidecar.is_file() and not sidecar.is_symlink(), sidecar_rel
+    assert sha256(sidecar) == row["sidecar_sha256"], sidecar_rel
+    entries = mismatches = missing = 0
+    mismatch_expected = []
+    for lineno, line in enumerate(sidecar.read_text(encoding="utf-8").splitlines(), 1):
+        if not line:
+            continue
+        match = re.fullmatch(r"([0-9a-f]{64})  (.+)", line)
+        assert match is not None, (sidecar_rel, lineno, line)
+        expected, target_text = match.groups()
+        entries += 1
+        if target_text.startswith("B1.1b/"):
+            target = ROOT / "archive" / target_text
+        else:
+            target = ROOT / target_text
+        if not target.is_file() or target.is_symlink():
+            missing += 1
+            continue
+        if sha256(target) != expected:
+            mismatches += 1
+            mismatch_expected.append(expected)
+    assert entries == int(row["entries"]), (sidecar_rel, entries, row["entries"])
+    assert mismatches == int(row["mismatches"]), (sidecar_rel, mismatches, row["mismatches"])
+    assert missing == int(row["missing"]), (sidecar_rel, missing, row["missing"])
+    for expected in mismatch_expected:
+        assert expected not in visible_regular_hashes, (sidecar_rel, expected, visible_regular_hashes.get(expected))
+    archival_mismatch_entries += mismatches
+assert archival_mismatch_entries == 40
+
+# Frozen review README stays byte-exact; its five historical relative links resolve
+# through three explicit current companion files that do not claim original archive bytes.
+review_dir = ROOT / "archive/engineering-review-20260731/review"
+review_readme = review_dir / "README.md"
+review_text = review_readme.read_text(encoding="utf-8")
+assert sha256(review_readme) == "1c4eae4b9db3c725b5e41e57e41cd1070ad379d217995f78dff4e9794e4b18fd"
+review_links = re.findall(r"\]\((docs/(?:compatibility|fstec-mapping|restore-model)\.md)\)", review_text)
+assert len(review_links) == 5, review_links
+assert {rel for rel in review_links} == {
+    "docs/compatibility.md", "docs/fstec-mapping.md", "docs/restore-model.md"
+}
+for rel in set(review_links):
+    companion = review_dir / rel
+    assert companion.is_file() and not companion.is_symlink(), rel
+    body = companion.read_text(encoding="utf-8")
+    assert "не являлся членом" in body
+    assert "не выдаётся за original stage bytes" in body
+    assert "7a62c1304a423e4431b08c34e999ed221777d63ecfb0aec180767fadf80759d2" in body
+
 # Synthetic root-manifest Git-ignore fixture.
 with tempfile.TemporaryDirectory(prefix="slp-root-manifest-") as td:
     repo = Path(td) / "repo"
@@ -224,5 +290,6 @@ print(
     f"actual=1 fixture=1 deleted_tracked=1 ignored_runtime=2 "
     f"local_manifests={len(local_manifests)} local_entries={checked_entries} "
     f"pinned_historical_exceptions=2 complete_subtree_manifests={len(complete_subtree_manifests)} "
-    "active_checker_fresh=2"
+    "active_checker_fresh=2 archival_sidecars_nonreproducible=8 archival_mismatch_entries=40 "
+    "archival_review_links_resolved=5"
 )

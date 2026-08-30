@@ -11,8 +11,8 @@ source:
   norm: "norm-v1"
 requirement:
   stated: "2.2.2. Ограничить список пользователей, которым разрешено использовать команду sudo и разрешенных к выполнению через sudo команд путём пересмотра файла /etc/sudoers."
-  derived: false
-  justification: null
+  derived: true
+  justification: "Источник требует ограничить пользователей и команды путём пересмотра /etc/sudoers, но не задаёт universal approved set; exact reviewed-policy authority/pathset является product mechanism для детерминированного CHECK."
   applicability: "technical"
 parameter:
   kind: "sudoers-reviewed-policy"

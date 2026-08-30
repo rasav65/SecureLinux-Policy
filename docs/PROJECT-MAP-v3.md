@@ -11,13 +11,13 @@
 > не закрывает source-index rows.
 
 <!-- BEGIN GENERATED MAP STATUS -->
-`source rows=349 · controlled CLOSED=40 · OPEN=309 · canonical controls=51 · adapters=18 · target=ubuntu-24.04-x86_64`
+`строки source=349 · controlled CLOSED=40 · OPEN=309 · canonical controls=51 · adapters=18 · target=ubuntu-24.04-x86_64`
 
 Точные таблицы покрытия: [`docs/fstec-coverage.md`](fstec-coverage.md).
 <!-- END GENERATED MAP STATUS -->
 
 Продуктовые правила слоёв: [`docs/policy-layers.md`](policy-layers.md).
-Machine-generated coverage: [`docs/fstec-coverage.md`](fstec-coverage.md).
+Машинно сформированное coverage: [`docs/fstec-coverage.md`](fstec-coverage.md).
 Текущая target-совместимость: [`docs/compatibility.md`](compatibility.md).
 
 ## Легенда
@@ -34,7 +34,7 @@ Machine-generated coverage: [`docs/fstec-coverage.md`](fstec-coverage.md).
 ```mermaid
 flowchart LR
     subgraph SRC["1. ПЕРВИЧНЫЕ ИСТОЧНИКИ"]
-        PDF["sources/fstec/<br/>10 pinned PDF"]:::component
+        PDF["sources/fstec/<br/>10 закреплённых PDF"]:::component
         PHASH["sources/fstec/SHA256SUMS"]:::component
         PDF --> PHASH
     end
@@ -52,7 +52,7 @@ flowchart LR
     end
 
     subgraph SELECT["3. ВЫБОР КОРПУСА ДЛЯ SOURCE ANCHOR"]
-        QUALITY{"Gate 1 corpus selector<br/>по SOURCE-INDEX.text_quality"}:::component
+        QUALITY{"селектор корпуса Gate 1<br/>по SOURCE-INDEX.text_quality"}:::component
         EXMAN["sources/extracted/<br/>EXTRACTION-MANIFEST.tsv"]:::component
         RECMAN["sources/recovered-v1/<br/>RECOVERY-MANIFEST.tsv"]:::component
 
@@ -60,43 +60,43 @@ flowchart LR
         RECNORM --> RECMAN --> QUALITY
     end
 
-    subgraph INDEX["4. SOURCE INDEX"]
-        IDX["index/source-v4<br/>machine source truth"]:::component
-        CLOSED["controlled CLOSED<br/>machine-rendered status"]:::closed
-        OPEN["OPEN rows<br/>machine-rendered status"]:::component
+    subgraph INDEX["4. ИНДЕКС ИСТОЧНИКОВ"]
+        IDX["index/source-v4<br/>машинная source truth"]:::component
+        CLOSED["controlled CLOSED<br/>статус из machine truth"]:::closed
+        OPEN["строки OPEN<br/>статус из machine truth"]:::component
         QUALITY --> IDX
         IDX --> CLOSED
         IDX --> OPEN
     end
 
-    subgraph CONTROL["5. CONTROL RECORDS / SCHEMA"]
-        CTRL["controls/<br/>manifest-driven current population"]:::component
-        KIND["KIND_RULES<br/>canonical parameter-kind contract"]:::component
-        SCHEMA["CONTROL-SCHEMA.json<br/>generated from KIND_RULES"]:::component
-        DIFF["tests/gates-v3/<br/>test_schema_runtime_parity.py<br/>50 records · 16 CR/LF cases<br/>pattern semantics"]:::component
-        SEMPAR["schema ↔ runtime<br/>semantic parity regression"]:::component
-        REALJSON["Release gate PASS<br/>real Draft202012Validator<br/>jsonschema 4.10.3 recorded in evidence"]:::closed
+    subgraph CONTROL["5. CONTROL RECORDS / СХЕМА"]
+        CTRL["controls/<br/>current population из manifest"]:::component
+        KIND["KIND_RULES<br/>канонический contract parameter-kind"]:::component
+        SCHEMA["CONTROL-SCHEMA.json<br/>сгенерировано из KIND_RULES"]:::component
+        DIFF["tests/gates-v3/<br/>test_schema_runtime_parity.py<br/>50 records · 16 cases CR/LF<br/>семантика pattern"]:::component
+        SEMPAR["schema ↔ runtime<br/>regression семантической parity"]:::component
+        REALJSON["Release gate PASS<br/>реальный Draft202012Validator<br/>jsonschema 4.10.3 записан в evidence"]:::closed
 
         KIND --> SCHEMA
         KIND --> DIFF
         SCHEMA --> DIFF --> SEMPAR --> REALJSON
-        IDX --> SGEN["source skeleton generator<br/>step 5 CLOSED · numbered-position<br/>manifest-driven population"]:::closed
-        SGEN --> SPAR["source-block parity<br/>step 6 CLOSED · manifest-driven population"]:::closed
+        IDX --> SGEN["generator source skeleton<br/>step 5 CLOSED · numbered-position<br/>population из manifest"]:::closed
+        SGEN --> SPAR["parity source-block<br/>step 6 CLOSED · population из manifest"]:::closed
         SPAR --> CTRL
         KIND --> CTRL
     end
 
-    subgraph GATES["6. MACHINE GATES"]
+    subgraph GATES["6. МАШИННЫЕ GATES"]
         G0["Gate 0 PASS<br/>schema_generation_parity<br/>только byte-generation parity"]:::closed
-        G1["Gate 1 PASS<br/>source/quote anchor<br/>current manifest population"]:::closed
-        G2["Gate 2 FAIL<br/>reverse source coverage<br/>OPEN rows remain"]:::component
-        G3["Gate 3 PASS<br/>parameter closure<br/>current manifest population"]:::closed
-        G4["Gate 4 PASS<br/>uniqueness/conflicts<br/>current manifest population"]:::closed
-        G5["Gate 5 historical admitted pilot<br/>5 sysctl controls · 1 reference VM<br/>current no-probe invocation FAIL-closed"]:::component
-        G6["Gate 6 PASS — CURRENT EVIDENCE SCOPE<br/>one sysctl-v1 evidence directory"]:::closed
+        G1["Gate 1 PASS<br/>source/quote anchor<br/>current population manifest"]:::closed
+        G2["Gate 2 FAIL<br/>обратное покрытие source<br/>остаются строки OPEN"]:::component
+        G3["Gate 3 PASS<br/>закрытие parameters<br/>current population manifest"]:::closed
+        G4["Gate 4 PASS<br/>уникальность/конфликты<br/>current population manifest"]:::closed
+        G5["Gate 5 historical pilot с admission<br/>5 sysctl controls · 1 reference VM<br/>current запуск без probe — FAIL-closed"]:::component
+        G6["Gate 6 PASS — CURRENT EVIDENCE SCOPE<br/>один каталог evidence sysctl-v1"]:::closed
 
-        CLOSURE["index/source-v4/<br/>CLOSURE-CONTRACT.tsv<br/>exact expected control set<br/>for controlled CLOSED rows"]:::component
-        DISP["second closure path:<br/>disposed CLOSED + disposition + reason<br/>DISPOSITION-LEDGER.tsv required · 0 real rows"]:::component
+        CLOSURE["index/source-v4/<br/>CLOSURE-CONTRACT.tsv<br/>точный ожидаемый набор controls<br/>для controlled CLOSED rows"]:::component
+        DISP["второй путь закрытия:<br/>disposed CLOSED + disposition + reason<br/>нужен DISPOSITION-LEDGER.tsv · 0 реальных rows"]:::component
 
         SCHEMA --> G0
         IDX --> G1
@@ -112,12 +112,12 @@ flowchart LR
         CTRL --> G5
     end
 
-    subgraph EVID["7. READ-ONLY REFERENCE-VM EVIDENCE"]
+    subgraph EVID["7. READ-ONLY EVIDENCE REFERENCE-VM"]
         PLAN["probes/sysctl-v1/probe-plan.tsv"]:::component
         PROBE["probes/sysctl-v1/probe.py<br/>read-only"]:::component
         VM["Ubuntu 24.04.4 Minimal<br/>reference VM"]:::component
-        PRIV["privileged result<br/>5 VALUE / 0 ERROR"]:::component
-        UNPRIV["unprivileged result<br/>4 VALUE / 1 ERROR"]:::component
+        PRIV["результат privileged<br/>5 VALUE / 0 ERROR"]:::component
+        UNPRIV["результат unprivileged<br/>4 VALUE / 1 ERROR"]:::component
         META["VM-METADATA.txt"]:::component
         SUMS["evidence/SHA256SUMS"]:::component
 
@@ -169,20 +169,20 @@ flowchart TB
     CORPORATE["corporate<br/>internal Standard / additional sources"]:::future
     FIREWALL["firewall<br/>role-specific policy"]:::future
 
-    FSTEC --> CONTRACT["common index contract"]:::component
+    FSTEC --> CONTRACT["общий contract index"]:::component
     RECOMMENDED --> CONTRACT
     CORPORATE --> CONTRACT
     FIREWALL --> CONTRACT
 
-    CONTRACT --> INDEXES["layer-specific indexes<br/>FSTEC: source-v4 exists<br/>corporate: not built yet"]:::component
-    INDEXES --> GENERATOR["index-generic<br/>source skeleton generator<br/>step 5 CLOSED"]:::component
-    GENERATOR --> SOURCE["source:<br/>generator output<br/>single normative producer"]:::component
-    SOURCE --> PARITY["source-block<br/>regeneration parity<br/>step 6 CLOSED"]:::closed
-    PARITY --> SEM["requirement / parameter / expected<br/>semantic part of current FSTEC controls"]:::component
+    CONTRACT --> INDEXES["indexes по слоям<br/>FSTEC: source-v4 существует<br/>corporate: ещё не построен"]:::component
+    INDEXES --> GENERATOR["index-generic<br/>generator source skeleton<br/>step 5 CLOSED"]:::component
+    GENERATOR --> SOURCE["source:<br/>output generator<br/>единственный normative producer"]:::component
+    SOURCE --> PARITY["source-block<br/>parity регенерации<br/>step 6 CLOSED"]:::closed
+    PARITY --> SEM["requirement / parameter / expected<br/>семантическая часть current FSTEC controls"]:::component
     SEM --> CONTROLS["controls/<br/>layer + profile"]:::component
     CONTROLS --> CHECKER["checker / gates<br/>fail-closed"]:::component
 
-    DISP2["explicit dispositions<br/>DISPOSITION-LEDGER.tsv required<br/>alternative closure route"]:::component
+    DISP2["explicit dispositions<br/>нужен DISPOSITION-LEDGER.tsv<br/>альтернативный путь закрытия"]:::component
     INDEXES --> DISP2
     DISP2 --> CHECKER
 
@@ -195,13 +195,13 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    CTRLNOW["canonical controls<br/>manifest-driven fstec-core population"]:::component
-    REG["product/ADAPTER-REGISTRY.tsv<br/>single tracked adapter mapping"]:::component
-    SYS["product-sysctl-check-v2<br/>read-only eq + integer ge"]:::closed
+    CTRLNOW["canonical controls<br/>fstec-core population из manifest"]:::component
+    REG["product/ADAPTER-REGISTRY.tsv<br/>единый tracked mapping adapters"]:::component
+    SYS["product-sysctl-check-v2<br/>read-only `eq` + integer `ge`"]:::closed
     FILE["product-file-mode-owner-check-v1<br/>read-only"]:::closed
-    GEN1["product/generate-product-check-v1.py<br/>previous generator identity"]:::note
-    GEN2["product/generate-product-check-v2.py<br/>current deterministic generator"]:::closed
-    CLI["securelinux-policy.sh<br/>tracked unified read-only CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE<br/>pretty · raw · JSON"]:::closed
+    GEN1["product/generate-product-check-v1.py<br/>предыдущая identity generator"]:::note
+    GEN2["product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed
+    CLI["securelinux-policy.sh<br/>tracked единый read-only CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE<br/>pretty · raw · JSON"]:::closed
 
     CTRLNOW --> REG
     REG --> SYS
@@ -224,21 +224,21 @@ gitignored rebuild output. APPLY mutation capability здесь отсутств
 CHECK CLI сохраняет `--apply`/`--restore` как fail-closed `NOT_IMPLEMENTED` stubs;
 `--restore` не является future feature.
 
-## 4. Инженерный донор → будущий APPLY runtime
+## 4. Инженерный донор → принятый mapping → будущий APPLY runtime
 
 ```mermaid
 flowchart LR
-    OLD["SecureLinux-NG v16.2.11<br/>OLD PROJECT"]:::donor
+    OLD["SecureLinux-NG v16.2.11<br/>СТАРЫЙ ПРОЕКТ"]:::donor
 
-    ARCHIVE["archive/engineering-donor-*<br/>byte-preserved donor"]:::component
+    ARCHIVE["archive/engineering-donor-*<br/>донор с сохранёнными bytes"]:::component
     DONOR_INDEX["index/engineering-donor-v1<br/>310 functions · 190 chunks<br/>141 semantic candidates"]:::component
     DONOR_TESTS["engineering-tests-v1<br/>38 donor tests<br/>32 generalized contracts"]:::component
 
-    MAP["DONOR_TO_V3_MAPPING<br/>REUSE / ADAPT / REJECT / DEFER"]:::future
+    MAP["DONOR_TO_V3_MAPPING<br/>ACCEPTED + COMMITTED<br/>REUSE / ADAPT / REJECT / DEFER"]:::closed
     APPLY["APPLY<br/>semantic contract"]:::future
-    ADAPTERS["future APPLY implementation adapters"]:::future
-    BUILD["future final distributable build"]:::future
-    SCRIPT["future final<br/>distributable artifact"]:::future
+    ADAPTERS["будущие implementation adapters APPLY"]:::future
+    BUILD["будущая итоговая distributable build"]:::future
+    SCRIPT["будущий итоговый<br/>distributable artifact"]:::future
 
     OLD --> ARCHIVE
     ARCHIVE --> DONOR_INDEX
@@ -248,16 +248,17 @@ flowchart LR
 
     MAP --> APPLY --> ADAPTERS --> BUILD --> SCRIPT
 
-    NORMIN["external input from normative branch:<br/>controls that passed required gates"]:::component
+    NORMIN["внешний input из normative branch:<br/>controls, прошедшие required gates"]:::component
     NORMIN --> ADAPTERS
 
-    PROVOUT["every emitted block provenance:<br/>control_id · locator · quote_sha256<br/>adapter id/version"]:::component
+    PROVOUT["provenance каждого emitted block:<br/>control_id · locator · quote_sha256<br/>adapter id/version"]:::component
     PROVOUT --> BUILD
 
-    ZERO["DONOR mapping itself<br/>closes 0 source-index rows"]:::note
+    ZERO["сам DONOR mapping<br/>закрывает 0 source-index rows"]:::note
     MAP -.-> ZERO
 
     classDef donor fill:#efe3ff,stroke:#7651a8,color:#111,stroke-width:2px;
+    classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
     classDef component fill:#dcecff,stroke:#3e6ea8,color:#111;
     classDef future fill:#eeeeee,stroke:#888,color:#444,stroke-dasharray: 5 5;
     classDef note fill:#fff8d8,stroke:#9d8730,color:#111;
@@ -267,15 +268,15 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    REVIEW["audit/step5-reference-vm-evidence-*/<br/>PROVENANCE.tsv<br/>verdict provenance;<br/>independent count NOT inferred"]:::component
-    COMMIT["Git commit checkpoint<br/>content-addressed tree"]:::component
-    PKG["external audit package<br/>PROJECT-SNAPSHOT.tsv"]:::component
-    BUNDLE["full Git bundle<br/>external handoff artifact"]:::component
+    REVIEW["audit/step5-reference-vm-evidence-*/<br/>PROVENANCE.tsv<br/>provenance verdict;<br/>independent count НЕ выводится"]:::component
+    COMMIT["checkpoint Git commit<br/>content-addressed tree"]:::component
+    PKG["внешний audit package<br/>PROJECT-SNAPSHOT.tsv"]:::component
+    BUNDLE["полный Git bundle<br/>внешний handoff artifact"]:::component
 
-    VERIFY["independent verification:<br/>git bundle verify<br/>git fsck --full<br/>git ls-tree vs PROJECT-SNAPSHOT.tsv"]:::component
-    ROOTMAN["root manifests<br/>canonical Git-visible population<br/>clean-checkout reproducible"]:::component
-    TRUST["verified commit/tree consistency<br/>and package/tree agreement"]:::closed
-    LIMIT["boundary:<br/>does NOT cryptographically prove<br/>origin from a particular remote/VM"]:::note
+    VERIFY["независимая проверка:<br/>git bundle verify<br/>git fsck --full<br/>git ls-tree vs PROJECT-SNAPSHOT.tsv"]:::component
+    ROOTMAN["корневые manifests<br/>canonical Git-visible population<br/>воспроизводимо из clean checkout"]:::component
+    TRUST["проверена согласованность commit/tree<br/>и совпадение package/tree"]:::closed
+    LIMIT["граница:<br/>НЕ доказывает криптографически<br/>происхождение из конкретного remote/VM"]:::note
 
     REVIEW --> TRUST
     COMMIT --> BUNDLE --> VERIFY
@@ -296,32 +297,34 @@ Git bundle — внешний артефакт для аудита и handoff, �
 
 ## 6. Где мы находимся
 
-Эта схема показывает **текущий product checkpoint внутри макроэтапа Step 7B**.
-Она не повторяет историческую последовательность gates и не изображает уже
-реализованные CHECK adapters/generator как будущую работу.
+Эта схема показывает **текущий substantive checkpoint — отдельный `APPLY semantic contract`**
+для принятой вертикали `fstec-linux-2022`. Макроэтап Step 7B приостановлен
+(`PAUSED_BY_CURRENT_DOCUMENT_APPLY`) и не является текущим `NEXT`. Схема не
+повторяет историческую последовательность gates и не изображает уже реализованные
+CHECK adapters/generator как будущую работу.
 
 ```mermaid
 flowchart LR
-    P1["CHECK-8 product-line<br/>read-only adapters + tracked generator<br/>DONE"]:::closed
-    P2["TEST BASELINE<br/>DEV / RELEASE runner<br/>DONE"]:::closed
-    P3["DOCUMENTATION BASELINE<br/>machine-parity docs<br/>DONE"]:::closed
-    P4["SRC-0005 / 2.3.1<br/>3 canonical file-mode controls<br/>DONE"]:::closed
-    P5["CHECK-11<br/>regenerate + read-only run<br/>DONE"]:::closed
-    P6["sysctl exact-eq batch<br/>SRC-0030,0031,0036–0039 + CHECK-17<br/>DONE"]:::closed
-    P7["SRC-0040 / 2.6.6<br/>terminal source-boundary fix + CHECK-18<br/>DONE"]:::closed
-    P8["SRC-0033 / 2.5.10<br/>sysctl lower-bound ge 4096 + CHECK-19<br/>DONE"]:::closed
-    P9["kernel-cmdline exact-token batch<br/>7 source rows · 9 controls + CHECK-28<br/>DONE"]:::closed
-    P9A["SRC-0010 / 2.3.6<br/>system cron roots + direct files · 6 controls<br/>DONE"]:::closed
-    P9B["UNIFIED CLI / QUICK START v1<br/>securelinux-policy.sh · pretty/raw/json<br/>DONE"]:::closed
-    P10["fstec-linux-2022 CHECK COMPLETE<br/>tag fstec-linux-2022-check-complete-v1<br/>DONE"]:::closed
-    P10A["МЫ ЗДЕСЬ<br/>DONOR_TO_V3_MAPPING<br/>precondition"]:::current
-    P11["APPLY semantic contract<br/>future"]:::future
-    P12["APPLY implementation<br/>future"]:::future
-    P13["final distributable artifact<br/>future"]:::future
-    SNAP["post-APPLY rollback<br/>EXTERNAL SNAPSHOT<br/>outside product"]:::note
+    P1["CHECK-8 product-line<br/>read-only adapters + tracked generator<br/>ГОТОВО"]:::closed
+    P2["БАЗОВЫЙ НАБОР ТЕСТОВ<br/>DEV / RELEASE runner<br/>ГОТОВО"]:::closed
+    P3["БАЗОВАЯ ДОКУМЕНТАЦИЯ<br/>docs с machine parity<br/>ГОТОВО"]:::closed
+    P4["SRC-0005 / 2.3.1<br/>3 canonical file-mode controls<br/>ГОТОВО"]:::closed
+    P5["CHECK-11<br/>регенерация + read-only запуск<br/>ГОТОВО"]:::closed
+    P6["batch sysctl exact-eq<br/>SRC-0030,0031,0036–0039 + CHECK-17<br/>ГОТОВО"]:::closed
+    P7["SRC-0040 / 2.6.6<br/>исправление terminal source-boundary + CHECK-18<br/>ГОТОВО"]:::closed
+    P8["SRC-0033 / 2.5.10<br/>sysctl lower-bound `ge 4096` + CHECK-19<br/>ГОТОВО"]:::closed
+    P9["batch kernel-cmdline exact-token<br/>7 source rows · 9 controls + CHECK-28<br/>ГОТОВО"]:::closed
+    P9A["SRC-0010 / 2.3.6<br/>system cron roots + direct files · 6 controls<br/>ГОТОВО"]:::closed
+    P9B["ЕДИНЫЙ CLI / БЫСТРЫЙ СТАРТ v1<br/>securelinux-policy.sh · pretty/raw/json<br/>ГОТОВО"]:::closed
+    P10["fstec-linux-2022 CHECK COMPLETE<br/>tag fstec-linux-2022-check-complete-v1<br/>ГОТОВО"]:::closed
+    P10A["DONOR_TO_V3_MAPPING<br/>ACCEPTED + COMMITTED<br/>1db91b0…<br/>ГОТОВО"]:::closed
+    P11["МЫ ЗДЕСЬ<br/>APPLY semantic contract<br/>СЛЕДУЮЩИЙ SUBSTANTIVE ЭТАП"]:::current
+    P12["APPLY implementation<br/>будущее"]:::future
+    P13["итоговый distributable artifact<br/>будущее"]:::future
+    SNAP["rollback после APPLY<br/>EXTERNAL SNAPSHOT<br/>вне продукта"]:::note
 
     P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P9A --> P9B --> P10 --> P10A --> P11 --> P12 --> P13
-    P12 -. operational recovery boundary .-> SNAP
+    P12 -. граница operational recovery .-> SNAP
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
     classDef current fill:#ffe2a8,stroke:#c77800,color:#111,stroke-width:4px;
@@ -332,12 +335,13 @@ flowchart LR
 `fstec-linux-2022` read-only CHECK vertical принят и закреплён tag
 `fstec-linux-2022-check-complete-v1` на commit
 `219b4cc3c0673c55575fb558e160431c11c2a681`. Project-wide source index при этом
-по-прежнему содержит OPEN rows других документов, но следующий source-scoped
-этап — не новый нормативный документ: сначала завершается `DONOR_TO_V3_MAPPING`,
-затем отдельные APPLY semantic contract и implementation для уже принятого
-`fstec-linux-2022`. Read-only CHECK bytes/controls/adapters при этом не меняются.
-Unified read-only CLI не открывает будущий APPLY track; RESTORE исключён из
-целевой архитектуры.
+по-прежнему содержит OPEN rows других документов. `DONOR_TO_V3_MAPPING` уже
+принят и committed в `1db91b0e17d6ef37e4c42cd41dca77eeb2b743da`; следующий
+source-scoped substantive этап — отдельный `APPLY semantic contract` для уже
+принятого `fstec-linux-2022`, затем implementation. Read-only CHECK
+bytes/controls/adapters при этом не меняются. Unified read-only CLI не открывает
+APPLY до принятия его отдельного semantic contract; RESTORE исключён из целевой
+архитектуры.
 
 Операционная модель rollback после завершённого APPLY — внешний snapshot.
 Транзакционно-локальный compensating rollback внутри незавершённого APPLY

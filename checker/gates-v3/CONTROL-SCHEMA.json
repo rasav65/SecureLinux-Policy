@@ -1149,6 +1149,23 @@
                   "required": [
                     "expected"
                   ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
                 }
               ]
             }
@@ -1399,6 +1416,23 @@
                   "required": [
                     "expected"
                   ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
                 }
               ]
             }
@@ -1576,6 +1610,23 @@
                   },
                   "required": [
                     "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
                   ]
                 }
               ]
@@ -1835,6 +1886,23 @@
                   "required": [
                     "expected"
                   ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
                 }
               ]
             }
@@ -1921,6 +1989,23 @@
                   "required": [
                     "expected"
                   ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
                 }
               ]
             }
@@ -2006,6 +2091,23 @@
                   },
                   "required": [
                     "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
                   ]
                 }
               ]

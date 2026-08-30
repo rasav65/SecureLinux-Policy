@@ -1,3 +1,3 @@
-# Gate 6 regression
+# Регрессии Gate 6
 
-One factual positive case and nine fail-closed negative mutations.
+Один фактический positive case и девять fail-closed negative mutations.

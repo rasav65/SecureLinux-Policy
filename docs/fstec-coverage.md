@@ -1,6 +1,6 @@
 # Покрытие FSTEC core
 
-> **GENERATED FILE.** Формируется `tools/render-current-docs.py` из `SOURCE-INDEX.tsv`, `CLOSURE-CONTRACT.tsv`, `CONTROL-MANIFEST.tsv` и `ADAPTER-REGISTRY.tsv`. Ручное редактирование запрещено.
+> **СГЕНЕРИРОВАННЫЙ ФАЙЛ.** Формируется `tools/render-current-docs.py` из `SOURCE-INDEX.tsv`, `CLOSURE-CONTRACT.tsv`, `CONTROL-MANIFEST.tsv` и `ADAPTER-REGISTRY.tsv`. Ручное редактирование запрещено.
 
 ## Сводка
 
@@ -14,9 +14,9 @@ CANONICAL_CONTROLS=51
 
 Число canonical controls и число закрытых source rows — разные величины: одна строка источника может требовать `exact-control-set` из нескольких controls.
 
-## Controlled CLOSED
+## Controlled CLOSED строки
 
-| Source row | Locator | Coverage mode | Canonical controls | Parameter kind | CHECK adapter |
+| Строка source | Locator | Режим coverage | Canonical controls | Parameter kind | Адаптер CHECK |
 |---|---|---|---|---|---|
 | SRC-0001 | 2.1.1 | atomic-single | `FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE` | `local-account-password-state` | `product-local-account-password-state-check-v2` |
 | SRC-0002 | 2.1.2 | atomic-single | `FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN` | `sshd-root-login` | `product-sshd-root-login-check-v1` |
@@ -59,36 +59,36 @@ CANONICAL_CONTROLS=51
 | SRC-0039 | 2.6.5 | atomic-single | `FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR` | `sysctl` | `product-sysctl-check-v2` |
 | SRC-0040 | 2.6.6 | atomic-single | `FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE` | `sysctl` | `product-sysctl-check-v2` |
 
-## Canonical controls, ещё не закрывающие source row
+## Canonical controls, которые ещё не закрывают строку source
 
 Сейчас таких controls нет.
 
-## Готовность CHECK adapters
+## Готовность адаптеров CHECK
 
-| Parameter kind | Adapter | Read-only | Canonical controls сейчас |
+| Parameter kind | Adapter | Только чтение | Canonical controls сейчас |
 |---|---|---:|---:|
-| `cron-command-paths-write-protection` | `product-cron-command-paths-write-protection-check-v1` | yes | 1 |
-| `file-mode-owner` | `product-file-mode-owner-check-v2` | yes | 3 |
-| `home-directories-mode` | `product-home-directories-mode-check-v2` | yes | 1 |
-| `home-sensitive-files-mode` | `product-home-sensitive-files-mode-check-v2` | yes | 1 |
-| `kernel-cmdline` | `product-kernel-cmdline-check-v2` | yes | 10 |
-| `local-account-password-state` | `product-local-account-password-state-check-v2` | yes | 1 |
-| `optional-file-root-files-mode` | `product-optional-file-root-files-mode-check-v1` | yes | 6 |
-| `pam-wheel-access` | `product-pam-wheel-access-check-v2` | yes | 1 |
-| `running-process-paths-write-protection` | `product-running-process-paths-write-protection-check-v1` | yes | 1 |
-| `sshd-root-login` | `product-sshd-root-login-check-v1` | yes | 1 |
-| `standard-system-paths-mode` | `product-standard-system-paths-mode-check-v2` | yes | 1 |
-| `startup-files-write-protection` | `product-startup-files-write-protection-check-v1` | yes | 1 |
-| `sudo-root-command-files-protection` | `product-sudo-root-command-files-protection-check-v1` | yes | 1 |
-| `sudoers-reviewed-policy` | `product-sudoers-reviewed-policy-check-v1` | yes | 1 |
-| `suid-sgid-applications` | `product-suid-sgid-applications-check-v2` | yes | 2 |
-| `sysctl` | `product-sysctl-check-v2` | yes | 17 |
-| `tested-setting-attestation` | `product-tested-setting-attestation-check-v1` | yes | 1 |
-| `user-cron-files-mode` | `product-user-cron-files-mode-check-v2` | yes | 1 |
+| `cron-command-paths-write-protection` | `product-cron-command-paths-write-protection-check-v1` | да | 1 |
+| `file-mode-owner` | `product-file-mode-owner-check-v2` | да | 3 |
+| `home-directories-mode` | `product-home-directories-mode-check-v2` | да | 1 |
+| `home-sensitive-files-mode` | `product-home-sensitive-files-mode-check-v2` | да | 1 |
+| `kernel-cmdline` | `product-kernel-cmdline-check-v2` | да | 10 |
+| `local-account-password-state` | `product-local-account-password-state-check-v2` | да | 1 |
+| `optional-file-root-files-mode` | `product-optional-file-root-files-mode-check-v1` | да | 6 |
+| `pam-wheel-access` | `product-pam-wheel-access-check-v2` | да | 1 |
+| `running-process-paths-write-protection` | `product-running-process-paths-write-protection-check-v1` | да | 1 |
+| `sshd-root-login` | `product-sshd-root-login-check-v1` | да | 1 |
+| `standard-system-paths-mode` | `product-standard-system-paths-mode-check-v2` | да | 1 |
+| `startup-files-write-protection` | `product-startup-files-write-protection-check-v1` | да | 1 |
+| `sudo-root-command-files-protection` | `product-sudo-root-command-files-protection-check-v1` | да | 1 |
+| `sudoers-reviewed-policy` | `product-sudoers-reviewed-policy-check-v1` | да | 1 |
+| `suid-sgid-applications` | `product-suid-sgid-applications-check-v2` | да | 2 |
+| `sysctl` | `product-sysctl-check-v2` | да | 17 |
+| `tested-setting-attestation` | `product-tested-setting-attestation-check-v1` | да | 1 |
+| `user-cron-files-mode` | `product-user-cron-files-mode-check-v2` | да | 1 |
 
 ## Покрытие по исходным документам
 
-| Source document | Total rows | Controlled CLOSED | Disposed CLOSED | OPEN | Canonical controls |
+| Документ source | Всего строк | Controlled CLOSED | Disposed CLOSED | OPEN | Canonical controls |
 |---|---:|---:|---:|---:|---:|
 | fstec-configuration-2026 | 49 | 0 | 0 | 49 | 0 |
 | fstec-linux-2022 | 40 | 40 | 0 | 0 | 51 |

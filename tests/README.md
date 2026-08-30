@@ -1,6 +1,6 @@
 # Тестовая модель SecureLinux-Policy
 
-`tests/run-all.py` — единая точка запуска tracked Python regressions.
+`tests/run-all.py` — единая точка запуска отслеживаемых Python regressions.
 Популяция определяется через Git в момент запуска; число test-файлов здесь не
 пинуется вручную.
 
@@ -10,7 +10,7 @@
 PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B tests/run-all.py --dev
 ```
 
-DEV включает все tracked `tests/*/test_*.py`, кроме `tests/release-v1/`.
+DEV включает все отслеживаемые `tests/*/test_*.py`, кроме `tests/release-v1/`.
 DEV обязан быть зелёным без внешних Python-зависимостей сверх stdlib.
 
 Runner не считает одного `RC=0` достаточным доказательством выполнения:
@@ -21,15 +21,15 @@ regression обязан иметь непустой stdout и либо executabl
 
 Разрешённые внутренние skip:
 
-- `tests/gates-v3/test_schema_runtime_parity.py`: ровно 2 real-jsonschema cases
-  в stdlib-only DEV interpreter;
-- `tests/product-v1/test_file_mode_owner_adapter.py`: ровно 2 permission cases
+- `tests/gates-v3/test_schema_runtime_parity.py`: ровно 2 случая real-jsonschema
+  в DEV-интерпретаторе только со stdlib;
+- `tests/product-v1/test_file_mode_owner_adapter.py`: ровно 2 permission-сценария
   только при запуске DEV от root.
 
 Любой другой или дополнительный skip, а также любой `ResourceWarning`, делает DEV красным.
 
-Documentation baseline входит в DEV через `tests/documentation-v1/` и требует
-exact parity machine-owned README/map/coverage с `tools/render-current-docs.py`.
+Baseline документации входит в DEV через `tests/documentation-v1/` и требует
+точного паритета machine-owned README/map/coverage с `tools/render-current-docs.py`.
 
 ## RELEASE
 
@@ -43,8 +43,8 @@ RELEASE сначала требует DEV=PASS, затем использует 
 Коды runner:
 
 - `0` — DEV и RELEASE PASS;
-- `1` — DEV project failure;
-- `2` — RELEASE project failure при доступной release-среде;
+- `1` — ошибка проекта на этапе DEV;
+- `2` — ошибка проекта на этапе RELEASE при доступной release-среде;
 - `3` — `BLOCKED_ENVIRONMENT`, release-зависимость недоступна/слишком стара.
 
 Отсутствие `jsonschema>=4.10.3` не объявляется дефектом проекта, но выпуск

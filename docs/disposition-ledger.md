@@ -1,4 +1,4 @@
-# Disposition ledger v1
+# Реестр disposition v1
 
 `DISPOSITION-LEDGER.tsv` — обязательный проверяемый артефакт альтернативного
 пути закрытия строки source index в Gate 2.
@@ -34,11 +34,11 @@ CSV-quoting отключён (`QUOTE_NONE`): кавычки являются о�
 Требования:
 
 - `index_id` — валидный `SRC-NNNN`, уникальный в ledger и существующий в
-  загруженном index;
+  загруженном индексе;
 - `disposition` — значение текущего enum Gate 2 и точное совпадение со строкой
-  index;
+  индекса;
 - `reason` — непустой текст и совпадение со stripped-значением `reason` в
-  строке index;
+  строке индекса;
 - `basis` — непустое основание решения;
 - `decided_by` — однострочный machine identifier;
 - `decided_at` — UTC-время строго `YYYY-MM-DDTHH:MM:SSZ`, дополнительно
@@ -63,9 +63,11 @@ ledger-файл или некорректный timestamp приводят к fa
 
 Идея привязать решение disposition к канонической цитате полезна, но сейчас её
 нельзя сделать универсальной без ложной гарантии: source skeleton generator
-поддерживает только часть `unit_kind`, а две строки поддержанного типа
-намеренно отказываются из-за page-furniture ambiguity. Текущий API generator
-не различает отдельным стабильным типом deliberate refusal и integrity failure.
+поддерживает только часть `unit_kind`, а deliberate REFUSED остаётся возможным
+fail-closed результатом при page-furniture ambiguity. Exact/refused population
+вычисляется regression-тестом и не дублируется здесь числами или ручным списком
+identities. Текущий API generator не различает отдельным стабильным типом
+deliberate refusal и integrity failure.
 
 Поэтому v1 сознательно использует минимальные машинно-сверяемые утверждения:
 уникальность ledger identity, совпадение `disposition` и `reason`, формат
@@ -83,7 +85,8 @@ failures обязаны оставаться исключениями и не п
 
 Следовательно, закрытие Step 7A само по себе не закрывает строки FSTEC.
 Текущая live population не дублируется здесь вручную и берётся из
-`SOURCE-INDEX.tsv` / generated `docs/fstec-coverage.md`.
+`SOURCE-INDEX.tsv` / сгенерированный `docs/fstec-coverage.md`.
 
-Step 7B разрешён для FSTEC expansion. Первый real disposition остаётся
-заблокирован до отдельного quote-anchor contract/API.
+Step 7B приостановлен (`PAUSED_BY_CURRENT_DOCUMENT_APPLY`) до `DOCUMENT COMPLETE`
+текущей вертикали. Первый real disposition остаётся заблокирован до отдельного
+quote-anchor contract/API.

@@ -1,45 +1,50 @@
-# Source index v1
+# Индекс источников v1
 
-`SOURCE-INDEX.tsv` is the closure population for the new v3 model.
+`SOURCE-INDEX.tsv` является closure population новой модели v3.
 
-Rules:
-- one row is one independently accountable source structural unit;
-- a row starts `OPEN`;
-- a row may become `CLOSED` only after it has either:
-  1. at least one accepted v3 record, or
-  2. an explicit non-technical / organizational / external / out-of-scope /
-     informational disposition with a reason;
-- `CLOSED_INDEX_ROWS / TOTAL_INDEX_ROWS` is the project transition metric;
-- framework sources are registered separately in `FRAMEWORK-SOURCES.tsv`
-  and are not one-control-per-clause populations;
-- Methodology Appendix 2 MEASURE_CLASS_MAP (96 measures, K3/K2/K1) remains
-  a separate future gate and is not mixed into control records;
-- tables, figures and appendices explicitly listed in SOURCE-INDEX.tsv are
-  retained so they cannot disappear merely because they are not ordinary
-  numbered clauses;
-- no row in Step 3 is a migrated control.
+Правила:
+- одна строка соответствует одной независимо учитываемой структурной единице источника;
+- строка начинается со статуса `OPEN`;
+- строка может стать `CLOSED` только после того, как выполнено одно из условий:
+  1. существует как минимум одна принятая v3 record, либо
+  2. существует явное disposition с причиной из точного enum Gate 2:
+     `not-technical` / `organizational` / `external` / `out-of-scope` / `informational`;
+- `CLOSED_INDEX_ROWS / TOTAL_INDEX_ROWS` является метрикой перехода проекта;
+- framework-источники регистрируются отдельно в `FRAMEWORK-SOURCES.tsv` и не являются
+  популяцией вида one-control-per-clause;
+- Methodology Appendix 2 MEASURE_CLASS_MAP (96 measures, K3/K2/K1) остаётся
+  отдельным будущим gate и не смешивается с control records;
+- таблицы, рисунки и приложения, явно перечисленные в `SOURCE-INDEX.tsv`,
+  сохраняются, чтобы они не исчезли только потому, что не являются обычными
+  нумерованными положениями;
+- ни одна строка Step 3 не является перенесённым control.
 
-Known text-layer blockers:
+Известные blockers текстового слоя:
 - fstec-linux-2022
 - fstec-vulnerability-analysis-2025
 
-Their numeric structure is indexable, but the extracted Cyrillic text is
-garbled. Therefore their rows have `quote_anchor_ready=NO`; Gate 1 must not
-pretend that a human-readable literal quote can be proven against those
-garbled norm-v1 texts.
+Их числовая структура индексируема, но извлечённый кириллический текст искажён.
+Поэтому эти строки имеют `quote_anchor_ready=NO`; Gate 1 не должен притворяться,
+что человекочитаемую буквальную цитату можно доказать по этим повреждённым текстам norm-v1.
 
-## source-v2 text recovery
+## Восстановление текста source-v2
 
-`source-v2` supersedes only the quote-anchor readiness metadata of `source-v1`.
-The 349-row population and every source/unit/locator identity are unchanged.
+`source-v2` заменяет только метаданные готовности quote-anchor из `source-v1`.
+Population из 349 строк и все идентичности source/unit/locator остаются неизменными.
 
-The 101 formerly blocked rows use the recovered `norm-v1` representations under
-`sources/recovered-v1/`. No source row was closed and no control was created.
+101 ранее заблокированная строка использует восстановленные представления
+`norm-v1` из `sources/recovered-v1/`. Ни одна строка source не была закрыта и ни
+один control не был создан.
 
-## source-v3 — Step 5 sysctl pilot
+## source-v3 — пилот sysctl на Step 5
 
-Population remains 349 rows. Exactly five FSTEC-LINUX-2022 rows are CLOSED because one active control represents each row. The other 344 rows remain OPEN.
+Population остаётся равной 349 строкам. Ровно пять строк FSTEC-LINUX-2022 имеют
+статус CLOSED, потому что каждую из них представляет один активный control.
+Остальные 344 строки остаются OPEN.
 
-## source-v4 — completeness contract
+## source-v4 — контракт полноты
 
-A controlled CLOSED row is valid only when its active control-ID set exactly matches CLOSURE-CONTRACT.tsv. atomic-single is one complete parameter; exact-control-set is a jointly mandatory multi-control set.
+Контролируемая строка CLOSED валидна только тогда, когда её набор активных control-ID точно
+совпадает с `CLOSURE-CONTRACT.tsv`. `atomic-single` означает один полный
+parameter; `exact-control-set` означает совместно обязательный набор нескольких
+controls.

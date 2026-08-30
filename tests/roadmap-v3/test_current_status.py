@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import csv
+import re
 
 ROOT = Path(__file__).resolve().parents[2]
 readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -29,6 +30,41 @@ disposed = sum(
 )
 open_rows = sum(row["status"] == "OPEN" for row in index_rows)
 
+def parse_progress_text(text: str) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for lineno, raw in enumerate(text.splitlines(), 1):
+        if not raw or "=" not in raw:
+            raise ValueError(f"bad PROGRESS line {lineno}")
+        key, value = raw.split("=", 1)
+        if not key or key in result:
+            raise ValueError(f"bad/duplicate PROGRESS key {key!r} at {lineno}")
+        result[key] = value
+    return result
+
+expected_source_progress = {
+    "TOTAL_INDEX_ROWS": str(total),
+    "CLOSED_INDEX_ROWS": str(controlled + disposed),
+    "OPEN_INDEX_ROWS": str(open_rows),
+    "CLOSURE_RATIO": f"{controlled + disposed}/{total}",
+    "CONTROLLED_CLOSED_WITH_CONTRACT": str(controlled),
+    "DISPOSED_CLOSED_ROWS": str(disposed),
+}
+source_progress_text = (ROOT / "index/source-v4/PROGRESS.txt").read_text(encoding="utf-8")
+source_progress = parse_progress_text(source_progress_text)
+assert source_progress == expected_source_progress, (source_progress, expected_source_progress)
+for label, mutated in (
+    ("disposed_stale", source_progress_text.replace("DISPOSED_CLOSED_ROWS=0", "DISPOSED_CLOSED_ROWS=1", 1)),
+    ("extra_key", source_progress_text + "CURRENT_CHECKPOINT=STEP7B_ACTIVE\n"),
+    ("duplicate_key", "OPEN_INDEX_ROWS=999\n" + source_progress_text),
+):
+    try:
+        parsed = parse_progress_text(mutated)
+        assert parsed == expected_source_progress
+    except (AssertionError, ValueError):
+        pass
+    else:
+        raise AssertionError(f"source-v4 PROGRESS negative fixture accepted: {label}")
+
 assert readme.count("<!-- BEGIN GENERATED CURRENT STATUS -->") == 1
 assert readme.count("<!-- END GENERATED CURRENT STATUS -->") == 1
 for marker in (
@@ -45,14 +81,19 @@ for marker in (
 
 assert pmap.count("<!-- BEGIN GENERATED MAP STATUS -->") == 1
 assert pmap.count("<!-- END GENERATED MAP STATUS -->") == 1
-for marker in (
-    f"source rows={total}",
-    f"controlled CLOSED={controlled}",
-    f"OPEN={open_rows}",
-    f"canonical controls={len(controls)}",
-    f"adapters={len(adapters)}",
-):
-    assert marker in pmap, marker
+map_status = pmap.split("<!-- BEGIN GENERATED MAP STATUS -->", 1)[1].split(
+    "<!-- END GENERATED MAP STATUS -->", 1
+)[0]
+# Проверяем значения machine truth, не закрепляя английскую presentation-prose.
+status_patterns = {
+    "source_rows": (rf"(?:source rows|строки source)={total}(?:\D|$)"),
+    "controlled_closed": (rf"controlled CLOSED={controlled}(?:\D|$)"),
+    "open_rows": (rf"OPEN={open_rows}(?:\D|$)"),
+    "controls": (rf"canonical controls={len(controls)}(?:\D|$)"),
+    "adapters": (rf"adapters={len(adapters)}(?:\D|$)"),
+}
+for name, pattern in status_patterns.items():
+    assert re.search(pattern, map_status), (name, map_status)
 
 for path in (
     "docs/PROJECT-MAP-v3.md",
@@ -120,35 +161,31 @@ current = pmap.split("## 6. Где мы находимся", 1)[1].split(
     "## Что является источником истины", 1
 )[0]
 assert current.count(":::current") == 1
-assert "SRC-0005 / 2.3.1" in current
-assert "3 canonical file-mode controls" in current
-assert "CHECK-11" in current
-assert "sysctl exact-eq batch" in current
-assert "CHECK-17" in current
-assert "SRC-0040 / 2.6.6" in current
-assert "terminal source-boundary fix + CHECK-18" in current
-assert "SRC-0033 / 2.5.10" in current
-assert "sysctl lower-bound ge 4096 + CHECK-19" in current
-assert "kernel-cmdline exact-token batch" in current
-assert "7 source rows · 9 controls + CHECK-28" in current
-assert "UNIFIED CLI / QUICK START v1" in current
-assert "securelinux-policy.sh · pretty/raw/json" in current
-assert "fstec-linux-2022 CHECK COMPLETE" in current
-assert "fstec-linux-2022-check-complete-v1" in current
-assert "DONOR_TO_V3_MAPPING" in current
-assert "МЫ ЗДЕСЬ<br/>DONOR_TO_V3_MAPPING" in current
-assert "EXTERNAL SNAPSHOT" in current
+# Milestone/source identities are semantic; presentation wording may be Russian.
+for marker in (
+    "SRC-0005 / 2.3.1", "CHECK-11", "CHECK-17", "SRC-0040 / 2.6.6",
+    "CHECK-18", "SRC-0033 / 2.5.10", "CHECK-19", "CHECK-28",
+    "securelinux-policy.sh", "fstec-linux-2022 CHECK COMPLETE",
+    "fstec-linux-2022-check-complete-v1", "DONOR_TO_V3_MAPPING",
+    "ACCEPTED + COMMITTED", "1db91b0", "APPLY semantic contract",
+    "EXTERNAL SNAPSHOT",
+):
+    assert marker in current, marker
+assert "МЫ ЗДЕСЬ<br/>APPLY semantic contract" in current
 assert "RESTORE исключён" in current
-assert "целевой архитектуры" in current
 assert "МЫ ЗДЕСЬ<br/>Step 7B" not in current
 
 with (ROOT / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream:
     rows = list(csv.DictReader(stream, delimiter="\t"))
 by_id = {row["step_id"]: row["status"] for row in rows}
 assert by_id["SOURCE_BLOCK_REGENERATION_PARITY"] == "CLOSED"
-assert by_id["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "NEXT"
-assert "Step 7B" in roadmap
+assert by_id["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "PAUSED_BY_CURRENT_DOCUMENT_APPLY"
+assert by_id["APPLY_SEMANTIC_CONTRACT"] == "NEXT"
+assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" in roadmap
+assert "единственный текущий" in roadmap
+assert "APPLY semantic contract" in roadmap
 
+print("SOURCE_PROGRESS_CONTRACT=PASS_EXACT_SIX_KEYS negative_fixtures=3")
 print(
     "CURRENT_STATUS_CONSISTENCY=PASS "
     f"source_rows={total} closed={controlled} open={open_rows} "

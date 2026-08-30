@@ -1,16 +1,17 @@
-# release-v1 tests
+# Тесты release-v1
 
-`test_real_jsonschema_gate.py` is a RELEASE-only regression.
+`test_real_jsonschema_gate.py` является регрессионным тестом только для RELEASE.
 
-It requires a real installed `jsonschema.Draft202012Validator` meeting the
-minimum version declared in `requirements-release.txt`. It also injects
-missing-dependency and below-minimum conditions to prove fail-closed behavior.
+Он требует реально установленный `jsonschema.Draft202012Validator`,
+соответствующий минимальной версии из `requirements-release.txt`. Тест также
+моделирует отсутствие зависимости и версию ниже минимальной, чтобы доказать
+fail-closed поведение.
 
-Run through the common runner:
+Запуск через общий runner:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B tests/run-all.py --release
 ```
 
-`BLOCKED_ENVIRONMENT` means this machine cannot perform release validation; it
-does not convert the release gate into a DEV project failure.
+`BLOCKED_ENVIRONMENT` означает, что эта машина не может выполнить
+RELEASE-валидацию; это не превращает RELEASE-gate в ошибку проекта на этапе DEV.

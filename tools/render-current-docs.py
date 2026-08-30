@@ -145,10 +145,15 @@ def collect_state(root: Path) -> dict:
         "OPEN_INDEX_ROWS": str(len(open_rows)),
         "CLOSURE_RATIO": f"{len(controlled_closed) + len(disposed_closed)}/{len(source_rows)}",
         "CONTROLLED_CLOSED_WITH_CONTRACT": str(len(controlled_closed)),
+        "DISPOSED_CLOSED_ROWS": str(len(disposed_closed)),
     }
+    if set(progress) != set(expected_progress):
+        missing = sorted(set(expected_progress) - set(progress))
+        extra = sorted(set(progress) - set(expected_progress))
+        raise RuntimeError(f"PROGRESS key-set mismatch missing={missing} extra={extra}")
     for key, expected in expected_progress.items():
-        if progress.get(key) != expected:
-            raise RuntimeError(f"PROGRESS mismatch {key}: {progress.get(key)!r} != {expected!r}")
+        if progress[key] != expected:
+            raise RuntimeError(f"PROGRESS mismatch {key}: {progress[key]!r} != {expected!r}")
 
     controls = read_tsv(root / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv")
     control_by_id = {row["control_id"]: row for row in controls}
@@ -277,7 +282,7 @@ def render_map_status_block(state: dict) -> str:
     target = state["generator"]["TARGET_ID"]
     return "\n".join([
         MAP_BEGIN,
-        f"`source rows={total} · controlled CLOSED={controlled} · OPEN={open_count} · "
+        f"`строки source={total} · controlled CLOSED={controlled} · OPEN={open_count} · "
         f"canonical controls={controls} · adapters={adapters} · target={target}`",
         "",
         "Точные таблицы покрытия: [`docs/fstec-coverage.md`](fstec-coverage.md).",
@@ -299,7 +304,7 @@ def render_coverage(state: dict) -> str:
     lines = [
         "# Покрытие FSTEC core",
         "",
-        "> **GENERATED FILE.** Формируется `tools/render-current-docs.py` из "
+        "> **СГЕНЕРИРОВАННЫЙ ФАЙЛ.** Формируется `tools/render-current-docs.py` из "
         "`SOURCE-INDEX.tsv`, `CLOSURE-CONTRACT.tsv`, `CONTROL-MANIFEST.tsv` и "
         "`ADAPTER-REGISTRY.tsv`. Ручное редактирование запрещено.",
         "",
@@ -316,9 +321,9 @@ def render_coverage(state: dict) -> str:
         "Число canonical controls и число закрытых source rows — разные величины: "
         "одна строка источника может требовать `exact-control-set` из нескольких controls.",
         "",
-        "## Controlled CLOSED",
+        "## Controlled CLOSED строки",
         "",
-        "| Source row | Locator | Coverage mode | Canonical controls | Parameter kind | CHECK adapter |",
+        "| Строка source | Locator | Режим coverage | Canonical controls | Parameter kind | Адаптер CHECK |",
         "|---|---|---|---|---|---|",
     ]
 
@@ -351,14 +356,14 @@ def render_coverage(state: dict) -> str:
 
     lines.extend([
         "",
-        "## Canonical controls, ещё не закрывающие source row",
+        "## Canonical controls, которые ещё не закрывают строку source",
         "",
     ])
     if not pending:
         lines.append("Сейчас таких controls нет.")
     else:
         lines.extend([
-            "| Control | Source row | Locator | Kind | Source status |",
+            "| Control | Строка source | Locator | Kind | Статус source |",
             "|---|---|---|---|---|",
         ])
         for control in pending:
@@ -371,23 +376,23 @@ def render_coverage(state: dict) -> str:
 
     lines.extend([
         "",
-        "## Готовность CHECK adapters",
+        "## Готовность адаптеров CHECK",
         "",
-        "| Parameter kind | Adapter | Read-only | Canonical controls сейчас |",
+        "| Parameter kind | Adapter | Только чтение | Canonical controls сейчас |",
         "|---|---|---:|---:|",
     ])
     for adapter in sorted(state["adapters"], key=lambda r: r["parameter_kind"].encode("utf-8")):
         kind = adapter["parameter_kind"]
         count = len(state["controls_by_kind"].get(kind, []))
         lines.append(
-            f"| `{md_cell(kind)}` | `{md_cell(adapter['adapter_id'])}` | yes | {count} |"
+            f"| `{md_cell(kind)}` | `{md_cell(adapter['adapter_id'])}` | да | {count} |"
         )
 
     lines.extend([
         "",
         "## Покрытие по исходным документам",
         "",
-        "| Source document | Total rows | Controlled CLOSED | Disposed CLOSED | OPEN | Canonical controls |",
+        "| Документ source | Всего строк | Controlled CLOSED | Disposed CLOSED | OPEN | Canonical controls |",
         "|---|---:|---:|---:|---:|---:|",
     ])
 

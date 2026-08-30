@@ -70,6 +70,6 @@ Checker не должен угадывать, как wire-значение пр�
 
 Любое будущее изменение `KIND_RULES` по-прежнему требует регенерации схемы через `--emit-schema` и запуска differential suite.
 
-## Следующий gate
+## Статус этапа
 
-Следующий этап roadmap: обязательный release gate с реальным jsonschema.
+Обязательный release gate с реальным `jsonschema` уже закрыт. Этот observation-контракт сохраняется как действующий инженерный контракт; текущий substantive этап проекта — отдельный `APPLY semantic contract` для принятой вертикали `fstec-linux-2022`.

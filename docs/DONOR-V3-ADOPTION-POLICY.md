@@ -1,47 +1,49 @@
-# SecureLinux-Policy v3 — engineering donor adoption policy
+# SecureLinux-Policy v3 — политика переноса инженерного донора
 
-## Status
+## Статус
 
-This policy is mandatory project architecture.
+Эта политика является обязательной частью архитектуры проекта.
 
-The preserved SecureLinux-NG v16.2.11 project is an **engineering donor**.
-It is not a normative source of truth and it does not close FSTEC or corporate
-source-index rows merely because equivalent behavior existed in the old
-monolith.
+Сохранённый проект SecureLinux-NG v16.2.11 используется как **ненормативный
+инженерный донор**. Он не является нормативным источником истины и сам по себе
+не закрывает строки FSTEC или корпоративного source index только потому, что
+эквивалентное поведение существовало в старом монолите.
 
-## Required adoption path
+## Обязательный путь переноса
 
-Every old mechanism considered for v3 must pass through:
+Каждый старый механизм, рассматриваемый для v3, обязан пройти цепочку:
 
 `DONOR -> v3 contract mapping -> REUSE | ADAPT | REJECT | DEFER -> APPLY semantic contract -> implementation adapter -> tests -> deterministic build`
 
-No donor mechanism is copied into the generated final script merely because it
-was mature or previously tested.
+Ни один механизм донора не копируется в итоговый сгенерированный скрипт только
+потому, что он был зрелым или ранее протестированным.
 
-## Mandatory precondition before roadmap step 8
+## Обязательное предварительное условие перед шагом 8 roadmap
 
-Before `APPLY_SEMANTIC_CONTRACT` begins, the project MUST create and
-review a complete `DONOR_TO_V3_MAPPING` over the preserved engineering donor.
+До начала `APPLY_SEMANTIC_CONTRACT` проект ОБЯЗАН создать и проверить полный
+`DONOR_TO_V3_MAPPING` по всему сохранённому инженерному донору.
 
-For every adopted/rejected/deferred mechanism the mapping must identify, at
-minimum:
+Для каждого принятого, отклонённого или отложенного механизма mapping должен как
+минимум указывать:
 
-- donor item/function/chunk reference;
-- relevant donor regression test(s), when present;
-- existing engineering contract reference, when present;
-- decision: `REUSE`, `ADAPT`, `REJECT`, or `DEFER`;
-- target v3 contract/adaptor family, when applicable;
-- rationale;
-- whether the mechanism has any normative effect (`NONE` by default);
-- explicit statement that the mapping itself closes zero source-index rows.
+- ссылку на элемент/функцию/фрагмент донора;
+- релевантные regression tests донора, если они существуют;
+- ссылку на существующий инженерный contract, если он существует;
+- решение: `REUSE`, `ADAPT`, `REJECT` или `DEFER`;
+- целевое семейство contract/adapter v3, когда применимо;
+- обоснование;
+- наличие нормативного эффекта (`NONE` по умолчанию);
+- явное утверждение, что сам mapping закрывает 0 строк source index.
 
-The mapping is engineering provenance. It is not normative evidence.
+Mapping является инженерной трассировкой происхождения. Он не является нормативным evidence.
 
-## Donor capabilities that must not be silently lost
+## Семейства возможностей донора, которые нельзя потерять молча
 
-At minimum the mapping must explicitly account for these mature families from
-SecureLinux-NG:
+Как минимум mapping обязан явно учесть следующие зрелые семейства из
+SecureLinux-NG. Подписи ниже сохраняются без перевода, потому что они являются
+точными `donor_label`, связанными с `DONOR-TO-V3-MAPPING.tsv`.
 
+<!-- BEGIN MATURE DONOR FAMILIES -->
 1. preflight / compatibility classification;
 2. transactional apply;
 3. manifest-backed state tracking;
@@ -58,70 +60,72 @@ SecureLinux-NG:
 14. profile / additional-measures / corporate separation;
 15. crash/journal patterns;
 16. explicit partial/manual/reboot external-recovery classifications.
+<!-- END MATURE DONOR FAMILIES -->
 
-Donor RESTORE mechanisms are not an adoptable mature family. They are accounted
-explicitly at function/test/contract level: user-invokable or post-APPLY RESTORE
-mechanics are `REJECT`; only fragments required for compensation inside a failed
-uncommitted APPLY may be `ADAPT`.
+RESTORE у донора был зрелым и протестированным operational-семейством, но v3
+не принимает его как user-invokable или post-APPLY RESTORE. Все механизмы этого
+семейства учитываются явно на уровне functions/tests/contracts: operational
+RESTORE-механизмы получают `REJECT`; только доказанные fragments, необходимые
+для compensation внутри failed/uncommitted APPLY, могут получить `ADAPT`.
 
-The project-level post-APPLY rollback model is `EXTERNAL_SNAPSHOT`. A successful
-APPLY is not reversed by SecureLinux-Policy. Snapshot creation/restoration is
-an infrastructure responsibility outside the product.
+Модель отката после успешно завершённого APPLY на уровне проекта —
+`EXTERNAL_SNAPSHOT`. Успешный APPLY не откатывается средствами
+SecureLinux-Policy. Создание и восстановление snapshot — ответственность
+инфраструктуры вне продукта.
 
-The mapping may conclude `REJECT` or `DEFER`; it may not omit a family without
-an explicit reason.
+Mapping может завершиться решением `REJECT` или `DEFER`, но не может пропустить
+семейство без явного обоснования.
 
-## Adapter gate
+## Gate для адаптера
 
-No implementation adapter may be accepted unless:
+Адаптер реализации может быть принят только если одновременно выполнены условия:
 
-- its relevant normative control has passed the required source gates;
-- the APPLY semantic contract for that adapter family exists;
-- its donor mapping decision is recorded when donor behavior is being reused;
-- positive and negative tests exist;
-- transaction-local failure/compensation behavior is explicit;
-- post-APPLY rollback responsibility is explicitly external snapshot recovery;
-- generated output can carry machine-checkable provenance.
+- соответствующий нормативный control прошёл требуемые source gates;
+- существует APPLY semantic contract для семейства этого адаптера;
+- зафиксировано решение donor mapping, если переиспользуется поведение донора;
+- существуют положительные и отрицательные tests;
+- явно определено поведение transaction-local failure/compensation;
+- ответственность за post-APPLY rollback явно отнесена к external snapshot recovery;
+- сгенерированный output способен нести машинно проверяемую provenance.
 
-## Final monolith rule
+## Правило итогового распространяемого артефакта
 
-`securelinux-ng.sh` is a deterministic build artifact, never a hand-maintained
-source of truth.
+Итоговый распространяемый артефакт v3 (имя пока не закреплено) должен быть
+детерминированным артефактом сборки, а не вручную поддерживаемым источником истины.
+`securelinux-ng.sh` остаётся именем исторического donor artifact и не закрепляет
+имя будущего distributable v3.
 
-The build must not depend on:
+Сборка не должна зависеть от:
 
-- timestamps;
-- absolute build-host paths;
-- filesystem traversal order;
-- unittest timing text;
-- locale-dependent nondeterministic output.
+- временных меток;
+- абсолютных путей хоста сборки;
+- порядка обхода файловой системы;
+- текста времени выполнения unittest;
+- зависящего от locale недетерминированного output.
 
-Every emitted implementation block must carry machine-checkable provenance at
-least for:
+Каждый выдаваемый блок реализации должен нести машинно проверяемую
+provenance как минимум для:
 
 - `control_id`;
-- source locator;
+- locator источника;
 - `quote_sha256`;
-- implementation adapter id/version.
+- id/version адаптера реализации.
 
-## Relationship to the authoritative roadmap
+## Связь с утверждённым roadmap
 
-This policy does not add or reorder roadmap stages.
+Эта политика не дублирует текущие статусы roadmap. Канонический порядок, `step_id`
+и статус каждой строки берутся только из `ROADMAP-v3.tsv`; человекочитаемый current
+checkpoint показывает `PROJECT-MAP-v3.md`. Изменение roadmap должно сначала менять
+machine truth, а не ручную копию статусов в этой policy.
 
-The authoritative order remains:
+`DONOR_TO_V3_MAPPING` является обязательным предварительным условием шага 8 и уже
+принят/опубликован. Это разрешает начать semantic-contract gate, но не реализацию
+APPLY и не mutation host state.
 
-1. Step 5 audit provenance closure
-2. Gate 6 evidence_binding
-3. type/boolean contract cleanup
-4. mandatory real-jsonschema release gate
-5. index-generic source skeleton generator
-6. source-block regeneration parity gate
-7. FSTEC + corporate index expansion / dispositions
-8. APPLY semantic contract
-9. APPLY implementation adapters
-10. deterministic build
-11. single distributable securelinux-ng.sh
-
-`DONOR_TO_V3_MAPPING` is a mandatory precondition to starting step 8.
-
-`RESTORE` is not a roadmap stage and MUST NOT be introduced by donor reuse. The preserved donor restore code remains evidence only unless a fragment is explicitly adapted for transaction-local APPLY failure handling.
+`RESTORE` не является этапом roadmap и НЕ ДОЛЖЕН появляться вследствие повторного
+использования донора. При этом исторический `SecureLinux-NG` имел полноценный
+standalone operational-контур RESTORE с manifest/backups, модульным восстановлением
+и специализированными regression-тестами. В v3 этот operational-контур целиком не
+переносится: он остаётся historical evidence; отдельные доказанные primitives могут
+быть `ADAPT` исключительно для transaction-local compensation внутри
+failed/uncommitted APPLY.
