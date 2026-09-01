@@ -3,81 +3,115 @@
 # STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 # PRODUCT_CLI=product-cli-v1
 # GENERATOR_ID=product-check-generator-v2
-# GENERATOR_SHA256=4c60d5e0ff805100271ca06c359719faca4fb0adbc722115cbb1a55c3454d353
+# GENERATOR_SHA256=19f9dfd936a445b4582cf0aa1846fa7cf4743cc888dd7653fff81f0e56f863ab
 # CONTROL_MANIFEST_SHA256=4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea
-# ADAPTER_REGISTRY_SHA256=a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3
-# TARGET_ID=ubuntu-24.04-x86_64
+# ADAPTER_REGISTRY_SHA256=0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025
+# TARGET_FAMILY_ID=linux-x86_64-supported-v1
+# PLATFORM_MATRIX_SHA256=efc7436850d1ae92df0f36b33e86663728a9fb3643ba3be8cbcaf40b0c9490d7
+# DESKTOP_MATRIX_SHA256=db17bfbe6f60a30831c2e4115bbaedbce4e15717715dd4a1174c75cecdfc4ece
 
 set -u
 
 slp_check_FSTEC_LINUX_2022_2_1_1_LOCAL_ACCOUNT_PASSWORD_STATE() {
   local _slp_passwd='/etc/passwd'
   local _slp_shadow='/etc/shadow'
-  local _slp_line _slp_user _slp_rest _slp_pwd _slp_colons
+  local _slp_line _slp_user _slp_rest _slp_pwd _slp_colons _slp_vrc
   local _slp_accounts=0 _slp_empty=0
   local -a _slp_passwd_lines=() _slp_shadow_lines=()
   local -A _slp_shadow_seen=() _slp_shadow_pwd=() _slp_passwd_seen=()
-  if [[ -L "$_slp_passwd" || -L "$_slp_shadow" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"
+  if [[ -L "$_slp_passwd" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "passwd:symlink" "ERROR"
     return 0
   fi
-  if [[ ! -f "$_slp_passwd" || ! -f "$_slp_shadow" || ! -r "$_slp_passwd" || ! -r "$_slp_shadow" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"
+  if [[ -L "$_slp_shadow" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "shadow:symlink" "ERROR"
+    return 0
+  fi
+  if [[ ! -e "$_slp_passwd" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "passwd:not-found" "ERROR"
+    return 0
+  fi
+  if [[ ! -f "$_slp_passwd" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "passwd:invalid-type" "ERROR"
+    return 0
+  fi
+  if [[ ! -r "$_slp_passwd" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "passwd:unreadable" "ERROR"
+    return 0
+  fi
+  if [[ ! -e "$_slp_shadow" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "shadow:not-found" "ERROR"
+    return 0
+  fi
+  if [[ ! -f "$_slp_shadow" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "shadow:invalid-type" "ERROR"
+    return 0
+  fi
+  if [[ ! -r "$_slp_shadow" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "shadow:unreadable" "ERROR"
     return 0
   fi
   _slp_validate_text_bytes() {
     local _slp_v_path=$1 _slp_v_hex _slp_v_byte
-    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 1; fi
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
     for _slp_v_byte in $_slp_v_hex; do
       [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
       [[ "$_slp_v_byte" != 00 && "$_slp_v_byte" != 0d ]] || return 1
     done
     return 0
   }
-  for _slp_line in "$_slp_passwd" "$_slp_shadow"; do
-    if ! _slp_validate_text_bytes "$_slp_line"; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"
-      return 0
-    fi
-  done
+  _slp_validate_text_bytes "$_slp_passwd"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "passwd:read-failed" "ERROR"; else printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "passwd:invalid-bytes" "ERROR"; fi
+    return 0
+  fi
+  _slp_validate_text_bytes "$_slp_shadow"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "shadow:read-failed" "ERROR"; else printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "shadow:invalid-bytes" "ERROR"; fi
+    return 0
+  fi
   if ! mapfile -t _slp_shadow_lines < "$_slp_shadow"; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "shadow:read-failed" "ERROR"
     return 0
   fi
   if ! mapfile -t _slp_passwd_lines < "$_slp_passwd"; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "passwd:read-failed" "ERROR"
     return 0
   fi
-  if (( ${#_slp_passwd_lines[@]} == 0 || ${#_slp_shadow_lines[@]} == 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"
+  if (( ${#_slp_passwd_lines[@]} == 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "passwd:empty-file" "ERROR"
+    return 0
+  fi
+  if (( ${#_slp_shadow_lines[@]} == 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "shadow:empty-file" "ERROR"
     return 0
   fi
   for _slp_line in "${_slp_shadow_lines[@]}"; do
-    [[ -n "$_slp_line" ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"; return 0; }
+    [[ -n "$_slp_line" ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "shadow:empty-record" "ERROR"; return 0; }
     _slp_colons=${_slp_line//[^:]/}
-    [[ ${#_slp_colons} -eq 8 ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"; return 0; }
+    [[ ${#_slp_colons} -eq 8 ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "shadow:invalid-fields" "ERROR"; return 0; }
     _slp_user=${_slp_line%%:*}
     _slp_rest=${_slp_line#*:}
     _slp_pwd=${_slp_rest%%:*}
-    [[ "$_slp_user" =~ ^[A-Za-z_][A-Za-z0-9_.-]*\$?$ ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"; return 0; }
-    [[ -z ${_slp_shadow_seen["$_slp_user"]+x} ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"; return 0; }
+    [[ "$_slp_user" =~ ^[A-Za-z_][A-Za-z0-9_.-]*\$?$ ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "shadow:invalid-account" "ERROR"; return 0; }
+    [[ -z ${_slp_shadow_seen["$_slp_user"]+x} ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "shadow:duplicate-account" "ERROR"; return 0; }
     _slp_shadow_seen["$_slp_user"]=1
     _slp_shadow_pwd["$_slp_user"]=$_slp_pwd
   done
   for _slp_line in "${_slp_passwd_lines[@]}"; do
-    [[ -n "$_slp_line" ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"; return 0; }
+    [[ -n "$_slp_line" ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "passwd:empty-record" "ERROR"; return 0; }
     _slp_colons=${_slp_line//[^:]/}
-    [[ ${#_slp_colons} -eq 6 ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"; return 0; }
+    [[ ${#_slp_colons} -eq 6 ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "passwd:invalid-fields" "ERROR"; return 0; }
     _slp_user=${_slp_line%%:*}
-    [[ "$_slp_user" =~ ^[A-Za-z_][A-Za-z0-9_.-]*\$?$ ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"; return 0; }
-    [[ -z ${_slp_passwd_seen["$_slp_user"]+x} ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"; return 0; }
+    [[ "$_slp_user" =~ ^[A-Za-z_][A-Za-z0-9_.-]*\$?$ ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "passwd:invalid-account" "ERROR"; return 0; }
+    [[ -z ${_slp_passwd_seen["$_slp_user"]+x} ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "passwd:duplicate-account" "ERROR"; return 0; }
     _slp_passwd_seen["$_slp_user"]=1
-    [[ -n ${_slp_shadow_seen["$_slp_user"]+x} ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"; return 0; }
+    [[ -n ${_slp_shadow_seen["$_slp_user"]+x} ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "passwd:missing-shadow-account" "ERROR"; return 0; }
     _slp_pwd=${_slp_shadow_pwd["$_slp_user"]}
     ((_slp_accounts+=1))
     [[ -n "$_slp_pwd" ]] || ((_slp_empty+=1))
   done
-  (( _slp_accounts > 0 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "-" "ERROR"; return 0; }
+  (( _slp_accounts > 0 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "ERROR" "passwd:empty-population" "ERROR"; return 0; }
   if (( _slp_empty == 0 )); then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE' "VALUE" "accounts=$_slp_accounts;empty=0" "PASS"
   else
@@ -87,39 +121,48 @@ slp_check_FSTEC_LINUX_2022_2_1_1_LOCAL_ACCOUNT_PASSWORD_STATE() {
 }
 
 slp_check_FSTEC_LINUX_2022_2_1_2_SSH_ROOT_LOGIN() {
+  local LC_ALL=C
   local _slp_cfg='/etc/ssh/sshd_config'
   local _slp_sshd='/usr/sbin/sshd'
   local _slp_sort='/usr/bin/sort'
-  local _slp_parser_error=0 _slp_main_no=0 _slp_match_non_no=0 _slp_rc=0
+  local _slp_parser_error=0 _slp_parser_reason=sshd-config:internal-reason-missing _slp_main_no=0 _slp_match_non_no=0 _slp_rc=0
   local _slp_real _slp_line _slp_effective
   local -a _slp_effective_lines=()
   local -A _slp_stack=()
   if [[ -L "$_slp_cfg" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "sshd-config:symlink" "ERROR"
     return 0
   fi
   if [[ ! -e "$_slp_cfg" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "NOT_FOUND" "-" "FAIL"
     return 0
   fi
-  if [[ ! -f "$_slp_cfg" || ! -r "$_slp_cfg" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "-" "ERROR"
+  if [[ ! -f "$_slp_cfg" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "sshd-config:invalid-type" "ERROR"
     return 0
   fi
-  [[ -x /usr/bin/readlink ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "-" "ERROR"; return 0; }
-  [[ -x /usr/bin/find ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "-" "ERROR"; return 0; }
-  [[ -x "$_slp_sort" ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "-" "ERROR"; return 0; }
+  if [[ ! -r "$_slp_cfg" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "sshd-config:unreadable" "ERROR"
+    return 0
+  fi
+  [[ -x /usr/bin/readlink ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "tool:readlink-missing" "ERROR"; return 0; }
+  [[ -x /usr/bin/find ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "tool:find-missing" "ERROR"; return 0; }
+  [[ -x "$_slp_sort" ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "tool:sort-missing" "ERROR"; return 0; }
   if [[ -L "$_slp_sshd" ]]; then
     _slp_real=$(command /usr/bin/readlink -f -- "$_slp_sshd" 2>/dev/null) || _slp_real=
-    [[ -n "$_slp_real" ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "-" "ERROR"; return 0; }
+    [[ -n "$_slp_real" ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "sshd-binary:resolve-failed" "ERROR"; return 0; }
     _slp_sshd=$_slp_real
   fi
   if [[ ! -e "$_slp_sshd" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "NOT_FOUND" "-" "FAIL"
     return 0
   fi
-  if [[ ! -f "$_slp_sshd" || ! -x "$_slp_sshd" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "-" "ERROR"
+  if [[ ! -f "$_slp_sshd" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "sshd-binary:invalid-type" "ERROR"
+    return 0
+  fi
+  if [[ ! -x "$_slp_sshd" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "sshd-binary:not-executable" "ERROR"
     return 0
   fi
   _slp_split_args() {
@@ -162,15 +205,36 @@ slp_check_FSTEC_LINUX_2022_2_1_2_SSH_ROOT_LOGIN() {
     done
     return 0
   }
+  _slp_validate_sshd_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte _slp_v_prev=''
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+      if [[ "$_slp_v_prev" == 0d && "$_slp_v_byte" != 0a ]]; then return 1; fi
+      _slp_v_prev=$_slp_v_byte
+    done
+    [[ "$_slp_v_prev" != 0d ]] || return 1
+    return 0
+  }
   _slp_parse_sshd_file() {
     local _slp_pf=$1 _slp_pd=$2 _slp_pm=$3 _slp_scope=$4
-    local _slp_pr _slp_pl _slp_pk _slp_rest _slp_pp _slp_px _slp_prefix _slp_item _slp_pv _slp_grc _slp_glob_text _slp_nl
+    local _slp_pr _slp_pl _slp_pk _slp_rest _slp_pp _slp_px _slp_prefix _slp_item _slp_pv _slp_grc _slp_glob_text _slp_nl _slp_vrc=0
     local -a _slp_args=() _slp_glob=()
-    (( _slp_pd <= 16 )) || { _slp_parser_error=1; return 0; }
-    [[ ! -L "$_slp_pf" && -f "$_slp_pf" && -r "$_slp_pf" ]] || { _slp_parser_error=1; return 0; }
-    _slp_pr=$(command /usr/bin/readlink -f -- "$_slp_pf" 2>/dev/null) || { _slp_parser_error=1; return 0; }
-    [[ -n "$_slp_pr" ]] || { _slp_parser_error=1; return 0; }
-    [[ -z ${_slp_stack["$_slp_pr"]+x} ]] || { _slp_parser_error=1; return 0; }
+    (( _slp_pd <= 16 )) || { _slp_parser_error=1; _slp_parser_reason=sshd-config:include-depth; return 0; }
+    [[ ! -L "$_slp_pf" ]] || { _slp_parser_error=1; _slp_parser_reason=sshd-config:include-symlink; return 0; }
+    [[ -e "$_slp_pf" ]] || { _slp_parser_error=1; _slp_parser_reason=sshd-config:include-not-found; return 0; }
+    [[ -f "$_slp_pf" ]] || { _slp_parser_error=1; _slp_parser_reason=sshd-config:include-invalid-type; return 0; }
+    [[ -r "$_slp_pf" ]] || { _slp_parser_error=1; _slp_parser_reason=sshd-config:include-unreadable; return 0; }
+    _slp_validate_sshd_bytes "$_slp_pf"; _slp_vrc=$?
+    if (( _slp_vrc != 0 )); then
+      _slp_parser_error=1
+      if (( _slp_vrc == 2 )); then _slp_parser_reason=sshd-config:read-failed; else _slp_parser_reason=sshd-config:invalid-bytes; fi
+      return 0
+    fi
+    _slp_pr=$(command /usr/bin/readlink -f -- "$_slp_pf" 2>/dev/null) || { _slp_parser_error=1; _slp_parser_reason=sshd-config:include-resolve-failed; return 0; }
+    [[ -n "$_slp_pr" ]] || { _slp_parser_error=1; _slp_parser_reason=sshd-config:include-resolve-failed; return 0; }
+    [[ -z ${_slp_stack["$_slp_pr"]+x} ]] || { _slp_parser_error=1; _slp_parser_reason=sshd-config:include-cycle; return 0; }
     _slp_stack["$_slp_pr"]=1
     while IFS= read -r _slp_pl || [[ -n "$_slp_pl" ]]; do
       _slp_pl=${_slp_pl%$'\r'}
@@ -184,14 +248,14 @@ slp_check_FSTEC_LINUX_2022_2_1_2_SSH_ROOT_LOGIN() {
         continue
       fi
       [[ "$_slp_pk" == match || "$_slp_pk" == include || "$_slp_pk" == permitrootlogin ]] || continue
-      _slp_split_args "$_slp_rest" || { _slp_parser_error=1; break; }
+      _slp_split_args "$_slp_rest" || { _slp_parser_error=1; _slp_parser_reason=sshd-config:invalid-arguments; break; }
       if [[ "$_slp_pk" == match ]]; then
-        (( ${#_slp_args[@]} >= 1 )) || { _slp_parser_error=1; break; }
+        (( ${#_slp_args[@]} >= 1 )) || { _slp_parser_error=1; _slp_parser_reason=sshd-config:invalid-match; break; }
         _slp_scope=MATCH
         continue
       fi
       if [[ "$_slp_pk" == include ]]; then
-        (( ${#_slp_args[@]} >= 1 )) || { _slp_parser_error=1; break; }
+        (( ${#_slp_args[@]} >= 1 )) || { _slp_parser_error=1; _slp_parser_reason=sshd-config:invalid-include; break; }
         for _slp_pp in "${_slp_args[@]}"; do
           if [[ "$_slp_pp" == /* ]]; then _slp_px=$_slp_pp; else _slp_px=/etc/ssh/$_slp_pp; fi
           _slp_glob=()
@@ -200,17 +264,18 @@ slp_check_FSTEC_LINUX_2022_2_1_2_SSH_ROOT_LOGIN() {
             _slp_prefix=${_slp_prefix%/*}
             [[ -n "$_slp_prefix" ]] || _slp_prefix=/
             if [[ -e "$_slp_prefix" ]]; then
-              [[ -d "$_slp_prefix" && ! -L "$_slp_prefix" ]] || { _slp_parser_error=1; break 2; }
+              [[ ! -L "$_slp_prefix" ]] || { _slp_parser_error=1; _slp_parser_reason=sshd-config:include-prefix-symlink; break 2; }
+              [[ -d "$_slp_prefix" ]] || { _slp_parser_error=1; _slp_parser_reason=sshd-config:include-prefix-invalid-type; break 2; }
               _slp_nl=$(command /usr/bin/find "$_slp_prefix" -name $'*\n*' -print -quit 2>/dev/null)
               _slp_grc=$?
-              (( _slp_grc == 0 )) || { _slp_parser_error=1; break 2; }
-              [[ -z "$_slp_nl" ]] || { _slp_parser_error=1; break 2; }
+              (( _slp_grc == 0 )) || { _slp_parser_error=1; _slp_parser_reason=sshd-config:include-prefix-scan-failed; break 2; }
+              [[ -z "$_slp_nl" ]] || { _slp_parser_error=1; _slp_parser_reason=sshd-config:include-newline-name; break 2; }
             fi
             _slp_glob_text=$( ( set -o pipefail; builtin compgen -G "$_slp_px" | LC_ALL=C command "$_slp_sort" ) )
             _slp_grc=$?
             if (( _slp_grc == 0 )); then
               while IFS= read -r _slp_item; do [[ -n "$_slp_item" ]] && _slp_glob+=("$_slp_item"); done <<< "$_slp_glob_text"
-            elif (( _slp_grc != 1 )); then _slp_parser_error=1; break 2; fi
+            elif (( _slp_grc != 1 )); then _slp_parser_error=1; _slp_parser_reason=sshd-config:include-glob-failed; break 2; fi
           elif [[ -e "$_slp_px" || -L "$_slp_px" ]]; then
             _slp_glob=("$_slp_px")
           fi
@@ -222,35 +287,35 @@ slp_check_FSTEC_LINUX_2022_2_1_2_SSH_ROOT_LOGIN() {
         continue
       fi
       if [[ "$_slp_pk" == permitrootlogin ]]; then
-        (( ${#_slp_args[@]} == 1 )) || { _slp_parser_error=1; break; }
-        [[ "${_slp_args[0]}" != *"="* ]] || { _slp_parser_error=1; break; }
+        (( ${#_slp_args[@]} == 1 )) || { _slp_parser_error=1; _slp_parser_reason=sshd-config:invalid-permit-root-login; break; }
+        [[ "${_slp_args[0]}" != *"="* ]] || { _slp_parser_error=1; _slp_parser_reason=sshd-config:invalid-permit-root-login; break; }
         _slp_pv=${_slp_args[0],,}
         if [[ "$_slp_scope" == GLOBAL && "$_slp_pm" == 1 && "$_slp_pv" == no ]]; then ((_slp_main_no+=1)); fi
         if [[ "$_slp_scope" == MATCH && "$_slp_pv" != no ]]; then ((_slp_match_non_no+=1)); fi
       fi
-    done < "$_slp_pf" || _slp_parser_error=1
+    done < "$_slp_pf" || { _slp_parser_error=1; _slp_parser_reason=sshd-config:read-failed; }
     unset '_slp_stack[$_slp_pr]'
     return 0
   }
   _slp_parse_sshd_file "$_slp_cfg" 0 1 GLOBAL
   if (( _slp_parser_error != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "$_slp_parser_reason" "ERROR"
     return 0
   fi
   if (( _slp_match_non_no != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "sshd-config:ambiguous-match" "ERROR"
     return 0
   fi
   command "$_slp_sshd" -t -f "$_slp_cfg" >/dev/null 2>&1
   _slp_rc=$?
   if (( _slp_rc != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "sshd-config:validation-failed" "ERROR"
     return 0
   fi
   _slp_effective=$(command "$_slp_sshd" -T -C user=root,host=localhost,addr=127.0.0.1 -f "$_slp_cfg" 2>/dev/null)
   _slp_rc=$?
   if (( _slp_rc != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "sshd-effective:query-failed" "ERROR"
     return 0
   fi
   _slp_effective_lines=()
@@ -260,7 +325,7 @@ slp_check_FSTEC_LINUX_2022_2_1_2_SSH_ROOT_LOGIN() {
     _slp_effective_lines+=("${BASH_REMATCH[1],,}")
   done <<< "$_slp_effective"
   if (( ${#_slp_effective_lines[@]} != 1 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN' "ERROR" "sshd-effective:ambiguous-value" "ERROR"
     return 0
   fi
   _slp_effective=${_slp_effective_lines[0]}
@@ -280,23 +345,48 @@ slp_check_FSTEC_LINUX_2022_2_2_1_SU_WHEEL_ACCESS() {
   local _slp_line _slp_logical='' _slp_trim _slp_module _slp_control _slp_type _slp_gid='' _slp_members='' _slp_name _slp_hex _slp_byte _slp_prev
   local -a _slp_tok=() _slp_members_arr=()
   local -A _slp_actual=() _slp_approved=()
-  local _slp_exact=0 _slp_other=0 _slp_wheel=0 _slp_error=0 _slp_mismatch=0 _slp_midx=0 _slp_i=0
+  local _slp_exact=0 _slp_other=0 _slp_wheel=0 _slp_error=0 _slp_mismatch=0 _slp_midx=0 _slp_i=0 _slp_vrc=0
 
-  if [[ -L "$_slp_pam" || -L "$_slp_group" ]]; then
-    printf 'SLP-CHECK-V1\t%s\tERROR\t-\tERROR\n' "$_slp_cid"
+  _slp_name_has_forbidden_separator() {
+    local _slp_n=$1
+    case "$_slp_n" in
+      *' '*|*$'\t'*|*$'\r'*|*$'\v'*|*$'\f'*|*:*|*','*|*'#'*) return 0 ;;
+      *$'\xc2\x85'*|*$'\xc2\xa0'*|*$'\xe1\x9a\x80'*|*$'\xe2\x80\x80'*|*$'\xe2\x80\x81'*|*$'\xe2\x80\x82'*|*$'\xe2\x80\x83'*|*$'\xe2\x80\x84'*|*$'\xe2\x80\x85'*|*$'\xe2\x80\x86'*|*$'\xe2\x80\x87'*|*$'\xe2\x80\x88'*|*$'\xe2\x80\x89'*|*$'\xe2\x80\x8a'*|*$'\xe2\x80\xa8'*|*$'\xe2\x80\xa9'*|*$'\xe2\x80\xaf'*|*$'\xe2\x81\x9f'*|*$'\xe3\x80\x80'*) return 0 ;;
+    esac
+    return 1
+  }
+
+  if [[ -L "$_slp_pam" ]]; then
+    printf 'SLP-CHECK-V1\t%s\tERROR\tpam:symlink\tERROR\n' "$_slp_cid"
+    return 0
+  fi
+  if [[ -L "$_slp_group" ]]; then
+    printf 'SLP-CHECK-V1\t%s\tERROR\tgroup:symlink\tERROR\n' "$_slp_cid"
     return 0
   fi
   if [[ ! -e "$_slp_pam" || ! -e "$_slp_group" ]]; then
     printf 'SLP-CHECK-V1\t%s\tNOT_FOUND\t-\tFAIL\n' "$_slp_cid"
     return 0
   fi
-  if [[ ! -f "$_slp_pam" || ! -r "$_slp_pam" || ! -f "$_slp_group" || ! -r "$_slp_group" ]]; then
-    printf 'SLP-CHECK-V1\t%s\tERROR\t-\tERROR\n' "$_slp_cid"
+  if [[ ! -f "$_slp_pam" ]]; then
+    printf 'SLP-CHECK-V1\t%s\tERROR\tpam:invalid-type\tERROR\n' "$_slp_cid"
+    return 0
+  fi
+  if [[ ! -r "$_slp_pam" ]]; then
+    printf 'SLP-CHECK-V1\t%s\tERROR\tpam:unreadable\tERROR\n' "$_slp_cid"
+    return 0
+  fi
+  if [[ ! -f "$_slp_group" ]]; then
+    printf 'SLP-CHECK-V1\t%s\tERROR\tgroup:invalid-type\tERROR\n' "$_slp_cid"
+    return 0
+  fi
+  if [[ ! -r "$_slp_group" ]]; then
+    printf 'SLP-CHECK-V1\t%s\tERROR\tgroup:unreadable\tERROR\n' "$_slp_cid"
     return 0
   fi
   _slp_validate_text_bytes() {
     local _slp_v_path=$1 _slp_v_hex _slp_v_byte _slp_v_prev=''
-    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 1; fi
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
     for _slp_v_byte in $_slp_v_hex; do
       [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
       [[ "$_slp_v_byte" != 00 ]] || return 1
@@ -306,12 +396,16 @@ slp_check_FSTEC_LINUX_2022_2_2_1_SU_WHEEL_ACCESS() {
     [[ "$_slp_v_prev" != 0d ]] || return 1
     return 0
   }
-  for _slp_name in "$_slp_pam" "$_slp_group"; do
-    if ! _slp_validate_text_bytes "$_slp_name"; then
-      printf 'SLP-CHECK-V1\t%s\tERROR\t-\tERROR\n' "$_slp_cid"
-      return 0
-    fi
-  done
+  _slp_validate_text_bytes "$_slp_pam"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then printf 'SLP-CHECK-V1\t%s\tERROR\tpam:read-failed\tERROR\n' "$_slp_cid"; else printf 'SLP-CHECK-V1\t%s\tERROR\tpam:invalid-bytes\tERROR\n' "$_slp_cid"; fi
+    return 0
+  fi
+  _slp_validate_text_bytes "$_slp_group"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then printf 'SLP-CHECK-V1\t%s\tERROR\tgroup:read-failed\tERROR\n' "$_slp_cid"; else printf 'SLP-CHECK-V1\t%s\tERROR\tgroup:invalid-bytes\tERROR\n' "$_slp_cid"; fi
+    return 0
+  fi
 
   while IFS= read -r _slp_line || [[ -n "$_slp_line" ]]; do
     if [[ "$_slp_line" == *$'\r'* ]]; then
@@ -360,7 +454,7 @@ slp_check_FSTEC_LINUX_2022_2_2_1_SU_WHEEL_ACCESS() {
   done < "$_slp_pam"
   [[ -z "$_slp_logical" ]] || _slp_error=1
   if (( _slp_error || _slp_other > 0 )); then
-    printf 'SLP-CHECK-V1\t%s\tERROR\t-\tERROR\n' "$_slp_cid"
+    printf 'SLP-CHECK-V1\t%s\tERROR\tpam:ambiguous-stack\tERROR\n' "$_slp_cid"
     return 0
   fi
 
@@ -379,19 +473,19 @@ slp_check_FSTEC_LINUX_2022_2_2_1_SU_WHEEL_ACCESS() {
     fi
   done < "$_slp_group"
   if (( _slp_error || _slp_wheel > 1 )); then
-    printf 'SLP-CHECK-V1\t%s\tERROR\t-\tERROR\n' "$_slp_cid"
+    printf 'SLP-CHECK-V1\t%s\tERROR\tgroup:invalid-record\tERROR\n' "$_slp_cid"
     return 0
   fi
   if (( _slp_wheel == 1 )) && [[ -n "$_slp_members" ]]; then
     if [[ "$_slp_members" == ,* || "$_slp_members" == *, || "$_slp_members" == *,,* ]]; then _slp_error=1; fi
     IFS=',' read -r -a _slp_members_arr <<< "$_slp_members"
     for _slp_name in "${_slp_members_arr[@]}"; do
-      if [[ -z "$_slp_name" || "$_slp_name" == *[[:space:]:#]* || -n "${_slp_actual[$_slp_name]+x}" ]]; then _slp_error=1; break; fi
+      if [[ -z "$_slp_name" ]] || _slp_name_has_forbidden_separator "$_slp_name" || [[ -n "${_slp_actual[$_slp_name]+x}" ]]; then _slp_error=1; break; fi
       _slp_actual["$_slp_name"]=1
     done
   fi
   if (( _slp_error )); then
-    printf 'SLP-CHECK-V1\t%s\tERROR\t-\tERROR\n' "$_slp_cid"
+    printf 'SLP-CHECK-V1\t%s\tERROR\tgroup:invalid-members\tERROR\n' "$_slp_cid"
     return 0
   fi
 
@@ -408,12 +502,25 @@ slp_check_FSTEC_LINUX_2022_2_2_1_SU_WHEEL_ACCESS() {
     printf 'SLP-CHECK-V1\t%s\tVALUE\tpam_exact=%d;wheel=1;gid=%s;expected_gid=10;authority=not-needed\tFAIL\n' "$_slp_cid" "$_slp_exact" "$_slp_gid"
     return 0
   fi
-  if [[ ! -e "$_slp_authority" || ! -f "$_slp_authority" || -L "$_slp_authority" || ! -r "$_slp_authority" ]]; then
-    printf 'SLP-CHECK-V1\t%s\tERROR\t-\tERROR\n' "$_slp_cid"
+  if [[ -L "$_slp_authority" ]]; then
+    printf 'SLP-CHECK-V1\t%s\tERROR\tauthority:symlink\tERROR\n' "$_slp_cid"
     return 0
   fi
-  if ! _slp_validate_text_bytes "$_slp_authority"; then
-    printf 'SLP-CHECK-V1\t%s\tERROR\t-\tERROR\n' "$_slp_cid"
+  if [[ ! -e "$_slp_authority" ]]; then
+    printf 'SLP-CHECK-V1\t%s\tERROR\tauthority:not-found\tERROR\n' "$_slp_cid"
+    return 0
+  fi
+  if [[ ! -f "$_slp_authority" ]]; then
+    printf 'SLP-CHECK-V1\t%s\tERROR\tauthority:invalid-type\tERROR\n' "$_slp_cid"
+    return 0
+  fi
+  if [[ ! -r "$_slp_authority" ]]; then
+    printf 'SLP-CHECK-V1\t%s\tERROR\tauthority:unreadable\tERROR\n' "$_slp_cid"
+    return 0
+  fi
+  _slp_validate_text_bytes "$_slp_authority"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then printf 'SLP-CHECK-V1\t%s\tERROR\tauthority:read-failed\tERROR\n' "$_slp_cid"; else printf 'SLP-CHECK-V1\t%s\tERROR\tauthority:invalid-bytes\tERROR\n' "$_slp_cid"; fi
     return 0
   fi
   while IFS= read -r _slp_line || [[ -n "$_slp_line" ]]; do
@@ -423,11 +530,11 @@ slp_check_FSTEC_LINUX_2022_2_2_1_SU_WHEEL_ACCESS() {
     fi
     [[ -n "$_slp_line" ]] || continue
     [[ "${_slp_line:0:1}" != \# ]] || continue
-    if [[ "$_slp_line" == root || "$_slp_line" == *[[:space:],:#]* || -n "${_slp_approved[$_slp_line]+x}" ]]; then _slp_error=1; break; fi
+    if [[ "$_slp_line" == root ]] || _slp_name_has_forbidden_separator "$_slp_line" || [[ -n "${_slp_approved[$_slp_line]+x}" ]]; then _slp_error=1; break; fi
     _slp_approved["$_slp_line"]=1
   done < "$_slp_authority"
   if (( _slp_error )); then
-    printf 'SLP-CHECK-V1\t%s\tERROR\t-\tERROR\n' "$_slp_cid"
+    printf 'SLP-CHECK-V1\t%s\tERROR\tauthority:invalid-record\tERROR\n' "$_slp_cid"
     return 0
   fi
 
@@ -451,13 +558,13 @@ slp_check_FSTEC_LINUX_2022_2_2_2_SUDOERS_REVIEWED_POLICY() {
   local _slp_authority='/etc/securelinux-policy/sudoers-reviewed-policy-v1'
   local _slp_visudo='/usr/sbin/visudo'
   local _slp_line _slp_path _slp_hash _slp_out _slp_rc _slp_header='' _slp_hex _slp_byte _slp_prev='' _slp_char _slp_visudo_hex
-  local _slp_actual_count=0 _slp_approved_count=0 _slp_mismatch=0
+  local _slp_actual_count=0 _slp_approved_count=0 _slp_mismatch=0 _slp_vrc=0 _slp_visudo_reason=visudo:invalid-output
   local -A _slp_actual=() _slp_approved=() _slp_seen=()
 
-  _slp_error() { printf 'SLP-CHECK-V1\t%s\tERROR\t-\tERROR\n' "$_slp_cid"; return 0; }
+  _slp_error() { local _slp_reason=$1; printf 'SLP-CHECK-V1\t%s\tERROR\t%s\tERROR\n' "$_slp_cid" "$_slp_reason"; return 0; }
   _slp_validate_authority_bytes() {
     local _slp_v_hex _slp_v_byte _slp_v_prev=''
-    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_authority" 2>/dev/null); then return 1; fi
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_authority" 2>/dev/null); then return 2; fi
     for _slp_v_byte in $_slp_v_hex; do
       [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
       if [[ "$_slp_v_prev" == 0d && "$_slp_v_byte" != 0a ]]; then return 1; fi
@@ -470,22 +577,36 @@ slp_check_FSTEC_LINUX_2022_2_2_2_SUDOERS_REVIEWED_POLICY() {
     return 0
   }
 
-  [[ -e "$_slp_root" && -f "$_slp_root" && ! -L "$_slp_root" && -r "$_slp_root" ]] || { _slp_error; return 0; }
-  [[ -e "$_slp_authority" && -f "$_slp_authority" && ! -L "$_slp_authority" && -r "$_slp_authority" ]] || { _slp_error; return 0; }
-  [[ -x "$_slp_visudo" ]] || { _slp_error; return 0; }
-  _slp_validate_authority_bytes || { _slp_error; return 0; }
+  [[ ! -L "$_slp_root" ]] || { _slp_error sudoers:symlink; return 0; }
+  [[ -e "$_slp_root" ]] || { _slp_error sudoers:not-found; return 0; }
+  [[ -f "$_slp_root" ]] || { _slp_error sudoers:invalid-type; return 0; }
+  [[ -r "$_slp_root" ]] || { _slp_error sudoers:unreadable; return 0; }
+  [[ ! -L "$_slp_authority" ]] || { _slp_error authority:symlink; return 0; }
+  [[ -e "$_slp_authority" ]] || { _slp_error authority:not-found; return 0; }
+  [[ -f "$_slp_authority" ]] || { _slp_error authority:invalid-type; return 0; }
+  [[ -r "$_slp_authority" ]] || { _slp_error authority:unreadable; return 0; }
+  [[ -x "$_slp_visudo" ]] || { _slp_error tool:visudo-missing; return 0; }
+  _slp_validate_authority_bytes; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then _slp_error authority:read-failed; else _slp_error authority:invalid-bytes; fi
+    return 0
+  fi
 
   _slp_accept_visudo_line() {
     local _slp_v_line=$1
-    [[ -n "$_slp_v_line" && "$_slp_v_line" == *': parsed OK' ]] || return 1
+    _slp_visudo_reason=visudo:invalid-output
+    [[ -n "$_slp_v_line" && "$_slp_v_line" == *': parsed OK' ]] || { _slp_visudo_reason=visudo:unexpected-line; return 1; }
     _slp_path=${_slp_v_line%': parsed OK'}
-    [[ "$_slp_path" == /* && "$_slp_path" != *$'\t'* && "$_slp_path" != *$'\r'* ]] || return 1
-    [[ -z "${_slp_seen[$_slp_path]+x}" ]] || return 1
+    [[ "$_slp_path" == /* && "$_slp_path" != *$'\t'* && "$_slp_path" != *$'\r'* ]] || { _slp_visudo_reason=visudo-path:invalid-path; return 1; }
+    [[ -z "${_slp_seen[$_slp_path]+x}" ]] || { _slp_visudo_reason=visudo-path:duplicate-path; return 1; }
     _slp_seen["$_slp_path"]=1
-    [[ -e "$_slp_path" && -f "$_slp_path" && ! -L "$_slp_path" && -r "$_slp_path" ]] || return 1
-    _slp_hash=$(LC_ALL=C command /usr/bin/sha256sum -- "$_slp_path" 2>/dev/null) || return 1
+    [[ ! -L "$_slp_path" ]] || { _slp_visudo_reason=visudo-path:symlink; return 1; }
+    [[ -e "$_slp_path" ]] || { _slp_visudo_reason=visudo-path:not-found; return 1; }
+    [[ -f "$_slp_path" ]] || { _slp_visudo_reason=visudo-path:invalid-type; return 1; }
+    [[ -r "$_slp_path" ]] || { _slp_visudo_reason=visudo-path:unreadable; return 1; }
+    _slp_hash=$(LC_ALL=C command /usr/bin/sha256sum -- "$_slp_path" 2>/dev/null) || { _slp_visudo_reason=visudo-path:hash-failed; return 1; }
     _slp_hash=${_slp_hash%% *}
-    [[ "$_slp_hash" =~ ^[0-9a-f]{64}$ ]] || return 1
+    [[ "$_slp_hash" =~ ^[0-9a-f]{64}$ ]] || { _slp_visudo_reason=visudo-path:invalid-hash; return 1; }
     _slp_actual["$_slp_path"]=$_slp_hash
     ((_slp_actual_count+=1))
     return 0
@@ -493,49 +614,49 @@ slp_check_FSTEC_LINUX_2022_2_2_2_SUDOERS_REVIEWED_POLICY() {
 
   _slp_visudo_hex=$(set -o pipefail; LC_ALL=C command "$_slp_visudo" -c -f "$_slp_root" 2>&1 | LC_ALL=C command /usr/bin/od -An -v -tx1)
   _slp_rc=$?
-  (( _slp_rc == 0 )) || { _slp_error; return 0; }
-  [[ -n "$_slp_visudo_hex" ]] || { _slp_error; return 0; }
+  (( _slp_rc == 0 )) || { _slp_error visudo:validation-failed; return 0; }
+  [[ -n "$_slp_visudo_hex" ]] || { _slp_error visudo:empty-output; return 0; }
   _slp_line=''
   for _slp_byte in $_slp_visudo_hex; do
-    [[ "$_slp_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || { _slp_error; return 0; }
+    [[ "$_slp_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || { _slp_error visudo:invalid-bytes; return 0; }
     case "$_slp_byte" in
       0a)
-        _slp_accept_visudo_line "$_slp_line" || { _slp_error; return 0; }
+        _slp_accept_visudo_line "$_slp_line" || { _slp_error "$_slp_visudo_reason"; return 0; }
         _slp_line=''
         ;;
       00|01|02|03|04|05|06|07|08|09|0b|0c|0d|0e|0f|10|11|12|13|14|15|16|17|18|19|1a|1b|1c|1d|1e|1f|7f)
-        _slp_error; return 0
+        _slp_error visudo:invalid-bytes; return 0
         ;;
       *)
-        printf -v _slp_char '%b' "\x$_slp_byte" || { _slp_error; return 0; }
+        printf -v _slp_char '%b' "\x$_slp_byte" || { _slp_error visudo:invalid-bytes; return 0; }
         _slp_line+="$_slp_char"
         ;;
     esac
   done
   if [[ -n "$_slp_line" ]]; then
-    _slp_accept_visudo_line "$_slp_line" || { _slp_error; return 0; }
+    _slp_accept_visudo_line "$_slp_line" || { _slp_error "$_slp_visudo_reason"; return 0; }
   fi
-  [[ _slp_actual_count -gt 0 && -n "${_slp_actual[$_slp_root]+x}" ]] || { _slp_error; return 0; }
+  [[ _slp_actual_count -gt 0 && -n "${_slp_actual[$_slp_root]+x}" ]] || { _slp_error visudo:incomplete-output; return 0; }
 
   while IFS= read -r _slp_line || [[ -n "$_slp_line" ]]; do
     if [[ "$_slp_line" == *$'\r'* ]]; then
-      [[ "$_slp_line" == *$'\r' && "${_slp_line%$'\r'}" != *$'\r'* ]] || { _slp_error; return 0; }
+      [[ "$_slp_line" == *$'\r' && "${_slp_line%$'\r'}" != *$'\r'* ]] || { _slp_error authority:invalid-bytes; return 0; }
       _slp_line=${_slp_line%$'\r'}
     fi
     if [[ -z "$_slp_header" ]]; then
-      [[ "$_slp_line" == 'SLP-SUDOERS-REVIEWED-POLICY-V1' ]] || { _slp_error; return 0; }
+      [[ "$_slp_line" == 'SLP-SUDOERS-REVIEWED-POLICY-V1' ]] || { _slp_error authority:invalid-header; return 0; }
       _slp_header=1
       continue
     fi
-    [[ -n "$_slp_line" && "$_slp_line" == *$'\t'* ]] || { _slp_error; return 0; }
+    [[ -n "$_slp_line" && "$_slp_line" == *$'\t'* ]] || { _slp_error authority:invalid-record; return 0; }
     _slp_hash=${_slp_line%%$'\t'*}
     _slp_path=${_slp_line#*$'\t'}
-    [[ "$_slp_path" != *$'\t'* && "$_slp_hash" =~ ^[0-9a-f]{64}$ && "$_slp_path" == /* && -n "$_slp_path" ]] || { _slp_error; return 0; }
-    [[ -z "${_slp_approved[$_slp_path]+x}" ]] || { _slp_error; return 0; }
+    [[ "$_slp_path" != *$'\t'* && "$_slp_hash" =~ ^[0-9a-f]{64}$ && "$_slp_path" == /* && -n "$_slp_path" ]] || { _slp_error authority:invalid-record; return 0; }
+    [[ -z "${_slp_approved[$_slp_path]+x}" ]] || { _slp_error authority:duplicate-record; return 0; }
     _slp_approved["$_slp_path"]=$_slp_hash
     ((_slp_approved_count+=1))
   done < "$_slp_authority"
-  [[ -n "$_slp_header" && _slp_approved_count -gt 0 && -n "${_slp_approved[$_slp_root]+x}" ]] || { _slp_error; return 0; }
+  [[ -n "$_slp_header" && _slp_approved_count -gt 0 && -n "${_slp_approved[$_slp_root]+x}" ]] || { _slp_error authority:incomplete; return 0; }
 
   for _slp_path in "${!_slp_actual[@]}"; do
     if [[ -z "${_slp_approved[$_slp_path]+x}" || "${_slp_approved[$_slp_path]}" != "${_slp_actual[$_slp_path]}" ]]; then ((_slp_mismatch+=1)); fi
@@ -556,18 +677,18 @@ slp_check_FSTEC_LINUX_2022_2_3_1_GROUP_MODE() {
   local _slp_expected='0644'
   local _slp_mode _slp_parent _slp_comp
   if [[ ! -x /usr/bin/stat ]]; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-GROUP-MODE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-GROUP-MODE' "ERROR" "tool:stat-missing" "ERROR"
     return 0
   fi
   if [[ -e "$_slp_path" || -L "$_slp_path" ]]; then
     if [[ ! -f "$_slp_path" ]]; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-GROUP-MODE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-GROUP-MODE' "ERROR" "target:invalid-type" "ERROR"
       return 0
     fi
   fi
   if _slp_mode=$(LC_ALL=C command /usr/bin/stat -L -c %a -- "$_slp_path" 2>/dev/null); then
     if [[ ! $_slp_mode =~ ^[0-7]{1,4}$ ]]; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-GROUP-MODE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-GROUP-MODE' "ERROR" "target:invalid-mode" "ERROR"
       return 0
     fi
     while [[ ${#_slp_mode} -lt 4 ]]; do _slp_mode="0$_slp_mode"; done
@@ -581,7 +702,7 @@ slp_check_FSTEC_LINUX_2022_2_3_1_GROUP_MODE() {
   if [[ -d $_slp_parent && -x $_slp_parent && ! -e $_slp_path && ! -L $_slp_path ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-GROUP-MODE' "NOT_FOUND" "-" "NOT_FOUND"
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-GROUP-MODE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-GROUP-MODE' "ERROR" "target:stat-failed" "ERROR"
   fi
   return 0
 }
@@ -591,18 +712,18 @@ slp_check_FSTEC_LINUX_2022_2_3_1_PASSWD_MODE() {
   local _slp_expected='0644'
   local _slp_mode _slp_parent _slp_comp
   if [[ ! -x /usr/bin/stat ]]; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-PASSWD-MODE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-PASSWD-MODE' "ERROR" "tool:stat-missing" "ERROR"
     return 0
   fi
   if [[ -e "$_slp_path" || -L "$_slp_path" ]]; then
     if [[ ! -f "$_slp_path" ]]; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-PASSWD-MODE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-PASSWD-MODE' "ERROR" "target:invalid-type" "ERROR"
       return 0
     fi
   fi
   if _slp_mode=$(LC_ALL=C command /usr/bin/stat -L -c %a -- "$_slp_path" 2>/dev/null); then
     if [[ ! $_slp_mode =~ ^[0-7]{1,4}$ ]]; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-PASSWD-MODE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-PASSWD-MODE' "ERROR" "target:invalid-mode" "ERROR"
       return 0
     fi
     while [[ ${#_slp_mode} -lt 4 ]]; do _slp_mode="0$_slp_mode"; done
@@ -616,7 +737,7 @@ slp_check_FSTEC_LINUX_2022_2_3_1_PASSWD_MODE() {
   if [[ -d $_slp_parent && -x $_slp_parent && ! -e $_slp_path && ! -L $_slp_path ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-PASSWD-MODE' "NOT_FOUND" "-" "NOT_FOUND"
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-PASSWD-MODE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-PASSWD-MODE' "ERROR" "target:stat-failed" "ERROR"
   fi
   return 0
 }
@@ -626,18 +747,18 @@ slp_check_FSTEC_LINUX_2022_2_3_1_SHADOW_GO_RWX() {
   local _slp_expected='0077'
   local _slp_mode _slp_parent _slp_comp
   if [[ ! -x /usr/bin/stat ]]; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX' "ERROR" "tool:stat-missing" "ERROR"
     return 0
   fi
   if [[ -e "$_slp_path" || -L "$_slp_path" ]]; then
     if [[ ! -f "$_slp_path" ]]; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX' "ERROR" "target:invalid-type" "ERROR"
       return 0
     fi
   fi
   if _slp_mode=$(LC_ALL=C command /usr/bin/stat -L -c %a -- "$_slp_path" 2>/dev/null); then
     if [[ ! $_slp_mode =~ ^[0-7]{1,4}$ ]]; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX' "ERROR" "target:invalid-mode" "ERROR"
       return 0
     fi
     while [[ ${#_slp_mode} -lt 4 ]]; do _slp_mode="0$_slp_mode"; done
@@ -651,7 +772,7 @@ slp_check_FSTEC_LINUX_2022_2_3_1_SHADOW_GO_RWX() {
   if [[ -d $_slp_parent && -x $_slp_parent && ! -e $_slp_path && ! -L $_slp_path ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX' "NOT_FOUND" "-" "NOT_FOUND"
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX' "ERROR" "target:stat-failed" "ERROR"
   fi
   return 0
 }
@@ -665,55 +786,101 @@ slp_check_FSTEC_LINUX_2022_2_3_10_HOME_SENSITIVE_FILES_MODE() {
   local -a _slp_fields=() _slp_entries=() _slp_mandatory=('.bash_history' '.history' '.sh_history' '.bash_profile' '.bashrc' '.profile' '.bash_logout' '.rhosts')
   local -A _slp_seen_users=() _slp_seen_homes=() _slp_inventory_names=() _slp_seen_targets=()
 
-  for _slp_entry in "$_slp_passwd" "$_slp_inventory"; do
-    if [[ ! -f "$_slp_entry" || -L "$_slp_entry" || ! -r "$_slp_entry" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"
-      return 0
-    fi
-    if ! _slp_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"
-      return 0
-    fi
-    if [[ "$_slp_hex" =~ (^|[[:space:]])(00|0d)([[:space:]]|$) ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"
-      return 0
-    fi
-  done
+  if [[ -L "$_slp_passwd" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "passwd:symlink" "ERROR"
+    return 0
+  fi
+  if [[ ! -e "$_slp_passwd" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "passwd:not-found" "ERROR"
+    return 0
+  fi
+  if [[ ! -f "$_slp_passwd" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "passwd:invalid-type" "ERROR"
+    return 0
+  fi
+  if [[ ! -r "$_slp_passwd" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "passwd:unreadable" "ERROR"
+    return 0
+  fi
+  if ! _slp_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_passwd" 2>/dev/null); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "passwd:read-failed" "ERROR"
+    return 0
+  fi
+  if [[ "$_slp_hex" =~ (^|[[:space:]])(00|0d)([[:space:]]|$) ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "passwd:invalid-bytes" "ERROR"
+    return 0
+  fi
+  if [[ -L "$_slp_inventory" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "inventory:symlink" "ERROR"
+    return 0
+  fi
+  if [[ ! -e "$_slp_inventory" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "inventory:not-found" "ERROR"
+    return 0
+  fi
+  if [[ ! -f "$_slp_inventory" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "inventory:invalid-type" "ERROR"
+    return 0
+  fi
+  if [[ ! -r "$_slp_inventory" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "inventory:unreadable" "ERROR"
+    return 0
+  fi
+  if ! _slp_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_inventory" 2>/dev/null); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "inventory:read-failed" "ERROR"
+    return 0
+  fi
+  if [[ "$_slp_hex" =~ (^|[[:space:]])(00|0d)([[:space:]]|$) ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "inventory:invalid-bytes" "ERROR"
+    return 0
+  fi
 
   while IFS= read -r _slp_entry || [[ -n "$_slp_entry" ]]; do
     [[ -z "$_slp_entry" || "${_slp_entry:0:1}" == "#" ]] && continue
     if [[ ! "$_slp_entry" =~ ^\.[A-Za-z0-9._@+-]+(/[A-Za-z0-9._@+-]+)*$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "inventory:invalid-path" "ERROR"
       return 0
     fi
     if [[ ${_slp_inventory_names["$_slp_entry"]+x} ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "inventory:duplicate-path" "ERROR"
       return 0
     fi
     _slp_inventory_names["$_slp_entry"]=1
   done < "$_slp_inventory"
   for _slp_entry in "${_slp_mandatory[@]}"; do
-    [[ ${_slp_inventory_names["$_slp_entry"]+x} ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"; return 0; }
+    [[ ${_slp_inventory_names["$_slp_entry"]+x} ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "inventory:missing-required" "ERROR"; return 0; }
   done
   _slp_names=${#_slp_inventory_names[@]}
 
   while IFS= read -r _slp_line || [[ -n "$_slp_line" ]]; do
     [[ -n "$_slp_line" ]] || continue
     IFS=: read -r -a _slp_fields <<< "$_slp_line"
-    (( ${#_slp_fields[@]} == 7 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"; return 0; }
+    (( ${#_slp_fields[@]} == 7 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "passwd:invalid-fields" "ERROR"; return 0; }
     _slp_name=${_slp_fields[0]}; _slp_uid=${_slp_fields[2]}; _slp_gid=${_slp_fields[3]}; _slp_home=${_slp_fields[5]}
-    [[ "$_slp_name" =~ ^[A-Za-z_][A-Za-z0-9_.-]*\$?$ && "$_slp_uid" =~ ^[0-9]+$ && "$_slp_gid" =~ ^[0-9]+$ ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"; return 0; }
-    [[ -z ${_slp_seen_users["$_slp_name"]+x} ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"; return 0; }
+    [[ "$_slp_name" =~ ^[A-Za-z_][A-Za-z0-9_.-]*\$?$ && "$_slp_uid" =~ ^[0-9]+$ && "$_slp_gid" =~ ^[0-9]+$ ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "passwd:invalid-account" "ERROR"; return 0; }
+    [[ -z ${_slp_seen_users["$_slp_name"]+x} ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "passwd:duplicate-account" "ERROR"; return 0; }
     _slp_seen_users["$_slp_name"]=1
-    [[ "$_slp_home" == /* ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"; return 0; }
+    [[ "$_slp_home" == /* ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "passwd:invalid-home" "ERROR"; return 0; }
     ((_slp_accounts+=1))
     if [[ ! -e "$_slp_home" && ! -L "$_slp_home" ]]; then continue; fi
-    if [[ -L "$_slp_home" || ! -d "$_slp_home" || ! -r "$_slp_home" || ! -x "$_slp_home" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"
+    if [[ -L "$_slp_home" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "home:symlink" "ERROR"
+      return 0
+    fi
+    if [[ ! -d "$_slp_home" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "home:invalid-type" "ERROR"
+      return 0
+    fi
+    if [[ ! -r "$_slp_home" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "home:unreadable" "ERROR"
+      return 0
+    fi
+    if [[ ! -x "$_slp_home" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "home:unsearchable" "ERROR"
       return 0
     fi
     if ! _slp_home_id=$(LC_ALL=C command /usr/bin/stat -Lc "%d:%i" -- "$_slp_home" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "home:identity-failed" "ERROR"
       return 0
     fi
     if [[ ${_slp_seen_homes["$_slp_home_id"]+x} ]]; then continue; fi
@@ -725,11 +892,12 @@ slp_check_FSTEC_LINUX_2022_2_3_10_HOME_SENSITIVE_FILES_MODE() {
       _slp_marker="${PIPESTATUS[0]},${PIPESTATUS[1]}"
       printf "__SLP_SCAN_RC=%s\0" "$_slp_marker"
     )
-    (( ${#_slp_entries[@]} > 0 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"; return 0; }
+    (( ${#_slp_entries[@]} > 0 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "scan:missing-marker" "ERROR"; return 0; }
     _slp_i=$((${#_slp_entries[@]}-1)); _slp_marker=${_slp_entries[$_slp_i]}; unset '_slp_entries[$_slp_i]'
-    [[ "$_slp_marker" =~ ^__SLP_SCAN_RC=([0-9]+),([0-9]+)$ ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"; return 0; }
+    [[ "$_slp_marker" =~ ^__SLP_SCAN_RC=([0-9]+),([0-9]+)$ ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "scan:invalid-marker" "ERROR"; return 0; }
     _slp_find_rc=${BASH_REMATCH[1]}; _slp_sort_rc=${BASH_REMATCH[2]}
-    (( _slp_find_rc == 0 && _slp_sort_rc == 0 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"; return 0; }
+    (( _slp_find_rc == 0 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "scan:find-failed" "ERROR"; return 0; }
+    (( _slp_sort_rc == 0 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "scan:sort-failed" "ERROR"; return 0; }
     for _slp_entry in "${_slp_entries[@]}"; do
       _slp_rel=${_slp_entry#"$_slp_home"/}; _slp_base=${_slp_entry##*/}; _slp_candidate=0
       if [[ ${_slp_inventory_names["$_slp_rel"]+x} ]]; then _slp_candidate=1; fi
@@ -743,26 +911,30 @@ slp_check_FSTEC_LINUX_2022_2_3_10_HOME_SENSITIVE_FILES_MODE() {
       esac
       (( _slp_candidate == 1 )) || continue
       ((_slp_dynamic+=1))
-      if [[ -L "$_slp_entry" || ! -f "$_slp_entry" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"
+      if [[ -L "$_slp_entry" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "target:symlink" "ERROR"
+        return 0
+      fi
+      if [[ ! -f "$_slp_entry" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "target:invalid-type" "ERROR"
         return 0
       fi
       if ! _slp_ident=$(LC_ALL=C command /usr/bin/stat -Lc "%d:%i" -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "target:identity-failed" "ERROR"
         return 0
       fi
       if [[ ${_slp_seen_targets["$_slp_ident"]+x} ]]; then continue; fi
       _slp_seen_targets["$_slp_ident"]=1
       if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -Lc "%a" -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "target:mode-read-failed" "ERROR"
         return 0
       fi
-      [[ "$_slp_mode" =~ ^[0-7]{3,4}$ ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"; return 0; }
+      [[ "$_slp_mode" =~ ^[0-7]{3,4}$ ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "target:invalid-mode" "ERROR"; return 0; }
       ((_slp_checked+=1))
       if (( (8#$_slp_mode & 8#$_slp_expected) != 0 )); then ((_slp_violations+=1)); fi
     done
   done < "$_slp_passwd"
-  (( _slp_accounts > 0 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "-" "ERROR"; return 0; }
+  (( _slp_accounts > 0 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "ERROR" "passwd:empty-population" "ERROR"; return 0; }
   local _slp_value="accounts=$_slp_accounts;homes=$_slp_homes;names=$_slp_names;discovered=$_slp_dynamic;checked=$_slp_checked;violations=$_slp_violations"
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE' "VALUE" "$_slp_value" "$([[ $_slp_violations -eq 0 ]] && printf PASS || printf FAIL)"
   return 0
@@ -774,48 +946,64 @@ slp_check_FSTEC_LINUX_2022_2_3_11_HOME_DIRECTORIES_MODE() {
   local _slp_accounts=0 _slp_homes=0 _slp_violations=0
   local -a _slp_fields=()
   local -A _slp_seen_users=() _slp_seen_homes=()
-  if [[ ! -f "$_slp_passwd" || -L "$_slp_passwd" || ! -r "$_slp_passwd" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "-" "ERROR"
+  if [[ -L "$_slp_passwd" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "passwd:symlink" "ERROR"
+    return 0
+  fi
+  if [[ ! -e "$_slp_passwd" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "passwd:not-found" "ERROR"
+    return 0
+  fi
+  if [[ ! -f "$_slp_passwd" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "passwd:invalid-type" "ERROR"
+    return 0
+  fi
+  if [[ ! -r "$_slp_passwd" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "passwd:unreadable" "ERROR"
     return 0
   fi
   if ! _slp_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_passwd" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "passwd:read-failed" "ERROR"
     return 0
   fi
   if [[ "$_slp_hex" =~ (^|[[:space:]])(00|0d)([[:space:]]|$) ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "passwd:invalid-bytes" "ERROR"
     return 0
   fi
   while IFS= read -r _slp_line || [[ -n "$_slp_line" ]]; do
     [[ -n "$_slp_line" ]] || continue
     IFS=: read -r -a _slp_fields <<< "$_slp_line"
-    (( ${#_slp_fields[@]} == 7 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "-" "ERROR"; return 0; }
+    (( ${#_slp_fields[@]} == 7 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "passwd:invalid-fields" "ERROR"; return 0; }
     _slp_name=${_slp_fields[0]}; _slp_uid=${_slp_fields[2]}; _slp_gid=${_slp_fields[3]}; _slp_home=${_slp_fields[5]}
-    [[ "$_slp_name" =~ ^[A-Za-z_][A-Za-z0-9_.-]*\$?$ && "$_slp_uid" =~ ^[0-9]+$ && "$_slp_gid" =~ ^[0-9]+$ ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "-" "ERROR"; return 0; }
-    [[ -z ${_slp_seen_users["$_slp_name"]+x} ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "-" "ERROR"; return 0; }
+    [[ "$_slp_name" =~ ^[A-Za-z_][A-Za-z0-9_.-]*\$?$ && "$_slp_uid" =~ ^[0-9]+$ && "$_slp_gid" =~ ^[0-9]+$ ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "passwd:invalid-account" "ERROR"; return 0; }
+    [[ -z ${_slp_seen_users["$_slp_name"]+x} ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "passwd:duplicate-account" "ERROR"; return 0; }
     _slp_seen_users["$_slp_name"]=1
-    [[ "$_slp_home" == /* ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "-" "ERROR"; return 0; }
+    [[ "$_slp_home" == /* ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "passwd:invalid-home" "ERROR"; return 0; }
     ((_slp_accounts+=1))
     if [[ ! -e "$_slp_home" && ! -L "$_slp_home" ]]; then continue; fi
-    if [[ -L "$_slp_home" || ! -d "$_slp_home" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "-" "ERROR"
+    if [[ -L "$_slp_home" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "home:symlink" "ERROR"
+      return 0
+    fi
+    if [[ ! -d "$_slp_home" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "home:invalid-type" "ERROR"
       return 0
     fi
     if ! _slp_home_id=$(LC_ALL=C command /usr/bin/stat -Lc "%d:%i" -- "$_slp_home" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "home:identity-failed" "ERROR"
       return 0
     fi
     if [[ ${_slp_seen_homes["$_slp_home_id"]+x} ]]; then continue; fi
     _slp_seen_homes["$_slp_home_id"]=1
     if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -Lc "%a" -- "$_slp_home" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "home:mode-read-failed" "ERROR"
       return 0
     fi
-    [[ "$_slp_mode" =~ ^[0-7]{3,4}$ ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "-" "ERROR"; return 0; }
+    [[ "$_slp_mode" =~ ^[0-7]{3,4}$ ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "home:invalid-mode" "ERROR"; return 0; }
     ((_slp_homes+=1))
     if (( 8#$_slp_mode != 8#$_slp_expected )); then ((_slp_violations+=1)); fi
   done < "$_slp_passwd"
-  (( _slp_accounts > 0 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "-" "ERROR"; return 0; }
+  (( _slp_accounts > 0 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "ERROR" "passwd:empty-population" "ERROR"; return 0; }
   local _slp_value="accounts=$_slp_accounts;homes=$_slp_homes;violations=$_slp_violations"
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE' "VALUE" "$_slp_value" "$([[ $_slp_violations -eq 0 ]] && printf PASS || printf FAIL)"
   return 0
@@ -840,8 +1028,8 @@ PROC_PROCESSES = re.compile(r"^processes[ \t]+([0-9]+)$")
 OCTAL = set("01234567")
 
 
-def error():
-    print("ERROR")
+def error(reason):
+    print("ERROR\t" + reason)
     raise SystemExit(0)
 
 
@@ -851,33 +1039,33 @@ def read_start(pid):
     except FileNotFoundError:
         return None
     except Exception:
-        error()
+        error("proc-stat:read-failed")
     if "\x00" in raw or "\r" in raw:
-        error()
+        error("proc-stat:invalid-bytes")
     if raw.endswith("\n"):
         body = raw[:-1]
     else:
         body = raw
     if not body or "\n" in body or "\t" in body or "\v" in body or "\f" in body:
-        error()
+        error("proc-stat:invalid-layout")
     prefix = pid.name + " ("
     if not body.startswith(prefix):
-        error()
+        error("proc-stat:invalid-prefix")
     close = body.rfind(")")
     if close < len(prefix) - 1 or close + 1 >= len(body) or body[close + 1] != " ":
-        error()
+        error("proc-stat:invalid-command-field")
     fields = body[close + 2:].split(" ")
     if len(fields) != 50 or any(field == "" for field in fields):
-        error()
+        error("proc-stat:invalid-field-count")
     state = fields[0]
     if len(state) != 1 or not state.isascii() or not state.isalpha():
-        error()
+        error("proc-stat:invalid-state")
     for value in fields[1:]:
         if ASCII_SIGNED_DECIMAL.fullmatch(value) is None:
-            error()
+            error("proc-stat:invalid-number")
     starttime = fields[19]
     if ASCII_DECIMAL.fullmatch(starttime) is None:
-        error()
+        error("proc-stat:invalid-starttime")
     return starttime
 
 
@@ -885,19 +1073,19 @@ def read_process_counter():
     try:
         text = (proc_root / "stat").read_text(encoding="ascii", errors="strict")
     except Exception:
-        error()
+        error("proc-counter:read-failed")
     if "\x00" in text or "\r" in text:
-        error()
+        error("proc-counter:invalid-bytes")
     values = []
     for line in text.splitlines():
         if not line.startswith("processes"):
             continue
         match = PROC_PROCESSES.fullmatch(line)
         if match is None:
-            error()
+            error("proc-counter:invalid-record")
         values.append(int(match.group(1), 10))
     if len(values) != 1:
-        error()
+        error("proc-counter:invalid-record-count")
     return values[0]
 
 
@@ -905,14 +1093,14 @@ def population_snapshot():
     try:
         entries = sorted((p for p in proc_root.iterdir() if p.name.isdigit()), key=lambda p: int(p.name))
     except Exception:
-        error()
+        error("proc-population:scan-failed")
     if not entries:
-        error()
+        error("proc-population:empty")
     snap = {}
     for pid in entries:
         start = read_start(pid)
         if start is None:
-            error()
+            error("proc-population:process-disappeared")
         snap[pid.name] = start
     return snap
 
@@ -921,9 +1109,9 @@ def classify_no_exe(pid, expected_start):
     try:
         status = (pid / "status").read_text(encoding="utf-8", errors="strict")
     except Exception:
-        error()
+        error("proc-status:read-failed")
     if "\x00" in status or "\r" in status:
-        error()
+        error("proc-status:invalid-bytes")
     kthread = False
     state = None
     for line in status.splitlines():
@@ -933,10 +1121,10 @@ def classify_no_exe(pid, expected_start):
             value = line.split(":", 1)[1].strip()
             state = value[:1] if value else None
     if not (kthread or state == "Z"):
-        error()
+        error("proc-status:no-exe-unclassified")
     end = read_start(pid)
     if end is None or end != expected_start:
-        error()
+        error("proc-stat:excluded-classification-changed")
     return "excluded"
 
 
@@ -950,13 +1138,13 @@ def decode_proc_path(raw):
             i += 1
             continue
         if i + 3 >= len(raw):
-            error()
+            error("proc:invalid-path-escape")
         digits = raw[i + 1:i + 4]
         if any(c not in OCTAL for c in digits):
-            error()
+            error("proc:invalid-path-escape")
         value = int(digits, 8)
         if value == 0:
-            error()
+            error("proc:invalid-path-escape")
         out.append(chr(value))
         i += 4
     return "".join(out)
@@ -979,46 +1167,46 @@ def within_stop(real):
     try:
         Path(real).relative_to(parent_stop)
     except ValueError:
-        error()
+        error("path:outside-scope")
 
 
 def check_path(path_text, file_records, file_states, parent_records, path_set, expected_mapping=None):
     if not path_text.startswith("/") or "\x00" in path_text:
-        error()
+        error("path:invalid-absolute")
     try:
         source_lstat = os.lstat(path_text)
         real = os.path.realpath(path_text)
     except Exception:
-        error()
+        error("path:resolve-failed")
     if not real.startswith("/"):
-        error()
+        error("path:invalid-resolved")
     within_stop(real)
     try:
         fst = os.stat(real, follow_symlinks=True)
     except Exception:
-        error()
+        error("path:stat-failed")
     if not stat.S_ISREG(fst.st_mode):
-        error()
+        error("path:invalid-type")
     if expected_mapping is not None:
         map_major, map_minor, map_inode = expected_mapping
         try:
             actual_major = os.major(fst.st_dev)
             actual_minor = os.minor(fst.st_dev)
         except Exception:
-            error()
+            error("path:device-id-failed")
         if (actual_major, actual_minor, fst.st_ino) != (map_major, map_minor, map_inode):
-            error()
+            error("path:mapping-mismatch")
     source_state = obj_state(source_lstat)
     target_state = obj_state(fst)
     record = (real, source_state, target_state)
     old = file_records.get(path_text)
     if old is not None and old != record:
-        error()
+        error("path:repeat-record-changed")
     file_records[path_text] = record
     identity = (fst.st_dev, fst.st_ino)
     old_state = file_states.get(identity)
     if old_state is not None and old_state != target_state:
-        error()
+        error("path:identity-state-changed")
     file_states[identity] = target_state
     path_set.add(real)
 
@@ -1028,25 +1216,25 @@ def check_path(path_text, file_records, file_states, parent_records, path_set, e
         try:
             dst = os.stat(cur, follow_symlinks=True)
         except Exception:
-            error()
+            error("parent:stat-failed")
         if not stat.S_ISDIR(dst.st_mode):
-            error()
+            error("parent:invalid-type")
         state = obj_state(dst)
         old_dir = parent_records.get(str(cur))
         if old_dir is not None and old_dir != state:
-            error()
+            error("parent:repeat-snapshot-changed")
         parent_records[str(cur)] = state
         if cur == stop:
             break
         if cur == cur.parent:
             if stop != cur:
-                error()
+                error("path:outside-scope")
             break
         if stop != Path("/"):
             try:
                 cur.relative_to(stop)
             except ValueError:
-                error()
+                error("path:outside-scope")
         cur = cur.parent
     return identity
 
@@ -1055,9 +1243,9 @@ def parse_maps(pid):
     try:
         text = (pid / "maps").read_text(encoding="utf-8", errors="strict")
     except Exception:
-        error()
+        error("proc-maps:read-failed")
     if "\x00" in text or "\r" in text:
-        error()
+        error("proc-maps:invalid-bytes")
     mapped_exec = []
     saw_line = False
     for line in text.splitlines():
@@ -1066,54 +1254,54 @@ def parse_maps(pid):
         saw_line = True
         parts = line.split(None, 5)
         if len(parts) not in (5, 6):
-            error()
+            error("proc-maps:invalid-fields")
 
         address_text, perms, offset_text, device_text, inode_text = parts[:5]
         address = MAP_ADDRESS.fullmatch(address_text)
         if address is None:
-            error()
+            error("proc-maps:invalid-address")
         start = int(address.group(1), 16)
         end = int(address.group(2), 16)
         if start >= end:
-            error()
+            error("proc-maps:invalid-address-range")
         if not MAP_PERMS.fullmatch(perms):
-            error()
+            error("proc-maps:invalid-permissions")
         if not MAP_OFFSET.fullmatch(offset_text):
-            error()
+            error("proc-maps:invalid-offset")
         offset = int(offset_text, 16)
         device = MAP_DEVICE.fullmatch(device_text)
         if device is None:
-            error()
+            error("proc-maps:invalid-device")
         dev_major = int(device.group(1), 16)
         dev_minor = int(device.group(2), 16)
         if ASCII_DECIMAL.fullmatch(inode_text) is None:
-            error()
+            error("proc-maps:invalid-inode")
         inode = int(inode_text, 10)
 
         if len(parts) == 5:
             if inode != 0:
-                error()
+                error("proc-maps:anonymous-inode")
             continue
 
         raw_path = parts[5]
         if raw_path.startswith("[") and raw_path.endswith("]"):
             if inode != 0:
-                error()
+                error("proc-maps:pseudo-inode")
             continue
 
         path = decode_proc_path(raw_path)
         if path.endswith(" (deleted)"):
-            error()
+            error("proc-maps:deleted-path")
         if not path.startswith("/"):
-            error()
+            error("proc-maps:nonabsolute-path")
         if perms[2] != "x":
             continue
         if inode == 0:
-            error()
+            error("proc-maps:executable-zero-inode")
         mapped_exec.append((path, start, end, offset, dev_major, dev_minor, inode))
 
     if not saw_line or not mapped_exec:
-        error()
+        error("proc-maps:empty-executable-population")
     return mapped_exec
 
 
@@ -1124,11 +1312,11 @@ def read_exe(pid):
     except FileNotFoundError:
         return None
     except Exception:
-        error()
+        error("proc-exe:read-failed")
     if target.endswith(" (deleted)") or not target.startswith("/") or "\x00" in target:
-        error()
+        error("proc-exe:invalid-target")
     if not stat.S_ISREG(exe_stat.st_mode):
-        error()
+        error("proc-exe:invalid-type")
     return target, obj_state(exe_stat)
 
 
@@ -1139,11 +1327,11 @@ def recheck_files(file_records):
             now_real = os.path.realpath(source)
             now_target = os.stat(now_real, follow_symlinks=True)
         except Exception:
-            error()
+            error("path:recheck-stat-failed")
         if now_real != real:
-            error()
+            error("path:recheck-resolved-target-changed")
         if obj_state(now_source) != source_state or obj_state(now_target) != target_state:
-            error()
+            error("path:recheck-snapshot-changed")
 
 
 def recheck_parents(parent_records):
@@ -1151,9 +1339,11 @@ def recheck_parents(parent_records):
         try:
             now = os.stat(path, follow_symlinks=True)
         except Exception:
-            error()
-        if not stat.S_ISDIR(now.st_mode) or obj_state(now) != expected:
-            error()
+            error("parent:recheck-stat-failed")
+        if not stat.S_ISDIR(now.st_mode):
+            error("parent:recheck-invalid-type")
+        if obj_state(now) != expected:
+            error("parent:recheck-snapshot-changed")
 
 
 def recheck_processes(process_records, excluded_records):
@@ -1162,42 +1352,42 @@ def recheck_processes(process_records, excluded_records):
         pid = proc_root / pid_name
         start = read_start(pid)
         if start is None or start != expected_start:
-            error()
+            error("proc-stat:recheck-starttime-changed")
         current_exe = read_exe(pid)
         if current_exe is None:
-            error()
+            error("proc-exe:recheck-missing")
         target, exe_state = current_exe
         if target != expected_target or exe_state != expected_exe_state:
-            error()
+            error("proc-exe:recheck-changed")
         current_maps = tuple(parse_maps(pid))
         if current_maps != expected_maps:
-            error()
+            error("proc-maps:recheck-changed")
         end = read_start(pid)
         if end is None or end != expected_start:
-            error()
+            error("proc-stat:recheck-endtime-changed")
 
     for pid_name, expected_start in excluded_records.items():
         pid = proc_root / pid_name
         start = read_start(pid)
         if start is None or start != expected_start:
-            error()
+            error("proc-stat:excluded-recheck-changed")
         if read_exe(pid) is not None:
-            error()
+            error("proc-exe:excluded-reappeared")
         classify_no_exe(pid, expected_start)
 
 
 try:
     pst = os.lstat(proc_root)
 except Exception:
-    error()
+    error("proc-root:lstat-failed")
 if not stat.S_ISDIR(pst.st_mode) or stat.S_ISLNK(pst.st_mode):
-    error()
+    error("proc-root:invalid-type")
 try:
     sst = os.stat(parent_stop)
 except Exception:
-    error()
+    error("parent-stop:stat-failed")
 if not stat.S_ISDIR(sst.st_mode):
-    error()
+    error("parent-stop:invalid-type")
 
 fork_counter = read_process_counter()
 initial_population = population_snapshot()
@@ -1215,7 +1405,7 @@ for pid_name, expected_start in sorted(initial_population.items(), key=lambda it
     pid = proc_root / pid_name
     start = read_start(pid)
     if start is None or start != expected_start:
-        error()
+        error("proc-stat:initial-starttime-changed")
 
     exe_observation = read_exe(pid)
     if exe_observation is None:
@@ -1227,7 +1417,7 @@ for pid_name, expected_start in sorted(initial_population.items(), key=lambda it
     target, exe_state = exe_observation
     exe_identity = check_path(target, file_records, file_states, parent_records, path_set)
     if (exe_state[0], exe_state[1]) != exe_identity:
-        error()
+        error("proc-exe:identity-mismatch")
 
     mapped_records = tuple(parse_maps(pid))
     mapped_ids = set()
@@ -1245,20 +1435,20 @@ for pid_name, expected_start in sorted(initial_population.items(), key=lambda it
 
     end = read_start(pid)
     if end is None or end != expected_start:
-        error()
+        error("proc-stat:initial-endtime-changed")
 
     process_records[pid_name] = (expected_start, target, exe_state, mapped_records)
     processes += 1
     libraries_seen += len(mapped_ids - {exe_identity})
 
 if processes == 0 or not file_states:
-    error()
+    error("proc-population:empty-observation")
 
 mid_population = population_snapshot()
 if mid_population != initial_population:
-    error()
+    error("pid-population:mid-snapshot-changed")
 if read_process_counter() != fork_counter:
-    error()
+    error("proc-counter:mid-snapshot-changed")
 
 recheck_processes(process_records, excluded_records)
 recheck_files(file_records)
@@ -1266,9 +1456,9 @@ recheck_parents(parent_records)
 
 final_population = population_snapshot()
 if final_population != initial_population:
-    error()
+    error("pid-population:final-snapshot-changed")
 if read_process_counter() != fork_counter:
-    error()
+    error("proc-counter:final-snapshot-changed")
 
 file_violations = sum(1 for state in file_states.values() if state[4] & 0o022)
 parent_violations = 0
@@ -1288,7 +1478,7 @@ for state in parent_records.values():
         parent_ambiguous += 1
 
 if parent_violations == 0 and parent_ambiguous:
-    error()
+    error("parent:group-write-ambiguous")
 
 value = (
     f"pids={processes};files={len(file_states)};paths={len(path_set)};parents={len(parent_records)};"
@@ -1300,17 +1490,21 @@ print("VALUE\t" + value + "\t" + compliance)
 SLP_RUNTIME_PATHS_PY
   )
   _slp_rc=$?
-  if (( _slp_rc != 0 )) || [[ -z $_slp_obs || $_slp_obs == *$'\n'* || $_slp_obs == *$'\r'* ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION' "ERROR" "-" "ERROR"
+  if (( _slp_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION' "ERROR" "observer:execution-failed" "ERROR"
     return 0
   fi
-  if [[ $_slp_obs == ERROR ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION' "ERROR" "-" "ERROR"
+  if [[ -z $_slp_obs || $_slp_obs == *$'\n'* || $_slp_obs == *$'\r'* ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION' "ERROR" "observer:invalid-output" "ERROR"
+    return 0
+  fi
+  if [[ $_slp_obs == ERROR$'	'* ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION' "ERROR" "${_slp_obs#*$'	'}" "ERROR"
     return 0
   fi
   IFS=$'\t' read -r _slp_status _slp_value _slp_compliance _slp_extra <<< "$_slp_obs"
   if [[ $_slp_status != VALUE || -z $_slp_value || ( $_slp_compliance != PASS && $_slp_compliance != FAIL ) || -n $_slp_extra ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION' "ERROR" "observer:invalid-output" "ERROR"
     return 0
   fi
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION' "VALUE" "$_slp_value" "$_slp_compliance"
@@ -1351,14 +1545,14 @@ INTERPRETER_NAME = re.compile(
 CONTROL_OPS = {"&&", "||", ";", "|", "&", "(", ")"}
 
 
-def error():
-    print("ERROR")
+def error(reason):
+    print("ERROR\t" + reason)
     raise SystemExit(0)
 
 
 def map_abs(path_text):
     if not isinstance(path_text, str) or not path_text.startswith("/") or "\x00" in path_text or "\r" in path_text or "\n" in path_text:
-        error()
+        error("path:invalid-absolute")
     return fsroot / path_text.lstrip("/")
 
 
@@ -1372,27 +1566,29 @@ def stable_regular(path, allow_symlink=False):
     except FileNotFoundError:
         return None
     except Exception:
-        error()
+        error("file:lstat-failed")
     if stat.S_ISLNK(first.st_mode):
         if not allow_symlink:
-            error()
+            error("file:symlink")
         try:
             real = os.path.realpath(path)
             target = os.stat(real, follow_symlinks=True)
             second = os.lstat(path)
         except Exception:
-            error()
-        if obj_state(first) != obj_state(second) or not stat.S_ISREG(target.st_mode):
-            error()
+            error("file:resolve-failed")
+        if obj_state(first) != obj_state(second):
+            error("file:changed-during-check")
+        if not stat.S_ISREG(target.st_mode):
+            error("file:invalid-type")
         return (str(path), real, obj_state(first), obj_state(target))
     if not stat.S_ISREG(first.st_mode):
-        error()
+        error("file:invalid-type")
     try:
         second = os.lstat(path)
     except Exception:
-        error()
+        error("file:lstat-failed")
     if obj_state(first) != obj_state(second):
-        error()
+        error("file:changed-during-check")
     return (str(path), str(path), obj_state(first), obj_state(first))
 
 
@@ -1401,18 +1597,20 @@ def stable_text(path, optional=False, allow_symlink=False):
     if rec is None:
         if optional:
             return None
-        error()
+        error("file:not-found")
     try:
         raw = path.read_bytes()
         after = stable_regular(path, allow_symlink=allow_symlink)
     except Exception:
-        error()
-    if after != rec or b"\x00" in raw or b"\r" in raw:
-        error()
+        error("file:read-failed")
+    if after != rec:
+        error("file:changed-during-check")
+    if b"\x00" in raw or b"\r" in raw:
+        error("file:invalid-bytes")
     try:
         text = raw.decode("utf-8", errors="strict")
     except UnicodeDecodeError:
-        error()
+        error("file:invalid-utf8")
     return rec, hashlib.sha256(raw).hexdigest(), text
 
 
@@ -1422,18 +1620,20 @@ def stable_dir(path, optional=False):
     except FileNotFoundError:
         if optional:
             return None
-        error()
+        error("directory:not-found")
     except Exception:
-        error()
-    if stat.S_ISLNK(first.st_mode) or not stat.S_ISDIR(first.st_mode):
-        error()
+        error("directory:lstat-failed")
+    if stat.S_ISLNK(first.st_mode):
+        error("directory:symlink")
+    if not stat.S_ISDIR(first.st_mode):
+        error("directory:invalid-type")
     try:
         names = sorted(os.listdir(path), key=os.fsencode)
         second = os.lstat(path)
     except Exception:
-        error()
+        error("directory:scan-failed")
     if obj_state(first) != obj_state(second):
-        error()
+        error("directory:changed-during-check")
     return obj_state(first), tuple(names)
 
 
@@ -1442,18 +1642,22 @@ def parse_passwd():
     users = {}
     for line in observed[2].splitlines():
         if not line:
-            error()
+            error("passwd:empty-record")
         parts = line.split(":")
         if len(parts) != 7:
-            error()
+            error("passwd:invalid-fields")
         name, _, uid_text, gid_text, _, home, _ = parts
-        if not name or name in users or ASCII_DECIMAL.fullmatch(uid_text) is None or ASCII_DECIMAL.fullmatch(gid_text) is None:
-            error()
+        if not name:
+            error("passwd:invalid-account")
+        if name in users:
+            error("passwd:duplicate-account")
+        if ASCII_DECIMAL.fullmatch(uid_text) is None or ASCII_DECIMAL.fullmatch(gid_text) is None:
+            error("passwd:invalid-id")
         if not home.startswith("/"):
-            error()
+            error("passwd:invalid-home")
         users[name] = (int(uid_text), int(gid_text), home)
     if "root" not in users or users["root"][0] != 0:
-        error()
+        error("passwd:invalid-root")
     return observed, users
 
 
@@ -1462,7 +1666,7 @@ def parse_env_value(raw):
     if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
         value = value[1:-1]
     if any(ch in value for ch in "\x00\r\n`$"):
-        error()
+        error("cron:invalid-environment-value")
     return value
 
 
@@ -1470,7 +1674,7 @@ def parse_path_value(raw):
     value = parse_env_value(raw)
     parts = value.split(":")
     if not parts or any(not p.startswith("/") or p == "/" and False for p in parts) or any(p == "" for p in parts):
-        error()
+        error("cron:invalid-path")
     return tuple(parts)
 
 
@@ -1496,60 +1700,60 @@ def split_percent(command):
         out.append("\\")
     result = "".join(out).strip()
     if not result:
-        error()
+        error("cron:empty-command")
     return result
 
 
 def cron_job(line, system_file, owner_user, users):
     parts = line.split()
     if not parts:
-        error()
+        error("cron:empty-record")
     if parts[0].startswith("@"):
         if parts[0] not in SPECIAL:
-            error()
+            error("cron:invalid-schedule")
         needed = 3 if system_file else 2
         if len(parts) < needed:
-            error()
+            error("cron:invalid-fields")
         user = parts[1] if system_file else owner_user
         command = line.split(None, 2 if system_file else 1)[2 if system_file else 1]
     else:
         if len(parts) < (7 if system_file else 6):
-            error()
+            error("cron:invalid-fields")
         for field in parts[:5]:
             if SCHEDULE_FIELD.fullmatch(field) is None:
-                error()
+                error("cron:invalid-schedule")
         user = parts[5] if system_file else owner_user
         command = line.split(None, 6 if system_file else 5)[6 if system_file else 5]
     if user not in users:
-        error()
+        error("cron:unknown-user")
     return user, split_percent(command)
 
 
 def lex_command(command):
     if any(ch in command for ch in "\x00\r\n`$"):
-        error()
+        error("command:invalid-bytes")
     try:
         lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|()<>")
         lexer.whitespace_split = True
         lexer.commenters = ""
         tokens = list(lexer)
     except Exception:
-        error()
+        error("command:parse-failed")
     if not tokens:
-        error()
+        error("command:empty")
     for tok in tokens:
         if "<" in tok or ">" in tok:
-            error()
+            error("command:unsupported-redirection")
     return tokens
 
 
 def resolve_root_command(word, path_env, uid, dir_records):
     if "/" in word:
         if not word.startswith("/"):
-            error()
+            error("command:relative-path")
         return word
     if uid != 0 or path_env is None:
-        error()
+        error("command:unresolved-name")
     for d in path_env:
         dpath = map_abs(d)
         drec = stable_dir(dpath, optional=False)
@@ -1561,25 +1765,25 @@ def resolve_root_command(word, path_env, uid, dir_records):
         except FileNotFoundError:
             continue
         except Exception:
-            error()
+            error("command:stat-failed")
         if stat.S_ISREG(st.st_mode) and stat.S_IMODE(st.st_mode) & 0o111:
             return candidate_text
-    error()
+    error("command:not-found")
 
 
 def resolved_command_record(path_text):
     mapped = map_abs(path_text)
     rec = stable_regular(mapped, allow_symlink=True)
     if rec is None:
-        error()
+        error("target:not-found")
     target_state = rec[3]
     if target_state[8] != 1:
-        error()
+        error("target:hardlink")
     if (target_state[4] & 0o111) == 0:
-        error()
+        error("target:not-executable")
     canonical_base = os.path.basename(rec[1])
     if not canonical_base or canonical_base in {".", ".."}:
-        error()
+        error("target:invalid-name")
     return rec, canonical_base
 
 
@@ -1587,13 +1791,13 @@ def add_target(path_text, targets, allow_nonexec=False):
     mapped = map_abs(path_text)
     rec = stable_regular(mapped, allow_symlink=True)
     if rec is None:
-        error()
+        error("target:not-found")
     target_state = rec[3]
     if not allow_nonexec and (target_state[4] & 0o111) == 0:
-        error()
+        error("target:not-executable")
     previous = targets.get(path_text)
     if previous is not None and previous != rec:
-        error()
+        error("target:changed-during-check")
     targets[path_text] = rec
 
 
@@ -1603,12 +1807,12 @@ def expand_run_parts(args, targets, dir_records):
         if arg in {"--report", "--verbose"}:
             continue
         if arg.startswith("-"):
-            error()
+            error("run-parts:unsupported-option")
         if directory is not None:
-            error()
+            error("run-parts:ambiguous-directory")
         directory = arg
     if directory is None or not directory.startswith("/"):
-        error()
+        error("run-parts:invalid-directory")
     dpath = map_abs(directory)
     drec = stable_dir(dpath, optional=False)
     dir_records[("run-parts", directory)] = drec
@@ -1620,9 +1824,9 @@ def expand_run_parts(args, targets, dir_records):
         try:
             st = os.stat(child, follow_symlinks=True)
         except FileNotFoundError:
-            error()
+            error("run-parts:child-not-found")
         except Exception:
-            error()
+            error("run-parts:child-stat-failed")
         if not stat.S_ISREG(st.st_mode):
             continue
         if stat.S_IMODE(st.st_mode) & 0o111:
@@ -1637,7 +1841,7 @@ def parse_shell(command, user, users, path_env, targets, dir_records):
     for tok in tokens:
         if tok == "(":
             if current:
-                error()
+                error("command:unsupported-grouping")
             depth += 1
             continue
         if tok == ")":
@@ -1645,11 +1849,11 @@ def parse_shell(command, user, users, path_env, targets, dir_records):
                 segments.append(current); current = []
             depth -= 1
             if depth < 0:
-                error()
+                error("command:unbalanced-group")
             continue
         if tok in CONTROL_OPS:
             if tok in {"(", ")"}:
-                error()
+                error("command:unsupported-grouping")
             if current:
                 segments.append(current); current = []
             continue
@@ -1657,7 +1861,7 @@ def parse_shell(command, user, users, path_env, targets, dir_records):
     if current:
         segments.append(current)
     if depth != 0 or not segments:
-        error()
+        error("command:unbalanced-group")
 
     uid = users[user][0]
     for seg in segments:
@@ -1675,11 +1879,11 @@ def parse_shell(command, user, users, path_env, targets, dir_records):
         if command_word in SAFE_BUILTINS:
             continue
         if command_word in UNSUPPORTED_COMMANDS:
-            error()
+            error("command:unsupported-wrapper")
         resolved = resolve_root_command(command_word, local_path, uid, dir_records)
         _resolved_rec, canonical_base = resolved_command_record(resolved)
         if canonical_base in UNSUPPORTED_COMMANDS or INTERPRETER_NAME.fullmatch(canonical_base) is not None:
-            error()
+            error("command:unsupported-execution-chain")
         add_target(resolved, targets, allow_nonexec=False)
         if canonical_base == "run-parts":
             expand_run_parts(args, targets, dir_records)
@@ -1688,7 +1892,7 @@ def parse_shell(command, user, users, path_env, targets, dir_records):
 def parse_crontab(path, system_file, owner_user, users, sources, targets, dir_records):
     observed = stable_text(path, optional=False, allow_symlink=False)
     if observed[2] and not observed[2].endswith("\n"):
-        error()
+        error("cron:invalid-line-ending")
     sources[str(path)] = observed[:2]
     path_env = None
     jobs = 0
@@ -1699,12 +1903,12 @@ def parse_crontab(path, system_file, owner_user, users, sources, targets, dir_re
         if m:
             name, value = m.group(1), m.group(2)
             if not ENV_NAME.fullmatch(name):
-                error()
+                error("cron:invalid-environment-name")
             if name == "PATH":
                 path_env = parse_path_value(value)
             elif name == "SHELL":
                 if parse_env_value(value) != "/bin/sh":
-                    error()
+                    error("cron:unsupported-shell")
             continue
         user, command = cron_job(raw_line, system_file, owner_user, users)
         parse_shell(command, user, users, path_env, targets, dir_records)
@@ -1738,10 +1942,10 @@ def discover():
             cfg = cron_d_path / name
             rec = stable_regular(cfg, allow_symlink=False)
             if rec is None:
-                error()
+                error("cron:config-disappeared")
             st = os.stat(cfg, follow_symlinks=False)
             if st.st_uid != logical_root_uid or stat.S_IMODE(st.st_mode) & 0o022:
-                error()
+                error("cron:config-untrusted")
             jobs += parse_crontab(cfg, True, None, users, sources, targets, dir_records)
             configs += 1
 
@@ -1755,10 +1959,10 @@ def discover():
             cfg = spool_path / name
             rec = stable_regular(cfg, allow_symlink=False)
             if rec is None:
-                error()
+                error("cron:spool-disappeared")
             st = os.stat(cfg, follow_symlinks=False)
             if st.st_uid != users[name][0] or stat.S_IMODE(st.st_mode) & 0o022:
-                error()
+                error("cron:spool-untrusted")
             jobs += parse_crontab(cfg, False, name, users, sources, targets, dir_records)
             configs += 1
 
@@ -1770,31 +1974,37 @@ def discover():
 try:
     rst = os.lstat(fsroot)
 except Exception:
-    error()
-if stat.S_ISLNK(rst.st_mode) or not stat.S_ISDIR(rst.st_mode):
-    error()
+    error("root:lstat-failed")
+if stat.S_ISLNK(rst.st_mode):
+    error("root:symlink")
+if not stat.S_ISDIR(rst.st_mode):
+    error("root:invalid-type")
 
 first = discover()
 second = discover()
 if first != second:
-    error()
+    error("observation:changed-during-check")
 _, targets, _, configs, jobs, periodic, violations = first
 value = f"configs={configs};jobs={jobs};targets={len(targets)};periodic_dirs={periodic};violations={violations};ambiguous=0"
 print("VALUE\t" + value + "\t" + ("PASS" if violations == 0 else "FAIL"))
 SLP_CRON_PATHS_PY
   )
   _slp_rc=$?
-  if (( _slp_rc != 0 )) || [[ -z $_slp_obs || $_slp_obs == *$'\n'* || $_slp_obs == *$'\r'* ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION' "ERROR" "-" "ERROR"
+  if (( _slp_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION' "ERROR" "observer:execution-failed" "ERROR"
     return 0
   fi
-  if [[ $_slp_obs == ERROR ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION' "ERROR" "-" "ERROR"
+  if [[ -z $_slp_obs || $_slp_obs == *$'\n'* || $_slp_obs == *$'\r'* ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION' "ERROR" "observer:invalid-output" "ERROR"
+    return 0
+  fi
+  if [[ $_slp_obs == ERROR$'	'* ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION' "ERROR" "${_slp_obs#*$'	'}" "ERROR"
     return 0
   fi
   IFS=$'\t' read -r _slp_status _slp_value _slp_compliance _slp_extra <<< "$_slp_obs"
   if [[ $_slp_status != VALUE || -z $_slp_value || ( $_slp_compliance != PASS && $_slp_compliance != FAIL ) || -n $_slp_extra ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION' "ERROR" "observer:invalid-output" "ERROR"
     return 0
   fi
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION' "VALUE" "$_slp_value" "$_slp_compliance"
@@ -1832,8 +2042,8 @@ INTERPRETER_NAME = re.compile(
 )
 
 
-def error():
-    print("ERROR")
+def error(reason):
+    print("ERROR\t" + reason)
     raise SystemExit(0)
 
 
@@ -1841,75 +2051,83 @@ def obj_state(st):
     return (st.st_dev, st.st_ino, st.st_uid, st.st_gid, stat.S_IMODE(st.st_mode), st.st_ctime_ns, st.st_mtime_ns, st.st_size, st.st_nlink)
 
 
-def stable_regular_bytes(path):
+def stable_regular_bytes(path, domain):
     try:
         first = os.lstat(path)
     except Exception:
-        error()
+        error(domain + ":lstat-failed")
     if stat.S_ISLNK(first.st_mode) or not stat.S_ISREG(first.st_mode):
-        error()
+        error(domain + ":invalid-type")
     try:
         raw = path.read_bytes()
         second = os.lstat(path)
     except Exception:
-        error()
+        error(domain + ":read-failed")
     if obj_state(first) != obj_state(second):
-        error()
+        error(domain + ":changed-during-check")
     return obj_state(first), raw
 
 
 def parse_authority(raw):
     if not raw.endswith(b"\n") or b"\x00" in raw or b"\r" in raw:
-        error()
+        error("authority:invalid-bytes")
     try:
         text = raw.decode("utf-8", errors="strict")
     except UnicodeDecodeError:
-        error()
+        error("authority:invalid-bytes")
     lines = text.splitlines()
     if not lines or lines[0] != "SLP-SUDOERS-REVIEWED-POLICY-V1":
-        error()
+        error("authority:invalid-header")
     out = {}
     for line in lines[1:]:
         if not line or line.count("\t") != 1:
-            error()
+            error("authority:invalid-record")
         digest, path = line.split("\t", 1)
-        if HEX64.fullmatch(digest) is None or not path.startswith("/") or any(c in path for c in "\x00\r\n\t") or path in out:
-            error()
+        if HEX64.fullmatch(digest) is None or not path.startswith("/") or any(c in path for c in "\x00\r\n\t"):
+            error("authority:invalid-record")
+        if path in out:
+            error("authority:duplicate-record")
         out[path] = digest
     if not out or str(sudoers_path) not in out:
-        error()
+        error("authority:incomplete")
     return out
 
 
 def policy_snapshot():
-    authority_state, authority_raw = stable_regular_bytes(authority_path)
+    authority_state, authority_raw = stable_regular_bytes(authority_path, "authority")
     approved = parse_authority(authority_raw)
     env = {"LC_ALL": "C", "PATH": "/usr/sbin:/usr/bin:/sbin:/bin"}
     try:
         proc = subprocess.run([visudo_path, "-c", "-f", str(sudoers_path)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, check=False)
     except Exception:
-        error()
-    if proc.returncode != 0 or not proc.stdout or b"\x00" in proc.stdout or b"\r" in proc.stdout:
-        error()
+        error("visudo:execution-failed")
+    if proc.returncode != 0:
+        error("visudo:validation-failed")
+    if not proc.stdout:
+        error("visudo:invalid-output")
+    if b"\x00" in proc.stdout or b"\r" in proc.stdout:
+        error("visudo:invalid-bytes")
     try:
         text = proc.stdout.decode("utf-8", errors="strict")
     except UnicodeDecodeError:
-        error()
+        error("visudo:invalid-bytes")
     actual = {}
     states = {}
     for line in text.splitlines():
         suffix = ": parsed OK"
         if not line.endswith(suffix):
-            error()
+            error("visudo:invalid-output")
         path_text = line[:-len(suffix)]
         if not path_text.startswith("/") or any(c in path_text for c in "\x00\r\n\t") or path_text in actual:
-            error()
+            error("visudo:invalid-output")
         path = Path(path_text)
-        state, raw = stable_regular_bytes(path)
+        state, raw = stable_regular_bytes(path, "sudoers")
         actual[path_text] = hashlib.sha256(raw).hexdigest()
         states[path_text] = state
-    if not actual or str(sudoers_path) not in actual or actual != approved:
-        error()
+    if not actual or str(sudoers_path) not in actual:
+        error("visudo:invalid-output")
+    if actual != approved:
+        error("authority:policy-mismatch")
     return (authority_state, hashlib.sha256(authority_raw).hexdigest(), tuple(sorted(actual.items())), tuple(sorted(states.items())))
 
 
@@ -1921,19 +2139,23 @@ def cvt_snapshot():
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, check=False,
         )
     except Exception:
-        error()
-    if proc.returncode != 0 or proc.stderr or not proc.stdout or b"\x00" in proc.stdout:
-        error()
+        error("cvtsudoers:execution-failed")
+    if proc.returncode != 0 or proc.stderr:
+        error("cvtsudoers:execution-failed")
+    if not proc.stdout:
+        error("cvtsudoers:invalid-output")
+    if b"\x00" in proc.stdout:
+        error("cvtsudoers:invalid-bytes")
     try:
         data = json.loads(proc.stdout.decode("utf-8", errors="strict"))
     except Exception:
-        error()
+        error("cvtsudoers:invalid-output")
     if not isinstance(data, dict) or set(data) - {"Defaults", "User_Specs"}:
-        error()
+        error("cvtsudoers:invalid-output")
     defaults = data.get("Defaults", [])
     specs = data.get("User_Specs", [])
     if not isinstance(defaults, list) or not isinstance(specs, list):
-        error()
+        error("cvtsudoers:invalid-output")
     return proc.stdout, defaults, specs
 
 
@@ -1941,53 +2163,55 @@ def reject_enabled_runchroot_options(options):
     if options is None:
         return
     if not isinstance(options, list):
-        error()
+        error("sudo-policy:invalid-options")
     for obj in options:
         if not isinstance(obj, dict):
-            error()
+            error("sudo-policy:invalid-options")
         if "runchroot" in obj:
             if set(obj) != {"runchroot"}:
-                error()
+                error("sudo-policy:runchroot-mixed-option")
             value = obj["runchroot"]
             if value is False:
                 continue
-            error()
+            error("sudo-policy:runchroot-enabled")
 
 
 def validate_defaults(defaults):
     for entry in defaults:
         if not isinstance(entry, dict) or set(entry) - {"Binding", "Options"} or "Options" not in entry:
-            error()
+            error("sudo-policy:invalid-defaults")
         binding = entry.get("Binding")
         if binding is not None and (not isinstance(binding, list) or not binding):
-            error()
+            error("sudo-policy:invalid-default-binding")
         options = entry["Options"]
         reject_enabled_runchroot_options(options)
         if not isinstance(options, list):
-            error()
+            error("sudo-policy:invalid-options")
         for obj in options:
             if not isinstance(obj, dict):
-                error()
+                error("sudo-policy:invalid-options")
             # sudoers runas_default changes the effective target user whenever a
             # Cmnd_Spec omits an explicit Runas_Spec.  v1 does not evaluate
             # Defaults binding precedence, so accepting such a policy could
             # classify a non-root command as root-runnable and false-FAIL its file.
-            if "runas_default" in obj or "case_insensitive_user" in obj:
-                error()
+            if "runas_default" in obj:
+                error("sudo-policy:runas-default-unsupported")
+            if "case_insensitive_user" in obj:
+                error("sudo-policy:case-insensitive-user-unsupported")
 
 
 def one_selector(obj, allowed):
     if not isinstance(obj, dict) or set(obj) - (allowed | {"negated"}):
-        error()
+        error("sudo-policy:ambiguous-selector")
     keys = [k for k in obj if k != "negated"]
     if len(keys) != 1 or not isinstance(obj.get("negated", False), bool):
-        error()
+        error("sudo-policy:ambiguous-selector")
     return keys[0], obj[keys[0]], obj.get("negated", False)
 
 
 def ordinary_invoker_possible(user_list):
     if not isinstance(user_list, list) or not user_list:
-        error()
+        error("sudo-policy:invalid-user-list")
     ordinary = False
     allowed = {"netgroup", "nonunixgid", "nonunixgroup", "usergid", "usergroup", "userid", "username"}
     for obj in user_list:
@@ -1995,17 +2219,17 @@ def ordinary_invoker_possible(user_list):
         # Membership- and negation-dependent selectors cannot be over-approximated
         # into a VALUE/FAIL population without risking a false FAIL.
         if neg or key not in {"username", "userid"}:
-            error()
+            error("sudo-policy:unsupported-user-selector")
         if key == "username":
             if not isinstance(value, str) or not value:
-                error()
+                error("sudo-policy:invalid-user-selector")
             if value.casefold() == "root":
                 continue
             ordinary = True
             continue
         text = str(value)
         if not text.isdigit():
-            error()
+            error("sudo-policy:invalid-user-selector")
         if int(text, 10) != 0:
             ordinary = True
     return ordinary
@@ -2013,16 +2237,16 @@ def ordinary_invoker_possible(user_list):
 
 def host_scope_supported(host_list):
     if not isinstance(host_list, list) or not host_list:
-        error()
+        error("sudo-policy:invalid-host-list")
     # v1 deliberately supports only an unconditional ALL host selector.  Correct
     # sudo hostname/network/netgroup matching depends on local host/network state;
     # treating a non-ALL selector as applicable would over-check another host and
     # could return a false FAIL.  Unsupported host qualification is therefore ERROR.
     if len(host_list) != 1:
-        error()
+        error("sudo-policy:ambiguous-host-selector")
     key, value, neg = one_selector(host_list[0], {"hostname", "networkaddr", "netgroup"})
     if neg or key != "hostname" or value != "ALL":
-        error()
+        error("sudo-policy:unsupported-host-selector")
     return True
 
 
@@ -2031,7 +2255,7 @@ def root_runas_possible(spec):
         return True
     runas = spec["runasusers"]
     if not isinstance(runas, list) or not runas:
-        error()
+        error("sudo-policy:invalid-runas-list")
     allowed = {"netgroup", "nonunixgid", "nonunixgroup", "runasalias", "usergid", "usergroup", "userid", "username"}
     root_possible = False
     for obj in runas:
@@ -2039,16 +2263,16 @@ def root_runas_possible(spec):
         # Group/netgroup membership and negated runas selectors are not resolved by
         # this adapter.  Do not over-approximate them into a FAIL-able population.
         if neg or key not in {"username", "userid"}:
-            error()
+            error("sudo-policy:unsupported-runas-selector")
         if key == "username":
             if not isinstance(value, str) or not value:
-                error()
+                error("sudo-policy:invalid-runas-selector")
             if value == "ALL" or value.casefold() == "root":
                 root_possible = True
             continue
         text = str(value)
         if not text.isdigit():
-            error()
+            error("sudo-policy:invalid-runas-selector")
         if int(text, 10) == 0:
             root_possible = True
     return root_possible
@@ -2070,19 +2294,25 @@ def executable_candidate(logical):
     except FileNotFoundError:
         return False
     except Exception:
-        error()
+        error("target:stat-failed")
     return stat.S_ISREG(st.st_mode) and (stat.S_IMODE(st.st_mode) & 0o111) != 0
 
 
 def logical_target(command):
     if not isinstance(command, str) or not command or any(c in command for c in "\x00\r\n"):
-        error()
+        error("sudo-policy:invalid-command")
     if command == "sudoedit" or command.startswith("sudoedit "):
         return None
-    if command == "ALL" or command.startswith("^"):
-        error()
+    if command == "ALL":
+        error("sudo-policy:all-command")
+    if command.startswith("^"):
+        error("sudo-policy:regex-command")
     if not command.startswith("/"):
-        error()
+        error("sudo-policy:nonabsolute-command")
+    if any(c in command for c in WILDCARD_CHARS):
+        error("sudo-policy:wildcard-command")
+    if command.endswith("/"):
+        error("sudo-policy:directory-command")
 
     # cvtsudoers JSON returns command path and arguments in one string and
     # unescapes whitespace inside a pathname.  Never split at the first blank:
@@ -2097,7 +2327,7 @@ def logical_target(command):
             candidates.append(candidate)
     candidates = sorted(set(candidates), key=os.fsencode)
     if len(candidates) != 1:
-        error()
+        error("sudo-policy:ambiguous-command-path")
     return candidates[0]
 
 
@@ -2105,49 +2335,49 @@ def collect_targets(specs):
     targets = set()
     for user_spec in specs:
         if not isinstance(user_spec, dict) or set(user_spec) != {"User_List", "Host_List", "Cmnd_Specs"}:
-            error()
+            error("sudo-policy:invalid-user-spec")
         if not ordinary_invoker_possible(user_spec["User_List"]):
             continue
         host_scope_supported(user_spec["Host_List"])
         cmnd_specs = user_spec["Cmnd_Specs"]
         if not isinstance(cmnd_specs, list):
-            error()
+            error("sudo-policy:invalid-command-specs")
         for spec in cmnd_specs:
             if not isinstance(spec, dict) or "Commands" not in spec or set(spec) - {"Commands", "runasusers", "runasgroups", "Options"}:
-                error()
+                error("sudo-policy:invalid-command-spec")
             options = spec.get("Options")
             reject_enabled_runchroot_options(options)
             if options is not None:
                 if not isinstance(options, list):
-                    error()
+                    error("sudo-policy:invalid-command-options")
                 for obj in options:
                     if not isinstance(obj, dict):
-                        error()
+                        error("sudo-policy:invalid-command-options")
                     # NOTBEFORE/NOTAFTER are direct applicability predicates.
                     # v1 does not evaluate sudo generalized-time windows, so an
                     # inactive rule must never be over-checked into VALUE/FAIL.
                     if "notbefore" in obj or "notafter" in obj:
-                        error()
+                        error("sudo-policy:time-qualified-command")
             if not root_runas_possible(spec):
                 continue
             commands = spec["Commands"]
             if not isinstance(commands, list) or not commands:
-                error()
+                error("sudo-policy:invalid-command-list")
             for obj in commands:
                 if not isinstance(obj, dict) or set(obj) - ALLOWED_COMMAND_KEYS:
-                    error()
+                    error("sudo-policy:invalid-command-entry")
                 if "command" not in obj or not isinstance(obj.get("negated", False), bool):
-                    error()
+                    error("sudo-policy:invalid-command-entry")
                 if any(key in obj for key in ("sha224", "sha256", "sha384", "sha512")):
                     # A sudo command digest is an applicability predicate.  v1 does
                     # not reimplement sudo digest syntax/matching, so including the
                     # pathname regardless of digest could over-check a command that
                     # is not runnable with the current bytes.
-                    error()
+                    error("sudo-policy:digest-qualified-command")
                 if obj.get("negated", False):
                     # Correct command-list override semantics are not reimplemented
                     # here; silently dropping a negation can over-check a target.
-                    error()
+                    error("sudo-policy:negated-command")
                 target = logical_target(obj["command"])
                 if target is not None:
                     targets.add(target)
@@ -2167,19 +2397,19 @@ def stable_target(logical):
         link_second = os.lstat(path)
         target_second = os.stat(path, follow_symlinks=True)
     except Exception:
-        error()
+        error("target:snapshot-failed")
     if obj_state(link_first) != obj_state(link_second) or obj_state(target_first) != obj_state(target_second):
-        error()
+        error("target:changed-during-check")
     if not stat.S_ISREG(target_first.st_mode) or (stat.S_IMODE(target_first.st_mode) & 0o111) == 0:
-        error()
+        error("target:invalid-type")
     if fsroot != Path("/"):
         try:
             Path(resolved).relative_to(fsroot.resolve())
         except Exception:
-            error()
+            error("target:outside-root")
     canonical_base = Path(resolved).name
     if target_first.st_nlink != 1 or canonical_base in EXECUTION_FRONTENDS or INTERPRETER_NAME.fullmatch(canonical_base) is not None:
-        error()
+        error("target:unsupported-execution-chain")
     # A shebang script delegates privileged execution to another executable.
     # This v1 checker intentionally does not model recursive interpreter chains;
     # fail closed rather than returning PASS after checking only the script inode.
@@ -2189,15 +2419,17 @@ def stable_target(logical):
         fd_state = os.fstat(fd)
         prefix = os.read(fd, 2)
     except Exception:
-        error()
+        error("target:read-failed")
     finally:
         if fd is not None:
             try:
                 os.close(fd)
             except Exception:
-                error()
-    if obj_state(fd_state) != obj_state(target_first) or prefix == b"#!":
-        error()
+                error("target:close-failed")
+    if obj_state(fd_state) != obj_state(target_first):
+        error("target:changed-during-check")
+    if prefix == b"#!":
+        error("target:unsupported-execution-chain")
     return (logical, resolved, obj_state(link_first), obj_state(target_first))
 
 
@@ -2218,19 +2450,19 @@ policy_after = policy_snapshot()
 cvt_after, defaults_after, specs_after = cvt_snapshot()
 validate_defaults(defaults_after)
 if policy_after != policy_before or cvt_after != cvt_before or collect_targets(specs_after) != targets:
-    error()
+    error("observation:policy-changed")
 for logical, before in records.items():
     if stable_target(logical) != before:
-        error()
+        error("observation:target-changed")
 print(f"VALUE\tfiles={len(targets)};owner_violations={owner_bad};mode_violations={mode_bad}\t" + ("PASS" if owner_bad == 0 and mode_bad == 0 else "FAIL"))
 
 SLP_SUDO_ROOT_FILES_PY
   )
   _slp_rc=$?
-  if (( _slp_rc != 0 )); then printf 'SLP-CHECK-V1\t%s\tERROR\t-\tERROR\n' "$_slp_cid"; return 0; fi
-  if [[ "$_slp_obs" == ERROR ]]; then printf 'SLP-CHECK-V1\t%s\tERROR\t-\tERROR\n' "$_slp_cid"; return 0; fi
+  if (( _slp_rc != 0 )); then printf 'SLP-CHECK-V1\t%s\tERROR\tobserver:execution-failed\tERROR\n' "$_slp_cid"; return 0; fi
+  if [[ $_slp_obs == ERROR$'\t'* ]]; then printf 'SLP-CHECK-V1\t%s\tERROR\t%s\tERROR\n' "$_slp_cid" "${_slp_obs#*$'\t'}"; return 0; fi
   IFS=$'\t' read -r _slp_kind _slp_value _slp_compliance _slp_extra <<< "$_slp_obs"
-  if [[ "$_slp_kind" != VALUE || -z "$_slp_value" || -n "$_slp_extra" || ( "$_slp_compliance" != PASS && "$_slp_compliance" != FAIL ) ]]; then printf 'SLP-CHECK-V1\t%s\tERROR\t-\tERROR\n' "$_slp_cid"; return 0; fi
+  if [[ "$_slp_kind" != VALUE || -z "$_slp_value" || -n "$_slp_extra" || ( "$_slp_compliance" != PASS && "$_slp_compliance" != FAIL ) ]]; then printf 'SLP-CHECK-V1\t%s\tERROR\tobserver:invalid-output\tERROR\n' "$_slp_cid"; return 0; fi
   printf 'SLP-CHECK-V1\t%s\tVALUE\t%s\t%s\n' "$_slp_cid" "$_slp_value" "$_slp_compliance"
 }
 
@@ -2245,8 +2477,8 @@ systemd_analyze = sys.argv[3]
 expected_mask = int(sys.argv[4], 8)
 
 
-def emit_error():
-    print("ERROR")
+def emit_error(reason):
+    print("ERROR\t" + reason)
     raise SystemExit(0)
 
 
@@ -2263,7 +2495,7 @@ def state_stat(path):
 def dir_identity(path):
     st = os.stat(path, follow_symlinks=True)
     if not stat.S_ISDIR(st.st_mode):
-        emit_error()
+        emit_error("directory:invalid-type")
     return (st.st_dev, st.st_ino)
 
 
@@ -2276,7 +2508,7 @@ def direct_names(root):
         names.sort(key=os.fsencode)
         return tuple(names)
     except Exception:
-        emit_error()
+        emit_error("directory:scan-failed")
 
 
 def direct_service_names(root):
@@ -2287,65 +2519,71 @@ def resolve_candidate(path, service_role):
     try:
         first_l = state_lstat(path)
     except Exception:
-        emit_error()
+        emit_error("target:lstat-failed")
     mode_type = first_l[4]
     if stat.S_ISDIR(mode_type):
         if service_role:
-            emit_error()
+            emit_error("target:invalid-type")
         return ("directory", None, first_l, None)
     if stat.S_ISLNK(mode_type):
         try:
             target = os.path.realpath(path)
         except Exception:
-            emit_error()
+            emit_error("target:resolve-failed")
         if service_role and os.path.normpath(target) == "/dev/null":
             try:
                 if state_lstat(path) != first_l:
-                    emit_error()
+                    emit_error("target:changed-during-check")
             except Exception:
-                emit_error()
+                emit_error("target:lstat-failed")
             resolution_snapshots[path] = target
             return ("masked", None, first_l, None)
         try:
             target_state = state_stat(target)
         except Exception:
-            emit_error()
+            emit_error("target:stat-failed")
         if not stat.S_ISREG(target_state[4]):
-            emit_error()
+            emit_error("target:invalid-type")
         resolution_snapshots[path] = target
         return ("regular", target, first_l, target_state)
     if stat.S_ISREG(mode_type):
         try:
             target_state = state_stat(path)
         except Exception:
-            emit_error()
+            emit_error("target:stat-failed")
         return ("regular", path, first_l, target_state)
-    emit_error()
+    emit_error("target:invalid-type")
 
 
 def read_unit_paths():
     if unit_paths_override is not None:
         if not isinstance(unit_paths_override, list) or any(not isinstance(x, str) for x in unit_paths_override):
-            emit_error()
+            emit_error("systemd:invalid-unit-paths")
         return tuple(unit_paths_override), None
     env = {"LC_ALL": "C", "PATH": "/usr/sbin:/usr/bin:/sbin:/bin"}
     try:
         proc = subprocess.run([systemd_analyze, "unit-paths"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, check=False)
     except Exception:
-        emit_error()
-    if proc.returncode != 0 or proc.stderr or not proc.stdout or b"\x00" in proc.stdout or b"\r" in proc.stdout:
-        emit_error()
+        emit_error("systemd:execution-failed")
+    if proc.returncode != 0:
+        emit_error("systemd:execution-failed")
+    if proc.stderr:
+        emit_error("systemd:stderr-output")
+    if not proc.stdout:
+        emit_error("systemd:empty-output")
+    if b"\x00" in proc.stdout or b"\r" in proc.stdout:
+        emit_error("systemd:invalid-bytes")
     try:
         text = proc.stdout.decode("utf-8", errors="strict")
     except UnicodeDecodeError:
-        emit_error()
+        emit_error("systemd:invalid-utf8")
     paths = []
     for line in text.splitlines():
         if not line.startswith("/") or "\x00" in line or "\r" in line or "\n" in line:
-            emit_error()
+            emit_error("systemd:invalid-path")
         paths.append(line)
     if not paths:
-        emit_error()
+        emit_error("systemd:empty-population")
     return tuple(paths), proc.stdout
 
 
@@ -2378,7 +2616,7 @@ def remember_root_state(logical, resolved):
     try:
         root_snapshots[logical] = (os.path.lexists(logical), state_lstat(logical) if os.path.lexists(logical) else None, resolved, state_stat(resolved))
     except Exception:
-        emit_error()
+        emit_error("root:snapshot-failed")
 
 
 def remember_population(resolved, names, service_only):
@@ -2405,7 +2643,7 @@ def check_target(path, entry_path, entry_state, target_state, role):
 # /etc/rc0.d ... /etc/rc6.d: direct file-like entries only; rcS.d is intentionally not in this population.
 for logical in rc_roots:
     if not isinstance(logical, str) or not logical.startswith("/"):
-        emit_error()
+        emit_error("root:invalid-path")
     exists = os.path.lexists(logical)
     if not exists:
         rc_roots_absent += 1
@@ -2415,14 +2653,14 @@ for logical in rc_roots:
         resolved = os.path.realpath(logical)
         ident = dir_identity(resolved)
     except Exception:
-        emit_error()
+        emit_error("root:resolve-failed")
     rc_roots_present += 1
     names = direct_names(resolved)
     remember_root_state(logical, resolved)
     remember_population(resolved, names, False)
     # rc roots are fixed distinct runlevel directories; aliasing two roots would make the source population ambiguous.
     if ident in seen_root_ids:
-        emit_error()
+        emit_error("root:ambiguous-alias")
     seen_root_ids.add(ident)
     for name in names:
         path = os.path.join(resolved, name)
@@ -2436,7 +2674,7 @@ for logical in rc_roots:
 # systemd unit load paths: scan only direct *.service entries. Dependency directories are references, not extra unit-file population.
 for logical in unit_paths:
     if not isinstance(logical, str) or not logical.startswith("/"):
-        emit_error()
+        emit_error("systemd:invalid-path")
     if not os.path.lexists(logical):
         service_roots_absent += 1
         root_snapshots.setdefault(logical, (False, None, None, None))
@@ -2445,7 +2683,7 @@ for logical in unit_paths:
         resolved = os.path.realpath(logical)
         ident = dir_identity(resolved)
     except Exception:
-        emit_error()
+        emit_error("root:resolve-failed")
     service_roots_present += 1
     remember_root_state(logical, resolved)
     if ident in seen_root_ids:
@@ -2470,44 +2708,44 @@ for logical in unit_paths:
 if unit_paths_override is None:
     final_paths, final_raw = read_unit_paths()
     if final_paths != initial_unit_paths or final_raw != unit_paths_raw:
-        emit_error()
+        emit_error("observation:unit-paths-changed")
 
 for logical, snap in root_snapshots.items():
     was_present, logical_state, resolved, resolved_state = snap
     if not was_present:
         if os.path.lexists(logical):
-            emit_error()
+            emit_error("observation:root-changed")
         continue
     try:
         if not os.path.lexists(logical) or state_lstat(logical) != logical_state or os.path.realpath(logical) != resolved or state_stat(resolved) != resolved_state:
-            emit_error()
+            emit_error("observation:root-changed")
     except Exception:
-        emit_error()
+        emit_error("observation:root-unreadable")
 
 for resolved, snap in pop_snapshots.items():
     names, service_only = snap
     current = direct_service_names(resolved) if service_only else direct_names(resolved)
     if current != names:
-        emit_error()
+        emit_error("observation:population-changed")
 
 for path, snap in entry_snapshots.items():
     try:
         if state_lstat(path) != snap:
-            emit_error()
+            emit_error("observation:entry-changed")
     except Exception:
-        emit_error()
+        emit_error("observation:entry-unreadable")
 for path, resolved in resolution_snapshots.items():
     try:
         if os.path.realpath(path) != resolved:
-            emit_error()
+            emit_error("observation:resolution-changed")
     except Exception:
-        emit_error()
+        emit_error("observation:resolution-failed")
 for path, snap in target_snapshots.items():
     try:
         if state_stat(path) != snap:
-            emit_error()
+            emit_error("observation:target-changed")
     except Exception:
-        emit_error()
+        emit_error("observation:target-unreadable")
 
 value = (
     f"rc_roots_present={rc_roots_present};rc_roots_absent={rc_roots_absent};rc_entries={rc_entries};"
@@ -2519,14 +2757,14 @@ value = (
 print("VALUE\t" + value + "\t" + ("PASS" if violations == 0 else "FAIL"))
 
 SLP_STARTUP_FILES_PY
-  ) || { printf "%s\t%s\tERROR\t-\tERROR\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION'; return 0; }
-  if [[ $_slp_obs == ERROR ]]; then
-    printf "%s\t%s\tERROR\t-\tERROR\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION'
+  ) || { printf "%s\t%s\tERROR\tobserver:execution-failed\tERROR\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION'; return 0; }
+  if [[ $_slp_obs == ERROR$'	'* ]]; then
+    printf "%s\t%s\tERROR\t%s\tERROR\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION' "${_slp_obs#*$'\t'}"
     return 0
   fi
   IFS=$'\t' read -r _slp_status _slp_value _slp_compliance _slp_extra <<<"$_slp_obs"
   if [[ $_slp_status != VALUE || -n $_slp_extra || -z $_slp_value || ( $_slp_compliance != PASS && $_slp_compliance != FAIL ) ]]; then
-    printf "%s\t%s\tERROR\t-\tERROR\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION'
+    printf "%s\t%s\tERROR\tobserver:invalid-output\tERROR\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION'
     return 0
   fi
   printf "%s\t%s\tVALUE\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION' "$_slp_value" "$_slp_compliance"
@@ -2540,25 +2778,37 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_D() {
   local _slp_checked=0 _slp_violations=0 _slp_i
   local -a _slp_entries=()
   if [[ -L "$_slp_path" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "root:symlink" "ERROR"
     return 0
   fi
   if [[ ! -e "$_slp_path" ]]; then
     _slp_parent=${_slp_path%/*}
     [[ -n $_slp_parent ]] || _slp_parent=/
-    if [[ -d "$_slp_parent" && -x "$_slp_parent" && ! -L "$_slp_path" && ! -e "$_slp_path" ]]; then
+    if [[ ! -e "$_slp_parent" && ! -L "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "root:parent-not-found" "ERROR"
+      return 0
+    fi
+    if [[ ! -d "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "root:parent-invalid-type" "ERROR"
+      return 0
+    fi
+    if [[ ! -x "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "root:parent-unsearchable" "ERROR"
+      return 0
+    fi
+    if [[ ! -L "$_slp_path" && ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "VALUE" "<absent>" "PASS"
     else
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "root:state-changed" "ERROR"
     fi
     return 0
   fi
   if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_path" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "root:mode-read-failed" "ERROR"
     return 0
   fi
   if [[ ! $_slp_mode =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "root:invalid-mode" "ERROR"
     return 0
   fi
   ((_slp_checked+=1))
@@ -2568,7 +2818,7 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_D() {
     return 0
   fi
   if [[ ! -d "$_slp_path" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "root:invalid-type" "ERROR"
     return 0
   fi
   mapfile -d '' -t _slp_entries < <(
@@ -2577,33 +2827,41 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_D() {
     printf "__SLP_SCAN_RC=%s\0" "$_slp_scan_marker"
   )
   if (( ${#_slp_entries[@]} == 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "scan:missing-marker" "ERROR"
     return 0
   fi
   _slp_i=$((${#_slp_entries[@]}-1))
   _slp_scan_marker=${_slp_entries[$_slp_i]}
   unset '_slp_entries[$_slp_i]'
   if [[ ! $_slp_scan_marker =~ ^__SLP_SCAN_RC=([0-9]+),([0-9]+)$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "scan:invalid-marker" "ERROR"
     return 0
   fi
   _slp_find_rc=${BASH_REMATCH[1]}
   _slp_sort_rc=${BASH_REMATCH[2]}
-  if (( _slp_find_rc != 0 || _slp_sort_rc != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "-" "ERROR"
+  if (( _slp_find_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "scan:find-failed" "ERROR"
+    return 0
+  fi
+  if (( _slp_sort_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "scan:sort-failed" "ERROR"
     return 0
   fi
   for _slp_entry in "${_slp_entries[@]}"; do
-    if [[ -L "$_slp_entry" || -d "$_slp_entry" || ! -f "$_slp_entry" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "-" "ERROR"
+    if [[ -L "$_slp_entry" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "target:symlink" "ERROR"
+      return 0
+    fi
+    if [[ -d "$_slp_entry" || ! -f "$_slp_entry" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "target:invalid-type" "ERROR"
       return 0
     fi
     if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "target:mode-read-failed" "ERROR"
       return 0
     fi
     if [[ ! $_slp_mode =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-D' "ERROR" "target:invalid-mode" "ERROR"
       return 0
     fi
     ((_slp_checked+=1))
@@ -2620,25 +2878,37 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_DAILY() {
   local _slp_checked=0 _slp_violations=0 _slp_i
   local -a _slp_entries=()
   if [[ -L "$_slp_path" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "root:symlink" "ERROR"
     return 0
   fi
   if [[ ! -e "$_slp_path" ]]; then
     _slp_parent=${_slp_path%/*}
     [[ -n $_slp_parent ]] || _slp_parent=/
-    if [[ -d "$_slp_parent" && -x "$_slp_parent" && ! -L "$_slp_path" && ! -e "$_slp_path" ]]; then
+    if [[ ! -e "$_slp_parent" && ! -L "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "root:parent-not-found" "ERROR"
+      return 0
+    fi
+    if [[ ! -d "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "root:parent-invalid-type" "ERROR"
+      return 0
+    fi
+    if [[ ! -x "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "root:parent-unsearchable" "ERROR"
+      return 0
+    fi
+    if [[ ! -L "$_slp_path" && ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "VALUE" "<absent>" "PASS"
     else
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "root:state-changed" "ERROR"
     fi
     return 0
   fi
   if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_path" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "root:mode-read-failed" "ERROR"
     return 0
   fi
   if [[ ! $_slp_mode =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "root:invalid-mode" "ERROR"
     return 0
   fi
   ((_slp_checked+=1))
@@ -2648,7 +2918,7 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_DAILY() {
     return 0
   fi
   if [[ ! -d "$_slp_path" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "root:invalid-type" "ERROR"
     return 0
   fi
   mapfile -d '' -t _slp_entries < <(
@@ -2657,33 +2927,41 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_DAILY() {
     printf "__SLP_SCAN_RC=%s\0" "$_slp_scan_marker"
   )
   if (( ${#_slp_entries[@]} == 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "scan:missing-marker" "ERROR"
     return 0
   fi
   _slp_i=$((${#_slp_entries[@]}-1))
   _slp_scan_marker=${_slp_entries[$_slp_i]}
   unset '_slp_entries[$_slp_i]'
   if [[ ! $_slp_scan_marker =~ ^__SLP_SCAN_RC=([0-9]+),([0-9]+)$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "scan:invalid-marker" "ERROR"
     return 0
   fi
   _slp_find_rc=${BASH_REMATCH[1]}
   _slp_sort_rc=${BASH_REMATCH[2]}
-  if (( _slp_find_rc != 0 || _slp_sort_rc != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "-" "ERROR"
+  if (( _slp_find_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "scan:find-failed" "ERROR"
+    return 0
+  fi
+  if (( _slp_sort_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "scan:sort-failed" "ERROR"
     return 0
   fi
   for _slp_entry in "${_slp_entries[@]}"; do
-    if [[ -L "$_slp_entry" || -d "$_slp_entry" || ! -f "$_slp_entry" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "-" "ERROR"
+    if [[ -L "$_slp_entry" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "target:symlink" "ERROR"
+      return 0
+    fi
+    if [[ -d "$_slp_entry" || ! -f "$_slp_entry" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "target:invalid-type" "ERROR"
       return 0
     fi
     if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "target:mode-read-failed" "ERROR"
       return 0
     fi
     if [[ ! $_slp_mode =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-DAILY' "ERROR" "target:invalid-mode" "ERROR"
       return 0
     fi
     ((_slp_checked+=1))
@@ -2700,25 +2978,37 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_HOURLY() {
   local _slp_checked=0 _slp_violations=0 _slp_i
   local -a _slp_entries=()
   if [[ -L "$_slp_path" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "root:symlink" "ERROR"
     return 0
   fi
   if [[ ! -e "$_slp_path" ]]; then
     _slp_parent=${_slp_path%/*}
     [[ -n $_slp_parent ]] || _slp_parent=/
-    if [[ -d "$_slp_parent" && -x "$_slp_parent" && ! -L "$_slp_path" && ! -e "$_slp_path" ]]; then
+    if [[ ! -e "$_slp_parent" && ! -L "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "root:parent-not-found" "ERROR"
+      return 0
+    fi
+    if [[ ! -d "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "root:parent-invalid-type" "ERROR"
+      return 0
+    fi
+    if [[ ! -x "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "root:parent-unsearchable" "ERROR"
+      return 0
+    fi
+    if [[ ! -L "$_slp_path" && ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "VALUE" "<absent>" "PASS"
     else
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "root:state-changed" "ERROR"
     fi
     return 0
   fi
   if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_path" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "root:mode-read-failed" "ERROR"
     return 0
   fi
   if [[ ! $_slp_mode =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "root:invalid-mode" "ERROR"
     return 0
   fi
   ((_slp_checked+=1))
@@ -2728,7 +3018,7 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_HOURLY() {
     return 0
   fi
   if [[ ! -d "$_slp_path" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "root:invalid-type" "ERROR"
     return 0
   fi
   mapfile -d '' -t _slp_entries < <(
@@ -2737,33 +3027,41 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_HOURLY() {
     printf "__SLP_SCAN_RC=%s\0" "$_slp_scan_marker"
   )
   if (( ${#_slp_entries[@]} == 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "scan:missing-marker" "ERROR"
     return 0
   fi
   _slp_i=$((${#_slp_entries[@]}-1))
   _slp_scan_marker=${_slp_entries[$_slp_i]}
   unset '_slp_entries[$_slp_i]'
   if [[ ! $_slp_scan_marker =~ ^__SLP_SCAN_RC=([0-9]+),([0-9]+)$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "scan:invalid-marker" "ERROR"
     return 0
   fi
   _slp_find_rc=${BASH_REMATCH[1]}
   _slp_sort_rc=${BASH_REMATCH[2]}
-  if (( _slp_find_rc != 0 || _slp_sort_rc != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "-" "ERROR"
+  if (( _slp_find_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "scan:find-failed" "ERROR"
+    return 0
+  fi
+  if (( _slp_sort_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "scan:sort-failed" "ERROR"
     return 0
   fi
   for _slp_entry in "${_slp_entries[@]}"; do
-    if [[ -L "$_slp_entry" || -d "$_slp_entry" || ! -f "$_slp_entry" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "-" "ERROR"
+    if [[ -L "$_slp_entry" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "target:symlink" "ERROR"
+      return 0
+    fi
+    if [[ -d "$_slp_entry" || ! -f "$_slp_entry" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "target:invalid-type" "ERROR"
       return 0
     fi
     if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "target:mode-read-failed" "ERROR"
       return 0
     fi
     if [[ ! $_slp_mode =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY' "ERROR" "target:invalid-mode" "ERROR"
       return 0
     fi
     ((_slp_checked+=1))
@@ -2780,25 +3078,37 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_MONTHLY() {
   local _slp_checked=0 _slp_violations=0 _slp_i
   local -a _slp_entries=()
   if [[ -L "$_slp_path" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "root:symlink" "ERROR"
     return 0
   fi
   if [[ ! -e "$_slp_path" ]]; then
     _slp_parent=${_slp_path%/*}
     [[ -n $_slp_parent ]] || _slp_parent=/
-    if [[ -d "$_slp_parent" && -x "$_slp_parent" && ! -L "$_slp_path" && ! -e "$_slp_path" ]]; then
+    if [[ ! -e "$_slp_parent" && ! -L "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "root:parent-not-found" "ERROR"
+      return 0
+    fi
+    if [[ ! -d "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "root:parent-invalid-type" "ERROR"
+      return 0
+    fi
+    if [[ ! -x "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "root:parent-unsearchable" "ERROR"
+      return 0
+    fi
+    if [[ ! -L "$_slp_path" && ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "VALUE" "<absent>" "PASS"
     else
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "root:state-changed" "ERROR"
     fi
     return 0
   fi
   if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_path" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "root:mode-read-failed" "ERROR"
     return 0
   fi
   if [[ ! $_slp_mode =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "root:invalid-mode" "ERROR"
     return 0
   fi
   ((_slp_checked+=1))
@@ -2808,7 +3118,7 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_MONTHLY() {
     return 0
   fi
   if [[ ! -d "$_slp_path" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "root:invalid-type" "ERROR"
     return 0
   fi
   mapfile -d '' -t _slp_entries < <(
@@ -2817,33 +3127,41 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_MONTHLY() {
     printf "__SLP_SCAN_RC=%s\0" "$_slp_scan_marker"
   )
   if (( ${#_slp_entries[@]} == 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "scan:missing-marker" "ERROR"
     return 0
   fi
   _slp_i=$((${#_slp_entries[@]}-1))
   _slp_scan_marker=${_slp_entries[$_slp_i]}
   unset '_slp_entries[$_slp_i]'
   if [[ ! $_slp_scan_marker =~ ^__SLP_SCAN_RC=([0-9]+),([0-9]+)$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "scan:invalid-marker" "ERROR"
     return 0
   fi
   _slp_find_rc=${BASH_REMATCH[1]}
   _slp_sort_rc=${BASH_REMATCH[2]}
-  if (( _slp_find_rc != 0 || _slp_sort_rc != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "-" "ERROR"
+  if (( _slp_find_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "scan:find-failed" "ERROR"
+    return 0
+  fi
+  if (( _slp_sort_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "scan:sort-failed" "ERROR"
     return 0
   fi
   for _slp_entry in "${_slp_entries[@]}"; do
-    if [[ -L "$_slp_entry" || -d "$_slp_entry" || ! -f "$_slp_entry" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "-" "ERROR"
+    if [[ -L "$_slp_entry" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "target:symlink" "ERROR"
+      return 0
+    fi
+    if [[ -d "$_slp_entry" || ! -f "$_slp_entry" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "target:invalid-type" "ERROR"
       return 0
     fi
     if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "target:mode-read-failed" "ERROR"
       return 0
     fi
     if [[ ! $_slp_mode =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY' "ERROR" "target:invalid-mode" "ERROR"
       return 0
     fi
     ((_slp_checked+=1))
@@ -2860,25 +3178,37 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_WEEKLY() {
   local _slp_checked=0 _slp_violations=0 _slp_i
   local -a _slp_entries=()
   if [[ -L "$_slp_path" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "root:symlink" "ERROR"
     return 0
   fi
   if [[ ! -e "$_slp_path" ]]; then
     _slp_parent=${_slp_path%/*}
     [[ -n $_slp_parent ]] || _slp_parent=/
-    if [[ -d "$_slp_parent" && -x "$_slp_parent" && ! -L "$_slp_path" && ! -e "$_slp_path" ]]; then
+    if [[ ! -e "$_slp_parent" && ! -L "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "root:parent-not-found" "ERROR"
+      return 0
+    fi
+    if [[ ! -d "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "root:parent-invalid-type" "ERROR"
+      return 0
+    fi
+    if [[ ! -x "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "root:parent-unsearchable" "ERROR"
+      return 0
+    fi
+    if [[ ! -L "$_slp_path" && ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "VALUE" "<absent>" "PASS"
     else
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "root:state-changed" "ERROR"
     fi
     return 0
   fi
   if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_path" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "root:mode-read-failed" "ERROR"
     return 0
   fi
   if [[ ! $_slp_mode =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "root:invalid-mode" "ERROR"
     return 0
   fi
   ((_slp_checked+=1))
@@ -2888,7 +3218,7 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_WEEKLY() {
     return 0
   fi
   if [[ ! -d "$_slp_path" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "root:invalid-type" "ERROR"
     return 0
   fi
   mapfile -d '' -t _slp_entries < <(
@@ -2897,33 +3227,41 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRON_WEEKLY() {
     printf "__SLP_SCAN_RC=%s\0" "$_slp_scan_marker"
   )
   if (( ${#_slp_entries[@]} == 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "scan:missing-marker" "ERROR"
     return 0
   fi
   _slp_i=$((${#_slp_entries[@]}-1))
   _slp_scan_marker=${_slp_entries[$_slp_i]}
   unset '_slp_entries[$_slp_i]'
   if [[ ! $_slp_scan_marker =~ ^__SLP_SCAN_RC=([0-9]+),([0-9]+)$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "scan:invalid-marker" "ERROR"
     return 0
   fi
   _slp_find_rc=${BASH_REMATCH[1]}
   _slp_sort_rc=${BASH_REMATCH[2]}
-  if (( _slp_find_rc != 0 || _slp_sort_rc != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "-" "ERROR"
+  if (( _slp_find_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "scan:find-failed" "ERROR"
+    return 0
+  fi
+  if (( _slp_sort_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "scan:sort-failed" "ERROR"
     return 0
   fi
   for _slp_entry in "${_slp_entries[@]}"; do
-    if [[ -L "$_slp_entry" || -d "$_slp_entry" || ! -f "$_slp_entry" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "-" "ERROR"
+    if [[ -L "$_slp_entry" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "target:symlink" "ERROR"
+      return 0
+    fi
+    if [[ -d "$_slp_entry" || ! -f "$_slp_entry" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "target:invalid-type" "ERROR"
       return 0
     fi
     if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "target:mode-read-failed" "ERROR"
       return 0
     fi
     if [[ ! $_slp_mode =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY' "ERROR" "target:invalid-mode" "ERROR"
       return 0
     fi
     ((_slp_checked+=1))
@@ -2940,25 +3278,37 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRONTAB() {
   local _slp_checked=0 _slp_violations=0 _slp_i
   local -a _slp_entries=()
   if [[ -L "$_slp_path" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "root:symlink" "ERROR"
     return 0
   fi
   if [[ ! -e "$_slp_path" ]]; then
     _slp_parent=${_slp_path%/*}
     [[ -n $_slp_parent ]] || _slp_parent=/
-    if [[ -d "$_slp_parent" && -x "$_slp_parent" && ! -L "$_slp_path" && ! -e "$_slp_path" ]]; then
+    if [[ ! -e "$_slp_parent" && ! -L "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "root:parent-not-found" "ERROR"
+      return 0
+    fi
+    if [[ ! -d "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "root:parent-invalid-type" "ERROR"
+      return 0
+    fi
+    if [[ ! -x "$_slp_parent" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "root:parent-unsearchable" "ERROR"
+      return 0
+    fi
+    if [[ ! -L "$_slp_path" && ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "VALUE" "<absent>" "PASS"
     else
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "root:state-changed" "ERROR"
     fi
     return 0
   fi
   if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_path" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "root:mode-read-failed" "ERROR"
     return 0
   fi
   if [[ ! $_slp_mode =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "root:invalid-mode" "ERROR"
     return 0
   fi
   ((_slp_checked+=1))
@@ -2968,7 +3318,7 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRONTAB() {
     return 0
   fi
   if [[ ! -d "$_slp_path" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "root:invalid-type" "ERROR"
     return 0
   fi
   mapfile -d '' -t _slp_entries < <(
@@ -2977,33 +3327,41 @@ slp_check_FSTEC_LINUX_2022_2_3_6_CRONTAB() {
     printf "__SLP_SCAN_RC=%s\0" "$_slp_scan_marker"
   )
   if (( ${#_slp_entries[@]} == 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "scan:missing-marker" "ERROR"
     return 0
   fi
   _slp_i=$((${#_slp_entries[@]}-1))
   _slp_scan_marker=${_slp_entries[$_slp_i]}
   unset '_slp_entries[$_slp_i]'
   if [[ ! $_slp_scan_marker =~ ^__SLP_SCAN_RC=([0-9]+),([0-9]+)$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "scan:invalid-marker" "ERROR"
     return 0
   fi
   _slp_find_rc=${BASH_REMATCH[1]}
   _slp_sort_rc=${BASH_REMATCH[2]}
-  if (( _slp_find_rc != 0 || _slp_sort_rc != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "-" "ERROR"
+  if (( _slp_find_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "scan:find-failed" "ERROR"
+    return 0
+  fi
+  if (( _slp_sort_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "scan:sort-failed" "ERROR"
     return 0
   fi
   for _slp_entry in "${_slp_entries[@]}"; do
-    if [[ -L "$_slp_entry" || -d "$_slp_entry" || ! -f "$_slp_entry" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "-" "ERROR"
+    if [[ -L "$_slp_entry" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "target:symlink" "ERROR"
+      return 0
+    fi
+    if [[ -d "$_slp_entry" || ! -f "$_slp_entry" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "target:invalid-type" "ERROR"
       return 0
     fi
     if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "target:mode-read-failed" "ERROR"
       return 0
     fi
     if [[ ! $_slp_mode =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.6-CRONTAB' "ERROR" "target:invalid-mode" "ERROR"
       return 0
     fi
     ((_slp_checked+=1))
@@ -3021,7 +3379,7 @@ slp_check_FSTEC_LINUX_2022_2_3_7_USER_CRON_FILES_MODE() {
   local -A _slp_seen=()
   for _slp_root in "${_slp_roots[@]}"; do
     if [[ -L "$_slp_root" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "cron-root:symlink" "ERROR"
       return 0
     fi
     if [[ ! -e "$_slp_root" ]]; then
@@ -3030,15 +3388,23 @@ slp_check_FSTEC_LINUX_2022_2_3_7_USER_CRON_FILES_MODE() {
         _slp_probe=${_slp_probe%/*}
         [[ -n $_slp_probe ]] || _slp_probe=/
       done
-      if [[ -L "$_slp_probe" || ! -d "$_slp_probe" || ! -x "$_slp_probe" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "-" "ERROR"
+      if [[ -L "$_slp_probe" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "cron-root:ancestor-symlink" "ERROR"
+        return 0
+      fi
+      if [[ ! -d "$_slp_probe" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "cron-root:ancestor-invalid-type" "ERROR"
+        return 0
+      fi
+      if [[ ! -x "$_slp_probe" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "cron-root:ancestor-unsearchable" "ERROR"
         return 0
       fi
       ((_slp_roots_absent+=1))
       continue
     fi
     if [[ ! -d "$_slp_root" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "cron-root:invalid-type" "ERROR"
       return 0
     fi
     ((_slp_roots_present+=1))
@@ -3049,40 +3415,44 @@ slp_check_FSTEC_LINUX_2022_2_3_7_USER_CRON_FILES_MODE() {
       printf "__SLP_SCAN_RC=%s\0" "$_slp_scan_marker"
     )
     if (( ${#_slp_entries[@]} == 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "scan:missing-marker" "ERROR"
       return 0
     fi
     _slp_i=$((${#_slp_entries[@]}-1))
     _slp_scan_marker=${_slp_entries[$_slp_i]}
     unset '_slp_entries[$_slp_i]'
     if [[ ! $_slp_scan_marker =~ ^__SLP_SCAN_RC=([0-9]+),([0-9]+)$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "scan:invalid-marker" "ERROR"
       return 0
     fi
     _slp_find_rc=${BASH_REMATCH[1]}
     _slp_sort_rc=${BASH_REMATCH[2]}
-    if (( _slp_find_rc != 0 || _slp_sort_rc != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "-" "ERROR"
+    if (( _slp_find_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "scan:find-failed" "ERROR"
+      return 0
+    fi
+    if (( _slp_sort_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "scan:sort-failed" "ERROR"
       return 0
     fi
     for _slp_entry in "${_slp_entries[@]}"; do
       if [[ ${_slp_seen["$_slp_entry"]+x} ]]; then continue; fi
       _slp_seen["$_slp_entry"]=1
       if [[ -L "$_slp_entry" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "cron-file:symlink" "ERROR"
         return 0
       fi
       if [[ -d "$_slp_entry" ]]; then continue; fi
       if [[ ! -f "$_slp_entry" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "cron-file:invalid-type" "ERROR"
         return 0
       fi
       if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -c %a -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "cron-file:mode-read-failed" "ERROR"
         return 0
       fi
       if [[ ! $_slp_mode =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE' "ERROR" "cron-file:invalid-mode" "ERROR"
         return 0
       fi
       ((_slp_checked+=1))
@@ -3104,26 +3474,26 @@ slp_check_FSTEC_LINUX_2022_2_3_8_STANDARD_SYSTEM_PATHS_MODE() {
   local _slp_module_root='/lib/modules/<uname-r>'
   local -A _slp_seen_roots=() _slp_seen_targets=()
   if (( EUID != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "runtime:requires-root" "ERROR"
     return 0
   fi
   _slp_path_env=${PATH-}
   if [[ -z "$_slp_path_env" || "$_slp_path_env" == *$'\r'* || "$_slp_path_env" == *$'\n'* || "$_slp_path_env" == *$'\t'* ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "path:invalid-environment" "ERROR"
     return 0
   fi
   IFS=: read -r -a _slp_path_roots <<< "$_slp_path_env"
-  (( ${#_slp_path_roots[@]} > 0 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"; return 0; }
+  (( ${#_slp_path_roots[@]} > 0 )) || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "path:empty-environment" "ERROR"; return 0; }
   for _slp_path_part in "${_slp_path_roots[@]}"; do
-    [[ "$_slp_path_part" == /* ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"; return 0; }
+    [[ "$_slp_path_part" == /* ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "path:nonabsolute-entry" "ERROR"; return 0; }
     _slp_exec_roots+=("$_slp_path_part")
   done
   if ! _slp_uname_r=$(command /usr/bin/uname -r 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "kernel:release-query-failed" "ERROR"
     return 0
   fi
   if [[ -z $_slp_uname_r || $_slp_uname_r == *$'\n'* || $_slp_uname_r == *$'\r'* ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "kernel:invalid-release" "ERROR"
     return 0
   fi
   _slp_module_root=${_slp_module_root/<uname-r>/$_slp_uname_r}
@@ -3140,15 +3510,19 @@ slp_check_FSTEC_LINUX_2022_2_3_8_STANDARD_SYSTEM_PATHS_MODE() {
         continue
       fi
       if ! _slp_resolved=$(command /usr/bin/readlink -f -- "$_slp_root" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "root:resolve-failed" "ERROR"
         return 0
       fi
-      if [[ -z $_slp_resolved || ! -d "$_slp_resolved" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+      if [[ -z $_slp_resolved ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "root:resolve-empty" "ERROR"
+        return 0
+      fi
+      if [[ ! -d "$_slp_resolved" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "root:invalid-type" "ERROR"
         return 0
       fi
       if ! _slp_root_id=$(LC_ALL=C command /usr/bin/stat -Lc "%d:%i" -- "$_slp_resolved" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "root:identity-failed" "ERROR"
         return 0
       fi
       ((_slp_roots_present+=1))
@@ -3164,20 +3538,24 @@ slp_check_FSTEC_LINUX_2022_2_3_8_STANDARD_SYSTEM_PATHS_MODE() {
         printf "__SLP_SCAN_RC=%s\0" "$_slp_scan_marker"
       )
       if (( ${#_slp_entries[@]} == 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "scan:missing-marker" "ERROR"
         return 0
       fi
       _slp_i=$((${#_slp_entries[@]}-1))
       _slp_scan_marker=${_slp_entries[$_slp_i]}
       unset '_slp_entries[$_slp_i]'
       if [[ ! $_slp_scan_marker =~ ^__SLP_SCAN_RC=([0-9]+),([0-9]+)$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "scan:invalid-marker" "ERROR"
         return 0
       fi
       _slp_find_rc=${BASH_REMATCH[1]}
       _slp_sort_rc=${BASH_REMATCH[2]}
-      if (( _slp_find_rc != 0 || _slp_sort_rc != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+      if (( _slp_find_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "scan:find-failed" "ERROR"
+        return 0
+      fi
+      if (( _slp_sort_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "scan:sort-failed" "ERROR"
         return 0
       fi
       for _slp_entry in "${_slp_entries[@]}"; do
@@ -3192,29 +3570,37 @@ slp_check_FSTEC_LINUX_2022_2_3_8_STANDARD_SYSTEM_PATHS_MODE() {
         (( _slp_candidate == 1 )) || continue
         if [[ -L "$_slp_entry" ]]; then
           if ! _slp_target=$(command /usr/bin/readlink -f -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "target:resolve-failed" "ERROR"
             return 0
           fi
-          if [[ -z $_slp_target || ! -f "$_slp_target" || -L "$_slp_target" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+          if [[ -z $_slp_target ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "target:resolve-empty" "ERROR"
+            return 0
+          fi
+          if [[ -L "$_slp_target" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "target:resolved-symlink" "ERROR"
+            return 0
+          fi
+          if [[ ! -f "$_slp_target" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "target:invalid-type" "ERROR"
             return 0
           fi
         elif [[ -f "$_slp_entry" ]]; then
           _slp_target=$_slp_entry
         else
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "target:invalid-type" "ERROR"
           return 0
         fi
         if ! _slp_ident=$(LC_ALL=C command /usr/bin/stat -Lc "%d:%i" -- "$_slp_target" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "target:identity-failed" "ERROR"
           return 0
         fi
         if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -Lc %a -- "$_slp_target" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "target:mode-read-failed" "ERROR"
           return 0
         fi
         if [[ ! $_slp_mode =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "target:invalid-mode" "ERROR"
           return 0
         fi
         if [[ "$_slp_role" == exec ]] && (( (8#$_slp_mode & 8#0111) == 0 )); then continue; fi
@@ -3230,8 +3616,16 @@ slp_check_FSTEC_LINUX_2022_2_3_8_STANDARD_SYSTEM_PATHS_MODE() {
       done
     done
   done
-  if (( _slp_exec == 0 || _slp_libraries == 0 || _slp_modules == 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "-" "ERROR"
+  if (( _slp_exec == 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "population:missing-exec" "ERROR"
+    return 0
+  fi
+  if (( _slp_libraries == 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "population:missing-libraries" "ERROR"
+    return 0
+  fi
+  if (( _slp_modules == 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE' "ERROR" "population:missing-modules" "ERROR"
     return 0
   fi
   local _slp_value="roots_present=$_slp_roots_present;roots_absent=$_slp_roots_absent;aliases=$_slp_aliases;exec=$_slp_exec;libraries=$_slp_libraries;modules=$_slp_modules;checked=$_slp_checked;violations=$_slp_violations"
@@ -3247,39 +3641,71 @@ slp_check_FSTEC_LINUX_2022_2_3_9_SUID_SGID_ALLOWLIST() {
   local -a _slp_entries=()
   local -A _slp_seen_mounts=() _slp_seen_files=() _slp_allowed=()
 
-  if [[ ! -f "$_slp_mountinfo" || -L "$_slp_mountinfo" || ! -r "$_slp_mountinfo" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  if [[ -L "$_slp_mountinfo" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "mountinfo:symlink" "ERROR"
+    return 0
+  fi
+  if [[ ! -e "$_slp_mountinfo" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "mountinfo:not-found" "ERROR"
+    return 0
+  fi
+  if [[ ! -f "$_slp_mountinfo" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "mountinfo:invalid-type" "ERROR"
+    return 0
+  fi
+  if [[ ! -r "$_slp_mountinfo" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "mountinfo:unreadable" "ERROR"
     return 0
   fi
   if ! _slp_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_mountinfo" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "mountinfo:read-failed" "ERROR"
     return 0
   fi
   if [[ "$_slp_hex" =~ (^|[[:space:]])00([[:space:]]|$) ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "mountinfo:invalid-bytes" "ERROR"
     return 0
   fi
   local _slp_allowlist="$_slp_expected" _slp_allow_line
-  if [[ "$_slp_allowlist" != /* || ! -f "$_slp_allowlist" || -L "$_slp_allowlist" || ! -r "$_slp_allowlist" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  if [[ "$_slp_allowlist" != /* ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "allowlist:invalid-path" "ERROR"
+    return 0
+  fi
+  if [[ -L "$_slp_allowlist" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "allowlist:symlink" "ERROR"
+    return 0
+  fi
+  if [[ ! -e "$_slp_allowlist" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "allowlist:not-found" "ERROR"
+    return 0
+  fi
+  if [[ ! -f "$_slp_allowlist" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "allowlist:invalid-type" "ERROR"
+    return 0
+  fi
+  if [[ ! -r "$_slp_allowlist" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "allowlist:unreadable" "ERROR"
     return 0
   fi
   if ! _slp_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_allowlist" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "allowlist:read-failed" "ERROR"
     return 0
   fi
   if [[ "$_slp_hex" =~ (^|[[:space:]])00([[:space:]]|$) ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "allowlist:invalid-bytes" "ERROR"
     return 0
   fi
   while IFS= read -r _slp_allow_line || [[ -n "$_slp_allow_line" ]]; do
     if [[ "$_slp_allow_line" == *$'\r'* || "$_slp_allow_line" == *$'\t'* || "$_slp_allow_line" == *$'\n'* ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "allowlist:invalid-record" "ERROR"
       return 0
     fi
     [[ -z "$_slp_allow_line" || "${_slp_allow_line:0:1}" == "#" ]] && continue
-    if [[ "$_slp_allow_line" != /* || ${_slp_allowed["$_slp_allow_line"]+x} ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+    if [[ "$_slp_allow_line" != /* ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "allowlist:invalid-path" "ERROR"
+      return 0
+    fi
+    if [[ ${_slp_allowed["$_slp_allow_line"]+x} ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "allowlist:duplicate-path" "ERROR"
       return 0
     fi
     _slp_allowed["$_slp_allow_line"]=1
@@ -3289,7 +3715,7 @@ slp_check_FSTEC_LINUX_2022_2_3_9_SUID_SGID_ALLOWLIST() {
     [[ -n "$_slp_line" ]] || continue
     IFS=" " read -r _slp_id _slp_parent _slp_majmin _slp_root _slp_mp_raw _slp_opts _slp_tail <<< "$_slp_line"
     if [[ -z "$_slp_id" || -z "$_slp_parent" || -z "$_slp_majmin" || -z "$_slp_root" || -z "$_slp_mp_raw" || -z "$_slp_opts" || -z "$_slp_tail" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "mountinfo:invalid-fields" "ERROR"
       return 0
     fi
     if [[ "$_slp_tail" == "- "* ]]; then
@@ -3297,25 +3723,25 @@ slp_check_FSTEC_LINUX_2022_2_3_9_SUID_SGID_ALLOWLIST() {
     elif [[ "$_slp_tail" == *" - "* ]]; then
       _slp_after=${_slp_tail#*" - "}
     else
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "mountinfo:missing-separator" "ERROR"
       return 0
     fi
     _slp_fstype=${_slp_after%% *}
-    [[ -n "$_slp_fstype" ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"; return 0; }
+    [[ -n "$_slp_fstype" ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "mountinfo:missing-fstype" "ERROR"; return 0; }
     case "$_slp_fstype" in
       proc|sysfs|devtmpfs|devpts|cgroup|cgroup2|securityfs|pstore|bpf|tracefs|debugfs|configfs|fusectl|mqueue|hugetlbfs|ramfs|autofs|binfmt_misc|nsfs|efivarfs) continue ;;
     esac
     printf -v _slp_mp "%b" "$_slp_mp_raw"
     if [[ "$_slp_mp" != /* || "$_slp_mp" == *$'\r'* || "$_slp_mp" == *$'\n'* || "$_slp_mp" == *$'\t'* ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "mountinfo:invalid-mountpoint" "ERROR"
       return 0
     fi
     if [[ ! -d "$_slp_mp" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "mountinfo:missing-mountpoint" "ERROR"
       return 0
     fi
     if ! _slp_root_id=$(LC_ALL=C command /usr/bin/stat -Lc "%d:%i" -- "$_slp_mp" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "mountinfo:identity-failed" "ERROR"
       return 0
     fi
     if [[ ${_slp_seen_mounts["$_slp_root_id"]+x} ]]; then continue; fi
@@ -3328,39 +3754,43 @@ slp_check_FSTEC_LINUX_2022_2_3_9_SUID_SGID_ALLOWLIST() {
       printf "__SLP_SCAN_RC=%s\0" "$_slp_marker"
     )
     if (( ${#_slp_entries[@]} == 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "scan:missing-marker" "ERROR"
       return 0
     fi
     _slp_i=$((${#_slp_entries[@]}-1))
     _slp_marker=${_slp_entries[$_slp_i]}
     unset '_slp_entries[$_slp_i]'
     if [[ ! "$_slp_marker" =~ ^__SLP_SCAN_RC=([0-9]+),([0-9]+)$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "scan:invalid-marker" "ERROR"
       return 0
     fi
     _slp_find_rc=${BASH_REMATCH[1]}
     _slp_sort_rc=${BASH_REMATCH[2]}
-    if (( _slp_find_rc != 0 || _slp_sort_rc != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+    if (( _slp_find_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "scan:find-failed" "ERROR"
+      return 0
+    fi
+    if (( _slp_sort_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "scan:sort-failed" "ERROR"
       return 0
     fi
     for _slp_entry in "${_slp_entries[@]}"; do
       if [[ "$_slp_entry" == *$'\r'* || "$_slp_entry" == *$'\n'* || "$_slp_entry" == *$'\t'* ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "target:invalid-path" "ERROR"
         return 0
       fi
       if ! _slp_ident=$(LC_ALL=C command /usr/bin/stat -Lc "%d:%i" -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "target:identity-failed" "ERROR"
         return 0
       fi
       if [[ ${_slp_seen_files["$_slp_ident"]+x} ]]; then continue; fi
       _slp_seen_files["$_slp_ident"]=1
       if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -Lc "%a" -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "target:mode-read-failed" "ERROR"
         return 0
       fi
       if [[ ! "$_slp_mode" =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "target:invalid-mode" "ERROR"
         return 0
       fi
       ((_slp_checked+=1))
@@ -3368,7 +3798,7 @@ slp_check_FSTEC_LINUX_2022_2_3_9_SUID_SGID_ALLOWLIST() {
     done
   done < "$_slp_mountinfo"
   if (( _slp_mounts == 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST' "ERROR" "mountinfo:empty-population" "ERROR"
     return 0
   fi
   local _slp_value="mounts=$_slp_mounts;checked=$_slp_checked;extras=$_slp_extras"
@@ -3384,16 +3814,28 @@ slp_check_FSTEC_LINUX_2022_2_3_9_SUID_SGID_MODE() {
   local -a _slp_entries=()
   local -A _slp_seen_mounts=() _slp_seen_files=() _slp_allowed=()
 
-  if [[ ! -f "$_slp_mountinfo" || -L "$_slp_mountinfo" || ! -r "$_slp_mountinfo" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  if [[ -L "$_slp_mountinfo" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "mountinfo:symlink" "ERROR"
+    return 0
+  fi
+  if [[ ! -e "$_slp_mountinfo" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "mountinfo:not-found" "ERROR"
+    return 0
+  fi
+  if [[ ! -f "$_slp_mountinfo" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "mountinfo:invalid-type" "ERROR"
+    return 0
+  fi
+  if [[ ! -r "$_slp_mountinfo" ]]; then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "mountinfo:unreadable" "ERROR"
     return 0
   fi
   if ! _slp_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_mountinfo" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "mountinfo:read-failed" "ERROR"
     return 0
   fi
   if [[ "$_slp_hex" =~ (^|[[:space:]])00([[:space:]]|$) ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "mountinfo:invalid-bytes" "ERROR"
     return 0
   fi
   while IFS= read -r _slp_line || [[ -n "$_slp_line" ]]; do
@@ -3401,7 +3843,7 @@ slp_check_FSTEC_LINUX_2022_2_3_9_SUID_SGID_MODE() {
     [[ -n "$_slp_line" ]] || continue
     IFS=" " read -r _slp_id _slp_parent _slp_majmin _slp_root _slp_mp_raw _slp_opts _slp_tail <<< "$_slp_line"
     if [[ -z "$_slp_id" || -z "$_slp_parent" || -z "$_slp_majmin" || -z "$_slp_root" || -z "$_slp_mp_raw" || -z "$_slp_opts" || -z "$_slp_tail" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "mountinfo:invalid-fields" "ERROR"
       return 0
     fi
     if [[ "$_slp_tail" == "- "* ]]; then
@@ -3409,25 +3851,25 @@ slp_check_FSTEC_LINUX_2022_2_3_9_SUID_SGID_MODE() {
     elif [[ "$_slp_tail" == *" - "* ]]; then
       _slp_after=${_slp_tail#*" - "}
     else
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "mountinfo:missing-separator" "ERROR"
       return 0
     fi
     _slp_fstype=${_slp_after%% *}
-    [[ -n "$_slp_fstype" ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"; return 0; }
+    [[ -n "$_slp_fstype" ]] || { printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "mountinfo:missing-fstype" "ERROR"; return 0; }
     case "$_slp_fstype" in
       proc|sysfs|devtmpfs|devpts|cgroup|cgroup2|securityfs|pstore|bpf|tracefs|debugfs|configfs|fusectl|mqueue|hugetlbfs|ramfs|autofs|binfmt_misc|nsfs|efivarfs) continue ;;
     esac
     printf -v _slp_mp "%b" "$_slp_mp_raw"
     if [[ "$_slp_mp" != /* || "$_slp_mp" == *$'\r'* || "$_slp_mp" == *$'\n'* || "$_slp_mp" == *$'\t'* ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "mountinfo:invalid-mountpoint" "ERROR"
       return 0
     fi
     if [[ ! -d "$_slp_mp" ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "mountinfo:missing-mountpoint" "ERROR"
       return 0
     fi
     if ! _slp_root_id=$(LC_ALL=C command /usr/bin/stat -Lc "%d:%i" -- "$_slp_mp" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "mountinfo:identity-failed" "ERROR"
       return 0
     fi
     if [[ ${_slp_seen_mounts["$_slp_root_id"]+x} ]]; then continue; fi
@@ -3440,39 +3882,43 @@ slp_check_FSTEC_LINUX_2022_2_3_9_SUID_SGID_MODE() {
       printf "__SLP_SCAN_RC=%s\0" "$_slp_marker"
     )
     if (( ${#_slp_entries[@]} == 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "scan:missing-marker" "ERROR"
       return 0
     fi
     _slp_i=$((${#_slp_entries[@]}-1))
     _slp_marker=${_slp_entries[$_slp_i]}
     unset '_slp_entries[$_slp_i]'
     if [[ ! "$_slp_marker" =~ ^__SLP_SCAN_RC=([0-9]+),([0-9]+)$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "scan:invalid-marker" "ERROR"
       return 0
     fi
     _slp_find_rc=${BASH_REMATCH[1]}
     _slp_sort_rc=${BASH_REMATCH[2]}
-    if (( _slp_find_rc != 0 || _slp_sort_rc != 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+    if (( _slp_find_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "scan:find-failed" "ERROR"
+      return 0
+    fi
+    if (( _slp_sort_rc != 0 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "scan:sort-failed" "ERROR"
       return 0
     fi
     for _slp_entry in "${_slp_entries[@]}"; do
       if [[ "$_slp_entry" == *$'\r'* || "$_slp_entry" == *$'\n'* || "$_slp_entry" == *$'\t'* ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "target:invalid-path" "ERROR"
         return 0
       fi
       if ! _slp_ident=$(LC_ALL=C command /usr/bin/stat -Lc "%d:%i" -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "target:identity-failed" "ERROR"
         return 0
       fi
       if [[ ${_slp_seen_files["$_slp_ident"]+x} ]]; then continue; fi
       _slp_seen_files["$_slp_ident"]=1
       if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -Lc "%a" -- "$_slp_entry" 2>/dev/null); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "target:mode-read-failed" "ERROR"
         return 0
       fi
       if [[ ! "$_slp_mode" =~ ^[0-7]{3,4}$ ]]; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "target:invalid-mode" "ERROR"
         return 0
       fi
       ((_slp_checked+=1))
@@ -3480,7 +3926,7 @@ slp_check_FSTEC_LINUX_2022_2_3_9_SUID_SGID_MODE() {
     done
   done < "$_slp_mountinfo"
   if (( _slp_mounts == 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE' "ERROR" "mountinfo:empty-population" "ERROR"
     return 0
   fi
   local _slp_value="mounts=$_slp_mounts;checked=$_slp_checked;violations=$_slp_violations"
@@ -3491,20 +3937,39 @@ slp_check_FSTEC_LINUX_2022_2_3_9_SUID_SGID_MODE() {
 slp_check_FSTEC_LINUX_2022_2_4_1_DMESG_RESTRICT() {
   local _slp_path='/proc/sys/kernel/dmesg_restrict'
   local _slp_expected='1'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -3514,7 +3979,7 @@ slp_check_FSTEC_LINUX_2022_2_4_1_DMESG_RESTRICT() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -3526,20 +3991,39 @@ slp_check_FSTEC_LINUX_2022_2_4_1_DMESG_RESTRICT() {
 slp_check_FSTEC_LINUX_2022_2_4_2_KPTR_RESTRICT() {
   local _slp_path='/proc/sys/kernel/kptr_restrict'
   local _slp_expected='2'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -3549,7 +4033,7 @@ slp_check_FSTEC_LINUX_2022_2_4_2_KPTR_RESTRICT() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -3562,15 +4046,33 @@ slp_check_FSTEC_LINUX_2022_2_4_3_INIT_ON_ALLOC() {
   local _slp_path='/proc/cmdline'
   local _slp_key='init_on_alloc'
   local _slp_expected='1'
-  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp
+  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp _slp_vrc=0
   local _slp_bare=0 _slp_values=0 _slp_conflict=0
   local -a _slp_tokens=() _slp_choices=()
   if [[ ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC' "ERROR" "cmdline:read-failed" "ERROR"
+    else
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC' "ERROR" "cmdline:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC' "ERROR" "cmdline:read-failed" "ERROR"
     return 0
   fi
   IFS=$' \t\r\n' read -r -a _slp_tokens <<< "$_slp_raw"
@@ -3588,7 +4090,7 @@ slp_check_FSTEC_LINUX_2022_2_4_3_INIT_ON_ALLOC() {
     fi
   done
   if (( _slp_bare > 0 || _slp_conflict > 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC' "ERROR" "cmdline:ambiguous-value" "ERROR"
     return 0
   fi
   if (( _slp_values == 0 )); then
@@ -3605,15 +4107,33 @@ slp_check_FSTEC_LINUX_2022_2_4_4_SLAB_NOMERGE() {
   local _slp_path='/proc/cmdline'
   local _slp_key='slab_nomerge'
   local _slp_expected='true'
-  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp
+  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp _slp_vrc=0
   local _slp_bare=0 _slp_values=0 _slp_conflict=0
   local -a _slp_tokens=() _slp_choices=()
   if [[ ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE' "ERROR" "cmdline:read-failed" "ERROR"
+    else
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE' "ERROR" "cmdline:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE' "ERROR" "cmdline:read-failed" "ERROR"
     return 0
   fi
   IFS=$' \t\r\n' read -r -a _slp_tokens <<< "$_slp_raw"
@@ -3631,7 +4151,7 @@ slp_check_FSTEC_LINUX_2022_2_4_4_SLAB_NOMERGE() {
     fi
   done
   if (( _slp_values > 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE' "ERROR" "cmdline:unexpected-value-form" "ERROR"
     return 0
   fi
   if (( _slp_bare > 0 )); then
@@ -3646,15 +4166,33 @@ slp_check_FSTEC_LINUX_2022_2_4_5_IOMMU_FORCE() {
   local _slp_path='/proc/cmdline'
   local _slp_key='iommu'
   local _slp_expected='force'
-  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp
+  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp _slp_vrc=0
   local _slp_bare=0 _slp_values=0 _slp_conflict=0
   local -a _slp_tokens=() _slp_choices=()
   if [[ ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE' "ERROR" "cmdline:read-failed" "ERROR"
+    else
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE' "ERROR" "cmdline:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE' "ERROR" "cmdline:read-failed" "ERROR"
     return 0
   fi
   IFS=$' \t\r\n' read -r -a _slp_tokens <<< "$_slp_raw"
@@ -3672,7 +4210,7 @@ slp_check_FSTEC_LINUX_2022_2_4_5_IOMMU_FORCE() {
     fi
   done
   if (( _slp_bare > 0 || _slp_conflict > 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE' "ERROR" "cmdline:ambiguous-value" "ERROR"
     return 0
   fi
   if (( _slp_values == 0 )); then
@@ -3689,15 +4227,33 @@ slp_check_FSTEC_LINUX_2022_2_4_5_IOMMU_PASSTHROUGH() {
   local _slp_path='/proc/cmdline'
   local _slp_key='iommu.passthrough'
   local _slp_expected='0'
-  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp
+  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp _slp_vrc=0
   local _slp_bare=0 _slp_values=0 _slp_conflict=0
   local -a _slp_tokens=() _slp_choices=()
   if [[ ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH' "ERROR" "cmdline:read-failed" "ERROR"
+    else
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH' "ERROR" "cmdline:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH' "ERROR" "cmdline:read-failed" "ERROR"
     return 0
   fi
   IFS=$' \t\r\n' read -r -a _slp_tokens <<< "$_slp_raw"
@@ -3715,7 +4271,7 @@ slp_check_FSTEC_LINUX_2022_2_4_5_IOMMU_PASSTHROUGH() {
     fi
   done
   if (( _slp_bare > 0 || _slp_conflict > 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH' "ERROR" "cmdline:ambiguous-value" "ERROR"
     return 0
   fi
   if (( _slp_values == 0 )); then
@@ -3732,15 +4288,33 @@ slp_check_FSTEC_LINUX_2022_2_4_5_IOMMU_STRICT() {
   local _slp_path='/proc/cmdline'
   local _slp_key='iommu.strict'
   local _slp_expected='1'
-  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp
+  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp _slp_vrc=0
   local _slp_bare=0 _slp_values=0 _slp_conflict=0
   local -a _slp_tokens=() _slp_choices=()
   if [[ ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT' "ERROR" "cmdline:read-failed" "ERROR"
+    else
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT' "ERROR" "cmdline:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT' "ERROR" "cmdline:read-failed" "ERROR"
     return 0
   fi
   IFS=$' \t\r\n' read -r -a _slp_tokens <<< "$_slp_raw"
@@ -3758,7 +4332,7 @@ slp_check_FSTEC_LINUX_2022_2_4_5_IOMMU_STRICT() {
     fi
   done
   if (( _slp_bare > 0 || _slp_conflict > 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT' "ERROR" "cmdline:ambiguous-value" "ERROR"
     return 0
   fi
   if (( _slp_values == 0 )); then
@@ -3775,15 +4349,33 @@ slp_check_FSTEC_LINUX_2022_2_4_6_RANDOMIZE_KSTACK_OFFSET() {
   local _slp_path='/proc/cmdline'
   local _slp_key='randomize_kstack_offset'
   local _slp_expected='1'
-  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp
+  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp _slp_vrc=0
   local _slp_bare=0 _slp_values=0 _slp_conflict=0
   local -a _slp_tokens=() _slp_choices=()
   if [[ ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET' "ERROR" "cmdline:read-failed" "ERROR"
+    else
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET' "ERROR" "cmdline:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET' "ERROR" "cmdline:read-failed" "ERROR"
     return 0
   fi
   IFS=$' \t\r\n' read -r -a _slp_tokens <<< "$_slp_raw"
@@ -3801,7 +4393,7 @@ slp_check_FSTEC_LINUX_2022_2_4_6_RANDOMIZE_KSTACK_OFFSET() {
     fi
   done
   if (( _slp_bare > 0 || _slp_conflict > 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET' "ERROR" "cmdline:ambiguous-value" "ERROR"
     return 0
   fi
   if (( _slp_values == 0 )); then
@@ -3818,15 +4410,33 @@ slp_check_FSTEC_LINUX_2022_2_4_7_MITIGATIONS() {
   local _slp_path='/proc/cmdline'
   local _slp_key='mitigations'
   local _slp_expected='auto,nosmt'
-  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp
+  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp _slp_vrc=0
   local _slp_bare=0 _slp_values=0 _slp_conflict=0
   local -a _slp_tokens=() _slp_choices=()
   if [[ ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.7-MITIGATIONS' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.7-MITIGATIONS' "ERROR" "cmdline:read-failed" "ERROR"
+    else
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.7-MITIGATIONS' "ERROR" "cmdline:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.7-MITIGATIONS' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.7-MITIGATIONS' "ERROR" "cmdline:read-failed" "ERROR"
     return 0
   fi
   IFS=$' \t\r\n' read -r -a _slp_tokens <<< "$_slp_raw"
@@ -3844,7 +4454,7 @@ slp_check_FSTEC_LINUX_2022_2_4_7_MITIGATIONS() {
     fi
   done
   if (( _slp_bare > 0 || _slp_conflict > 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.7-MITIGATIONS' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.7-MITIGATIONS' "ERROR" "cmdline:ambiguous-value" "ERROR"
     return 0
   fi
   if (( _slp_values == 0 )); then
@@ -3860,20 +4470,39 @@ slp_check_FSTEC_LINUX_2022_2_4_7_MITIGATIONS() {
 slp_check_FSTEC_LINUX_2022_2_4_8_BPF_JIT_HARDEN() {
   local _slp_path='/proc/sys/net/core/bpf_jit_harden'
   local _slp_expected='2'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -3883,7 +4512,7 @@ slp_check_FSTEC_LINUX_2022_2_4_8_BPF_JIT_HARDEN() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -3896,15 +4525,33 @@ slp_check_FSTEC_LINUX_2022_2_5_1_VSYSCALL() {
   local _slp_path='/proc/cmdline'
   local _slp_key='vsyscall'
   local _slp_expected='none'
-  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp
+  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp _slp_vrc=0
   local _slp_bare=0 _slp_values=0 _slp_conflict=0
   local -a _slp_tokens=() _slp_choices=()
   if [[ ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.1-VSYSCALL' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.1-VSYSCALL' "ERROR" "cmdline:read-failed" "ERROR"
+    else
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.1-VSYSCALL' "ERROR" "cmdline:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.1-VSYSCALL' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.1-VSYSCALL' "ERROR" "cmdline:read-failed" "ERROR"
     return 0
   fi
   IFS=$' \t\r\n' read -r -a _slp_tokens <<< "$_slp_raw"
@@ -3922,7 +4569,7 @@ slp_check_FSTEC_LINUX_2022_2_5_1_VSYSCALL() {
     fi
   done
   if (( _slp_bare > 0 || _slp_conflict > 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.1-VSYSCALL' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.1-VSYSCALL' "ERROR" "cmdline:ambiguous-value" "ERROR"
     return 0
   fi
   if (( _slp_values == 0 )); then
@@ -3938,20 +4585,39 @@ slp_check_FSTEC_LINUX_2022_2_5_1_VSYSCALL() {
 slp_check_FSTEC_LINUX_2022_2_5_10_MMAP_MIN_ADDR() {
   local _slp_path='/proc/sys/vm/mmap_min_addr'
   local _slp_expected='4096'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -3961,7 +4627,7 @@ slp_check_FSTEC_LINUX_2022_2_5_10_MMAP_MIN_ADDR() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -4006,20 +4672,39 @@ slp_check_FSTEC_LINUX_2022_2_5_10_MMAP_MIN_ADDR() {
 slp_check_FSTEC_LINUX_2022_2_5_11_RANDOMIZE_VA_SPACE() {
   local _slp_path='/proc/sys/kernel/randomize_va_space'
   local _slp_expected='2'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -4029,7 +4714,7 @@ slp_check_FSTEC_LINUX_2022_2_5_11_RANDOMIZE_VA_SPACE() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -4047,38 +4732,50 @@ slp_check_FSTEC_LINUX_2022_2_5_11_RANDOMIZE_VA_SPACE_TESTED_BEFORE_USE() {
   local -A _slp_seen=()
   _slp_row_re=$'^(SRC-[0-9]{4})\t([A-Za-z0-9_.-]+=-?[0-9]+)\t(TESTED-BEFORE-USE|NOT-TESTED-BEFORE-USE)$'
 
-  if [[ ! -e "$_slp_authority" || ! -f "$_slp_authority" || -L "$_slp_authority" || ! -r "$_slp_authority" ]]; then
-  printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "-" "ERROR"
+  if [[ -L "$_slp_authority" ]]; then
+  printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "authority:symlink" "ERROR"
+    return 0
+  fi
+  if [[ ! -e "$_slp_authority" ]]; then
+  printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "authority:not-found" "ERROR"
+    return 0
+  fi
+  if [[ ! -f "$_slp_authority" ]]; then
+  printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "authority:invalid-type" "ERROR"
+    return 0
+  fi
+  if [[ ! -r "$_slp_authority" ]]; then
+  printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "authority:unreadable" "ERROR"
     return 0
   fi
   if ! _slp_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_authority" 2>/dev/null); then
-  printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "-" "ERROR"
+  printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "authority:read-failed" "ERROR"
     return 0
   fi
   for _slp_byte in $_slp_hex; do
-    [[ "$_slp_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || { printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "-" "ERROR"; return 0; }
+    [[ "$_slp_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || { printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "authority:invalid-hex" "ERROR"; return 0; }
     case "$_slp_byte" in
       09|0a) ;;
-      00|01|02|03|04|05|06|07|08|0b|0c|0d|0e|0f|10|11|12|13|14|15|16|17|18|19|1a|1b|1c|1d|1e|1f|7f) printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "-" "ERROR"; return 0 ;;
+      00|01|02|03|04|05|06|07|08|0b|0c|0d|0e|0f|10|11|12|13|14|15|16|17|18|19|1a|1b|1c|1d|1e|1f|7f) printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "authority:invalid-bytes" "ERROR"; return 0 ;;
     esac
   done
 
   if ! IFS= read -r _slp_header < "$_slp_authority"; then
-  printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "-" "ERROR"
+  printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "authority:header-read-failed" "ERROR"
     return 0
   fi
-  [[ "$_slp_header" == 'SLP-TESTED-SETTING-ATTESTATIONS-V1' ]] || { printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "-" "ERROR"; return 0; }
+  [[ "$_slp_header" == 'SLP-TESTED-SETTING-ATTESTATIONS-V1' ]] || { printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "authority:invalid-header" "ERROR"; return 0; }
 
   while IFS= read -r _slp_line || [[ -n "$_slp_line" ]]; do
     ((_slp_line_no+=1))
-    if (( _slp_line_no == 1 )); then [[ "$_slp_line" == "$_slp_header" ]] || { printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "-" "ERROR"; return 0; }; continue; fi
-    [[ -n "$_slp_line" ]] || { printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "-" "ERROR"; return 0; }
+    if (( _slp_line_no == 1 )); then [[ "$_slp_line" == "$_slp_header" ]] || { printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "authority:header-drift" "ERROR"; return 0; }; continue; fi
+    [[ -n "$_slp_line" ]] || { printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "authority:empty-record" "ERROR"; return 0; }
     if [[ ! "$_slp_line" =~ $_slp_row_re ]]; then
-  printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "-" "ERROR"
+  printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "authority:invalid-record" "ERROR"
       return 0
     fi
     local _slp_sid=${BASH_REMATCH[1]} _slp_setting=${BASH_REMATCH[2]} _slp_state=${BASH_REMATCH[3]}
-    [[ -z "${_slp_seen[$_slp_sid]+x}" ]] || { printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "-" "ERROR"; return 0; }
+    [[ -z "${_slp_seen[$_slp_sid]+x}" ]] || { printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "authority:duplicate-record" "ERROR"; return 0; }
     _slp_seen["$_slp_sid"]=1
     ((_slp_rows+=1))
     if [[ "$_slp_sid" == "$_slp_source_id" ]]; then
@@ -4089,7 +4786,7 @@ slp_check_FSTEC_LINUX_2022_2_5_11_RANDOMIZE_VA_SPACE_TESTED_BEFORE_USE() {
   done < "$_slp_authority"
 
   if (( _slp_target_rows != 1 )); then
-  printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "-" "ERROR"
+  printf '%s\t%s\t%s\t%s\t%s\n' 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE' "ERROR" "authority:ambiguous-target" "ERROR"
     return 0
   fi
   local _slp_value="authority_rows=$_slp_rows;target_rows=$_slp_target_rows;setting_match=$_slp_setting_match;tested_before_use=$_slp_tested"
@@ -4104,20 +4801,39 @@ slp_check_FSTEC_LINUX_2022_2_5_11_RANDOMIZE_VA_SPACE_TESTED_BEFORE_USE() {
 slp_check_FSTEC_LINUX_2022_2_5_2_PERF_EVENT_PARANOID() {
   local _slp_path='/proc/sys/kernel/perf_event_paranoid'
   local _slp_expected='3'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -4127,7 +4843,7 @@ slp_check_FSTEC_LINUX_2022_2_5_2_PERF_EVENT_PARANOID() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -4140,15 +4856,33 @@ slp_check_FSTEC_LINUX_2022_2_5_3_DEBUGFS() {
   local _slp_path='/proc/cmdline'
   local _slp_key='debugfs'
   local _slp_expected='off|no-mount'
-  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp
+  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp _slp_vrc=0
   local _slp_bare=0 _slp_values=0 _slp_conflict=0
   local -a _slp_tokens=() _slp_choices=()
   if [[ ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.3-DEBUGFS' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.3-DEBUGFS' "ERROR" "cmdline:read-failed" "ERROR"
+    else
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.3-DEBUGFS' "ERROR" "cmdline:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.3-DEBUGFS' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.3-DEBUGFS' "ERROR" "cmdline:read-failed" "ERROR"
     return 0
   fi
   IFS=$' \t\r\n' read -r -a _slp_tokens <<< "$_slp_raw"
@@ -4166,7 +4900,7 @@ slp_check_FSTEC_LINUX_2022_2_5_3_DEBUGFS() {
     fi
   done
   if (( _slp_bare > 0 || _slp_conflict > 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.3-DEBUGFS' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.3-DEBUGFS' "ERROR" "cmdline:ambiguous-value" "ERROR"
     return 0
   fi
   if (( _slp_values == 0 )); then
@@ -4188,20 +4922,39 @@ slp_check_FSTEC_LINUX_2022_2_5_3_DEBUGFS() {
 slp_check_FSTEC_LINUX_2022_2_5_4_KEXEC_LOAD_DISABLED() {
   local _slp_path='/proc/sys/kernel/kexec_load_disabled'
   local _slp_expected='1'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -4211,7 +4964,7 @@ slp_check_FSTEC_LINUX_2022_2_5_4_KEXEC_LOAD_DISABLED() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -4223,20 +4976,39 @@ slp_check_FSTEC_LINUX_2022_2_5_4_KEXEC_LOAD_DISABLED() {
 slp_check_FSTEC_LINUX_2022_2_5_5_MAX_USER_NAMESPACES() {
   local _slp_path='/proc/sys/user/max_user_namespaces'
   local _slp_expected='0'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -4246,7 +5018,7 @@ slp_check_FSTEC_LINUX_2022_2_5_5_MAX_USER_NAMESPACES() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -4258,20 +5030,39 @@ slp_check_FSTEC_LINUX_2022_2_5_5_MAX_USER_NAMESPACES() {
 slp_check_FSTEC_LINUX_2022_2_5_6_UNPRIVILEGED_BPF_DISABLED() {
   local _slp_path='/proc/sys/kernel/unprivileged_bpf_disabled'
   local _slp_expected='1'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -4281,7 +5072,7 @@ slp_check_FSTEC_LINUX_2022_2_5_6_UNPRIVILEGED_BPF_DISABLED() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -4293,20 +5084,39 @@ slp_check_FSTEC_LINUX_2022_2_5_6_UNPRIVILEGED_BPF_DISABLED() {
 slp_check_FSTEC_LINUX_2022_2_5_7_UNPRIVILEGED_USERFAULTFD() {
   local _slp_path='/proc/sys/vm/unprivileged_userfaultfd'
   local _slp_expected='0'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -4316,7 +5126,7 @@ slp_check_FSTEC_LINUX_2022_2_5_7_UNPRIVILEGED_USERFAULTFD() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -4328,20 +5138,39 @@ slp_check_FSTEC_LINUX_2022_2_5_7_UNPRIVILEGED_USERFAULTFD() {
 slp_check_FSTEC_LINUX_2022_2_5_8_LDISC_AUTOLOAD() {
   local _slp_path='/proc/sys/dev/tty/ldisc_autoload'
   local _slp_expected='0'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -4351,7 +5180,7 @@ slp_check_FSTEC_LINUX_2022_2_5_8_LDISC_AUTOLOAD() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -4364,15 +5193,33 @@ slp_check_FSTEC_LINUX_2022_2_5_9_TSX() {
   local _slp_path='/proc/cmdline'
   local _slp_key='tsx'
   local _slp_expected='off'
-  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp
+  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp _slp_vrc=0
   local _slp_bare=0 _slp_values=0 _slp_conflict=0
   local -a _slp_tokens=() _slp_choices=()
   if [[ ! -e "$_slp_path" ]]; then
   printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.9-TSX' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.9-TSX' "ERROR" "cmdline:read-failed" "ERROR"
+    else
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.9-TSX' "ERROR" "cmdline:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.9-TSX' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.9-TSX' "ERROR" "cmdline:read-failed" "ERROR"
     return 0
   fi
   IFS=$' \t\r\n' read -r -a _slp_tokens <<< "$_slp_raw"
@@ -4390,7 +5237,7 @@ slp_check_FSTEC_LINUX_2022_2_5_9_TSX() {
     fi
   done
   if (( _slp_bare > 0 || _slp_conflict > 0 )); then
-  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.9-TSX' "ERROR" "-" "ERROR"
+  printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.5.9-TSX' "ERROR" "cmdline:ambiguous-value" "ERROR"
     return 0
   fi
   if (( _slp_values == 0 )); then
@@ -4406,20 +5253,39 @@ slp_check_FSTEC_LINUX_2022_2_5_9_TSX() {
 slp_check_FSTEC_LINUX_2022_2_6_1_PTRACE_SCOPE() {
   local _slp_path='/proc/sys/kernel/yama/ptrace_scope'
   local _slp_expected='3'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -4429,7 +5295,7 @@ slp_check_FSTEC_LINUX_2022_2_6_1_PTRACE_SCOPE() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -4441,20 +5307,39 @@ slp_check_FSTEC_LINUX_2022_2_6_1_PTRACE_SCOPE() {
 slp_check_FSTEC_LINUX_2022_2_6_2_PROTECTED_SYMLINKS() {
   local _slp_path='/proc/sys/fs/protected_symlinks'
   local _slp_expected='1'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -4464,7 +5349,7 @@ slp_check_FSTEC_LINUX_2022_2_6_2_PROTECTED_SYMLINKS() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -4476,20 +5361,39 @@ slp_check_FSTEC_LINUX_2022_2_6_2_PROTECTED_SYMLINKS() {
 slp_check_FSTEC_LINUX_2022_2_6_3_PROTECTED_HARDLINKS() {
   local _slp_path='/proc/sys/fs/protected_hardlinks'
   local _slp_expected='1'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -4499,7 +5403,7 @@ slp_check_FSTEC_LINUX_2022_2_6_3_PROTECTED_HARDLINKS() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -4511,20 +5415,39 @@ slp_check_FSTEC_LINUX_2022_2_6_3_PROTECTED_HARDLINKS() {
 slp_check_FSTEC_LINUX_2022_2_6_4_PROTECTED_FIFOS() {
   local _slp_path='/proc/sys/fs/protected_fifos'
   local _slp_expected='2'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -4534,7 +5457,7 @@ slp_check_FSTEC_LINUX_2022_2_6_4_PROTECTED_FIFOS() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -4546,20 +5469,39 @@ slp_check_FSTEC_LINUX_2022_2_6_4_PROTECTED_FIFOS() {
 slp_check_FSTEC_LINUX_2022_2_6_5_PROTECTED_REGULAR() {
   local _slp_path='/proc/sys/fs/protected_regular'
   local _slp_expected='2'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -4569,7 +5511,7 @@ slp_check_FSTEC_LINUX_2022_2_6_5_PROTECTED_REGULAR() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -4581,20 +5523,39 @@ slp_check_FSTEC_LINUX_2022_2_6_5_PROTECTED_REGULAR() {
 slp_check_FSTEC_LINUX_2022_2_6_6_SUID_DUMPABLE() {
   local _slp_path='/proc/sys/fs/suid_dumpable'
   local _slp_expected='0'
-  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp
+  local _slp_raw _slp_num _slp_sign _slp_digits _slp_value _slp_comp _slp_vrc=0
   local _slp_a _slp_b _slp_negative _slp_cmp _slp_i _slp_ad _slp_bd
+  local LC_ALL=C
   if [[ ! -e "$_slp_path" ]]; then
     printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE' "NOT_FOUND" "-" "NOT_FOUND"
     return 0
   fi
+  _slp_validate_source_bytes() {
+    local _slp_v_path=$1 _slp_v_hex _slp_v_byte
+    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+    for _slp_v_byte in $_slp_v_hex; do
+      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+      [[ "$_slp_v_byte" != 00 ]] || return 1
+    done
+    return 0
+  }
+  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    if (( _slp_vrc == 2 )); then
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE' "ERROR" "sysctl:read-failed" "ERROR"
+    else
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE' "ERROR" "sysctl:invalid-bytes" "ERROR"
+    fi
+    return 0
+  fi
   if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE' "ERROR" "sysctl:read-failed" "ERROR"
     return 0
   fi
   if [[ $_slp_raw =~ ^[[:space:]]*([+-]?[0-9]+)[[:space:]]*$ ]]; then
     _slp_num=${BASH_REMATCH[1]}
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   if [[ $_slp_num =~ ^[+-]?0+$ ]]; then
@@ -4604,7 +5565,7 @@ slp_check_FSTEC_LINUX_2022_2_6_6_SUID_DUMPABLE() {
     _slp_digits=${BASH_REMATCH[3]}
     if [[ $_slp_sign == - ]]; then _slp_value="-$_slp_digits"; else _slp_value="$_slp_digits"; fi
   else
-    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE' "ERROR" "-" "ERROR"
+    printf "%s\t%s\t%s\t%s\t%s\n" 'SLP-CHECK-V1' 'FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE' "ERROR" "sysctl:invalid-value" "ERROR"
     return 0
   fi
   _slp_comp=FAIL
@@ -4613,146 +5574,417 @@ slp_check_FSTEC_LINUX_2022_2_6_6_SUID_DUMPABLE() {
   return 0
 }
 
+SLP_SYSTEM_ID=''
+SLP_SYSTEM_VERSION_ID=''
+SLP_SYSTEM_PRETTY_NAME=''
+SLP_SYSTEM_ARCH=''
+SLP_SYSTEM_PROFILE=''
+SLP_SYSTEM_TYPE=''
+SLP_SYSTEM_PLATFORM=''
+SLP_SYSTEM_ENVIRONMENT=''
+SLP_CLASSIFY_REASON=''
+
+slp_classify_dpkg_status() {
+  local _slp_out=$1 _slp_want='' _slp_eflag='' _slp_status='' _slp_extra=''
+  [[ $_slp_out != *$'\n'* && $_slp_out != *$'\r'* ]] || return 1
+  IFS=' ' read -r _slp_want _slp_eflag _slp_status _slp_extra <<< "$_slp_out"
+  [[ -n $_slp_want && -n $_slp_eflag && -n $_slp_status && -z $_slp_extra ]] || return 1
+  case "$_slp_want" in
+    unknown|install|hold|deinstall|purge) ;;
+    *) return 1 ;;
+  esac
+  [[ $_slp_eflag == ok ]] || return 1
+  case "$_slp_status" in
+    installed) printf '%s' installed ;;
+    not-installed|config-files) printf '%s' absent ;;
+    *) return 1 ;;
+  esac
+}
+
+slp_dpkg_package_state() {
+  local _slp_pkg=$1 _slp_out='' _slp_rc=0
+  [[ -x /usr/bin/dpkg-query ]] || return 1
+  _slp_out=$(LC_ALL=C command /usr/bin/dpkg-query --root=/ --admindir=/var/lib/dpkg -W -f='${Status}' -- "$_slp_pkg" 2>/dev/null)
+  _slp_rc=$?
+  if (( _slp_rc == 0 )); then
+    slp_classify_dpkg_status "$_slp_out"
+    return $?
+  fi
+  if (( _slp_rc == 1 )); then
+    printf '%s' absent
+    return 0
+  fi
+  return 1
+}
+
+slp_classify_environment() {
+  local _slp_id=$1 _slp_version=$2 _slp_arch=$3
+  local _slp_server_minimal=$4 _slp_ubuntu_minimal=$5 _slp_ubuntu_standard=$6
+  local _slp_profile='' _slp_type='' _slp_platform='' _slp_environment=''
+  SLP_CLASSIFY_REASON=''
+  SLP_SYSTEM_ID=$_slp_id
+  SLP_SYSTEM_VERSION_ID=$_slp_version
+  SLP_SYSTEM_ARCH=$_slp_arch
+  SLP_SYSTEM_PROFILE=''
+  SLP_SYSTEM_TYPE=''
+  SLP_SYSTEM_PLATFORM=''
+  SLP_SYSTEM_ENVIRONMENT=''
+  if [[ $_slp_arch != x86_64 ]]; then
+    SLP_CLASSIFY_REASON=PLATFORM
+    return 3
+  fi
+  _slp_platform="$_slp_id-$_slp_version-$_slp_arch"
+  case "$_slp_id:$_slp_version" in
+    ubuntu:22.04|ubuntu:24.04|ubuntu:26.04)
+      SLP_SYSTEM_PLATFORM=$_slp_platform
+      if [[ $_slp_server_minimal == installed ]]; then
+        if [[ $_slp_ubuntu_minimal == installed && $_slp_ubuntu_standard == installed ]]; then
+          _slp_profile=FULL
+        elif [[ $_slp_ubuntu_minimal == absent && $_slp_ubuntu_standard == absent ]]; then
+          _slp_profile=MINIMIZED
+        else
+          SLP_SYSTEM_PROFILE=UNKNOWN
+          SLP_CLASSIFY_REASON=PROFILE
+          return 3
+        fi
+      elif [[ $_slp_server_minimal == absent && $_slp_ubuntu_minimal == installed && $_slp_ubuntu_standard == installed ]]; then
+        if [[ $_slp_version == 24.04 ]]; then
+          _slp_type=DESKTOP
+        else
+          SLP_SYSTEM_TYPE=UNKNOWN
+          SLP_CLASSIFY_REASON=TYPE
+          return 3
+        fi
+      else
+        SLP_SYSTEM_TYPE=UNKNOWN
+        SLP_CLASSIFY_REASON=TYPE
+        return 3
+      fi
+      ;;
+    debian:12|debian:13)
+      _slp_profile=SERVER
+      ;;
+    *)
+      SLP_CLASSIFY_REASON=PLATFORM
+      return 3
+      ;;
+  esac
+  if [[ -n $_slp_type ]]; then
+    _slp_environment="$_slp_platform-${_slp_type,,}"
+  else
+    _slp_environment="$_slp_platform-${_slp_profile,,}"
+  fi
+  case "$_slp_environment" in
+    'ubuntu-22.04-x86_64-full'|'ubuntu-24.04-x86_64-minimized'|'ubuntu-24.04-x86_64-full'|'ubuntu-26.04-x86_64-minimized'|'ubuntu-26.04-x86_64-full'|'debian-12-x86_64-server'|'debian-13-x86_64-server'|'ubuntu-24.04-x86_64-desktop') ;;
+    *)
+      if [[ -n $_slp_type ]]; then
+        SLP_SYSTEM_TYPE=UNKNOWN
+        SLP_CLASSIFY_REASON=TYPE
+      else
+        SLP_SYSTEM_PROFILE=UNKNOWN
+        SLP_CLASSIFY_REASON=PROFILE
+      fi
+      SLP_SYSTEM_PLATFORM=$_slp_platform
+      return 3
+      ;;
+  esac
+  SLP_SYSTEM_PROFILE=$_slp_profile
+  SLP_SYSTEM_TYPE=$_slp_type
+  SLP_SYSTEM_PLATFORM=$_slp_platform
+  SLP_SYSTEM_ENVIRONMENT=$_slp_environment
+  return 0
+}
+
+slp_preflight_validate_text_bytes() {
+  local _slp_v_path=$1 _slp_v_hex _slp_v_byte _slp_v_n=0
+  local _slp_v_need=0 _slp_v_min=128 _slp_v_max=191
+  if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+  for _slp_v_byte in $_slp_v_hex; do
+    [[ $_slp_v_byte =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+    case "$_slp_v_byte" in
+      00|01|02|03|04|05|06|07|08|09|0b|0c|0d|0e|0f|10|11|12|13|14|15|16|17|18|19|1a|1b|1c|1d|1e|1f) return 1 ;;
+    esac
+    _slp_v_n=$((16#$_slp_v_byte))
+    if (( _slp_v_need > 0 )); then
+      (( _slp_v_n >= _slp_v_min && _slp_v_n <= _slp_v_max )) || return 1
+      ((_slp_v_need-=1))
+      _slp_v_min=128 _slp_v_max=191
+      continue
+    fi
+    if (( _slp_v_n <= 127 )); then
+      continue
+    elif (( _slp_v_n >= 194 && _slp_v_n <= 223 )); then
+      _slp_v_need=1
+    elif (( _slp_v_n == 224 )); then
+      _slp_v_need=2 _slp_v_min=160
+    elif (( (_slp_v_n >= 225 && _slp_v_n <= 236) || (_slp_v_n >= 238 && _slp_v_n <= 239) )); then
+      _slp_v_need=2
+    elif (( _slp_v_n == 237 )); then
+      _slp_v_need=2 _slp_v_max=159
+    elif (( _slp_v_n == 240 )); then
+      _slp_v_need=3 _slp_v_min=144
+    elif (( _slp_v_n >= 241 && _slp_v_n <= 243 )); then
+      _slp_v_need=3
+    elif (( _slp_v_n == 244 )); then
+      _slp_v_need=3 _slp_v_max=143
+    else
+      return 1
+    fi
+  done
+  (( _slp_v_need == 0 )) || return 1
+  return 0
+}
+
+SLP_OS_RELEASE_VALUE=''
+SLP_OS_RELEASE_ID=''
+SLP_OS_RELEASE_VERSION_ID=''
+SLP_OS_RELEASE_PRETTY_NAME=''
+
+slp_parse_os_release_value() {
+  local LC_ALL=C
+  local _slp_in=$1 _slp_mode=unquoted _slp_body='' _slp_out='' _slp_ch='' _slp_next=''
+  local _slp_len=${#1}
+  SLP_OS_RELEASE_VALUE=''
+  if (( _slp_len > 0 )) && [[ ${_slp_in:0:1} == '"' ]]; then
+    (( _slp_len >= 2 )) || return 1
+    [[ ${_slp_in: -1} == '"' ]] || return 1
+    _slp_mode=double
+    _slp_body=${_slp_in:1:_slp_len-2}
+  elif (( _slp_len > 0 )) && [[ ${_slp_in:0:1} == "'" ]]; then
+    (( _slp_len >= 2 )) || return 1
+    [[ ${_slp_in: -1} == "'" ]] || return 1
+    _slp_mode=single
+    _slp_body=${_slp_in:1:_slp_len-2}
+  else
+    _slp_body=$_slp_in
+  fi
+  if [[ $_slp_mode == single ]]; then
+    [[ $_slp_body != *"'"* ]] || return 1
+    SLP_OS_RELEASE_VALUE=$_slp_body
+    return 0
+  fi
+  while [[ -n $_slp_body ]]; do
+    _slp_ch=${_slp_body:0:1}
+    _slp_body=${_slp_body:1}
+    if [[ $_slp_ch == '\' ]]; then
+      [[ -n $_slp_body ]] || return 1
+      _slp_next=${_slp_body:0:1}
+      if [[ $_slp_mode == double ]]; then
+        case "$_slp_next" in
+          '$'|'`'|'"'|'\') _slp_out+=$_slp_next; _slp_body=${_slp_body:1} ;;
+          *) _slp_out+='\' ;;
+        esac
+      else
+        _slp_out+=$_slp_next
+        _slp_body=${_slp_body:1}
+      fi
+      continue
+    fi
+    if [[ $_slp_mode == double ]]; then
+      case "$_slp_ch" in
+        '"'|'$'|'`') return 1 ;;
+      esac
+    else
+      case "$_slp_ch" in
+        "'"|'"'|'$'|'`'|' '|$'\t'|';') return 1 ;;
+      esac
+    fi
+    _slp_out+=$_slp_ch
+  done
+  SLP_OS_RELEASE_VALUE=$_slp_out
+  return 0
+}
+
+slp_parse_os_release_file() {
+  local _slp_p_path=$1 _slp_p_line='' _slp_p_key='' _slp_p_raw=''
+  SLP_OS_RELEASE_ID=''
+  SLP_OS_RELEASE_VERSION_ID=''
+  SLP_OS_RELEASE_PRETTY_NAME=''
+  while IFS= read -r _slp_p_line || [[ -n $_slp_p_line ]]; do
+    [[ $_slp_p_line == *=* ]] || continue
+    _slp_p_key=${_slp_p_line%%=*}
+    case "$_slp_p_key" in
+      ID|VERSION_ID|PRETTY_NAME)
+        _slp_p_raw=${_slp_p_line#*=}
+        slp_parse_os_release_value "$_slp_p_raw" || return 1
+        case "$_slp_p_key" in
+          ID) SLP_OS_RELEASE_ID=$SLP_OS_RELEASE_VALUE ;;
+          VERSION_ID) SLP_OS_RELEASE_VERSION_ID=$SLP_OS_RELEASE_VALUE ;;
+          PRETTY_NAME) SLP_OS_RELEASE_PRETTY_NAME=$SLP_OS_RELEASE_VALUE ;;
+        esac
+        ;;
+    esac
+  done < "$_slp_p_path"
+  return 0
+}
+
 slp_target_preflight() {
-  local _slp_id='' _slp_version='' _slp_arch='' _slp_k _slp_v
+  local _slp_id='' _slp_version='' _slp_pretty='' _slp_arch='' _slp_k _slp_v _slp_vrc=0
+  local _slp_server_minimal=na _slp_ubuntu_minimal=na _slp_ubuntu_standard=na
   if [[ ! -r /etc/os-release ]]; then
     printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2
     return 3
   fi
-  while IFS='=' read -r _slp_k _slp_v; do
-    case "$_slp_k" in
-      ID)
-        _slp_v=${_slp_v#\"}
-        _slp_v=${_slp_v%\"}
-        _slp_id=$_slp_v
-        ;;
-      VERSION_ID)
-        _slp_v=${_slp_v#\"}
-        _slp_v=${_slp_v%\"}
-        _slp_version=$_slp_v
-        ;;
-    esac
-  done < /etc/os-release
+  slp_preflight_validate_text_bytes /etc/os-release; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2
+    return 3
+  fi
+  slp_parse_os_release_file /etc/os-release || {
+    printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2
+    return 3
+  }
+  _slp_id=$SLP_OS_RELEASE_ID
+  _slp_version=$SLP_OS_RELEASE_VERSION_ID
+  _slp_pretty=$SLP_OS_RELEASE_PRETTY_NAME
   _slp_arch=$(command /usr/bin/uname -m 2>/dev/null) || {
     printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2
     return 3
   }
-  if [[ $_slp_id != ubuntu || $_slp_version != 24.04 || $_slp_arch != x86_64 ]]; then
-    printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2
-    return 3
+  case "$_slp_id:$_slp_version:$_slp_arch" in
+    ubuntu:22.04:x86_64|ubuntu:24.04:x86_64|ubuntu:26.04:x86_64|debian:12:x86_64|debian:13:x86_64) ;;
+    *)
+      printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2
+      return 3
+      ;;
+  esac
+  if [[ $_slp_id == ubuntu ]]; then
+    _slp_server_minimal=$(slp_dpkg_package_state ubuntu-server-minimal) || {
+      printf '%s\n' 'UNSUPPORTED_PROFILE' >&2
+      return 3
+    }
+    _slp_ubuntu_minimal=$(slp_dpkg_package_state ubuntu-minimal) || {
+      printf '%s\n' 'UNSUPPORTED_PROFILE' >&2
+      return 3
+    }
+    _slp_ubuntu_standard=$(slp_dpkg_package_state ubuntu-standard) || {
+      printf '%s\n' 'UNSUPPORTED_PROFILE' >&2
+      return 3
+    }
   fi
+  slp_classify_environment "$_slp_id" "$_slp_version" "$_slp_arch" \
+    "$_slp_server_minimal" "$_slp_ubuntu_minimal" "$_slp_ubuntu_standard" || {
+    case "$SLP_CLASSIFY_REASON" in
+      PROFILE) printf '%s\n' 'UNSUPPORTED_PROFILE' >&2 ;;
+      TYPE) printf '%s\n' 'UNSUPPORTED_TYPE' >&2 ;;
+      *) printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2 ;;
+    esac
+    return 3
+  }
+  [[ -n $_slp_pretty ]] || _slp_pretty="$_slp_id $_slp_version"
+  SLP_SYSTEM_PRETTY_NAME=$_slp_pretty
   return 0
 }
 
 slp_provenance_all() {
-  cat <<'SLP_PROVENANCE_EOF'
-{"adapter_contract_sha256":"ac64e6daf4e59c975bd2e1031ee4fc6b3e4235c09e1789157eae20a0ebd29203","adapter_id":"product-local-account-password-state-check-v2","adapter_implementation_sha256":"48a3ba63b617ad6bf955aef4158814e44a42211b14778b3d0491cc621af2426e","control_id":"FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"82d8121586664ee803efec1f1b4bb93a248ce1f302bdf90a2561468ead86d802","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"all-nonempty","expected_type":"boolean","expected_value":true,"index_id":"SRC-0001","parameter_key":"password-field","parameter_kind":"local-account-password-state","parameter_locator":"/etc/shadow","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"799b85637928264e6f43d5e32d8cc6b48af6694e30f6fbf5e4c6ddef3a207f3b","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"c67133e3b99ac3a93bf8494f2f3a280519c3709e0e5ed06581ef7630a6a8f9c3","source_locator":"2.1.1","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"b66f2500e094932542f3506cf2da99145c805abcf0e8f9e17e8f0fee8cbbb892","adapter_id":"product-sshd-root-login-check-v1","adapter_implementation_sha256":"36038293e506b3c3c6b62f90756b44548044c26617bcebec1886a7f3de43b342","control_id":"FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"2f965f6e8901380f14088a167c77b07fc3b4c1872ac1f38865ba0a236a80b1de","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"no","index_id":"SRC-0002","parameter_key":"PermitRootLogin","parameter_kind":"sshd-root-login","parameter_locator":"/etc/ssh/sshd_config","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c671457700fd0fc656b34ccab9796a6b3b31a304492a26c3f317f0279e753785","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"db8f1a56bb13c28cb0fb77eafdbeeac3ccd7439ae11df34a65e1c24ec7c0c6ba","source_locator":"2.1.2","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"8a55f6b8ddec2ea91542c28d0f5d49aab677f7c98d646119875bc6bf3da9f1b6","adapter_id":"product-pam-wheel-access-check-v2","adapter_implementation_sha256":"9826c4d46253fc9305bf91b9671bbcb74fc2f8ee587f952149ebae4bd4ffe501","control_id":"FSTEC-LINUX-2022-2.2.1-SU-WHEEL-ACCESS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"d6771f8b26de807a96b62b7f4cbc84c4527e80798e0e00d5789598af5d36faba","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq-authority-file","expected_type":"string","expected_value":"/etc/securelinux-policy/wheel-users.allowlist-v1","index_id":"SRC-0003","parameter_key":"policy","parameter_kind":"pam-wheel-access","parameter_locator":"/etc/pam.d/su|/etc/group","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"25dd0790262b44e6c787ec36df8c1aabb8b2f8f3e50d6c9bed83285c50c64c62","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"6e6647a4ae12f6021a21a5d8bb33ab0ad1113279d38f9645ad44fabc1f0d13f5","source_locator":"2.2.1","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"c4aa130536c6b10ad70939f8f9be8e9dc9ce8cb4bbbdca1a67ea4f4d6301b248","adapter_id":"product-sudoers-reviewed-policy-check-v1","adapter_implementation_sha256":"5476dbc0be9cce163981e21b80eb7b9c96e9d8464771f9efab0c1b644f93fca6","control_id":"FSTEC-LINUX-2022-2.2.2-SUDOERS-REVIEWED-POLICY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"179a59e8284a29ecedc7c7196ab3fb27d07e470bfd0f1989e5f6d6f11d63e90f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq-reviewed-policy","expected_type":"string","expected_value":"/etc/securelinux-policy/sudoers-reviewed-policy-v1","index_id":"SRC-0004","parameter_key":"policy-tree","parameter_kind":"sudoers-reviewed-policy","parameter_locator":"/etc/sudoers","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"779597efe81ae7d291d2b7b0883cffb5af1a56f0234919b0243f360e688babea","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"f067dc99a5756351b50d71d2915c647307027d6f7a0a25f7209578a713f9b750","source_locator":"2.2.2","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"77af6aa1db3c391c50659062c5375e55c3af8882af3bec3672b0fe02a0c8b850","adapter_id":"product-file-mode-owner-check-v2","adapter_implementation_sha256":"3936c0f069fe4d057b3eba34b520eb3d965c9987b1157baa3a948e828f83303b","control_id":"FSTEC-LINUX-2022-2.3.1-GROUP-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"719123c6ab9e5a26bd261a67aa2340ad1cf388ca3749db9c05b23f3079584a81","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0644","index_id":"SRC-0005","parameter_key":"mode","parameter_kind":"file-mode-owner","parameter_locator":"/etc/group","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"9ff1921e56eb10d64d5a4bd66ed41a79923f1ef2600826cf96f99540d8dcbf66","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"3ceab81c94f743f3ff821bf3687fe6fcfa319b1804c769b95fc75741883dbc12","source_locator":"2.3.1","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"77af6aa1db3c391c50659062c5375e55c3af8882af3bec3672b0fe02a0c8b850","adapter_id":"product-file-mode-owner-check-v2","adapter_implementation_sha256":"3936c0f069fe4d057b3eba34b520eb3d965c9987b1157baa3a948e828f83303b","control_id":"FSTEC-LINUX-2022-2.3.1-PASSWD-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"93faa0e6920c07e2f8e12b8326131e9dc52cf9b6145eafda75943d0eef1278b1","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0644","index_id":"SRC-0005","parameter_key":"mode","parameter_kind":"file-mode-owner","parameter_locator":"/etc/passwd","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"9ff1921e56eb10d64d5a4bd66ed41a79923f1ef2600826cf96f99540d8dcbf66","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"3ceab81c94f743f3ff821bf3687fe6fcfa319b1804c769b95fc75741883dbc12","source_locator":"2.3.1","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"77af6aa1db3c391c50659062c5375e55c3af8882af3bec3672b0fe02a0c8b850","adapter_id":"product-file-mode-owner-check-v2","adapter_implementation_sha256":"3936c0f069fe4d057b3eba34b520eb3d965c9987b1157baa3a948e828f83303b","control_id":"FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"62efde1e39f219e843193c7bc5a2d539d685ab79c33094c05a70e3d21873e03f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0077","index_id":"SRC-0005","parameter_key":"mode","parameter_kind":"file-mode-owner","parameter_locator":"/etc/shadow","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"9ff1921e56eb10d64d5a4bd66ed41a79923f1ef2600826cf96f99540d8dcbf66","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"3ceab81c94f743f3ff821bf3687fe6fcfa319b1804c769b95fc75741883dbc12","source_locator":"2.3.1","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"852c364502a4013ab607a1d9221c0d255d06e71d197765617db2bc59280d19f3","adapter_id":"product-home-sensitive-files-mode-check-v2","adapter_implementation_sha256":"d4d1e356243f387b593bda156d5456fcd4bc770d336f6d0903b37167e37907fc","control_id":"FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"673f3ccff153d0073310215ae70b6a2a0707e7f5e25d40eb65408de7eaf39e9a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0077","index_id":"SRC-0014","parameter_key":"mode","parameter_kind":"home-sensitive-files-mode","parameter_locator":"/etc/passwd|/etc/securelinux-policy/home-sensitive-files-v1","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c243edbafcfee7fadede64b0dec702e3f8f92553d6240a89c36575934958b5f0","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"70d481dd206bd9b890d7fccc05238fbf7e61625e4e419c35d3c5906f641294f5","source_locator":"2.3.10","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"2501d7f29a4d1185cfc3b98f2011d41cc850e58816142379002ee86ea0d9917a","adapter_id":"product-home-directories-mode-check-v2","adapter_implementation_sha256":"07da6a2a04072ea8a0f3ecb47d8c69321ae65bd1093c65604957cc2fbfcd7a65","control_id":"FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"cfc484e47c27914b409e4200315817f59eeb31775c438226377fead7e151162f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0700","index_id":"SRC-0015","parameter_key":"mode","parameter_kind":"home-directories-mode","parameter_locator":"/etc/passwd","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"2a65505db54ec27a6fec5682d2d2eb71e33b441dffad14c9dcc2d43a7c4b3c8d","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"f7957b5d6a46718354a2e42d36af204d606675f069b0dff07cb8c1c2e2d35222","source_locator":"2.3.11","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"eb674f59077ff3197a97edcd467953f989baf23c9cef322b51c0ef06e12937a0","adapter_id":"product-running-process-paths-write-protection-check-v1","adapter_implementation_sha256":"168d6132fdc3b576b1d1f091939b27337e5a52cc379cd3dbb74d0fa287df885b","control_id":"FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"4c622265a9397061ef2edd2f99b6f90f78bf80aef8390f1cf129d8858daf76b3","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"runtime-paths-safe","expected_type":"string","expected_value":"file-go-w;parent-unprivileged-write-denied","index_id":"SRC-0006","parameter_key":"write-protection","parameter_kind":"running-process-paths-write-protection","parameter_locator":"/proc/<pid>/exe|/proc/<pid>/maps","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"f395bcd1e9dd9648161d6eac735f2b616c59c12e3d57a7cb1e9203cae2834aa5","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"a268fb4a9be8bd771c7ce2d2462f4466bd3e08c12d3690fdcf692ea1656e52b2","source_locator":"2.3.2","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"7373f3df058b88b20cdb50d3aaf7e26a6697ac116452bd18c334b56dfadf2c0c","adapter_id":"product-cron-command-paths-write-protection-check-v1","adapter_implementation_sha256":"5da2f01e2094983a7f278697585b506cd885768a97751ca0a453738b7e4a877b","control_id":"FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"aaab15a2454a7de6c5560aff10e367170706c6f47e6c5f879e46abe4fe9d6343","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"cron-command-paths-safe","expected_type":"string","expected_value":"file-go-w","index_id":"SRC-0007","parameter_key":"write-protection","parameter_kind":"cron-command-paths-write-protection","parameter_locator":"/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"87a3b8a9ab953c58d4b04024444d5654019d1036eb0b424ddb3a87f621e68a7a","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"b937ecd625c94cdf83b980ee7150c014f45f41a21c8dd5e297589782eb1e65fa","source_locator":"2.3.3","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"1c984a656a054dc61b93a435f3c7872051583beeea2446a38191a13f3d4e09b7","adapter_id":"product-sudo-root-command-files-protection-check-v1","adapter_implementation_sha256":"5360ca7682cd3c54da0e08201f4fb275eb82d5521607ee906d0c6b40e456d0e8","control_id":"FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"e401b18ccf1ff851720d06d934edc9ec383a33fb3a671896cfa61999aa8627d9","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"root-owned-go-w","expected_type":"string","expected_value":"uid0;bits-clear-0022","index_id":"SRC-0008","parameter_key":"root-command-files","parameter_kind":"sudo-root-command-files-protection","parameter_locator":"/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0be87131f3aea07d4da4134cd82c960c608b16feff43b6996ea4817d9bb38dfe","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"c5150cd5fd8b35449d66d57800e5abeef2169880d650d72b533eebe9345411e1","source_locator":"2.3.4","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"0184b12971cfc9c761970d112583011d78d4093bc62528ba149dfd75cb80c3ea","adapter_id":"product-startup-files-write-protection-check-v1","adapter_implementation_sha256":"bfdb0ad2d0dc07f7384c549522e84437c841630b1ee158dc82dafe94f2001300","control_id":"FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"f06a42e88648b412e21b77a070622324e4d8f57694101263a8f47d2d1fd38194","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0002","index_id":"SRC-0009","parameter_key":"other-write","parameter_kind":"startup-files-write-protection","parameter_locator":"/etc/rc[0-6].d|systemd-unit-paths","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"4a65bb314af3f2b4bb276e5b28cfd26b85b311d610553bd8e51bd26b1bfe8c6b","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"1d3ddae058e0bed538b7ba5d74da59b0cd392db80240c45fb4f6d9be109c88c3","source_locator":"2.3.5","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"73cd2d5455649917128a6e28405177648a2f8bb90fde9247babcc687955b1bb5","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"9cc727b05337da4cac52142238f64dbb8879a49b3823499ee304f9891e397a23","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-D","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"d1dd9b4af5c49732ec93ac350d82fb138cb1fdc967396dda25062d59ff77527a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.d","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"391d2db8f698fd6c34e0bce7adf830ffd59079402dc2363d1a149d497d0a1aa1","source_locator":"2.3.6","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"73cd2d5455649917128a6e28405177648a2f8bb90fde9247babcc687955b1bb5","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"9cc727b05337da4cac52142238f64dbb8879a49b3823499ee304f9891e397a23","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-DAILY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"a6c928414a1091aa8bf7291eee2e7574c9ad5f204831930d39a8536700f1731a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.daily","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"391d2db8f698fd6c34e0bce7adf830ffd59079402dc2363d1a149d497d0a1aa1","source_locator":"2.3.6","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"73cd2d5455649917128a6e28405177648a2f8bb90fde9247babcc687955b1bb5","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"9cc727b05337da4cac52142238f64dbb8879a49b3823499ee304f9891e397a23","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-HOURLY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"882eec0779eac5f5942f10e6670b2812f8000bf8f3e7600ba1c264362a8f4dce","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.hourly","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"391d2db8f698fd6c34e0bce7adf830ffd59079402dc2363d1a149d497d0a1aa1","source_locator":"2.3.6","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"73cd2d5455649917128a6e28405177648a2f8bb90fde9247babcc687955b1bb5","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"9cc727b05337da4cac52142238f64dbb8879a49b3823499ee304f9891e397a23","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"ca59fb02687823c843038099bd5698d42cd7d3cd402a22b4f0126bd89da42433","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.monthly","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"391d2db8f698fd6c34e0bce7adf830ffd59079402dc2363d1a149d497d0a1aa1","source_locator":"2.3.6","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"73cd2d5455649917128a6e28405177648a2f8bb90fde9247babcc687955b1bb5","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"9cc727b05337da4cac52142238f64dbb8879a49b3823499ee304f9891e397a23","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"62383ceb2d82745bdfeee36b424136c351b12d17ba430bf48b1706338a7c35e5","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.weekly","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"391d2db8f698fd6c34e0bce7adf830ffd59079402dc2363d1a149d497d0a1aa1","source_locator":"2.3.6","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"73cd2d5455649917128a6e28405177648a2f8bb90fde9247babcc687955b1bb5","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"9cc727b05337da4cac52142238f64dbb8879a49b3823499ee304f9891e397a23","control_id":"FSTEC-LINUX-2022-2.3.6-CRONTAB","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"043329e8aff8fa44762e5a2a22f6688c03bd30399dc78acb30821748d81d4fda","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/crontab","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"391d2db8f698fd6c34e0bce7adf830ffd59079402dc2363d1a149d497d0a1aa1","source_locator":"2.3.6","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bb8c66076b66ff951a86608e319dfdddaf92c23e3e8564c0a49823789e7f5b84","adapter_id":"product-user-cron-files-mode-check-v2","adapter_implementation_sha256":"46234b064b01950c9425eae08a742a234f2f6e15f7a3a92575bd3a32597f03fc","control_id":"FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b5cb46dc92c854012b0a970a9d3c78febae83b29f28b3dfdc3bd80626ee5ac87","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0022","index_id":"SRC-0011","parameter_key":"mode","parameter_kind":"user-cron-files-mode","parameter_locator":"/var/spool/cron/crontabs","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"af9430a9911e812b6f4b9735f35554d02e4203f7c39a3cae3d1c03004eb9adbe","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"a3a1134f8ec10616fa6662d21bfa66f9ee693e4d216fff7586148f7f217fb555","source_locator":"2.3.7","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"52fe4acb875f1e62b86bb084b8c38cd6b26784c0d0979a2a704298145cb83b84","adapter_id":"product-standard-system-paths-mode-check-v2","adapter_implementation_sha256":"7e755b2ae510caf0f85e7f6826d379ff634f4c631c6d36e479a697d102d5bbcb","control_id":"FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"9f3041f0f9809cedcafb7f7e6b6b82641324902e34a3a84f9d24228af932cb1e","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0022","index_id":"SRC-0012","parameter_key":"mode","parameter_kind":"standard-system-paths-mode","parameter_locator":"/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c14203a718160e12100efac4e8e4f748cdf7517bba948d7ee66d8811f2e462e3","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"17a62949d502e725d9cd62e0ff62b10d2ebe5cc5515b9cf302c7eee85f705ea7","source_locator":"2.3.8","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"45e50a9d4b6fbf86d892b407ce9aaea1d5e1c0722df41814d03863fb2602d7aa","adapter_id":"product-suid-sgid-applications-check-v2","adapter_implementation_sha256":"65e151ce0a054294f899497b91c72f68c6afaa7f4f373ab7789ae6a53e95bba3","control_id":"FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"0c7c2ff2dbafa54b15440ce8f8d25173c174a28c8b1752804631a829c191a86c","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"subset-of-file","expected_type":"string","expected_value":"/etc/securelinux-policy/suid-sgid.allowlist-v1","index_id":"SRC-0013","parameter_key":"approved-set","parameter_kind":"suid-sgid-applications","parameter_locator":"/proc/self/mountinfo","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"4561a2f408c1d943d273eef49191f38e86733b007e5dd4259df73429d34bc0e1","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"da17f07f1785af934defa3c41b0980ea6ec3df2ec74400f5bd0627cb0e8a482d","source_locator":"2.3.9","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"45e50a9d4b6fbf86d892b407ce9aaea1d5e1c0722df41814d03863fb2602d7aa","adapter_id":"product-suid-sgid-applications-check-v2","adapter_implementation_sha256":"65e151ce0a054294f899497b91c72f68c6afaa7f4f373ab7789ae6a53e95bba3","control_id":"FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"5e52002e72ea86d8c10dad28d09c82f0a027850ca4ae6e0d40745b7cdc33710b","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0022","index_id":"SRC-0013","parameter_key":"mode","parameter_kind":"suid-sgid-applications","parameter_locator":"/proc/self/mountinfo","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"4561a2f408c1d943d273eef49191f38e86733b007e5dd4259df73429d34bc0e1","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"da17f07f1785af934defa3c41b0980ea6ec3df2ec74400f5bd0627cb0e8a482d","source_locator":"2.3.9","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"51f99ed4b7c67eb30558176685885337c27a4d8c2047a8e667059dd2bbff07d9","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0016","parameter_key":"kernel.dmesg_restrict","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c889161dc17ca0ec538a88477aeebfd920e8d10a53d34952e69b12b24338a5e6","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.4.1","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"ba25c49b237cf91b74afcda02e15fd872e81c08973abd9719a8f4c465513aa9a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0017","parameter_key":"kernel.kptr_restrict","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"a4c2ba6bc1c18e8cc9a3b025cbf55b542e9cf327e3ce69fd2d8e4877bbc3ef60","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.4.2","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"68b4a5d37e9addc54b6c8d9316e1a9e47e4eda7cb0683b2df99c4be911c7ea5c","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"1","index_id":"SRC-0018","parameter_key":"init_on_alloc","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.4.3","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"817ddc5844c8600b30ea82b013576e8c90fe4381f37ff2d3e6f697766881aa9e","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"present","expected_type":"boolean","expected_value":true,"index_id":"SRC-0019","parameter_key":"slab_nomerge","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"6a5c7fa4c5804ef3c2e152c338da6c73553bb8bce5dbde0331e4ba4db09d8b6f","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.4.4","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"595da19602209ab601375e129f45dfa720038e5a5b92017e51b5b7873bd6233d","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"force","index_id":"SRC-0020","parameter_key":"iommu","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5d6db53b7945c06a610654f7b22d3f23b2840228e091cdf675568d3b6ecc3af5","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.4.5","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"85b3d67e7f741cfd9d50b3d935bc96ac38d6468d44cb18465baefa3379242942","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0","index_id":"SRC-0020","parameter_key":"iommu.passthrough","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5d6db53b7945c06a610654f7b22d3f23b2840228e091cdf675568d3b6ecc3af5","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.4.5","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"0d68a6bb3b7869e9d76046d196e61511e34560cfb55cf130b30c65b3b9d3e629","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"1","index_id":"SRC-0020","parameter_key":"iommu.strict","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5d6db53b7945c06a610654f7b22d3f23b2840228e091cdf675568d3b6ecc3af5","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.4.5","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"876b71fa1a3eabed4455db496c576c43ec897ccfe335266ae707b9bb976f124e","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"1","index_id":"SRC-0021","parameter_key":"randomize_kstack_offset","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"69cbdb70f31aadd134129cae9eb95a96f836168646a821927cc3ea56ea58c980","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.4.6","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.4.7-MITIGATIONS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"2d004e6effde058bcd8d5713b8116adec36af1476da6e4f5acb1553d7857d981","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"auto,nosmt","index_id":"SRC-0022","parameter_key":"mitigations","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"593127f71a130fb574410cc9b249cf9ce42c1ec9698ebad648c79c4554d55ceb","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.4.7","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"cfe64060a4d9829351c2c6f19c6f41b0e0697bd8be5b503a90ffe27a5f4c52ee","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0023","parameter_key":"net.core.bpf_jit_harden","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"ffeec17a621afd4726e6c0fcf0aef4fb1e22c86f45ca20d1d568471675c3914f","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.4.8","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.5.1-VSYSCALL","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"611d219ec1d517ebceb3539968662a6e40a75bb028fc553ec18eb9a95544f413","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"none","index_id":"SRC-0024","parameter_key":"vsyscall","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"909ac7e3825f234cf325dac5b9615486ef4c856315aeb9c25d4b7a6af47fa421","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.5.1","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"f2733434c77fa39bec5210262632becd3f0aad65ddb7423c869725fe95fa5655","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"ge","expected_type":"integer","expected_value":4096,"index_id":"SRC-0033","parameter_key":"vm.mmap_min_addr","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5b55fd931f99da5241c6bc05e33c7131ff091a282547b95f0699b17f515a6729","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.10","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"4a08a7bfd4f6a803dfb7bbc2486a83bd2fe1e877dcaa2e9938d402ee9765ee6d","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0034","parameter_key":"kernel.randomize_va_space","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"b40ce183dea4e9a89aff8cbc97a533d80b6db0b14ca8c844ce16486cfad417cf","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.11","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"d6ad7087faaf9caac8539cb9cd92a7f31d2dabeea590adf92a68af84ab835de3","adapter_id":"product-tested-setting-attestation-check-v1","adapter_implementation_sha256":"23eaba8698b5115faf2c5a11ff3dbe605647d1e48b41d1e8d61933a30263bc5b","control_id":"FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"c301ab7c5f08b0822aa61c955d00bdbec607f8188ce4fbe8d88ad0b756a293c0","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"tested-before-use","expected_type":"string","expected_value":"kernel.randomize_va_space=2","index_id":"SRC-0034","parameter_key":"SRC-0034","parameter_kind":"tested-setting-attestation","parameter_locator":"/etc/securelinux-policy/tested-setting-attestations-v1","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"b40ce183dea4e9a89aff8cbc97a533d80b6db0b14ca8c844ce16486cfad417cf","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"a81e27abdece6dde159708386ae04cce7b8ce69b8defe485fe25b1986f49324b","source_locator":"2.5.11","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b0eb7068712e20660c0d84871c271c6f3fdc542132cca1cf529910dcf7f85c0a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":3,"index_id":"SRC-0025","parameter_key":"kernel.perf_event_paranoid","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"8e6f4b120bd3527b380251e92eca56e1b4c358d362f1246357579eb8af616382","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.2","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.5.3-DEBUGFS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"806da488a05c5d4ea11c2cef4bbde3b327387c1b96b143fe97c32e50e08a8894","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"one-of","expected_type":"string","expected_value":"off|no-mount","index_id":"SRC-0026","parameter_key":"debugfs","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"10391c151e6a53e91d637a11bc0f87a05a1ca7fdd408f9493dd27b366da46184","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.5.3","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"6006fdfb164b8a8860b8f4ae6d4e2758799f25ed32d53e185916da0ef0b7ed01","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0027","parameter_key":"kernel.kexec_load_disabled","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0231e3c8de27fab8de667f632bf6d08609a7c62836be9c787fd4cb955974ff09","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.4","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b13b0e0b47c820d396a9a4a8d044ffdfc4eb779c5def2347c072cbc9e3900f32","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0028","parameter_key":"user.max_user_namespaces","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"77edbfb78e01426b6c40ccedca310ff6091870e235d4225ac488f4cd5d8c090c","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.5","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"44423cf2e57eabddd637a973430a6633282f8eba658430a1290bfa610efe5b67","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0029","parameter_key":"kernel.unprivileged_bpf_disabled","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"1c320abae9872972364ef95685204f4968a2c84bc27ee9c2707907eac8c5823e","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.6","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"3a5a2c1c560d688eeea441f4455297a86983c599745acf8963507f91b72c86f4","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0030","parameter_key":"vm.unprivileged_userfaultfd","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"cba35949a04f5d3dab8bd9a0501d75e5c310773ac11c1ad2c4d80845cdd03080","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.7","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"d6e4d8f63a5235ff32f3cb429c91caa7b7ff7864ba8ab90f8fd350362e8d3a69","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0031","parameter_key":"dev.tty.ldisc_autoload","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0860efcf66e2da819b06b5d6198e3b4c9b4ea96b66929752aceba65fae301783","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.8","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.5.9-TSX","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"07040e8445ac0565a587fcf6cfadf124a45b6b076592d4a268eff2abe37b5ef3","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"off","index_id":"SRC-0032","parameter_key":"tsx","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"40b0ad985774f12adad55439e22a5ba29b3a2c50c9fedd16551fa261fd29464c","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.5.9","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"2bc9bb0cb5372fb5738612ff3738526cad9adb831b0043cc5924f36d23e7ca37","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":3,"index_id":"SRC-0035","parameter_key":"kernel.yama.ptrace_scope","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"7be4210587e64fe1864bfbf1b5e8f7cc3512434629eb17898ad487d50a9ae246","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.6.1","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b709581e94eb65e5a059d70ff4ec7aac7d248e6b664ffb42c502e23c88e2bbe8","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0036","parameter_key":"fs.protected_symlinks","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"ce09b5104160f3fe27f17f1d5e57a5fe81001adac3c362ed652552ccbc59571f","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.6.2","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"fc1fd0f1141cb6d78b5d322e6a04b2649f0264a5e8c4784c64116bed55d70ffa","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0037","parameter_key":"fs.protected_hardlinks","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"315736677a4e3192cde79d4badbf20809da81c8605785c8720fcd0fc3260fe97","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.6.3","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"af3b312efb3d252c1752a9ee70da6248e2a8e86f2e29479388206afbfbcd453d","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0038","parameter_key":"fs.protected_fifos","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"016aaaf884c10febb3e99a86acfcbe63eae04f05f5fcf35a00c59f03fb30a31b","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.6.4","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"677905dff8f0fa0db1c82008b7b3acc0456dd61c46db0008390ab99f89ef9d92","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0039","parameter_key":"fs.protected_regular","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0f1eea51ec98d254f230a48dfc4950cb060e11460e1f30be68fde3fb9439cb14","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.6.5","target_id":"ubuntu-24.04-x86_64"}
-{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"35c1fe8f6a4591fdf5b7d25f4dff6b244b868fbc1514498a7b55f9a321ddda8f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0040","parameter_key":"fs.suid_dumpable","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.6.6","target_id":"ubuntu-24.04-x86_64"}
+  command /usr/bin/cat <<'SLP_PROVENANCE_EOF'
+{"adapter_contract_sha256":"25e210b2e5c31fc57733dbb0cd7d926be4b02b50ff2b84e48752128b4a755142","adapter_id":"product-local-account-password-state-check-v2","adapter_implementation_sha256":"718acd195fe11ab3f7890a64e4e52e250915046664e5b59ad7375f960c5f2642","control_id":"FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"82d8121586664ee803efec1f1b4bb93a248ce1f302bdf90a2561468ead86d802","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"all-nonempty","expected_type":"boolean","expected_value":true,"index_id":"SRC-0001","parameter_key":"password-field","parameter_kind":"local-account-password-state","parameter_locator":"/etc/shadow","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"799b85637928264e6f43d5e32d8cc6b48af6694e30f6fbf5e4c6ddef3a207f3b","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"8351b4431f8f6ddd403afb4315cf2f8b5ebcf3f8d9c38f91bb3778e5086593cc","source_locator":"2.1.1","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"cf22028040e96aa92261265318590a3e4566bac97bd29c08cbf5c4cfd724ec38","adapter_id":"product-sshd-root-login-check-v1","adapter_implementation_sha256":"55f4b92f0fd15439ec1eabdd2db5cc0c91fecdaa583600386fb8667cac6cc96d","control_id":"FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"2f965f6e8901380f14088a167c77b07fc3b4c1872ac1f38865ba0a236a80b1de","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"no","index_id":"SRC-0002","parameter_key":"PermitRootLogin","parameter_kind":"sshd-root-login","parameter_locator":"/etc/ssh/sshd_config","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c671457700fd0fc656b34ccab9796a6b3b31a304492a26c3f317f0279e753785","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"5f22669198e49c77ca8062ff163e722924a199a4f6ece1e7fb7e4ce53966f400","source_locator":"2.1.2","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"2aad1cd3b8a9ddc7d2071b275c267b8f9bfbcb9bf4bf778ddfa7653f032fc57f","adapter_id":"product-pam-wheel-access-check-v2","adapter_implementation_sha256":"8c13be39ed0ea7c6b8e77f1596016fdc3dd23dfc467bec9fd37e9051582cb2b9","control_id":"FSTEC-LINUX-2022-2.2.1-SU-WHEEL-ACCESS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"d6771f8b26de807a96b62b7f4cbc84c4527e80798e0e00d5789598af5d36faba","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq-authority-file","expected_type":"string","expected_value":"/etc/securelinux-policy/wheel-users.allowlist-v1","index_id":"SRC-0003","parameter_key":"policy","parameter_kind":"pam-wheel-access","parameter_locator":"/etc/pam.d/su|/etc/group","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"25dd0790262b44e6c787ec36df8c1aabb8b2f8f3e50d6c9bed83285c50c64c62","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"e068bafd196b4bc4204cca9143481a960e516823f8364fd4d17919afe5ab3d1c","source_locator":"2.2.1","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"e8aec8c2a7c3576a61f31408f49edecd8a42ffcde3389677e8c00c9834337dad","adapter_id":"product-sudoers-reviewed-policy-check-v1","adapter_implementation_sha256":"a7f8dae0cce8b28440652b5c4c50bc067b8c62ed742413afbdfedce85ab27eb8","control_id":"FSTEC-LINUX-2022-2.2.2-SUDOERS-REVIEWED-POLICY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"179a59e8284a29ecedc7c7196ab3fb27d07e470bfd0f1989e5f6d6f11d63e90f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq-reviewed-policy","expected_type":"string","expected_value":"/etc/securelinux-policy/sudoers-reviewed-policy-v1","index_id":"SRC-0004","parameter_key":"policy-tree","parameter_kind":"sudoers-reviewed-policy","parameter_locator":"/etc/sudoers","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"779597efe81ae7d291d2b7b0883cffb5af1a56f0234919b0243f360e688babea","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"e77abc26b031bd6b4c3d95610513e39e8f392d06f7296ec34463dcda1dfa148c","source_locator":"2.2.2","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"0f5e967cc7124445b7cc11b057a3687067e4d9a7a32bfde4e567397d03c04bc8","adapter_id":"product-file-mode-owner-check-v2","adapter_implementation_sha256":"a8e9548341c1ab2a91eb3a72d5267498ba9778884fa4c296bf4280c135a59d67","control_id":"FSTEC-LINUX-2022-2.3.1-GROUP-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"719123c6ab9e5a26bd261a67aa2340ad1cf388ca3749db9c05b23f3079584a81","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0644","index_id":"SRC-0005","parameter_key":"mode","parameter_kind":"file-mode-owner","parameter_locator":"/etc/group","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"9ff1921e56eb10d64d5a4bd66ed41a79923f1ef2600826cf96f99540d8dcbf66","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"ead8459d087217bdbb2512d5d8760e7d8635290303a08680070eff067fd9e656","source_locator":"2.3.1","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"0f5e967cc7124445b7cc11b057a3687067e4d9a7a32bfde4e567397d03c04bc8","adapter_id":"product-file-mode-owner-check-v2","adapter_implementation_sha256":"a8e9548341c1ab2a91eb3a72d5267498ba9778884fa4c296bf4280c135a59d67","control_id":"FSTEC-LINUX-2022-2.3.1-PASSWD-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"93faa0e6920c07e2f8e12b8326131e9dc52cf9b6145eafda75943d0eef1278b1","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0644","index_id":"SRC-0005","parameter_key":"mode","parameter_kind":"file-mode-owner","parameter_locator":"/etc/passwd","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"9ff1921e56eb10d64d5a4bd66ed41a79923f1ef2600826cf96f99540d8dcbf66","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"ead8459d087217bdbb2512d5d8760e7d8635290303a08680070eff067fd9e656","source_locator":"2.3.1","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"0f5e967cc7124445b7cc11b057a3687067e4d9a7a32bfde4e567397d03c04bc8","adapter_id":"product-file-mode-owner-check-v2","adapter_implementation_sha256":"a8e9548341c1ab2a91eb3a72d5267498ba9778884fa4c296bf4280c135a59d67","control_id":"FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"62efde1e39f219e843193c7bc5a2d539d685ab79c33094c05a70e3d21873e03f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0077","index_id":"SRC-0005","parameter_key":"mode","parameter_kind":"file-mode-owner","parameter_locator":"/etc/shadow","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"9ff1921e56eb10d64d5a4bd66ed41a79923f1ef2600826cf96f99540d8dcbf66","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"ead8459d087217bdbb2512d5d8760e7d8635290303a08680070eff067fd9e656","source_locator":"2.3.1","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"6ea805aee74f102c9c981b2b497c144f01aff27ef00cdbc491738dde303d1704","adapter_id":"product-home-sensitive-files-mode-check-v2","adapter_implementation_sha256":"950aa7e227af60e6e73103771e6aea599d817242e4f6ddffd13e53bb61496e33","control_id":"FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"673f3ccff153d0073310215ae70b6a2a0707e7f5e25d40eb65408de7eaf39e9a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0077","index_id":"SRC-0014","parameter_key":"mode","parameter_kind":"home-sensitive-files-mode","parameter_locator":"/etc/passwd|/etc/securelinux-policy/home-sensitive-files-v1","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c243edbafcfee7fadede64b0dec702e3f8f92553d6240a89c36575934958b5f0","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f96bf7dbcff317e8f17e518541b380cd561614de1e0fa5414b1e9b2832d47868","source_locator":"2.3.10","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"91351c1091a5cff2f1b1292b166ed95e0afbdbc12be211a74030eeff946ab61f","adapter_id":"product-home-directories-mode-check-v2","adapter_implementation_sha256":"16db9d0ddc178b491d6e30c6b1e4f4ea33c83011b2fa73f6c9c268b858f3099e","control_id":"FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"cfc484e47c27914b409e4200315817f59eeb31775c438226377fead7e151162f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0700","index_id":"SRC-0015","parameter_key":"mode","parameter_kind":"home-directories-mode","parameter_locator":"/etc/passwd","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"2a65505db54ec27a6fec5682d2d2eb71e33b441dffad14c9dcc2d43a7c4b3c8d","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"653f327bc4370c196e86ab8f77f1dcc88b324c18fdc03a7124f926cb11e00243","source_locator":"2.3.11","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"c66a1cf45e2e59038c9890be11a1c025523c3abfabd2ea4cafaf4d98850a2edd","adapter_id":"product-running-process-paths-write-protection-check-v1","adapter_implementation_sha256":"a69c9f93cc7791266ce76a2e413b1d875fb3a8ad8dec39a555bf81b479e9e530","control_id":"FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"4c622265a9397061ef2edd2f99b6f90f78bf80aef8390f1cf129d8858daf76b3","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"runtime-paths-safe","expected_type":"string","expected_value":"file-go-w;parent-unprivileged-write-denied","index_id":"SRC-0006","parameter_key":"write-protection","parameter_kind":"running-process-paths-write-protection","parameter_locator":"/proc/<pid>/exe|/proc/<pid>/maps","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"f395bcd1e9dd9648161d6eac735f2b616c59c12e3d57a7cb1e9203cae2834aa5","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"cb1badc12483cb6b94a382e0d184c40e82a114ef6a8c4298a90e888697e5bff9","source_locator":"2.3.2","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"3ab815a36901a865a0b8adca67b582efbf36047b0b2288c6943aefda17945e82","adapter_id":"product-cron-command-paths-write-protection-check-v1","adapter_implementation_sha256":"645e9cff4343a55f2b13bb7415ff0bb100795feebdf12bf20d21b853dd9da2d1","control_id":"FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"aaab15a2454a7de6c5560aff10e367170706c6f47e6c5f879e46abe4fe9d6343","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"cron-command-paths-safe","expected_type":"string","expected_value":"file-go-w","index_id":"SRC-0007","parameter_key":"write-protection","parameter_kind":"cron-command-paths-write-protection","parameter_locator":"/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"87a3b8a9ab953c58d4b04024444d5654019d1036eb0b424ddb3a87f621e68a7a","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"49d9c919fedbc012c9fd88ab2b1b65f24172df235a519b2b43b0c8e4dc3fc9c8","source_locator":"2.3.3","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"23b33fb8861ee01fe337175c690bd00753fdceb050deda9405612344ab641b52","adapter_id":"product-sudo-root-command-files-protection-check-v1","adapter_implementation_sha256":"18b4a601188878577d416cbbff8cefe754aefd4e04c79fefdda3a7bb08b264eb","control_id":"FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"e401b18ccf1ff851720d06d934edc9ec383a33fb3a671896cfa61999aa8627d9","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"root-owned-go-w","expected_type":"string","expected_value":"uid0;bits-clear-0022","index_id":"SRC-0008","parameter_key":"root-command-files","parameter_kind":"sudo-root-command-files-protection","parameter_locator":"/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0be87131f3aea07d4da4134cd82c960c608b16feff43b6996ea4817d9bb38dfe","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"97202dafa1c3ebc0fe8787519bcd5a976627a923e9c96564b22de6ea1574d35b","source_locator":"2.3.4","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"86d848929c2ec2873faf65f34c6e980cf59d58b83f95020bf869f8b81521a297","adapter_id":"product-startup-files-write-protection-check-v1","adapter_implementation_sha256":"0a0845beb56938f92f3a7a0a4393c43c360b4c1f69e94b0d8b1fdc6192cdf442","control_id":"FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"f06a42e88648b412e21b77a070622324e4d8f57694101263a8f47d2d1fd38194","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0002","index_id":"SRC-0009","parameter_key":"other-write","parameter_kind":"startup-files-write-protection","parameter_locator":"/etc/rc[0-6].d|systemd-unit-paths","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"4a65bb314af3f2b4bb276e5b28cfd26b85b311d610553bd8e51bd26b1bfe8c6b","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"6098e676f64447097d2c3be5c44d30bb8f8bd2a379d3dba4fb9c38af88355737","source_locator":"2.3.5","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"4b0284ee1cd14be7e399c4fd132aa6058a5e1c0bc7d5a67c1015f99e8b136ebd","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"93bbc702e1a516b76a15d30077ce66c44c857859aeed5b9d86a584746fd35220","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-D","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"d1dd9b4af5c49732ec93ac350d82fb138cb1fdc967396dda25062d59ff77527a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.d","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"35f57d7fe38bb1e7714e97fe82c74f03aac33d9ec1a0d745e2d6c271f36d86e2","source_locator":"2.3.6","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"4b0284ee1cd14be7e399c4fd132aa6058a5e1c0bc7d5a67c1015f99e8b136ebd","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"93bbc702e1a516b76a15d30077ce66c44c857859aeed5b9d86a584746fd35220","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-DAILY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"a6c928414a1091aa8bf7291eee2e7574c9ad5f204831930d39a8536700f1731a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.daily","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"35f57d7fe38bb1e7714e97fe82c74f03aac33d9ec1a0d745e2d6c271f36d86e2","source_locator":"2.3.6","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"4b0284ee1cd14be7e399c4fd132aa6058a5e1c0bc7d5a67c1015f99e8b136ebd","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"93bbc702e1a516b76a15d30077ce66c44c857859aeed5b9d86a584746fd35220","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-HOURLY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"882eec0779eac5f5942f10e6670b2812f8000bf8f3e7600ba1c264362a8f4dce","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.hourly","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"35f57d7fe38bb1e7714e97fe82c74f03aac33d9ec1a0d745e2d6c271f36d86e2","source_locator":"2.3.6","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"4b0284ee1cd14be7e399c4fd132aa6058a5e1c0bc7d5a67c1015f99e8b136ebd","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"93bbc702e1a516b76a15d30077ce66c44c857859aeed5b9d86a584746fd35220","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"ca59fb02687823c843038099bd5698d42cd7d3cd402a22b4f0126bd89da42433","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.monthly","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"35f57d7fe38bb1e7714e97fe82c74f03aac33d9ec1a0d745e2d6c271f36d86e2","source_locator":"2.3.6","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"4b0284ee1cd14be7e399c4fd132aa6058a5e1c0bc7d5a67c1015f99e8b136ebd","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"93bbc702e1a516b76a15d30077ce66c44c857859aeed5b9d86a584746fd35220","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"62383ceb2d82745bdfeee36b424136c351b12d17ba430bf48b1706338a7c35e5","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.weekly","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"35f57d7fe38bb1e7714e97fe82c74f03aac33d9ec1a0d745e2d6c271f36d86e2","source_locator":"2.3.6","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"4b0284ee1cd14be7e399c4fd132aa6058a5e1c0bc7d5a67c1015f99e8b136ebd","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"93bbc702e1a516b76a15d30077ce66c44c857859aeed5b9d86a584746fd35220","control_id":"FSTEC-LINUX-2022-2.3.6-CRONTAB","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"043329e8aff8fa44762e5a2a22f6688c03bd30399dc78acb30821748d81d4fda","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/crontab","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"35f57d7fe38bb1e7714e97fe82c74f03aac33d9ec1a0d745e2d6c271f36d86e2","source_locator":"2.3.6","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"1428e2b90fb1e21f493c8c01ff5a631a7d58c1b7074b2eaedee358075da26877","adapter_id":"product-user-cron-files-mode-check-v2","adapter_implementation_sha256":"1efb24d36aec57592688472f8c2b0baadc23b32a5ca1f79fe018e3b5dcd4f0be","control_id":"FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b5cb46dc92c854012b0a970a9d3c78febae83b29f28b3dfdc3bd80626ee5ac87","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0022","index_id":"SRC-0011","parameter_key":"mode","parameter_kind":"user-cron-files-mode","parameter_locator":"/var/spool/cron/crontabs","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"af9430a9911e812b6f4b9735f35554d02e4203f7c39a3cae3d1c03004eb9adbe","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"1f1a6a01bc4a5f0b1ca8cf1d649a7e1c08b3667df2a8702134d56497950abc13","source_locator":"2.3.7","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"ae2dde5c930ce7e1a08ecf0c151a744bcd4a782fab55f4a7702d5274b4878c42","adapter_id":"product-standard-system-paths-mode-check-v2","adapter_implementation_sha256":"e021b632f1db643ab9f6349c777eefecc1defb0cc179376f7f476c825cf0b48e","control_id":"FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"9f3041f0f9809cedcafb7f7e6b6b82641324902e34a3a84f9d24228af932cb1e","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0022","index_id":"SRC-0012","parameter_key":"mode","parameter_kind":"standard-system-paths-mode","parameter_locator":"/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c14203a718160e12100efac4e8e4f748cdf7517bba948d7ee66d8811f2e462e3","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"1ea83595f910be4a5364dbe49d98ebf2b8eafb64446a3496f83830898fa223dc","source_locator":"2.3.8","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"2ee27cffe1cdd5cb211a9587079518e62107a6b74b5d4a297d5fa628a5584ed7","adapter_id":"product-suid-sgid-applications-check-v2","adapter_implementation_sha256":"be7899d602a64e14914412464e528df39fda09271afd3ae9f1effdb09ece34df","control_id":"FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"0c7c2ff2dbafa54b15440ce8f8d25173c174a28c8b1752804631a829c191a86c","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"subset-of-file","expected_type":"string","expected_value":"/etc/securelinux-policy/suid-sgid.allowlist-v1","index_id":"SRC-0013","parameter_key":"approved-set","parameter_kind":"suid-sgid-applications","parameter_locator":"/proc/self/mountinfo","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"4561a2f408c1d943d273eef49191f38e86733b007e5dd4259df73429d34bc0e1","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"9c0156d9705459d4c51a026e4abd0cc303ac0815eceb513c9a824b5ae281b708","source_locator":"2.3.9","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"2ee27cffe1cdd5cb211a9587079518e62107a6b74b5d4a297d5fa628a5584ed7","adapter_id":"product-suid-sgid-applications-check-v2","adapter_implementation_sha256":"be7899d602a64e14914412464e528df39fda09271afd3ae9f1effdb09ece34df","control_id":"FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"5e52002e72ea86d8c10dad28d09c82f0a027850ca4ae6e0d40745b7cdc33710b","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0022","index_id":"SRC-0013","parameter_key":"mode","parameter_kind":"suid-sgid-applications","parameter_locator":"/proc/self/mountinfo","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"4561a2f408c1d943d273eef49191f38e86733b007e5dd4259df73429d34bc0e1","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"9c0156d9705459d4c51a026e4abd0cc303ac0815eceb513c9a824b5ae281b708","source_locator":"2.3.9","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"51f99ed4b7c67eb30558176685885337c27a4d8c2047a8e667059dd2bbff07d9","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0016","parameter_key":"kernel.dmesg_restrict","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c889161dc17ca0ec538a88477aeebfd920e8d10a53d34952e69b12b24338a5e6","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.4.1","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"ba25c49b237cf91b74afcda02e15fd872e81c08973abd9719a8f4c465513aa9a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0017","parameter_key":"kernel.kptr_restrict","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"a4c2ba6bc1c18e8cc9a3b025cbf55b542e9cf327e3ce69fd2d8e4877bbc3ef60","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.4.2","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"68b4a5d37e9addc54b6c8d9316e1a9e47e4eda7cb0683b2df99c4be911c7ea5c","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"1","index_id":"SRC-0018","parameter_key":"init_on_alloc","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.4.3","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"817ddc5844c8600b30ea82b013576e8c90fe4381f37ff2d3e6f697766881aa9e","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"present","expected_type":"boolean","expected_value":true,"index_id":"SRC-0019","parameter_key":"slab_nomerge","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"6a5c7fa4c5804ef3c2e152c338da6c73553bb8bce5dbde0331e4ba4db09d8b6f","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.4.4","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"595da19602209ab601375e129f45dfa720038e5a5b92017e51b5b7873bd6233d","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"force","index_id":"SRC-0020","parameter_key":"iommu","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5d6db53b7945c06a610654f7b22d3f23b2840228e091cdf675568d3b6ecc3af5","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.4.5","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"85b3d67e7f741cfd9d50b3d935bc96ac38d6468d44cb18465baefa3379242942","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0","index_id":"SRC-0020","parameter_key":"iommu.passthrough","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5d6db53b7945c06a610654f7b22d3f23b2840228e091cdf675568d3b6ecc3af5","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.4.5","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"0d68a6bb3b7869e9d76046d196e61511e34560cfb55cf130b30c65b3b9d3e629","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"1","index_id":"SRC-0020","parameter_key":"iommu.strict","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5d6db53b7945c06a610654f7b22d3f23b2840228e091cdf675568d3b6ecc3af5","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.4.5","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"876b71fa1a3eabed4455db496c576c43ec897ccfe335266ae707b9bb976f124e","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"1","index_id":"SRC-0021","parameter_key":"randomize_kstack_offset","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"69cbdb70f31aadd134129cae9eb95a96f836168646a821927cc3ea56ea58c980","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.4.6","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.4.7-MITIGATIONS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"2d004e6effde058bcd8d5713b8116adec36af1476da6e4f5acb1553d7857d981","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"auto,nosmt","index_id":"SRC-0022","parameter_key":"mitigations","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"593127f71a130fb574410cc9b249cf9ce42c1ec9698ebad648c79c4554d55ceb","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.4.7","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"cfe64060a4d9829351c2c6f19c6f41b0e0697bd8be5b503a90ffe27a5f4c52ee","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0023","parameter_key":"net.core.bpf_jit_harden","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"ffeec17a621afd4726e6c0fcf0aef4fb1e22c86f45ca20d1d568471675c3914f","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.4.8","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.5.1-VSYSCALL","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"611d219ec1d517ebceb3539968662a6e40a75bb028fc553ec18eb9a95544f413","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"none","index_id":"SRC-0024","parameter_key":"vsyscall","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"909ac7e3825f234cf325dac5b9615486ef4c856315aeb9c25d4b7a6af47fa421","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.5.1","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"f2733434c77fa39bec5210262632becd3f0aad65ddb7423c869725fe95fa5655","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"ge","expected_type":"integer","expected_value":4096,"index_id":"SRC-0033","parameter_key":"vm.mmap_min_addr","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5b55fd931f99da5241c6bc05e33c7131ff091a282547b95f0699b17f515a6729","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.10","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"4a08a7bfd4f6a803dfb7bbc2486a83bd2fe1e877dcaa2e9938d402ee9765ee6d","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0034","parameter_key":"kernel.randomize_va_space","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"b40ce183dea4e9a89aff8cbc97a533d80b6db0b14ca8c844ce16486cfad417cf","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.11","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"2e3a3ec6753d880dea9aa0c3b7ac0dfc7b6e88238aed4e767293f1130613bace","adapter_id":"product-tested-setting-attestation-check-v1","adapter_implementation_sha256":"5f4a7345ef3863aacaef0c42780fbbbed1ce726c21773ce04760f462724231f3","control_id":"FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"c301ab7c5f08b0822aa61c955d00bdbec607f8188ce4fbe8d88ad0b756a293c0","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"tested-before-use","expected_type":"string","expected_value":"kernel.randomize_va_space=2","index_id":"SRC-0034","parameter_key":"SRC-0034","parameter_kind":"tested-setting-attestation","parameter_locator":"/etc/securelinux-policy/tested-setting-attestations-v1","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"b40ce183dea4e9a89aff8cbc97a533d80b6db0b14ca8c844ce16486cfad417cf","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"d15d7e89982de63578337429b97a429ecad136c8a8f39f5ba218cce5597193c7","source_locator":"2.5.11","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b0eb7068712e20660c0d84871c271c6f3fdc542132cca1cf529910dcf7f85c0a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":3,"index_id":"SRC-0025","parameter_key":"kernel.perf_event_paranoid","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"8e6f4b120bd3527b380251e92eca56e1b4c358d362f1246357579eb8af616382","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.2","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.5.3-DEBUGFS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"806da488a05c5d4ea11c2cef4bbde3b327387c1b96b143fe97c32e50e08a8894","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"one-of","expected_type":"string","expected_value":"off|no-mount","index_id":"SRC-0026","parameter_key":"debugfs","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"10391c151e6a53e91d637a11bc0f87a05a1ca7fdd408f9493dd27b366da46184","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.5.3","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"6006fdfb164b8a8860b8f4ae6d4e2758799f25ed32d53e185916da0ef0b7ed01","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0027","parameter_key":"kernel.kexec_load_disabled","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0231e3c8de27fab8de667f632bf6d08609a7c62836be9c787fd4cb955974ff09","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.4","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b13b0e0b47c820d396a9a4a8d044ffdfc4eb779c5def2347c072cbc9e3900f32","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0028","parameter_key":"user.max_user_namespaces","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"77edbfb78e01426b6c40ccedca310ff6091870e235d4225ac488f4cd5d8c090c","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.5","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"44423cf2e57eabddd637a973430a6633282f8eba658430a1290bfa610efe5b67","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0029","parameter_key":"kernel.unprivileged_bpf_disabled","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"1c320abae9872972364ef95685204f4968a2c84bc27ee9c2707907eac8c5823e","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.6","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"3a5a2c1c560d688eeea441f4455297a86983c599745acf8963507f91b72c86f4","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0030","parameter_key":"vm.unprivileged_userfaultfd","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"cba35949a04f5d3dab8bd9a0501d75e5c310773ac11c1ad2c4d80845cdd03080","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.7","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"d6e4d8f63a5235ff32f3cb429c91caa7b7ff7864ba8ab90f8fd350362e8d3a69","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0031","parameter_key":"dev.tty.ldisc_autoload","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0860efcf66e2da819b06b5d6198e3b4c9b4ea96b66929752aceba65fae301783","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.8","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.5.9-TSX","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"07040e8445ac0565a587fcf6cfadf124a45b6b076592d4a268eff2abe37b5ef3","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"off","index_id":"SRC-0032","parameter_key":"tsx","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"40b0ad985774f12adad55439e22a5ba29b3a2c50c9fedd16551fa261fd29464c","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.5.9","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"2bc9bb0cb5372fb5738612ff3738526cad9adb831b0043cc5924f36d23e7ca37","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":3,"index_id":"SRC-0035","parameter_key":"kernel.yama.ptrace_scope","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"7be4210587e64fe1864bfbf1b5e8f7cc3512434629eb17898ad487d50a9ae246","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.6.1","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b709581e94eb65e5a059d70ff4ec7aac7d248e6b664ffb42c502e23c88e2bbe8","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0036","parameter_key":"fs.protected_symlinks","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"ce09b5104160f3fe27f17f1d5e57a5fe81001adac3c362ed652552ccbc59571f","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.6.2","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"fc1fd0f1141cb6d78b5d322e6a04b2649f0264a5e8c4784c64116bed55d70ffa","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0037","parameter_key":"fs.protected_hardlinks","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"315736677a4e3192cde79d4badbf20809da81c8605785c8720fcd0fc3260fe97","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.6.3","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"af3b312efb3d252c1752a9ee70da6248e2a8e86f2e29479388206afbfbcd453d","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0038","parameter_key":"fs.protected_fifos","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"016aaaf884c10febb3e99a86acfcbe63eae04f05f5fcf35a00c59f03fb30a31b","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.6.4","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"677905dff8f0fa0db1c82008b7b3acc0456dd61c46db0008390ab99f89ef9d92","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0039","parameter_key":"fs.protected_regular","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0f1eea51ec98d254f230a48dfc4950cb060e11460e1f30be68fde3fb9439cb14","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.6.5","target_id":"linux-x86_64-supported-v1"}
+{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"35c1fe8f6a4591fdf5b7d25f4dff6b244b868fbc1514498a7b55f9a321ddda8f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0040","parameter_key":"fs.suid_dumpable","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.6.6","target_id":"linux-x86_64-supported-v1"}
 SLP_PROVENANCE_EOF
 }
 
 slp_provenance_one() {
   case "$1" in
-    'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE') printf '%s\n' '{"adapter_contract_sha256":"ac64e6daf4e59c975bd2e1031ee4fc6b3e4235c09e1789157eae20a0ebd29203","adapter_id":"product-local-account-password-state-check-v2","adapter_implementation_sha256":"48a3ba63b617ad6bf955aef4158814e44a42211b14778b3d0491cc621af2426e","control_id":"FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"82d8121586664ee803efec1f1b4bb93a248ce1f302bdf90a2561468ead86d802","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"all-nonempty","expected_type":"boolean","expected_value":true,"index_id":"SRC-0001","parameter_key":"password-field","parameter_kind":"local-account-password-state","parameter_locator":"/etc/shadow","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"799b85637928264e6f43d5e32d8cc6b48af6694e30f6fbf5e4c6ddef3a207f3b","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"c67133e3b99ac3a93bf8494f2f3a280519c3709e0e5ed06581ef7630a6a8f9c3","source_locator":"2.1.1","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN') printf '%s\n' '{"adapter_contract_sha256":"b66f2500e094932542f3506cf2da99145c805abcf0e8f9e17e8f0fee8cbbb892","adapter_id":"product-sshd-root-login-check-v1","adapter_implementation_sha256":"36038293e506b3c3c6b62f90756b44548044c26617bcebec1886a7f3de43b342","control_id":"FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"2f965f6e8901380f14088a167c77b07fc3b4c1872ac1f38865ba0a236a80b1de","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"no","index_id":"SRC-0002","parameter_key":"PermitRootLogin","parameter_kind":"sshd-root-login","parameter_locator":"/etc/ssh/sshd_config","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c671457700fd0fc656b34ccab9796a6b3b31a304492a26c3f317f0279e753785","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"db8f1a56bb13c28cb0fb77eafdbeeac3ccd7439ae11df34a65e1c24ec7c0c6ba","source_locator":"2.1.2","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.2.1-SU-WHEEL-ACCESS') printf '%s\n' '{"adapter_contract_sha256":"8a55f6b8ddec2ea91542c28d0f5d49aab677f7c98d646119875bc6bf3da9f1b6","adapter_id":"product-pam-wheel-access-check-v2","adapter_implementation_sha256":"9826c4d46253fc9305bf91b9671bbcb74fc2f8ee587f952149ebae4bd4ffe501","control_id":"FSTEC-LINUX-2022-2.2.1-SU-WHEEL-ACCESS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"d6771f8b26de807a96b62b7f4cbc84c4527e80798e0e00d5789598af5d36faba","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq-authority-file","expected_type":"string","expected_value":"/etc/securelinux-policy/wheel-users.allowlist-v1","index_id":"SRC-0003","parameter_key":"policy","parameter_kind":"pam-wheel-access","parameter_locator":"/etc/pam.d/su|/etc/group","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"25dd0790262b44e6c787ec36df8c1aabb8b2f8f3e50d6c9bed83285c50c64c62","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"6e6647a4ae12f6021a21a5d8bb33ab0ad1113279d38f9645ad44fabc1f0d13f5","source_locator":"2.2.1","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.2.2-SUDOERS-REVIEWED-POLICY') printf '%s\n' '{"adapter_contract_sha256":"c4aa130536c6b10ad70939f8f9be8e9dc9ce8cb4bbbdca1a67ea4f4d6301b248","adapter_id":"product-sudoers-reviewed-policy-check-v1","adapter_implementation_sha256":"5476dbc0be9cce163981e21b80eb7b9c96e9d8464771f9efab0c1b644f93fca6","control_id":"FSTEC-LINUX-2022-2.2.2-SUDOERS-REVIEWED-POLICY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"179a59e8284a29ecedc7c7196ab3fb27d07e470bfd0f1989e5f6d6f11d63e90f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq-reviewed-policy","expected_type":"string","expected_value":"/etc/securelinux-policy/sudoers-reviewed-policy-v1","index_id":"SRC-0004","parameter_key":"policy-tree","parameter_kind":"sudoers-reviewed-policy","parameter_locator":"/etc/sudoers","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"779597efe81ae7d291d2b7b0883cffb5af1a56f0234919b0243f360e688babea","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"f067dc99a5756351b50d71d2915c647307027d6f7a0a25f7209578a713f9b750","source_locator":"2.2.2","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.1-GROUP-MODE') printf '%s\n' '{"adapter_contract_sha256":"77af6aa1db3c391c50659062c5375e55c3af8882af3bec3672b0fe02a0c8b850","adapter_id":"product-file-mode-owner-check-v2","adapter_implementation_sha256":"3936c0f069fe4d057b3eba34b520eb3d965c9987b1157baa3a948e828f83303b","control_id":"FSTEC-LINUX-2022-2.3.1-GROUP-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"719123c6ab9e5a26bd261a67aa2340ad1cf388ca3749db9c05b23f3079584a81","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0644","index_id":"SRC-0005","parameter_key":"mode","parameter_kind":"file-mode-owner","parameter_locator":"/etc/group","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"9ff1921e56eb10d64d5a4bd66ed41a79923f1ef2600826cf96f99540d8dcbf66","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"3ceab81c94f743f3ff821bf3687fe6fcfa319b1804c769b95fc75741883dbc12","source_locator":"2.3.1","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.1-PASSWD-MODE') printf '%s\n' '{"adapter_contract_sha256":"77af6aa1db3c391c50659062c5375e55c3af8882af3bec3672b0fe02a0c8b850","adapter_id":"product-file-mode-owner-check-v2","adapter_implementation_sha256":"3936c0f069fe4d057b3eba34b520eb3d965c9987b1157baa3a948e828f83303b","control_id":"FSTEC-LINUX-2022-2.3.1-PASSWD-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"93faa0e6920c07e2f8e12b8326131e9dc52cf9b6145eafda75943d0eef1278b1","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0644","index_id":"SRC-0005","parameter_key":"mode","parameter_kind":"file-mode-owner","parameter_locator":"/etc/passwd","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"9ff1921e56eb10d64d5a4bd66ed41a79923f1ef2600826cf96f99540d8dcbf66","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"3ceab81c94f743f3ff821bf3687fe6fcfa319b1804c769b95fc75741883dbc12","source_locator":"2.3.1","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX') printf '%s\n' '{"adapter_contract_sha256":"77af6aa1db3c391c50659062c5375e55c3af8882af3bec3672b0fe02a0c8b850","adapter_id":"product-file-mode-owner-check-v2","adapter_implementation_sha256":"3936c0f069fe4d057b3eba34b520eb3d965c9987b1157baa3a948e828f83303b","control_id":"FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"62efde1e39f219e843193c7bc5a2d539d685ab79c33094c05a70e3d21873e03f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0077","index_id":"SRC-0005","parameter_key":"mode","parameter_kind":"file-mode-owner","parameter_locator":"/etc/shadow","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"9ff1921e56eb10d64d5a4bd66ed41a79923f1ef2600826cf96f99540d8dcbf66","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"3ceab81c94f743f3ff821bf3687fe6fcfa319b1804c769b95fc75741883dbc12","source_locator":"2.3.1","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE') printf '%s\n' '{"adapter_contract_sha256":"852c364502a4013ab607a1d9221c0d255d06e71d197765617db2bc59280d19f3","adapter_id":"product-home-sensitive-files-mode-check-v2","adapter_implementation_sha256":"d4d1e356243f387b593bda156d5456fcd4bc770d336f6d0903b37167e37907fc","control_id":"FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"673f3ccff153d0073310215ae70b6a2a0707e7f5e25d40eb65408de7eaf39e9a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0077","index_id":"SRC-0014","parameter_key":"mode","parameter_kind":"home-sensitive-files-mode","parameter_locator":"/etc/passwd|/etc/securelinux-policy/home-sensitive-files-v1","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c243edbafcfee7fadede64b0dec702e3f8f92553d6240a89c36575934958b5f0","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"70d481dd206bd9b890d7fccc05238fbf7e61625e4e419c35d3c5906f641294f5","source_locator":"2.3.10","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE') printf '%s\n' '{"adapter_contract_sha256":"2501d7f29a4d1185cfc3b98f2011d41cc850e58816142379002ee86ea0d9917a","adapter_id":"product-home-directories-mode-check-v2","adapter_implementation_sha256":"07da6a2a04072ea8a0f3ecb47d8c69321ae65bd1093c65604957cc2fbfcd7a65","control_id":"FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"cfc484e47c27914b409e4200315817f59eeb31775c438226377fead7e151162f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0700","index_id":"SRC-0015","parameter_key":"mode","parameter_kind":"home-directories-mode","parameter_locator":"/etc/passwd","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"2a65505db54ec27a6fec5682d2d2eb71e33b441dffad14c9dcc2d43a7c4b3c8d","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"f7957b5d6a46718354a2e42d36af204d606675f069b0dff07cb8c1c2e2d35222","source_locator":"2.3.11","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION') printf '%s\n' '{"adapter_contract_sha256":"eb674f59077ff3197a97edcd467953f989baf23c9cef322b51c0ef06e12937a0","adapter_id":"product-running-process-paths-write-protection-check-v1","adapter_implementation_sha256":"168d6132fdc3b576b1d1f091939b27337e5a52cc379cd3dbb74d0fa287df885b","control_id":"FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"4c622265a9397061ef2edd2f99b6f90f78bf80aef8390f1cf129d8858daf76b3","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"runtime-paths-safe","expected_type":"string","expected_value":"file-go-w;parent-unprivileged-write-denied","index_id":"SRC-0006","parameter_key":"write-protection","parameter_kind":"running-process-paths-write-protection","parameter_locator":"/proc/<pid>/exe|/proc/<pid>/maps","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"f395bcd1e9dd9648161d6eac735f2b616c59c12e3d57a7cb1e9203cae2834aa5","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"a268fb4a9be8bd771c7ce2d2462f4466bd3e08c12d3690fdcf692ea1656e52b2","source_locator":"2.3.2","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION') printf '%s\n' '{"adapter_contract_sha256":"7373f3df058b88b20cdb50d3aaf7e26a6697ac116452bd18c334b56dfadf2c0c","adapter_id":"product-cron-command-paths-write-protection-check-v1","adapter_implementation_sha256":"5da2f01e2094983a7f278697585b506cd885768a97751ca0a453738b7e4a877b","control_id":"FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"aaab15a2454a7de6c5560aff10e367170706c6f47e6c5f879e46abe4fe9d6343","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"cron-command-paths-safe","expected_type":"string","expected_value":"file-go-w","index_id":"SRC-0007","parameter_key":"write-protection","parameter_kind":"cron-command-paths-write-protection","parameter_locator":"/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"87a3b8a9ab953c58d4b04024444d5654019d1036eb0b424ddb3a87f621e68a7a","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"b937ecd625c94cdf83b980ee7150c014f45f41a21c8dd5e297589782eb1e65fa","source_locator":"2.3.3","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION') printf '%s\n' '{"adapter_contract_sha256":"1c984a656a054dc61b93a435f3c7872051583beeea2446a38191a13f3d4e09b7","adapter_id":"product-sudo-root-command-files-protection-check-v1","adapter_implementation_sha256":"5360ca7682cd3c54da0e08201f4fb275eb82d5521607ee906d0c6b40e456d0e8","control_id":"FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"e401b18ccf1ff851720d06d934edc9ec383a33fb3a671896cfa61999aa8627d9","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"root-owned-go-w","expected_type":"string","expected_value":"uid0;bits-clear-0022","index_id":"SRC-0008","parameter_key":"root-command-files","parameter_kind":"sudo-root-command-files-protection","parameter_locator":"/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0be87131f3aea07d4da4134cd82c960c608b16feff43b6996ea4817d9bb38dfe","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"c5150cd5fd8b35449d66d57800e5abeef2169880d650d72b533eebe9345411e1","source_locator":"2.3.4","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION') printf '%s\n' '{"adapter_contract_sha256":"0184b12971cfc9c761970d112583011d78d4093bc62528ba149dfd75cb80c3ea","adapter_id":"product-startup-files-write-protection-check-v1","adapter_implementation_sha256":"bfdb0ad2d0dc07f7384c549522e84437c841630b1ee158dc82dafe94f2001300","control_id":"FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"f06a42e88648b412e21b77a070622324e4d8f57694101263a8f47d2d1fd38194","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0002","index_id":"SRC-0009","parameter_key":"other-write","parameter_kind":"startup-files-write-protection","parameter_locator":"/etc/rc[0-6].d|systemd-unit-paths","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"4a65bb314af3f2b4bb276e5b28cfd26b85b311d610553bd8e51bd26b1bfe8c6b","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"1d3ddae058e0bed538b7ba5d74da59b0cd392db80240c45fb4f6d9be109c88c3","source_locator":"2.3.5","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.6-CRON-D') printf '%s\n' '{"adapter_contract_sha256":"73cd2d5455649917128a6e28405177648a2f8bb90fde9247babcc687955b1bb5","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"9cc727b05337da4cac52142238f64dbb8879a49b3823499ee304f9891e397a23","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-D","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"d1dd9b4af5c49732ec93ac350d82fb138cb1fdc967396dda25062d59ff77527a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.d","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"391d2db8f698fd6c34e0bce7adf830ffd59079402dc2363d1a149d497d0a1aa1","source_locator":"2.3.6","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.6-CRON-DAILY') printf '%s\n' '{"adapter_contract_sha256":"73cd2d5455649917128a6e28405177648a2f8bb90fde9247babcc687955b1bb5","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"9cc727b05337da4cac52142238f64dbb8879a49b3823499ee304f9891e397a23","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-DAILY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"a6c928414a1091aa8bf7291eee2e7574c9ad5f204831930d39a8536700f1731a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.daily","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"391d2db8f698fd6c34e0bce7adf830ffd59079402dc2363d1a149d497d0a1aa1","source_locator":"2.3.6","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY') printf '%s\n' '{"adapter_contract_sha256":"73cd2d5455649917128a6e28405177648a2f8bb90fde9247babcc687955b1bb5","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"9cc727b05337da4cac52142238f64dbb8879a49b3823499ee304f9891e397a23","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-HOURLY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"882eec0779eac5f5942f10e6670b2812f8000bf8f3e7600ba1c264362a8f4dce","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.hourly","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"391d2db8f698fd6c34e0bce7adf830ffd59079402dc2363d1a149d497d0a1aa1","source_locator":"2.3.6","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY') printf '%s\n' '{"adapter_contract_sha256":"73cd2d5455649917128a6e28405177648a2f8bb90fde9247babcc687955b1bb5","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"9cc727b05337da4cac52142238f64dbb8879a49b3823499ee304f9891e397a23","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"ca59fb02687823c843038099bd5698d42cd7d3cd402a22b4f0126bd89da42433","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.monthly","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"391d2db8f698fd6c34e0bce7adf830ffd59079402dc2363d1a149d497d0a1aa1","source_locator":"2.3.6","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY') printf '%s\n' '{"adapter_contract_sha256":"73cd2d5455649917128a6e28405177648a2f8bb90fde9247babcc687955b1bb5","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"9cc727b05337da4cac52142238f64dbb8879a49b3823499ee304f9891e397a23","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"62383ceb2d82745bdfeee36b424136c351b12d17ba430bf48b1706338a7c35e5","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.weekly","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"391d2db8f698fd6c34e0bce7adf830ffd59079402dc2363d1a149d497d0a1aa1","source_locator":"2.3.6","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.6-CRONTAB') printf '%s\n' '{"adapter_contract_sha256":"73cd2d5455649917128a6e28405177648a2f8bb90fde9247babcc687955b1bb5","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"9cc727b05337da4cac52142238f64dbb8879a49b3823499ee304f9891e397a23","control_id":"FSTEC-LINUX-2022-2.3.6-CRONTAB","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"043329e8aff8fa44762e5a2a22f6688c03bd30399dc78acb30821748d81d4fda","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/crontab","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"391d2db8f698fd6c34e0bce7adf830ffd59079402dc2363d1a149d497d0a1aa1","source_locator":"2.3.6","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE') printf '%s\n' '{"adapter_contract_sha256":"bb8c66076b66ff951a86608e319dfdddaf92c23e3e8564c0a49823789e7f5b84","adapter_id":"product-user-cron-files-mode-check-v2","adapter_implementation_sha256":"46234b064b01950c9425eae08a742a234f2f6e15f7a3a92575bd3a32597f03fc","control_id":"FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b5cb46dc92c854012b0a970a9d3c78febae83b29f28b3dfdc3bd80626ee5ac87","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0022","index_id":"SRC-0011","parameter_key":"mode","parameter_kind":"user-cron-files-mode","parameter_locator":"/var/spool/cron/crontabs","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"af9430a9911e812b6f4b9735f35554d02e4203f7c39a3cae3d1c03004eb9adbe","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"a3a1134f8ec10616fa6662d21bfa66f9ee693e4d216fff7586148f7f217fb555","source_locator":"2.3.7","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE') printf '%s\n' '{"adapter_contract_sha256":"52fe4acb875f1e62b86bb084b8c38cd6b26784c0d0979a2a704298145cb83b84","adapter_id":"product-standard-system-paths-mode-check-v2","adapter_implementation_sha256":"7e755b2ae510caf0f85e7f6826d379ff634f4c631c6d36e479a697d102d5bbcb","control_id":"FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"9f3041f0f9809cedcafb7f7e6b6b82641324902e34a3a84f9d24228af932cb1e","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0022","index_id":"SRC-0012","parameter_key":"mode","parameter_kind":"standard-system-paths-mode","parameter_locator":"/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c14203a718160e12100efac4e8e4f748cdf7517bba948d7ee66d8811f2e462e3","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"17a62949d502e725d9cd62e0ff62b10d2ebe5cc5515b9cf302c7eee85f705ea7","source_locator":"2.3.8","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST') printf '%s\n' '{"adapter_contract_sha256":"45e50a9d4b6fbf86d892b407ce9aaea1d5e1c0722df41814d03863fb2602d7aa","adapter_id":"product-suid-sgid-applications-check-v2","adapter_implementation_sha256":"65e151ce0a054294f899497b91c72f68c6afaa7f4f373ab7789ae6a53e95bba3","control_id":"FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"0c7c2ff2dbafa54b15440ce8f8d25173c174a28c8b1752804631a829c191a86c","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"subset-of-file","expected_type":"string","expected_value":"/etc/securelinux-policy/suid-sgid.allowlist-v1","index_id":"SRC-0013","parameter_key":"approved-set","parameter_kind":"suid-sgid-applications","parameter_locator":"/proc/self/mountinfo","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"4561a2f408c1d943d273eef49191f38e86733b007e5dd4259df73429d34bc0e1","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"da17f07f1785af934defa3c41b0980ea6ec3df2ec74400f5bd0627cb0e8a482d","source_locator":"2.3.9","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE') printf '%s\n' '{"adapter_contract_sha256":"45e50a9d4b6fbf86d892b407ce9aaea1d5e1c0722df41814d03863fb2602d7aa","adapter_id":"product-suid-sgid-applications-check-v2","adapter_implementation_sha256":"65e151ce0a054294f899497b91c72f68c6afaa7f4f373ab7789ae6a53e95bba3","control_id":"FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"5e52002e72ea86d8c10dad28d09c82f0a027850ca4ae6e0d40745b7cdc33710b","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0022","index_id":"SRC-0013","parameter_key":"mode","parameter_kind":"suid-sgid-applications","parameter_locator":"/proc/self/mountinfo","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"4561a2f408c1d943d273eef49191f38e86733b007e5dd4259df73429d34bc0e1","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"da17f07f1785af934defa3c41b0980ea6ec3df2ec74400f5bd0627cb0e8a482d","source_locator":"2.3.9","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"51f99ed4b7c67eb30558176685885337c27a4d8c2047a8e667059dd2bbff07d9","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0016","parameter_key":"kernel.dmesg_restrict","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c889161dc17ca0ec538a88477aeebfd920e8d10a53d34952e69b12b24338a5e6","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.4.1","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"ba25c49b237cf91b74afcda02e15fd872e81c08973abd9719a8f4c465513aa9a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0017","parameter_key":"kernel.kptr_restrict","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"a4c2ba6bc1c18e8cc9a3b025cbf55b542e9cf327e3ce69fd2d8e4877bbc3ef60","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.4.2","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC') printf '%s\n' '{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"68b4a5d37e9addc54b6c8d9316e1a9e47e4eda7cb0683b2df99c4be911c7ea5c","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"1","index_id":"SRC-0018","parameter_key":"init_on_alloc","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.4.3","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE') printf '%s\n' '{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"817ddc5844c8600b30ea82b013576e8c90fe4381f37ff2d3e6f697766881aa9e","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"present","expected_type":"boolean","expected_value":true,"index_id":"SRC-0019","parameter_key":"slab_nomerge","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"6a5c7fa4c5804ef3c2e152c338da6c73553bb8bce5dbde0331e4ba4db09d8b6f","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.4.4","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE') printf '%s\n' '{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"595da19602209ab601375e129f45dfa720038e5a5b92017e51b5b7873bd6233d","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"force","index_id":"SRC-0020","parameter_key":"iommu","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5d6db53b7945c06a610654f7b22d3f23b2840228e091cdf675568d3b6ecc3af5","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.4.5","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH') printf '%s\n' '{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"85b3d67e7f741cfd9d50b3d935bc96ac38d6468d44cb18465baefa3379242942","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0","index_id":"SRC-0020","parameter_key":"iommu.passthrough","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5d6db53b7945c06a610654f7b22d3f23b2840228e091cdf675568d3b6ecc3af5","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.4.5","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT') printf '%s\n' '{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"0d68a6bb3b7869e9d76046d196e61511e34560cfb55cf130b30c65b3b9d3e629","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"1","index_id":"SRC-0020","parameter_key":"iommu.strict","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5d6db53b7945c06a610654f7b22d3f23b2840228e091cdf675568d3b6ecc3af5","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.4.5","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET') printf '%s\n' '{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"876b71fa1a3eabed4455db496c576c43ec897ccfe335266ae707b9bb976f124e","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"1","index_id":"SRC-0021","parameter_key":"randomize_kstack_offset","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"69cbdb70f31aadd134129cae9eb95a96f836168646a821927cc3ea56ea58c980","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.4.6","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.4.7-MITIGATIONS') printf '%s\n' '{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.4.7-MITIGATIONS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"2d004e6effde058bcd8d5713b8116adec36af1476da6e4f5acb1553d7857d981","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"auto,nosmt","index_id":"SRC-0022","parameter_key":"mitigations","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"593127f71a130fb574410cc9b249cf9ce42c1ec9698ebad648c79c4554d55ceb","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.4.7","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"cfe64060a4d9829351c2c6f19c6f41b0e0697bd8be5b503a90ffe27a5f4c52ee","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0023","parameter_key":"net.core.bpf_jit_harden","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"ffeec17a621afd4726e6c0fcf0aef4fb1e22c86f45ca20d1d568471675c3914f","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.4.8","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.5.1-VSYSCALL') printf '%s\n' '{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.5.1-VSYSCALL","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"611d219ec1d517ebceb3539968662a6e40a75bb028fc553ec18eb9a95544f413","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"none","index_id":"SRC-0024","parameter_key":"vsyscall","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"909ac7e3825f234cf325dac5b9615486ef4c856315aeb9c25d4b7a6af47fa421","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.5.1","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"f2733434c77fa39bec5210262632becd3f0aad65ddb7423c869725fe95fa5655","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"ge","expected_type":"integer","expected_value":4096,"index_id":"SRC-0033","parameter_key":"vm.mmap_min_addr","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5b55fd931f99da5241c6bc05e33c7131ff091a282547b95f0699b17f515a6729","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.10","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"4a08a7bfd4f6a803dfb7bbc2486a83bd2fe1e877dcaa2e9938d402ee9765ee6d","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0034","parameter_key":"kernel.randomize_va_space","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"b40ce183dea4e9a89aff8cbc97a533d80b6db0b14ca8c844ce16486cfad417cf","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.11","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE') printf '%s\n' '{"adapter_contract_sha256":"d6ad7087faaf9caac8539cb9cd92a7f31d2dabeea590adf92a68af84ab835de3","adapter_id":"product-tested-setting-attestation-check-v1","adapter_implementation_sha256":"23eaba8698b5115faf2c5a11ff3dbe605647d1e48b41d1e8d61933a30263bc5b","control_id":"FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"c301ab7c5f08b0822aa61c955d00bdbec607f8188ce4fbe8d88ad0b756a293c0","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"tested-before-use","expected_type":"string","expected_value":"kernel.randomize_va_space=2","index_id":"SRC-0034","parameter_key":"SRC-0034","parameter_kind":"tested-setting-attestation","parameter_locator":"/etc/securelinux-policy/tested-setting-attestations-v1","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"b40ce183dea4e9a89aff8cbc97a533d80b6db0b14ca8c844ce16486cfad417cf","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"a81e27abdece6dde159708386ae04cce7b8ce69b8defe485fe25b1986f49324b","source_locator":"2.5.11","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b0eb7068712e20660c0d84871c271c6f3fdc542132cca1cf529910dcf7f85c0a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":3,"index_id":"SRC-0025","parameter_key":"kernel.perf_event_paranoid","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"8e6f4b120bd3527b380251e92eca56e1b4c358d362f1246357579eb8af616382","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.2","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.5.3-DEBUGFS') printf '%s\n' '{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.5.3-DEBUGFS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"806da488a05c5d4ea11c2cef4bbde3b327387c1b96b143fe97c32e50e08a8894","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"one-of","expected_type":"string","expected_value":"off|no-mount","index_id":"SRC-0026","parameter_key":"debugfs","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"10391c151e6a53e91d637a11bc0f87a05a1ca7fdd408f9493dd27b366da46184","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.5.3","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"6006fdfb164b8a8860b8f4ae6d4e2758799f25ed32d53e185916da0ef0b7ed01","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0027","parameter_key":"kernel.kexec_load_disabled","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0231e3c8de27fab8de667f632bf6d08609a7c62836be9c787fd4cb955974ff09","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.4","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b13b0e0b47c820d396a9a4a8d044ffdfc4eb779c5def2347c072cbc9e3900f32","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0028","parameter_key":"user.max_user_namespaces","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"77edbfb78e01426b6c40ccedca310ff6091870e235d4225ac488f4cd5d8c090c","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.5","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"44423cf2e57eabddd637a973430a6633282f8eba658430a1290bfa610efe5b67","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0029","parameter_key":"kernel.unprivileged_bpf_disabled","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"1c320abae9872972364ef95685204f4968a2c84bc27ee9c2707907eac8c5823e","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.6","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"3a5a2c1c560d688eeea441f4455297a86983c599745acf8963507f91b72c86f4","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0030","parameter_key":"vm.unprivileged_userfaultfd","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"cba35949a04f5d3dab8bd9a0501d75e5c310773ac11c1ad2c4d80845cdd03080","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.7","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"d6e4d8f63a5235ff32f3cb429c91caa7b7ff7864ba8ab90f8fd350362e8d3a69","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0031","parameter_key":"dev.tty.ldisc_autoload","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0860efcf66e2da819b06b5d6198e3b4c9b4ea96b66929752aceba65fae301783","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.5.8","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.5.9-TSX') printf '%s\n' '{"adapter_contract_sha256":"ded28f9648eb43338c175031d6f5a9c40a843076aeb9c6bc7eb562f05c50b275","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"870c72022f376a7af419774a9e6c498dcefac97700e7d442449d47875cc523ae","control_id":"FSTEC-LINUX-2022-2.5.9-TSX","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"07040e8445ac0565a587fcf6cfadf124a45b6b076592d4a268eff2abe37b5ef3","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"off","index_id":"SRC-0032","parameter_key":"tsx","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"40b0ad985774f12adad55439e22a5ba29b3a2c50c9fedd16551fa261fd29464c","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"4fe84ad535964544852d3c30ee63f4ad89290ee1b597da0cf16cad856ce36a4a","source_locator":"2.5.9","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"2bc9bb0cb5372fb5738612ff3738526cad9adb831b0043cc5924f36d23e7ca37","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":3,"index_id":"SRC-0035","parameter_key":"kernel.yama.ptrace_scope","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"7be4210587e64fe1864bfbf1b5e8f7cc3512434629eb17898ad487d50a9ae246","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.6.1","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b709581e94eb65e5a059d70ff4ec7aac7d248e6b664ffb42c502e23c88e2bbe8","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0036","parameter_key":"fs.protected_symlinks","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"ce09b5104160f3fe27f17f1d5e57a5fe81001adac3c362ed652552ccbc59571f","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.6.2","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"fc1fd0f1141cb6d78b5d322e6a04b2649f0264a5e8c4784c64116bed55d70ffa","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0037","parameter_key":"fs.protected_hardlinks","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"315736677a4e3192cde79d4badbf20809da81c8605785c8720fcd0fc3260fe97","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.6.3","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"af3b312efb3d252c1752a9ee70da6248e2a8e86f2e29479388206afbfbcd453d","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0038","parameter_key":"fs.protected_fifos","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"016aaaf884c10febb3e99a86acfcbe63eae04f05f5fcf35a00c59f03fb30a31b","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.6.4","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"677905dff8f0fa0db1c82008b7b3acc0456dd61c46db0008390ab99f89ef9d92","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0039","parameter_key":"fs.protected_regular","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0f1eea51ec98d254f230a48dfc4950cb060e11460e1f30be68fde3fb9439cb14","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.6.5","target_id":"ubuntu-24.04-x86_64"}' ;;
-    'FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE') printf '%s\n' '{"adapter_contract_sha256":"bf18392ba3db1abd2240d6086c0eb490f4393a4aa38dc2811ca727b65aa572b3","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"525bf535b91047f2a4b3d7e7e28f43acfc2d2fc72286aa731c889352c6d4ac00","control_id":"FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"35c1fe8f6a4591fdf5b7d25f4dff6b244b868fbc1514498a7b55f9a321ddda8f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0040","parameter_key":"fs.suid_dumpable","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d","registry_sha256":"a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3","semantic_contract_sha256":"5b4a142383602aaa5689cdb2d8e718dc92939bb1599d7f07889e29fb4eb72225","source_locator":"2.6.6","target_id":"ubuntu-24.04-x86_64"}' ;;
+    'FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE') printf '%s\n' '{"adapter_contract_sha256":"25e210b2e5c31fc57733dbb0cd7d926be4b02b50ff2b84e48752128b4a755142","adapter_id":"product-local-account-password-state-check-v2","adapter_implementation_sha256":"718acd195fe11ab3f7890a64e4e52e250915046664e5b59ad7375f960c5f2642","control_id":"FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"82d8121586664ee803efec1f1b4bb93a248ce1f302bdf90a2561468ead86d802","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"all-nonempty","expected_type":"boolean","expected_value":true,"index_id":"SRC-0001","parameter_key":"password-field","parameter_kind":"local-account-password-state","parameter_locator":"/etc/shadow","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"799b85637928264e6f43d5e32d8cc6b48af6694e30f6fbf5e4c6ddef3a207f3b","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"8351b4431f8f6ddd403afb4315cf2f8b5ebcf3f8d9c38f91bb3778e5086593cc","source_locator":"2.1.1","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN') printf '%s\n' '{"adapter_contract_sha256":"cf22028040e96aa92261265318590a3e4566bac97bd29c08cbf5c4cfd724ec38","adapter_id":"product-sshd-root-login-check-v1","adapter_implementation_sha256":"55f4b92f0fd15439ec1eabdd2db5cc0c91fecdaa583600386fb8667cac6cc96d","control_id":"FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"2f965f6e8901380f14088a167c77b07fc3b4c1872ac1f38865ba0a236a80b1de","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"no","index_id":"SRC-0002","parameter_key":"PermitRootLogin","parameter_kind":"sshd-root-login","parameter_locator":"/etc/ssh/sshd_config","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c671457700fd0fc656b34ccab9796a6b3b31a304492a26c3f317f0279e753785","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"5f22669198e49c77ca8062ff163e722924a199a4f6ece1e7fb7e4ce53966f400","source_locator":"2.1.2","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.2.1-SU-WHEEL-ACCESS') printf '%s\n' '{"adapter_contract_sha256":"2aad1cd3b8a9ddc7d2071b275c267b8f9bfbcb9bf4bf778ddfa7653f032fc57f","adapter_id":"product-pam-wheel-access-check-v2","adapter_implementation_sha256":"8c13be39ed0ea7c6b8e77f1596016fdc3dd23dfc467bec9fd37e9051582cb2b9","control_id":"FSTEC-LINUX-2022-2.2.1-SU-WHEEL-ACCESS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"d6771f8b26de807a96b62b7f4cbc84c4527e80798e0e00d5789598af5d36faba","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq-authority-file","expected_type":"string","expected_value":"/etc/securelinux-policy/wheel-users.allowlist-v1","index_id":"SRC-0003","parameter_key":"policy","parameter_kind":"pam-wheel-access","parameter_locator":"/etc/pam.d/su|/etc/group","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"25dd0790262b44e6c787ec36df8c1aabb8b2f8f3e50d6c9bed83285c50c64c62","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"e068bafd196b4bc4204cca9143481a960e516823f8364fd4d17919afe5ab3d1c","source_locator":"2.2.1","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.2.2-SUDOERS-REVIEWED-POLICY') printf '%s\n' '{"adapter_contract_sha256":"e8aec8c2a7c3576a61f31408f49edecd8a42ffcde3389677e8c00c9834337dad","adapter_id":"product-sudoers-reviewed-policy-check-v1","adapter_implementation_sha256":"a7f8dae0cce8b28440652b5c4c50bc067b8c62ed742413afbdfedce85ab27eb8","control_id":"FSTEC-LINUX-2022-2.2.2-SUDOERS-REVIEWED-POLICY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"179a59e8284a29ecedc7c7196ab3fb27d07e470bfd0f1989e5f6d6f11d63e90f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq-reviewed-policy","expected_type":"string","expected_value":"/etc/securelinux-policy/sudoers-reviewed-policy-v1","index_id":"SRC-0004","parameter_key":"policy-tree","parameter_kind":"sudoers-reviewed-policy","parameter_locator":"/etc/sudoers","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"779597efe81ae7d291d2b7b0883cffb5af1a56f0234919b0243f360e688babea","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"e77abc26b031bd6b4c3d95610513e39e8f392d06f7296ec34463dcda1dfa148c","source_locator":"2.2.2","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.1-GROUP-MODE') printf '%s\n' '{"adapter_contract_sha256":"0f5e967cc7124445b7cc11b057a3687067e4d9a7a32bfde4e567397d03c04bc8","adapter_id":"product-file-mode-owner-check-v2","adapter_implementation_sha256":"a8e9548341c1ab2a91eb3a72d5267498ba9778884fa4c296bf4280c135a59d67","control_id":"FSTEC-LINUX-2022-2.3.1-GROUP-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"719123c6ab9e5a26bd261a67aa2340ad1cf388ca3749db9c05b23f3079584a81","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0644","index_id":"SRC-0005","parameter_key":"mode","parameter_kind":"file-mode-owner","parameter_locator":"/etc/group","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"9ff1921e56eb10d64d5a4bd66ed41a79923f1ef2600826cf96f99540d8dcbf66","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"ead8459d087217bdbb2512d5d8760e7d8635290303a08680070eff067fd9e656","source_locator":"2.3.1","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.1-PASSWD-MODE') printf '%s\n' '{"adapter_contract_sha256":"0f5e967cc7124445b7cc11b057a3687067e4d9a7a32bfde4e567397d03c04bc8","adapter_id":"product-file-mode-owner-check-v2","adapter_implementation_sha256":"a8e9548341c1ab2a91eb3a72d5267498ba9778884fa4c296bf4280c135a59d67","control_id":"FSTEC-LINUX-2022-2.3.1-PASSWD-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"93faa0e6920c07e2f8e12b8326131e9dc52cf9b6145eafda75943d0eef1278b1","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0644","index_id":"SRC-0005","parameter_key":"mode","parameter_kind":"file-mode-owner","parameter_locator":"/etc/passwd","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"9ff1921e56eb10d64d5a4bd66ed41a79923f1ef2600826cf96f99540d8dcbf66","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"ead8459d087217bdbb2512d5d8760e7d8635290303a08680070eff067fd9e656","source_locator":"2.3.1","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX') printf '%s\n' '{"adapter_contract_sha256":"0f5e967cc7124445b7cc11b057a3687067e4d9a7a32bfde4e567397d03c04bc8","adapter_id":"product-file-mode-owner-check-v2","adapter_implementation_sha256":"a8e9548341c1ab2a91eb3a72d5267498ba9778884fa4c296bf4280c135a59d67","control_id":"FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"62efde1e39f219e843193c7bc5a2d539d685ab79c33094c05a70e3d21873e03f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0077","index_id":"SRC-0005","parameter_key":"mode","parameter_kind":"file-mode-owner","parameter_locator":"/etc/shadow","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"9ff1921e56eb10d64d5a4bd66ed41a79923f1ef2600826cf96f99540d8dcbf66","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"ead8459d087217bdbb2512d5d8760e7d8635290303a08680070eff067fd9e656","source_locator":"2.3.1","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE') printf '%s\n' '{"adapter_contract_sha256":"6ea805aee74f102c9c981b2b497c144f01aff27ef00cdbc491738dde303d1704","adapter_id":"product-home-sensitive-files-mode-check-v2","adapter_implementation_sha256":"950aa7e227af60e6e73103771e6aea599d817242e4f6ddffd13e53bb61496e33","control_id":"FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"673f3ccff153d0073310215ae70b6a2a0707e7f5e25d40eb65408de7eaf39e9a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0077","index_id":"SRC-0014","parameter_key":"mode","parameter_kind":"home-sensitive-files-mode","parameter_locator":"/etc/passwd|/etc/securelinux-policy/home-sensitive-files-v1","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c243edbafcfee7fadede64b0dec702e3f8f92553d6240a89c36575934958b5f0","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f96bf7dbcff317e8f17e518541b380cd561614de1e0fa5414b1e9b2832d47868","source_locator":"2.3.10","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE') printf '%s\n' '{"adapter_contract_sha256":"91351c1091a5cff2f1b1292b166ed95e0afbdbc12be211a74030eeff946ab61f","adapter_id":"product-home-directories-mode-check-v2","adapter_implementation_sha256":"16db9d0ddc178b491d6e30c6b1e4f4ea33c83011b2fa73f6c9c268b858f3099e","control_id":"FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"cfc484e47c27914b409e4200315817f59eeb31775c438226377fead7e151162f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0700","index_id":"SRC-0015","parameter_key":"mode","parameter_kind":"home-directories-mode","parameter_locator":"/etc/passwd","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"2a65505db54ec27a6fec5682d2d2eb71e33b441dffad14c9dcc2d43a7c4b3c8d","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"653f327bc4370c196e86ab8f77f1dcc88b324c18fdc03a7124f926cb11e00243","source_locator":"2.3.11","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION') printf '%s\n' '{"adapter_contract_sha256":"c66a1cf45e2e59038c9890be11a1c025523c3abfabd2ea4cafaf4d98850a2edd","adapter_id":"product-running-process-paths-write-protection-check-v1","adapter_implementation_sha256":"a69c9f93cc7791266ce76a2e413b1d875fb3a8ad8dec39a555bf81b479e9e530","control_id":"FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"4c622265a9397061ef2edd2f99b6f90f78bf80aef8390f1cf129d8858daf76b3","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"runtime-paths-safe","expected_type":"string","expected_value":"file-go-w;parent-unprivileged-write-denied","index_id":"SRC-0006","parameter_key":"write-protection","parameter_kind":"running-process-paths-write-protection","parameter_locator":"/proc/<pid>/exe|/proc/<pid>/maps","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"f395bcd1e9dd9648161d6eac735f2b616c59c12e3d57a7cb1e9203cae2834aa5","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"cb1badc12483cb6b94a382e0d184c40e82a114ef6a8c4298a90e888697e5bff9","source_locator":"2.3.2","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION') printf '%s\n' '{"adapter_contract_sha256":"3ab815a36901a865a0b8adca67b582efbf36047b0b2288c6943aefda17945e82","adapter_id":"product-cron-command-paths-write-protection-check-v1","adapter_implementation_sha256":"645e9cff4343a55f2b13bb7415ff0bb100795feebdf12bf20d21b853dd9da2d1","control_id":"FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"aaab15a2454a7de6c5560aff10e367170706c6f47e6c5f879e46abe4fe9d6343","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"cron-command-paths-safe","expected_type":"string","expected_value":"file-go-w","index_id":"SRC-0007","parameter_key":"write-protection","parameter_kind":"cron-command-paths-write-protection","parameter_locator":"/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"87a3b8a9ab953c58d4b04024444d5654019d1036eb0b424ddb3a87f621e68a7a","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"49d9c919fedbc012c9fd88ab2b1b65f24172df235a519b2b43b0c8e4dc3fc9c8","source_locator":"2.3.3","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION') printf '%s\n' '{"adapter_contract_sha256":"23b33fb8861ee01fe337175c690bd00753fdceb050deda9405612344ab641b52","adapter_id":"product-sudo-root-command-files-protection-check-v1","adapter_implementation_sha256":"18b4a601188878577d416cbbff8cefe754aefd4e04c79fefdda3a7bb08b264eb","control_id":"FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"e401b18ccf1ff851720d06d934edc9ec383a33fb3a671896cfa61999aa8627d9","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"root-owned-go-w","expected_type":"string","expected_value":"uid0;bits-clear-0022","index_id":"SRC-0008","parameter_key":"root-command-files","parameter_kind":"sudo-root-command-files-protection","parameter_locator":"/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0be87131f3aea07d4da4134cd82c960c608b16feff43b6996ea4817d9bb38dfe","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"97202dafa1c3ebc0fe8787519bcd5a976627a923e9c96564b22de6ea1574d35b","source_locator":"2.3.4","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION') printf '%s\n' '{"adapter_contract_sha256":"86d848929c2ec2873faf65f34c6e980cf59d58b83f95020bf869f8b81521a297","adapter_id":"product-startup-files-write-protection-check-v1","adapter_implementation_sha256":"0a0845beb56938f92f3a7a0a4393c43c360b4c1f69e94b0d8b1fdc6192cdf442","control_id":"FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"f06a42e88648b412e21b77a070622324e4d8f57694101263a8f47d2d1fd38194","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0002","index_id":"SRC-0009","parameter_key":"other-write","parameter_kind":"startup-files-write-protection","parameter_locator":"/etc/rc[0-6].d|systemd-unit-paths","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"4a65bb314af3f2b4bb276e5b28cfd26b85b311d610553bd8e51bd26b1bfe8c6b","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"6098e676f64447097d2c3be5c44d30bb8f8bd2a379d3dba4fb9c38af88355737","source_locator":"2.3.5","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.6-CRON-D') printf '%s\n' '{"adapter_contract_sha256":"4b0284ee1cd14be7e399c4fd132aa6058a5e1c0bc7d5a67c1015f99e8b136ebd","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"93bbc702e1a516b76a15d30077ce66c44c857859aeed5b9d86a584746fd35220","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-D","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"d1dd9b4af5c49732ec93ac350d82fb138cb1fdc967396dda25062d59ff77527a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.d","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"35f57d7fe38bb1e7714e97fe82c74f03aac33d9ec1a0d745e2d6c271f36d86e2","source_locator":"2.3.6","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.6-CRON-DAILY') printf '%s\n' '{"adapter_contract_sha256":"4b0284ee1cd14be7e399c4fd132aa6058a5e1c0bc7d5a67c1015f99e8b136ebd","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"93bbc702e1a516b76a15d30077ce66c44c857859aeed5b9d86a584746fd35220","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-DAILY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"a6c928414a1091aa8bf7291eee2e7574c9ad5f204831930d39a8536700f1731a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.daily","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"35f57d7fe38bb1e7714e97fe82c74f03aac33d9ec1a0d745e2d6c271f36d86e2","source_locator":"2.3.6","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.6-CRON-HOURLY') printf '%s\n' '{"adapter_contract_sha256":"4b0284ee1cd14be7e399c4fd132aa6058a5e1c0bc7d5a67c1015f99e8b136ebd","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"93bbc702e1a516b76a15d30077ce66c44c857859aeed5b9d86a584746fd35220","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-HOURLY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"882eec0779eac5f5942f10e6670b2812f8000bf8f3e7600ba1c264362a8f4dce","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.hourly","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"35f57d7fe38bb1e7714e97fe82c74f03aac33d9ec1a0d745e2d6c271f36d86e2","source_locator":"2.3.6","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY') printf '%s\n' '{"adapter_contract_sha256":"4b0284ee1cd14be7e399c4fd132aa6058a5e1c0bc7d5a67c1015f99e8b136ebd","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"93bbc702e1a516b76a15d30077ce66c44c857859aeed5b9d86a584746fd35220","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"ca59fb02687823c843038099bd5698d42cd7d3cd402a22b4f0126bd89da42433","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.monthly","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"35f57d7fe38bb1e7714e97fe82c74f03aac33d9ec1a0d745e2d6c271f36d86e2","source_locator":"2.3.6","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY') printf '%s\n' '{"adapter_contract_sha256":"4b0284ee1cd14be7e399c4fd132aa6058a5e1c0bc7d5a67c1015f99e8b136ebd","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"93bbc702e1a516b76a15d30077ce66c44c857859aeed5b9d86a584746fd35220","control_id":"FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"62383ceb2d82745bdfeee36b424136c351b12d17ba430bf48b1706338a7c35e5","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/cron.weekly","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"35f57d7fe38bb1e7714e97fe82c74f03aac33d9ec1a0d745e2d6c271f36d86e2","source_locator":"2.3.6","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.6-CRONTAB') printf '%s\n' '{"adapter_contract_sha256":"4b0284ee1cd14be7e399c4fd132aa6058a5e1c0bc7d5a67c1015f99e8b136ebd","adapter_id":"product-optional-file-root-files-mode-check-v1","adapter_implementation_sha256":"93bbc702e1a516b76a15d30077ce66c44c857859aeed5b9d86a584746fd35220","control_id":"FSTEC-LINUX-2022-2.3.6-CRONTAB","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"043329e8aff8fa44762e5a2a22f6688c03bd30399dc78acb30821748d81d4fda","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0033","index_id":"SRC-0010","parameter_key":"mode","parameter_kind":"optional-file-root-files-mode","parameter_locator":"/etc/crontab","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"36b35ef73a2a7e674dc2ac2ce1242033ec2e83d32a793824e7e36fd0e8435962","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"35f57d7fe38bb1e7714e97fe82c74f03aac33d9ec1a0d745e2d6c271f36d86e2","source_locator":"2.3.6","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE') printf '%s\n' '{"adapter_contract_sha256":"1428e2b90fb1e21f493c8c01ff5a631a7d58c1b7074b2eaedee358075da26877","adapter_id":"product-user-cron-files-mode-check-v2","adapter_implementation_sha256":"1efb24d36aec57592688472f8c2b0baadc23b32a5ca1f79fe018e3b5dcd4f0be","control_id":"FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b5cb46dc92c854012b0a970a9d3c78febae83b29f28b3dfdc3bd80626ee5ac87","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0022","index_id":"SRC-0011","parameter_key":"mode","parameter_kind":"user-cron-files-mode","parameter_locator":"/var/spool/cron/crontabs","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"af9430a9911e812b6f4b9735f35554d02e4203f7c39a3cae3d1c03004eb9adbe","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"1f1a6a01bc4a5f0b1ca8cf1d649a7e1c08b3667df2a8702134d56497950abc13","source_locator":"2.3.7","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE') printf '%s\n' '{"adapter_contract_sha256":"ae2dde5c930ce7e1a08ecf0c151a744bcd4a782fab55f4a7702d5274b4878c42","adapter_id":"product-standard-system-paths-mode-check-v2","adapter_implementation_sha256":"e021b632f1db643ab9f6349c777eefecc1defb0cc179376f7f476c825cf0b48e","control_id":"FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"9f3041f0f9809cedcafb7f7e6b6b82641324902e34a3a84f9d24228af932cb1e","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0022","index_id":"SRC-0012","parameter_key":"mode","parameter_kind":"standard-system-paths-mode","parameter_locator":"/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c14203a718160e12100efac4e8e4f748cdf7517bba948d7ee66d8811f2e462e3","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"1ea83595f910be4a5364dbe49d98ebf2b8eafb64446a3496f83830898fa223dc","source_locator":"2.3.8","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST') printf '%s\n' '{"adapter_contract_sha256":"2ee27cffe1cdd5cb211a9587079518e62107a6b74b5d4a297d5fa628a5584ed7","adapter_id":"product-suid-sgid-applications-check-v2","adapter_implementation_sha256":"be7899d602a64e14914412464e528df39fda09271afd3ae9f1effdb09ece34df","control_id":"FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"0c7c2ff2dbafa54b15440ce8f8d25173c174a28c8b1752804631a829c191a86c","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"subset-of-file","expected_type":"string","expected_value":"/etc/securelinux-policy/suid-sgid.allowlist-v1","index_id":"SRC-0013","parameter_key":"approved-set","parameter_kind":"suid-sgid-applications","parameter_locator":"/proc/self/mountinfo","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"4561a2f408c1d943d273eef49191f38e86733b007e5dd4259df73429d34bc0e1","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"9c0156d9705459d4c51a026e4abd0cc303ac0815eceb513c9a824b5ae281b708","source_locator":"2.3.9","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE') printf '%s\n' '{"adapter_contract_sha256":"2ee27cffe1cdd5cb211a9587079518e62107a6b74b5d4a297d5fa628a5584ed7","adapter_id":"product-suid-sgid-applications-check-v2","adapter_implementation_sha256":"be7899d602a64e14914412464e528df39fda09271afd3ae9f1effdb09ece34df","control_id":"FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"5e52002e72ea86d8c10dad28d09c82f0a027850ca4ae6e0d40745b7cdc33710b","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"bits-clear","expected_type":"string","expected_value":"0022","index_id":"SRC-0013","parameter_key":"mode","parameter_kind":"suid-sgid-applications","parameter_locator":"/proc/self/mountinfo","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"4561a2f408c1d943d273eef49191f38e86733b007e5dd4259df73429d34bc0e1","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"9c0156d9705459d4c51a026e4abd0cc303ac0815eceb513c9a824b5ae281b708","source_locator":"2.3.9","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"51f99ed4b7c67eb30558176685885337c27a4d8c2047a8e667059dd2bbff07d9","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0016","parameter_key":"kernel.dmesg_restrict","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"c889161dc17ca0ec538a88477aeebfd920e8d10a53d34952e69b12b24338a5e6","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.4.1","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"ba25c49b237cf91b74afcda02e15fd872e81c08973abd9719a8f4c465513aa9a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0017","parameter_key":"kernel.kptr_restrict","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"a4c2ba6bc1c18e8cc9a3b025cbf55b542e9cf327e3ce69fd2d8e4877bbc3ef60","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.4.2","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC') printf '%s\n' '{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"68b4a5d37e9addc54b6c8d9316e1a9e47e4eda7cb0683b2df99c4be911c7ea5c","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"1","index_id":"SRC-0018","parameter_key":"init_on_alloc","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.4.3","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE') printf '%s\n' '{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"817ddc5844c8600b30ea82b013576e8c90fe4381f37ff2d3e6f697766881aa9e","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"present","expected_type":"boolean","expected_value":true,"index_id":"SRC-0019","parameter_key":"slab_nomerge","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"6a5c7fa4c5804ef3c2e152c338da6c73553bb8bce5dbde0331e4ba4db09d8b6f","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.4.4","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE') printf '%s\n' '{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"595da19602209ab601375e129f45dfa720038e5a5b92017e51b5b7873bd6233d","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"force","index_id":"SRC-0020","parameter_key":"iommu","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5d6db53b7945c06a610654f7b22d3f23b2840228e091cdf675568d3b6ecc3af5","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.4.5","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH') printf '%s\n' '{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"85b3d67e7f741cfd9d50b3d935bc96ac38d6468d44cb18465baefa3379242942","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"0","index_id":"SRC-0020","parameter_key":"iommu.passthrough","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5d6db53b7945c06a610654f7b22d3f23b2840228e091cdf675568d3b6ecc3af5","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.4.5","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT') printf '%s\n' '{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"0d68a6bb3b7869e9d76046d196e61511e34560cfb55cf130b30c65b3b9d3e629","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"1","index_id":"SRC-0020","parameter_key":"iommu.strict","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5d6db53b7945c06a610654f7b22d3f23b2840228e091cdf675568d3b6ecc3af5","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.4.5","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET') printf '%s\n' '{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"876b71fa1a3eabed4455db496c576c43ec897ccfe335266ae707b9bb976f124e","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"1","index_id":"SRC-0021","parameter_key":"randomize_kstack_offset","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"69cbdb70f31aadd134129cae9eb95a96f836168646a821927cc3ea56ea58c980","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.4.6","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.4.7-MITIGATIONS') printf '%s\n' '{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.4.7-MITIGATIONS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"2d004e6effde058bcd8d5713b8116adec36af1476da6e4f5acb1553d7857d981","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"auto,nosmt","index_id":"SRC-0022","parameter_key":"mitigations","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"593127f71a130fb574410cc9b249cf9ce42c1ec9698ebad648c79c4554d55ceb","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.4.7","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"cfe64060a4d9829351c2c6f19c6f41b0e0697bd8be5b503a90ffe27a5f4c52ee","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0023","parameter_key":"net.core.bpf_jit_harden","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"ffeec17a621afd4726e6c0fcf0aef4fb1e22c86f45ca20d1d568471675c3914f","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.4.8","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.5.1-VSYSCALL') printf '%s\n' '{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.5.1-VSYSCALL","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"611d219ec1d517ebceb3539968662a6e40a75bb028fc553ec18eb9a95544f413","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"none","index_id":"SRC-0024","parameter_key":"vsyscall","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"909ac7e3825f234cf325dac5b9615486ef4c856315aeb9c25d4b7a6af47fa421","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.5.1","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"f2733434c77fa39bec5210262632becd3f0aad65ddb7423c869725fe95fa5655","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"ge","expected_type":"integer","expected_value":4096,"index_id":"SRC-0033","parameter_key":"vm.mmap_min_addr","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"5b55fd931f99da5241c6bc05e33c7131ff091a282547b95f0699b17f515a6729","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.10","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"4a08a7bfd4f6a803dfb7bbc2486a83bd2fe1e877dcaa2e9938d402ee9765ee6d","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0034","parameter_key":"kernel.randomize_va_space","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"b40ce183dea4e9a89aff8cbc97a533d80b6db0b14ca8c844ce16486cfad417cf","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.11","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE') printf '%s\n' '{"adapter_contract_sha256":"2e3a3ec6753d880dea9aa0c3b7ac0dfc7b6e88238aed4e767293f1130613bace","adapter_id":"product-tested-setting-attestation-check-v1","adapter_implementation_sha256":"5f4a7345ef3863aacaef0c42780fbbbed1ce726c21773ce04760f462724231f3","control_id":"FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"c301ab7c5f08b0822aa61c955d00bdbec607f8188ce4fbe8d88ad0b756a293c0","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"tested-before-use","expected_type":"string","expected_value":"kernel.randomize_va_space=2","index_id":"SRC-0034","parameter_key":"SRC-0034","parameter_kind":"tested-setting-attestation","parameter_locator":"/etc/securelinux-policy/tested-setting-attestations-v1","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"b40ce183dea4e9a89aff8cbc97a533d80b6db0b14ca8c844ce16486cfad417cf","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"d15d7e89982de63578337429b97a429ecad136c8a8f39f5ba218cce5597193c7","source_locator":"2.5.11","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b0eb7068712e20660c0d84871c271c6f3fdc542132cca1cf529910dcf7f85c0a","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":3,"index_id":"SRC-0025","parameter_key":"kernel.perf_event_paranoid","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"8e6f4b120bd3527b380251e92eca56e1b4c358d362f1246357579eb8af616382","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.2","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.5.3-DEBUGFS') printf '%s\n' '{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.5.3-DEBUGFS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"806da488a05c5d4ea11c2cef4bbde3b327387c1b96b143fe97c32e50e08a8894","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"one-of","expected_type":"string","expected_value":"off|no-mount","index_id":"SRC-0026","parameter_key":"debugfs","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"10391c151e6a53e91d637a11bc0f87a05a1ca7fdd408f9493dd27b366da46184","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.5.3","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"6006fdfb164b8a8860b8f4ae6d4e2758799f25ed32d53e185916da0ef0b7ed01","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0027","parameter_key":"kernel.kexec_load_disabled","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0231e3c8de27fab8de667f632bf6d08609a7c62836be9c787fd4cb955974ff09","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.4","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b13b0e0b47c820d396a9a4a8d044ffdfc4eb779c5def2347c072cbc9e3900f32","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0028","parameter_key":"user.max_user_namespaces","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"77edbfb78e01426b6c40ccedca310ff6091870e235d4225ac488f4cd5d8c090c","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.5","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"44423cf2e57eabddd637a973430a6633282f8eba658430a1290bfa610efe5b67","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0029","parameter_key":"kernel.unprivileged_bpf_disabled","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"1c320abae9872972364ef95685204f4968a2c84bc27ee9c2707907eac8c5823e","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.6","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"3a5a2c1c560d688eeea441f4455297a86983c599745acf8963507f91b72c86f4","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0030","parameter_key":"vm.unprivileged_userfaultfd","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"cba35949a04f5d3dab8bd9a0501d75e5c310773ac11c1ad2c4d80845cdd03080","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.7","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"d6e4d8f63a5235ff32f3cb429c91caa7b7ff7864ba8ab90f8fd350362e8d3a69","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0031","parameter_key":"dev.tty.ldisc_autoload","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0860efcf66e2da819b06b5d6198e3b4c9b4ea96b66929752aceba65fae301783","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.5.8","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.5.9-TSX') printf '%s\n' '{"adapter_contract_sha256":"efb292dc4b90cc6f090aef861e51f523099c997d9fc6284e6fd38286de3a1db1","adapter_id":"product-kernel-cmdline-check-v2","adapter_implementation_sha256":"91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160","control_id":"FSTEC-LINUX-2022-2.5.9-TSX","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"07040e8445ac0565a587fcf6cfadf124a45b6b076592d4a268eff2abe37b5ef3","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"string","expected_value":"off","index_id":"SRC-0032","parameter_key":"tsx","parameter_kind":"kernel-cmdline","parameter_locator":"/proc/cmdline","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"40b0ad985774f12adad55439e22a5ba29b3a2c50c9fedd16551fa261fd29464c","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"10de2ce43d3fc5e19f6f7d9e486c9463e7a5cf4867d72c6fa6a01ecd08269e50","source_locator":"2.5.9","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"2bc9bb0cb5372fb5738612ff3738526cad9adb831b0043cc5924f36d23e7ca37","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":3,"index_id":"SRC-0035","parameter_key":"kernel.yama.ptrace_scope","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"7be4210587e64fe1864bfbf1b5e8f7cc3512434629eb17898ad487d50a9ae246","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.6.1","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"b709581e94eb65e5a059d70ff4ec7aac7d248e6b664ffb42c502e23c88e2bbe8","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0036","parameter_key":"fs.protected_symlinks","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"ce09b5104160f3fe27f17f1d5e57a5fe81001adac3c362ed652552ccbc59571f","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.6.2","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"fc1fd0f1141cb6d78b5d322e6a04b2649f0264a5e8c4784c64116bed55d70ffa","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":1,"index_id":"SRC-0037","parameter_key":"fs.protected_hardlinks","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"315736677a4e3192cde79d4badbf20809da81c8605785c8720fcd0fc3260fe97","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.6.3","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"af3b312efb3d252c1752a9ee70da6248e2a8e86f2e29479388206afbfbcd453d","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0038","parameter_key":"fs.protected_fifos","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"016aaaf884c10febb3e99a86acfcbe63eae04f05f5fcf35a00c59f03fb30a31b","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.6.4","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"677905dff8f0fa0db1c82008b7b3acc0456dd61c46db0008390ab99f89ef9d92","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":2,"index_id":"SRC-0039","parameter_key":"fs.protected_regular","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"0f1eea51ec98d254f230a48dfc4950cb060e11460e1f30be68fde3fb9439cb14","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.6.5","target_id":"linux-x86_64-supported-v1"}' ;;
+    'FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE') printf '%s\n' '{"adapter_contract_sha256":"d5db0104eb012bced042adf475e7421880fd820732b532dfb793c875b97d299d","adapter_id":"product-sysctl-check-v2","adapter_implementation_sha256":"d5fce240da7b8a913c084a381a96b974ad69c110affe97c4cad496cae4c63b26","control_id":"FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE","control_manifest_sha256":"4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea","control_sha256":"35c1fe8f6a4591fdf5b7d25f4dff6b244b868fbc1514498a7b55f9a321ddda8f","doc_id":"fstec-linux-2022","doc_sha256":"350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d","expected_op":"eq","expected_type":"integer","expected_value":0,"index_id":"SRC-0040","parameter_key":"fs.suid_dumpable","parameter_kind":"sysctl","parameter_locator":"sysctl","product_status":"NON_RELEASE_PRODUCT_CANDIDATE","quote_sha256":"f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d","registry_sha256":"0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025","semantic_contract_sha256":"f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695","source_locator":"2.6.6","target_id":"linux-x86_64-supported-v1"}' ;;
     *) return 2 ;;
   esac
 }
@@ -4762,17 +5994,22 @@ slp_build_info() {
     'STATUS=NON_RELEASE_PRODUCT_CANDIDATE' \
     'PRODUCT_CLI=product-cli-v1' \
     'GENERATOR_ID=product-check-generator-v2' \
-    'GENERATOR_SHA256=4c60d5e0ff805100271ca06c359719faca4fb0adbc722115cbb1a55c3454d353' \
+    'GENERATOR_SHA256=19f9dfd936a445b4582cf0aa1846fa7cf4743cc888dd7653fff81f0e56f863ab' \
     'CONTROL_COUNT=51' \
     'CONTROL_MANIFEST_SHA256=4639ea7624e4ff52bf4295e32f2c8e6c1cc6eaf9e1684eb7824470d034a9c5ea' \
     'ADAPTER_COUNT=18' \
-    'ADAPTER_REGISTRY_SHA256=a5413c3f4d7dd585bec76718adb3aacf747d71a8ce0974c774ca1b425b1403b3' \
-    'TARGET_ID=ubuntu-24.04-x86_64' \
+    'ADAPTER_REGISTRY_SHA256=0c605c5b1b563eb41b4caf64f86dc8b1ae54e7e2f49b148b7e1355053ec83025' \
+    'TARGET_FAMILY_ID=linux-x86_64-supported-v1' \
+    'SUPPORTED_PROFILE_ENVIRONMENTS=7' \
+    'SUPPORTED_DESKTOP_ENVIRONMENTS=1' \
+    'SUPPORTED_ENVIRONMENTS=8' \
+    'PLATFORM_MATRIX_SHA256=efc7436850d1ae92df0f36b33e86663728a9fb3643ba3be8cbcaf40b0c9490d7' \
+    'DESKTOP_MATRIX_SHA256=db17bfbe6f60a30831c2e4115bbaedbce4e15717715dd4a1174c75cecdfc4ece' \
     'MUTATING_MODES=NONE'
 }
 
 slp_help() {
-  cat <<'SLP_HELP_EOF'
+  command /usr/bin/cat <<'SLP_HELP_EOF'
 SecureLinux-Policy v3 — единый read-only CLI
 
 Использование:
@@ -4783,7 +6020,6 @@ SecureLinux-Policy v3 — единый read-only CLI
   ./securelinux-policy.sh --version
   ./securelinux-policy.sh --help
   ./securelinux-policy.sh --apply
-  ./securelinux-policy.sh --restore
 
 Режимы:
   --check               read-only проверка текущих canonical controls
@@ -4796,7 +6032,6 @@ SecureLinux-Policy v3 — единый read-only CLI
   --provenance          provenance всех controls или одного CONTROL_ID
   --version             версия product CLI
   --apply               NOT_IMPLEMENTED; ничего не изменяет
-  --restore             NOT_IMPLEMENTED; ничего не изменяет
 
 Без аргументов печатается эта справка. CHECK не изменяет состояние хоста.
 SLP_HELP_EOF
@@ -4808,16 +6043,44 @@ slp_version() {
     'PRODUCT_CLI=product-cli-v1' \
     'STATUS=NON_RELEASE_PRODUCT_CANDIDATE' \
     'CONTROL_COUNT=51' \
-    'TARGET_ID=ubuntu-24.04-x86_64'
+    'TARGET_FAMILY_ID=linux-x86_64-supported-v1'
 }
 
 slp_json_escape() {
   local _slp_s=$1
   _slp_s=${_slp_s//\\/\\\\}
   _slp_s=${_slp_s//\"/\\\"}
+  _slp_s=${_slp_s//$'\x01'/\\u0001}
+  _slp_s=${_slp_s//$'\x02'/\\u0002}
+  _slp_s=${_slp_s//$'\x03'/\\u0003}
+  _slp_s=${_slp_s//$'\x04'/\\u0004}
+  _slp_s=${_slp_s//$'\x05'/\\u0005}
+  _slp_s=${_slp_s//$'\x06'/\\u0006}
+  _slp_s=${_slp_s//$'\x07'/\\u0007}
+  _slp_s=${_slp_s//$'\x08'/\\b}
   _slp_s=${_slp_s//$'\t'/\\t}
-  _slp_s=${_slp_s//$'\r'/\\r}
   _slp_s=${_slp_s//$'\n'/\\n}
+  _slp_s=${_slp_s//$'\x0b'/\\u000b}
+  _slp_s=${_slp_s//$'\x0c'/\\f}
+  _slp_s=${_slp_s//$'\r'/\\r}
+  _slp_s=${_slp_s//$'\x0e'/\\u000e}
+  _slp_s=${_slp_s//$'\x0f'/\\u000f}
+  _slp_s=${_slp_s//$'\x10'/\\u0010}
+  _slp_s=${_slp_s//$'\x11'/\\u0011}
+  _slp_s=${_slp_s//$'\x12'/\\u0012}
+  _slp_s=${_slp_s//$'\x13'/\\u0013}
+  _slp_s=${_slp_s//$'\x14'/\\u0014}
+  _slp_s=${_slp_s//$'\x15'/\\u0015}
+  _slp_s=${_slp_s//$'\x16'/\\u0016}
+  _slp_s=${_slp_s//$'\x17'/\\u0017}
+  _slp_s=${_slp_s//$'\x18'/\\u0018}
+  _slp_s=${_slp_s//$'\x19'/\\u0019}
+  _slp_s=${_slp_s//$'\x1a'/\\u001a}
+  _slp_s=${_slp_s//$'\x1b'/\\u001b}
+  _slp_s=${_slp_s//$'\x1c'/\\u001c}
+  _slp_s=${_slp_s//$'\x1d'/\\u001d}
+  _slp_s=${_slp_s//$'\x1e'/\\u001e}
+  _slp_s=${_slp_s//$'\x1f'/\\u001f}
   printf '%s' "$_slp_s"
 }
 
@@ -4828,7 +6091,7 @@ slp_pretty_row() {
   local -a _slp_parts=()
   IFS=';' read -r -a _slp_parts <<< "$_slp_value"
   if (( ${#_slp_parts[@]} <= 1 )); then
-    printf '%-7s  %-52s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_value"
+    printf '%-7s  %-61s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_value"
     return 0
   fi
   for _slp_part in "${_slp_parts[@]}"; do
@@ -4841,18 +6104,18 @@ slp_pretty_row() {
       _slp_line+="$_slp_piece"
     else
       if (( _slp_first == 1 )); then
-        printf '%-7s  %-52s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_line"
+        printf '%-7s  %-61s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_line"
         _slp_first=0
       else
-        printf '%-7s  %-52s  %s\n' '' '' "$_slp_line"
+        printf '%-7s  %-61s  %s\n' '' '' "$_slp_line"
       fi
       _slp_line=$_slp_part
     fi
   done
   if (( _slp_first == 1 )); then
-    printf '%-7s  %-52s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_line"
+    printf '%-7s  %-61s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_line"
   else
-    printf '%-7s  %-52s  %s\n' '' '' "$_slp_line"
+    printf '%-7s  %-61s  %s\n' '' '' "$_slp_line"
   fi
 }
 
@@ -4879,12 +6142,18 @@ slp_collect_policy() {
       return 1
     fi
     case "$_slp_status:$_slp_comp" in
-      VALUE:PASS|VALUE:FAIL|NOT_FOUND:NOT_FOUND|ERROR:ERROR) ;;
+      VALUE:PASS|VALUE:FAIL|NOT_FOUND:FAIL|NOT_FOUND:NOT_FOUND|ERROR:ERROR) ;;
       *)
         printf '%s\n' 'CHECK_INTERNAL_ERROR' >&2
         return 1
         ;;
     esac
+    if [[ $_slp_comp == ERROR ]]; then
+      if [[ ! $_slp_value =~ ^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$ ]]; then
+        printf '%s\n' 'CHECK_INTERNAL_ERROR' >&2
+        return 1
+      fi
+    fi
     SLP_RESULTS+=("$_slp_line")
     ((SLP_TOTAL+=1))
     case "$_slp_comp" in
@@ -4917,6 +6186,9 @@ slp_selected() {
 
 slp_render_raw() {
   local _slp_failed_only=$1 _slp_line _slp_tag _slp_cid _slp_status _slp_value _slp_comp
+  printf 'SLP-PLATFORM-V1\tSYSTEM=%s\tID=%s\tVERSION_ID=%s\tARCH=%s\tPROFILE=%s\tTYPE=%s\tPLATFORM=%s\tENVIRONMENT=%s\tSUPPORT=SUPPORTED\n' \
+    "$SLP_SYSTEM_PRETTY_NAME" "$SLP_SYSTEM_ID" "$SLP_SYSTEM_VERSION_ID" "$SLP_SYSTEM_ARCH" \
+    "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_TYPE" "$SLP_SYSTEM_PLATFORM" "$SLP_SYSTEM_ENVIRONMENT"
   for _slp_line in "${SLP_RESULTS[@]}"; do
     IFS=$'\t' read -r _slp_tag _slp_cid _slp_status _slp_value _slp_comp <<< "$_slp_line"
     slp_selected "$_slp_comp" "$_slp_failed_only" || continue
@@ -4928,15 +6200,21 @@ slp_render_raw() {
 
 slp_render_pretty() {
   local _slp_failed_only=$1 _slp_title=$2 _slp_line _slp_tag _slp_cid _slp_status _slp_value _slp_comp
-  printf '=== SecureLinux Policy — %s ===\n\n' "$_slp_title"
-  printf '%-7s  %-52s  %s\n' 'RESULT' 'CONTROL' 'VALUE / DETAILS'
-  printf '%-7s  %-52s  %s\n' '------' '----------------------------------------------------' '--------------------------------------------------------'
+  printf '=== SecureLinux Policy — %s ===\n' "$_slp_title"
+  printf 'SYSTEM=%s   ARCH=%s\n' "$SLP_SYSTEM_PRETTY_NAME" "$SLP_SYSTEM_ARCH"
+  if [[ -n $SLP_SYSTEM_TYPE ]]; then
+    printf 'TYPE=%s   PLATFORM=%s   SUPPORT=SUPPORTED\n\n' "$SLP_SYSTEM_TYPE" "$SLP_SYSTEM_PLATFORM"
+  else
+    printf 'PROFILE=%s   PLATFORM=%s   SUPPORT=SUPPORTED\n\n' "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_PLATFORM"
+  fi
+  printf '%-7s  %-61s  %s\n' 'RESULT' 'CONTROL' 'VALUE / DETAILS'
+  printf '%-7s  %-61s  %s\n' '------' '-------------------------------------------------------------' '--------------------------------------------------------'
   for _slp_line in "${SLP_RESULTS[@]}"; do
     IFS=$'\t' read -r _slp_tag _slp_cid _slp_status _slp_value _slp_comp <<< "$_slp_line"
     slp_selected "$_slp_comp" "$_slp_failed_only" || continue
     slp_pretty_row "$_slp_comp" "$_slp_cid" "$_slp_value"
   done
-  printf '%s\n' '-------------------------------------------------------------------------------------------------------------------------'
+  printf '%s\n' '----------------------------------------------------------------------------------------------------------------------------------'
   printf 'TOTAL=%d   PASS=%d   FAIL=%d   NOT_FOUND=%d   ERROR=%d   POLICY=%s\n' \
     "$SLP_TOTAL" "$SLP_PASS" "$SLP_FAIL" "$SLP_NF" "$SLP_ERR" "$SLP_POLICY_STATUS"
 }
@@ -4944,8 +6222,11 @@ slp_render_pretty() {
 slp_render_json() {
   local _slp_failed_only=$1 _slp_line _slp_tag _slp_cid _slp_status _slp_value _slp_comp _slp_first=1 _slp_filter=all
   (( _slp_failed_only == 1 )) && _slp_filter=failed
-  printf '{"schema":"SLP-REPORT-V1","filter":"%s","policy_status":"%s","summary":{"total":%d,"pass":%d,"fail":%d,"not_found":%d,"error":%d},"results":[' \
-    "$_slp_filter" "$SLP_POLICY_STATUS" "$SLP_TOTAL" "$SLP_PASS" "$SLP_FAIL" "$SLP_NF" "$SLP_ERR"
+  printf '{"schema":"SLP-REPORT-V1","filter":"%s","platform":{"system":"%s","id":"%s","version_id":"%s","arch":"%s","profile":"%s","type":"%s","platform_id":"%s","environment_id":"%s","support":"SUPPORTED"},"policy_status":"%s","summary":{"total":%d,"pass":%d,"fail":%d,"not_found":%d,"error":%d},"results":[' \
+    "$_slp_filter" "$(slp_json_escape "$SLP_SYSTEM_PRETTY_NAME")" "$(slp_json_escape "$SLP_SYSTEM_ID")" \
+    "$(slp_json_escape "$SLP_SYSTEM_VERSION_ID")" "$(slp_json_escape "$SLP_SYSTEM_ARCH")" \
+    "$(slp_json_escape "$SLP_SYSTEM_PROFILE")" "$(slp_json_escape "$SLP_SYSTEM_TYPE")" "$(slp_json_escape "$SLP_SYSTEM_PLATFORM")" \
+    "$(slp_json_escape "$SLP_SYSTEM_ENVIRONMENT")" "$SLP_POLICY_STATUS" "$SLP_TOTAL" "$SLP_PASS" "$SLP_FAIL" "$SLP_NF" "$SLP_ERR"
   for _slp_line in "${SLP_RESULTS[@]}"; do
     IFS=$'\t' read -r _slp_tag _slp_cid _slp_status _slp_value _slp_comp <<< "$_slp_line"
     slp_selected "$_slp_comp" "$_slp_failed_only" || continue
@@ -5011,11 +6292,6 @@ slp_main() {
     --apply)
       (( $# == 1 )) || return 2
       slp_not_implemented APPLY
-      return $?
-      ;;
-    --restore)
-      (( $# == 1 )) || return 2
-      slp_not_implemented RESTORE
       return $?
       ;;
     --report)

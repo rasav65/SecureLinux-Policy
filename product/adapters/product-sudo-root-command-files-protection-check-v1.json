@@ -1,1 +1,20 @@
-{"adapter_contract_version":"product-sudo-root-command-files-protection-check-adapter-v1","adapter_id":"product-sudo-root-command-files-protection-check-v1","implementation_id":"product-sudo-root-command-files-protection-check-v1.py","implementation_path":"product/adapters/product-sudo-root-command-files-protection-check-v1.py","implementation_sha256":"5360ca7682cd3c54da0e08201f4fb275eb82d5521607ee906d0c6b40e456d0e8","input_schema_id":"canonical-control-v3","input_schema_version":1,"operation":"check","output_schema_id":"slp-check-v1","output_schema_version":1,"parameter_kind":"sudo-root-command-files-protection","semantic_contract_id":"sudo-root-command-files-protection-check-semantic-v1","semantic_contract_path":"product/contracts/sudo-root-command-files-protection-check-semantic-v1.json","semantic_contract_sha256":"c5150cd5fd8b35449d66d57800e5abeef2169880d650d72b533eebe9345411e1","supported_ops":["root-owned-go-w"],"target_id":"ubuntu-24.04-x86_64"}
+{
+  "adapter_contract_version": "product-sudo-root-command-files-protection-check-adapter-v1",
+  "adapter_id": "product-sudo-root-command-files-protection-check-v1",
+  "implementation_id": "product-sudo-root-command-files-protection-check-v1.py",
+  "implementation_path": "product/adapters/product-sudo-root-command-files-protection-check-v1.py",
+  "implementation_sha256": "18b4a601188878577d416cbbff8cefe754aefd4e04c79fefdda3a7bb08b264eb",
+  "input_schema_id": "canonical-control-v3",
+  "input_schema_version": 1,
+  "operation": "check",
+  "output_schema_id": "slp-check-v1",
+  "output_schema_version": 1,
+  "parameter_kind": "sudo-root-command-files-protection",
+  "semantic_contract_id": "sudo-root-command-files-protection-check-semantic-v1",
+  "semantic_contract_path": "product/contracts/sudo-root-command-files-protection-check-semantic-v1.json",
+  "semantic_contract_sha256": "97202dafa1c3ebc0fe8787519bcd5a976627a923e9c96564b22de6ea1574d35b",
+  "supported_ops": [
+    "root-owned-go-w"
+  ],
+  "target_id": "linux-x86_64-supported-v1"
+}

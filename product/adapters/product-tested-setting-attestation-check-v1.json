@@ -1,1 +1,20 @@
-{"adapter_contract_version":"product-tested-setting-attestation-check-adapter-v1","adapter_id":"product-tested-setting-attestation-check-v1","implementation_id":"product-tested-setting-attestation-check-v1.py","implementation_path":"product/adapters/product-tested-setting-attestation-check-v1.py","implementation_sha256":"23eaba8698b5115faf2c5a11ff3dbe605647d1e48b41d1e8d61933a30263bc5b","input_schema_id":"canonical-control-v3","input_schema_version":1,"operation":"check","output_schema_id":"slp-check-v1","output_schema_version":1,"parameter_kind":"tested-setting-attestation","semantic_contract_id":"tested-setting-attestation-check-semantic-v1","semantic_contract_path":"product/contracts/tested-setting-attestation-check-semantic-v1.json","semantic_contract_sha256":"a81e27abdece6dde159708386ae04cce7b8ce69b8defe485fe25b1986f49324b","supported_ops":["tested-before-use"],"target_id":"ubuntu-24.04-x86_64"}
+{
+  "adapter_contract_version": "product-tested-setting-attestation-check-adapter-v1",
+  "adapter_id": "product-tested-setting-attestation-check-v1",
+  "implementation_id": "product-tested-setting-attestation-check-v1.py",
+  "implementation_path": "product/adapters/product-tested-setting-attestation-check-v1.py",
+  "implementation_sha256": "5f4a7345ef3863aacaef0c42780fbbbed1ce726c21773ce04760f462724231f3",
+  "input_schema_id": "canonical-control-v3",
+  "input_schema_version": 1,
+  "operation": "check",
+  "output_schema_id": "slp-check-v1",
+  "output_schema_version": 1,
+  "parameter_kind": "tested-setting-attestation",
+  "semantic_contract_id": "tested-setting-attestation-check-semantic-v1",
+  "semantic_contract_path": "product/contracts/tested-setting-attestation-check-semantic-v1.json",
+  "semantic_contract_sha256": "d15d7e89982de63578337429b97a429ecad136c8a8f39f5ba218cce5597193c7",
+  "supported_ops": [
+    "tested-before-use"
+  ],
+  "target_id": "linux-x86_64-supported-v1"
+}

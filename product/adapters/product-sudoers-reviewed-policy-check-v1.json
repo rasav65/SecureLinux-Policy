@@ -1,1 +1,20 @@
-{"adapter_contract_version":"product-sudoers-reviewed-policy-check-adapter-v1","adapter_id":"product-sudoers-reviewed-policy-check-v1","implementation_id":"product-sudoers-reviewed-policy-check-v1.py","implementation_path":"product/adapters/product-sudoers-reviewed-policy-check-v1.py","implementation_sha256":"5476dbc0be9cce163981e21b80eb7b9c96e9d8464771f9efab0c1b644f93fca6","input_schema_id":"canonical-control-v3","input_schema_version":1,"operation":"check","output_schema_id":"slp-check-v1","output_schema_version":1,"parameter_kind":"sudoers-reviewed-policy","semantic_contract_id":"sudoers-reviewed-policy-check-semantic-v1","semantic_contract_path":"product/contracts/sudoers-reviewed-policy-check-semantic-v1.json","semantic_contract_sha256":"f067dc99a5756351b50d71d2915c647307027d6f7a0a25f7209578a713f9b750","supported_ops":["eq-reviewed-policy"],"target_id":"ubuntu-24.04-x86_64"}
+{
+  "adapter_contract_version": "product-sudoers-reviewed-policy-check-adapter-v1",
+  "adapter_id": "product-sudoers-reviewed-policy-check-v1",
+  "implementation_id": "product-sudoers-reviewed-policy-check-v1.py",
+  "implementation_path": "product/adapters/product-sudoers-reviewed-policy-check-v1.py",
+  "implementation_sha256": "a7f8dae0cce8b28440652b5c4c50bc067b8c62ed742413afbdfedce85ab27eb8",
+  "input_schema_id": "canonical-control-v3",
+  "input_schema_version": 1,
+  "operation": "check",
+  "output_schema_id": "slp-check-v1",
+  "output_schema_version": 1,
+  "parameter_kind": "sudoers-reviewed-policy",
+  "semantic_contract_id": "sudoers-reviewed-policy-check-semantic-v1",
+  "semantic_contract_path": "product/contracts/sudoers-reviewed-policy-check-semantic-v1.json",
+  "semantic_contract_sha256": "e77abc26b031bd6b4c3d95610513e39e8f392d06f7296ec34463dcda1dfa148c",
+  "supported_ops": [
+    "eq-reviewed-policy"
+  ],
+  "target_id": "linux-x86_64-supported-v1"
+}

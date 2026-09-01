@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # product-v1 tests for product-sysctl-check-v1 and ADAPTER-REGISTRY.tsv.
-import csv, hashlib, importlib.util, json, shutil, subprocess, tempfile, unittest
+import csv, hashlib, importlib.util, json, os, shutil, subprocess, tempfile, unittest
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sysctl-check-v2.py"
@@ -30,7 +30,10 @@ class Static(unittest.TestCase):
             with self.assertRaises(ValueError, msg=repr(args)): ADAPTER.shell_function(*args)
     def test_read_only_and_p01_guard(self):
         src=ADAPTER.shell_function("C","sysctl","kernel.x","eq",1)
-        self.assertIn('} 2>/dev/null',src); self.assertNotIn("$(",src)
+        self.assertIn('} 2>/dev/null',src)
+        od_read='$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null)'
+        self.assertEqual(src.count(od_read),1)
+        self.assertNotIn("$(",src.replace(od_read,""))
         for token in ADAPTER.MUTATING_TOKENS: self.assertNotIn(token,src,token)
     def test_binding(self):
         contract=json.loads(CONTRACT_PATH.read_text(encoding="utf-8")); meta=json.loads(ADAPTER_JSON.read_text(encoding="utf-8"))
@@ -57,7 +60,7 @@ class Runtime(unittest.TestCase):
     def setUpClass(cls): cls.tmp=tempfile.mkdtemp(prefix="slp-product-sysctl-test-")
     @classmethod
     def tearDownClass(cls): shutil.rmtree(cls.tmp,ignore_errors=True)
-    def run_patched(self,content_bytes,expected,op="eq"):
+    def run_patched(self,content_bytes,expected,op="eq",env=None):
         target=Path(self.tmp)/"target"
         if target.exists(): shutil.rmtree(target) if target.is_dir() else target.unlink()
         if content_bytes is None: pass
@@ -66,7 +69,7 @@ class Runtime(unittest.TestCase):
         src=ADAPTER.shell_function("CTRL-T","sysctl","slp_test.value",op,expected)
         src=src.replace(repr("/proc/sys/slp_test/value"),repr(str(target)),1)
         run=Path(self.tmp)/"run.sh"; run.write_text("set -u\n"+src+"\nslp_check_CTRL_T\n",encoding="utf-8")
-        p=subprocess.run([BASH,str(run)],capture_output=True,text=True)
+        p=subprocess.run([BASH,str(run)],capture_output=True,text=True,env=env)
         self.assertEqual(p.returncode,0,p.stderr); self.assertEqual(p.stderr,"")
         fields=p.stdout.rstrip("\n").split("\t"); self.assertEqual(len(fields),5,p.stdout); self.assertEqual(fields[:2],[ADAPTER.WIRE_RECORD_ID,"CTRL-T"])
         return tuple(fields[2:])
@@ -82,9 +85,17 @@ class Runtime(unittest.TestCase):
         huge=10**200
         self.assertEqual(self.run_patched((str(huge)+"\n").encode(),10**199,"ge"),("VALUE",str(huge),"PASS"))
     def test_negative_value(self): self.assertEqual(self.run_patched(b" -0003 \n",-3),("VALUE","-3","PASS"))
+    def test_contract_allowed_cr_edge_whitespace(self): self.assertEqual(self.run_patched(b" 1\r\n",1),("VALUE","1","PASS"))
+    def test_ascii_edge_whitespace_is_locale_independent(self):
+        env=os.environ.copy(); env["LC_ALL"]="C.utf8"
+        self.assertEqual(self.run_patched(b" \t\v\f+001\r\n",1,env=env),("VALUE","1","PASS"))
+        for edge in ("\u2003","\u3000"):
+            with self.subTest(edge=repr(edge)):
+                self.assertEqual(self.run_patched((edge+"1"+edge+"\n").encode("utf-8"),1,env=env),("ERROR","sysctl:invalid-value","ERROR"))
     def test_negative_zero_normalizes(self): self.assertEqual(self.run_patched(b"-000\n",0),("VALUE","0","PASS"))
     def test_not_found(self): self.assertEqual(self.run_patched(None,1),("NOT_FOUND","-","NOT_FOUND"))
-    def test_non_integer_is_error(self): self.assertEqual(self.run_patched(b"1 2\n",1),("ERROR","-","ERROR"))
-    def test_read_error_has_no_stderr(self): self.assertEqual(self.run_patched(b"__DIR__",1),("ERROR","-","ERROR"))
+    def test_non_integer_is_error(self): self.assertEqual(self.run_patched(b"1 2\n",1),("ERROR","sysctl:invalid-value","ERROR"))
+    def test_nul_is_rejected_before_read(self): self.assertEqual(self.run_patched(b"1\x00\n",1),("ERROR","sysctl:invalid-bytes","ERROR"))
+    def test_read_error_has_no_stderr(self): self.assertEqual(self.run_patched(b"__DIR__",1),("ERROR","sysctl:read-failed","ERROR"))
 
 if __name__=="__main__": unittest.main(verbosity=2)

@@ -11,7 +11,7 @@
 > не закрывает source-index rows.
 
 <!-- BEGIN GENERATED MAP STATUS -->
-`строки source=349 · controlled CLOSED=40 · OPEN=309 · canonical controls=51 · adapters=18 · target=ubuntu-24.04-x86_64`
+`строки source=349 · controlled CLOSED=40 · OPEN=309 · canonical controls=51 · adapters=18 · target-family=linux-x86_64-supported-v1`
 
 Точные таблицы покрытия: [`docs/fstec-coverage.md`](fstec-coverage.md).
 <!-- END GENERATED MAP STATUS -->
@@ -221,8 +221,9 @@ flowchart LR
 Tracked `securelinux-policy.sh` и sidecar входят в root manifests и обязаны
 byte-exact совпадать со свежим generator-v2 output. `dist/` остаётся optional
 gitignored rebuild output. APPLY mutation capability здесь отсутствует. Принятый
-CHECK CLI сохраняет `--apply`/`--restore` как fail-closed `NOT_IMPLEMENTED` stubs;
-`--restore` не является future feature.
+CHECK CLI сохраняет только `--apply` как fail-closed `NOT_IMPLEMENTED` stub;
+пользовательский `--restore` отсутствует, потому что operational RESTORE не является future feature.
+Human-readable CHECK/REPORT выводит обнаруженную ОС, архитектуру, profile и runtime platform; target family един для всей поддерживаемой матрицы.
 
 ## 4. Инженерный донор → принятый mapping → будущий APPLY runtime
 

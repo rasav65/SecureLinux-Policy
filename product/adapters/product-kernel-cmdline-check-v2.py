@@ -5,7 +5,7 @@ import re
 SEMANTIC_CONTRACT_ID = "kernel-cmdline-check-semantic-v2"
 ADAPTER_ID = "product-kernel-cmdline-check-v2"
 ADAPTER_CONTRACT_VERSION = "product-kernel-cmdline-check-adapter-v2"
-TARGET_ID = "ubuntu-24.04-x86_64"
+TARGET_ID = "linux-x86_64-supported-v1"
 PARAMETER_KIND = "kernel-cmdline"
 SUPPORTED_OPS = ("eq", "present", "one-of")
 WIRE_RECORD_ID = "SLP-CHECK-V1"
@@ -26,15 +26,15 @@ def _model(tokens, key, op, expected):
             values.append(token[len(prefix):])
     if op == "present":
         if values:
-            return ("ERROR", "-", "ERROR")
+            return ("ERROR", "cmdline:unexpected-value-form", "ERROR")
         return ("VALUE", "true" if bare else "false", "PASS" if bare else "FAIL")
     if bare:
-        return ("ERROR", "-", "ERROR")
+        return ("ERROR", "cmdline:ambiguous-value", "ERROR")
     if not values:
         return ("VALUE", "<absent>", "FAIL")
     first = values[0]
     if any(value != first for value in values[1:]):
-        return ("ERROR", "-", "ERROR")
+        return ("ERROR", "cmdline:ambiguous-value", "ERROR")
     if op == "eq":
         return ("VALUE", first, "PASS" if first == expected else "FAIL")
     choices = expected.split("|")
@@ -73,15 +73,33 @@ def shell_function(control_id, locator, key, op, expected):
         "  local _slp_path=" + path_lit,
         "  local _slp_key=" + key_lit,
         "  local _slp_expected=" + exp_lit,
-        "  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp",
+        "  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp _slp_vrc=0",
         "  local _slp_bare=0 _slp_values=0 _slp_conflict=0",
         "  local -a _slp_tokens=() _slp_choices=()",
         '  if [[ ! -e "$_slp_path" ]]; then',
         emit + ' "NOT_FOUND" "-" "NOT_FOUND"',
         "    return 0",
         "  fi",
+        "  _slp_validate_source_bytes() {",
+        "    local _slp_v_path=$1 _slp_v_hex _slp_v_byte",
+        '    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi',
+        "    for _slp_v_byte in $_slp_v_hex; do",
+        '      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1',
+        '      [[ "$_slp_v_byte" != 00 ]] || return 1',
+        "    done",
+        "    return 0",
+        "  }",
+        '  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?',
+        "  if (( _slp_vrc != 0 )); then",
+        "    if (( _slp_vrc == 2 )); then",
+        emit + ' "ERROR" "cmdline:read-failed" "ERROR"',
+        "    else",
+        emit + ' "ERROR" "cmdline:invalid-bytes" "ERROR"',
+        "    fi",
+        "    return 0",
+        "  fi",
         '  if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then',
-        emit + ' "ERROR" "-" "ERROR"',
+        emit + ' "ERROR" "cmdline:read-failed" "ERROR"',
         "    return 0",
         "  fi",
         '  IFS=$\' \\t\\r\\n\' read -r -a _slp_tokens <<< "$_slp_raw"',
@@ -102,7 +120,7 @@ def shell_function(control_id, locator, key, op, expected):
     if op == "present":
         lines.extend([
             "  if (( _slp_values > 0 )); then",
-            emit + ' "ERROR" "-" "ERROR"',
+            emit + ' "ERROR" "cmdline:unexpected-value-form" "ERROR"',
             "    return 0",
             "  fi",
             "  if (( _slp_bare > 0 )); then",
@@ -114,7 +132,7 @@ def shell_function(control_id, locator, key, op, expected):
     elif op == "eq":
         lines.extend([
             "  if (( _slp_bare > 0 || _slp_conflict > 0 )); then",
-            emit + ' "ERROR" "-" "ERROR"',
+            emit + ' "ERROR" "cmdline:ambiguous-value" "ERROR"',
             "    return 0",
             "  fi",
             "  if (( _slp_values == 0 )); then",
@@ -128,7 +146,7 @@ def shell_function(control_id, locator, key, op, expected):
     else:
         lines.extend([
             "  if (( _slp_bare > 0 || _slp_conflict > 0 )); then",
-            emit + ' "ERROR" "-" "ERROR"',
+            emit + ' "ERROR" "cmdline:ambiguous-value" "ERROR"',
             "    return 0",
             "  fi",
             "  if (( _slp_values == 0 )); then",
@@ -159,17 +177,17 @@ def _selftest():
         (["init_on_alloc=0"], "init_on_alloc", "eq", "1", ("VALUE","0","FAIL")),
         ([], "init_on_alloc", "eq", "1", ("VALUE","<absent>","FAIL")),
         (["iommu=force","iommu=force"], "iommu", "eq", "force", ("VALUE","force","PASS")),
-        (["iommu=force","iommu=pt"], "iommu", "eq", "force", ("ERROR","-","ERROR")),
-        (["iommu","iommu=force"], "iommu", "eq", "force", ("ERROR","-","ERROR")),
+        (["iommu=force","iommu=pt"], "iommu", "eq", "force", ("ERROR","cmdline:ambiguous-value","ERROR")),
+        (["iommu","iommu=force"], "iommu", "eq", "force", ("ERROR","cmdline:ambiguous-value","ERROR")),
         (["slab_nomerge"], "slab_nomerge", "present", True, ("VALUE","true","PASS")),
         ([], "slab_nomerge", "present", True, ("VALUE","false","FAIL")),
-        (["slab_nomerge=1"], "slab_nomerge", "present", True, ("ERROR","-","ERROR")),
+        (["slab_nomerge=1"], "slab_nomerge", "present", True, ("ERROR","cmdline:unexpected-value-form","ERROR")),
         (["debugfs=off"], "debugfs", "one-of", "off|no-mount", ("VALUE","off","PASS")),
         (["debugfs=no-mount"], "debugfs", "one-of", "off|no-mount", ("VALUE","no-mount","PASS")),
         (["debugfs=on"], "debugfs", "one-of", "off|no-mount", ("VALUE","on","FAIL")),
         ([], "debugfs", "one-of", "off|no-mount", ("VALUE","<absent>","FAIL")),
-        (["debugfs=off","debugfs=no-mount"], "debugfs", "one-of", "off|no-mount", ("ERROR","-","ERROR")),
-        (["debugfs","debugfs=off"], "debugfs", "one-of", "off|no-mount", ("ERROR","-","ERROR")),
+        (["debugfs=off","debugfs=no-mount"], "debugfs", "one-of", "off|no-mount", ("ERROR","cmdline:ambiguous-value","ERROR")),
+        (["debugfs","debugfs=off"], "debugfs", "one-of", "off|no-mount", ("ERROR","cmdline:ambiguous-value","ERROR")),
     ]
     for tokens, key, op, expected, wanted in cases:
         got = _model(tokens, key, op, expected)
@@ -180,7 +198,11 @@ def _selftest():
     for src in (eq, present, one):
         assert "/proc/cmdline" in src
         assert "read -r -a _slp_tokens" in src
-        assert "$(" not in src
+        assert "command /usr/bin/od -An -v -tx1" in src
+        assert "cmdline:invalid-bytes" in src
+        od_read = '$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null)'
+        assert src.count(od_read) == 1
+        assert "$(" not in src.replace(od_read, "")
         for token in MUTATING_TOKENS:
             assert token not in src, token
     assert "IFS='|' read -r -a _slp_choices" in one

@@ -13,7 +13,7 @@ import re
 SEMANTIC_CONTRACT_ID = "file-mode-owner-check-semantic-v2"
 ADAPTER_ID = "product-file-mode-owner-check-v2"
 ADAPTER_CONTRACT_VERSION = "product-file-mode-owner-check-adapter-v2"
-TARGET_ID = "ubuntu-24.04-x86_64"
+TARGET_ID = "linux-x86_64-supported-v1"
 PARAMETER_KIND = "file-mode-owner"
 SUPPORTED_KEYS = ("mode",)
 SUPPORTED_OPS = ("eq", "bits-clear")
@@ -54,7 +54,10 @@ def shell_function(control_id, locator, key, op, expected):
 
     fn = "slp_check_" + re.sub(r"[^A-Za-z0-9_]", "_", control_id)
     emit = '    printf "%s\\t%s\\t%s\\t%s\\t%s\\n" ' + repr(WIRE_RECORD_ID) + " " + cid_lit
-    emit_error = emit + ' "ERROR" "-" "ERROR"'
+    emit_error_tool = emit + ' "ERROR" "tool:stat-missing" "ERROR"'
+    emit_error_type = emit + ' "ERROR" "target:invalid-type" "ERROR"'
+    emit_error_mode = emit + ' "ERROR" "target:invalid-mode" "ERROR"'
+    emit_error_observation = emit + ' "ERROR" "target:stat-failed" "ERROR"'
     emit_missing = emit + ' "NOT_FOUND" "-" "NOT_FOUND"'
     emit_value = ('    printf "%s\\t%s\\t%s\\t%s\\t%s\\n" ' + repr(WIRE_RECORD_ID)
                   + " " + cid_lit + ' "VALUE" "$_slp_mode" "$_slp_comp"')
@@ -70,18 +73,18 @@ def shell_function(control_id, locator, key, op, expected):
         "  local _slp_expected=" + exp_lit,
         "  local _slp_mode _slp_parent _slp_comp",
         "  if [[ ! -x /usr/bin/stat ]]; then",
-        emit_error,
+        emit_error_tool,
         "    return 0",
         "  fi",
         '  if [[ -e "$_slp_path" || -L "$_slp_path" ]]; then',
         '    if [[ ! -f "$_slp_path" ]]; then',
-        emit_error,
+        emit_error_type,
         "      return 0",
         "    fi",
         "  fi",
         '  if _slp_mode=$(LC_ALL=C command /usr/bin/stat -L -c %a -- "$_slp_path" 2>/dev/null); then',
         "    if [[ ! $_slp_mode =~ ^[0-7]{1,4}$ ]]; then",
-        emit_error,
+        emit_error_mode,
         "      return 0",
         "    fi",
         '    while [[ ${#_slp_mode} -lt 4 ]]; do _slp_mode="0$_slp_mode"; done',
@@ -95,7 +98,7 @@ def shell_function(control_id, locator, key, op, expected):
         '  if [[ -d $_slp_parent && -x $_slp_parent && ! -e $_slp_path && ! -L $_slp_path ]]; then',
         emit_missing,
         "  else",
-        emit_error,
+        emit_error_observation,
         "  fi",
         "  return 0",
         "}",

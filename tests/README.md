@@ -22,9 +22,7 @@ regression обязан иметь непустой stdout и либо executabl
 Разрешённые внутренние skip:
 
 - `tests/gates-v3/test_schema_runtime_parity.py`: ровно 2 случая real-jsonschema
-  в DEV-интерпретаторе только со stdlib;
-- `tests/product-v1/test_file_mode_owner_adapter.py`: ровно 2 permission-сценария
-  только при запуске DEV от root.
+  в DEV-интерпретаторе только со stdlib.
 
 Любой другой или дополнительный skip, а также любой `ResourceWarning`, делает DEV красным.
 

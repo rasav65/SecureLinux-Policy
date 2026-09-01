@@ -14,7 +14,9 @@ from pathlib import Path, PurePosixPath
 GENERATOR_ID = "product-check-generator-v2"
 PRODUCT_CLI_ID = "product-cli-v1"
 PRODUCT_STATUS = "NON_RELEASE_PRODUCT_CANDIDATE"
-TARGET_ID = "ubuntu-24.04-x86_64"
+TARGET_FAMILY_ID = "linux-x86_64-supported-v1"
+PLATFORM_MATRIX_REL = "product/SUPPORTED-PLATFORMS.tsv"
+DESKTOP_MATRIX_REL = "product/SUPPORTED-DESKTOPS.tsv"
 
 MANIFEST_REL = "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 CONTROL_DIR_REL = "controls/fstec-core/linux-2022"
@@ -326,7 +328,9 @@ def load_registry(repo: Path):
             raise RuntimeError(f"binding implementation SHA mismatch: {row['parameter_kind']}")
         if semantic.get("semantic_contract_id") != binding.get("semantic_contract_id"):
             raise RuntimeError(f"semantic id mismatch: {row['parameter_kind']}")
-        if binding.get("operation") != "check" or binding.get("target_id") != TARGET_ID:
+        if semantic.get("target_id") != TARGET_FAMILY_ID:
+            raise RuntimeError(f"semantic target mismatch: {row['parameter_kind']}")
+        if binding.get("operation") != "check" or binding.get("target_id") != TARGET_FAMILY_ID:
             raise RuntimeError(f"binding operation/target mismatch: {row['parameter_kind']}")
 
         spec = importlib.util.spec_from_file_location(
@@ -341,7 +345,7 @@ def load_registry(repo: Path):
             raise RuntimeError(f"implementation adapter id mismatch: {row['parameter_kind']}")
         if getattr(mod, "PARAMETER_KIND", None) != row["parameter_kind"]:
             raise RuntimeError(f"implementation parameter kind mismatch: {row['parameter_kind']}")
-        if getattr(mod, "TARGET_ID", None) != TARGET_ID:
+        if getattr(mod, "TARGET_ID", None) != TARGET_FAMILY_ID:
             raise RuntimeError(f"implementation target mismatch: {row['parameter_kind']}")
         if not callable(getattr(mod, "shell_function", None)):
             raise RuntimeError(f"adapter shell_function missing: {row['parameter_kind']}")
@@ -353,6 +357,70 @@ def load_registry(repo: Path):
             "module": mod,
         }
     return adapters, sha_file(path)
+
+
+PLATFORM_MATRIX_FIELDS = ["environment_id", "os_id", "version_id", "arch", "profile", "status"]
+
+
+def load_platform_matrix(repo: Path):
+    path = repo / PLATFORM_MATRIX_REL
+    require_regular(path, "supported platform matrix")
+    with path.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        if reader.fieldnames != PLATFORM_MATRIX_FIELDS:
+            raise RuntimeError(f"unexpected platform matrix fields: {reader.fieldnames!r}")
+        rows = list(reader)
+    if len(rows) != 7:
+        raise RuntimeError(f"supported platform matrix must contain exact accepted 7 environments, got {len(rows)}")
+    ids = [r["environment_id"] for r in rows]
+    if len(set(ids)) != len(ids):
+        raise RuntimeError("duplicate environment_id in supported platform matrix")
+    expected = {
+        "ubuntu-22.04-x86_64-full",
+        "ubuntu-24.04-x86_64-minimized",
+        "ubuntu-24.04-x86_64-full",
+        "ubuntu-26.04-x86_64-minimized",
+        "ubuntu-26.04-x86_64-full",
+        "debian-12-x86_64-server",
+        "debian-13-x86_64-server",
+    }
+    if set(ids) != expected:
+        raise RuntimeError(f"supported platform matrix identity mismatch: {sorted(ids)!r}")
+    for row in rows:
+        if row["status"] != "SUPPORTED" or row["arch"] != "x86_64":
+            raise RuntimeError(f"unsupported matrix row state: {row['environment_id']}")
+        if row["profile"] not in {"FULL", "MINIMIZED", "SERVER"}:
+            raise RuntimeError(f"invalid profile: {row['environment_id']}")
+        expected_id = f"{row['os_id']}-{row['version_id']}-{row['arch']}-{row['profile'].lower()}"
+        if row["environment_id"] != expected_id:
+            raise RuntimeError(f"environment_id fields mismatch: {row['environment_id']}")
+    return rows, sha_file(path)
+
+
+DESKTOP_MATRIX_FIELDS = ["environment_id", "os_id", "version_id", "arch", "type", "status"]
+
+
+def load_desktop_matrix(repo: Path):
+    path = repo / DESKTOP_MATRIX_REL
+    require_regular(path, "supported desktop matrix")
+    with path.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        if reader.fieldnames != DESKTOP_MATRIX_FIELDS:
+            raise RuntimeError(f"unexpected desktop matrix fields: {reader.fieldnames!r}")
+        rows = list(reader)
+    if len(rows) != 1:
+        raise RuntimeError(f"supported desktop matrix must contain exact accepted 1 environment, got {len(rows)}")
+    expected = {
+        "environment_id": "ubuntu-24.04-x86_64-desktop",
+        "os_id": "ubuntu",
+        "version_id": "24.04",
+        "arch": "x86_64",
+        "type": "DESKTOP",
+        "status": "SUPPORTED",
+    }
+    if rows[0] != expected:
+        raise RuntimeError(f"supported desktop matrix identity mismatch: {rows[0]!r}")
+    return rows, sha_file(path)
 
 
 def sh_single(s: str) -> str:
@@ -384,7 +452,15 @@ def render_script(
     manifest_sha: str,
     registry_sha: str,
     generator_sha: str,
+    platform_rows=None,
+    platform_matrix_sha: str | None = None,
+    desktop_rows=None,
+    desktop_matrix_sha: str | None = None,
 ) -> bytes:
+    if platform_rows is None or platform_matrix_sha is None or desktop_rows is None or desktop_matrix_sha is None:
+        repo = Path(__file__).resolve(strict=True).parents[1]
+        platform_rows, platform_matrix_sha = load_platform_matrix(repo)
+        desktop_rows, desktop_matrix_sha = load_desktop_matrix(repo)
     blocks = []
     function_names = []
     function_owners = {}
@@ -440,7 +516,7 @@ def render_script(
             "registry_sha256": registry_sha,
             "semantic_contract_sha256": row["semantic_contract_sha256"],
             "source_locator": c["source_locator"],
-            "target_id": TARGET_ID,
+            "target_id": TARGET_FAMILY_ID,
         }
         provenance_lines.append(
             json.dumps(prov, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -458,6 +534,7 @@ def render_script(
         )
     fn_words = " ".join(sh_single(x) for x in function_names)
     cid_words = " ".join(sh_single(c["control_id"]) for c in controls)
+    supported_cases = "|".join(sh_single(r["environment_id"]) for r in (platform_rows + desktop_rows)) + ") ;;"
 
     template = r'''#!/bin/bash -p
 # SecureLinux-Policy v3 unified read-only product CLI
@@ -467,45 +544,318 @@ def render_script(
 # GENERATOR_SHA256=@@GENERATOR_SHA@@
 # CONTROL_MANIFEST_SHA256=@@MANIFEST_SHA@@
 # ADAPTER_REGISTRY_SHA256=@@REGISTRY_SHA@@
-# TARGET_ID=@@TARGET_ID@@
+# TARGET_FAMILY_ID=@@TARGET_FAMILY_ID@@
+# PLATFORM_MATRIX_SHA256=@@PLATFORM_MATRIX_SHA@@
+# DESKTOP_MATRIX_SHA256=@@DESKTOP_MATRIX_SHA@@
 
 set -u
 
 @@BLOCKS@@
 
+SLP_SYSTEM_ID=''
+SLP_SYSTEM_VERSION_ID=''
+SLP_SYSTEM_PRETTY_NAME=''
+SLP_SYSTEM_ARCH=''
+SLP_SYSTEM_PROFILE=''
+SLP_SYSTEM_TYPE=''
+SLP_SYSTEM_PLATFORM=''
+SLP_SYSTEM_ENVIRONMENT=''
+SLP_CLASSIFY_REASON=''
+
+slp_classify_dpkg_status() {
+  local _slp_out=$1 _slp_want='' _slp_eflag='' _slp_status='' _slp_extra=''
+  [[ $_slp_out != *$'\n'* && $_slp_out != *$'\r'* ]] || return 1
+  IFS=' ' read -r _slp_want _slp_eflag _slp_status _slp_extra <<< "$_slp_out"
+  [[ -n $_slp_want && -n $_slp_eflag && -n $_slp_status && -z $_slp_extra ]] || return 1
+  case "$_slp_want" in
+    unknown|install|hold|deinstall|purge) ;;
+    *) return 1 ;;
+  esac
+  [[ $_slp_eflag == ok ]] || return 1
+  case "$_slp_status" in
+    installed) printf '%s' installed ;;
+    not-installed|config-files) printf '%s' absent ;;
+    *) return 1 ;;
+  esac
+}
+
+slp_dpkg_package_state() {
+  local _slp_pkg=$1 _slp_out='' _slp_rc=0
+  [[ -x /usr/bin/dpkg-query ]] || return 1
+  _slp_out=$(LC_ALL=C command /usr/bin/dpkg-query --root=/ --admindir=/var/lib/dpkg -W -f='${Status}' -- "$_slp_pkg" 2>/dev/null)
+  _slp_rc=$?
+  if (( _slp_rc == 0 )); then
+    slp_classify_dpkg_status "$_slp_out"
+    return $?
+  fi
+  if (( _slp_rc == 1 )); then
+    printf '%s' absent
+    return 0
+  fi
+  return 1
+}
+
+slp_classify_environment() {
+  local _slp_id=$1 _slp_version=$2 _slp_arch=$3
+  local _slp_server_minimal=$4 _slp_ubuntu_minimal=$5 _slp_ubuntu_standard=$6
+  local _slp_profile='' _slp_type='' _slp_platform='' _slp_environment=''
+  SLP_CLASSIFY_REASON=''
+  SLP_SYSTEM_ID=$_slp_id
+  SLP_SYSTEM_VERSION_ID=$_slp_version
+  SLP_SYSTEM_ARCH=$_slp_arch
+  SLP_SYSTEM_PROFILE=''
+  SLP_SYSTEM_TYPE=''
+  SLP_SYSTEM_PLATFORM=''
+  SLP_SYSTEM_ENVIRONMENT=''
+  if [[ $_slp_arch != x86_64 ]]; then
+    SLP_CLASSIFY_REASON=PLATFORM
+    return 3
+  fi
+  _slp_platform="$_slp_id-$_slp_version-$_slp_arch"
+  case "$_slp_id:$_slp_version" in
+    ubuntu:22.04|ubuntu:24.04|ubuntu:26.04)
+      SLP_SYSTEM_PLATFORM=$_slp_platform
+      if [[ $_slp_server_minimal == installed ]]; then
+        if [[ $_slp_ubuntu_minimal == installed && $_slp_ubuntu_standard == installed ]]; then
+          _slp_profile=FULL
+        elif [[ $_slp_ubuntu_minimal == absent && $_slp_ubuntu_standard == absent ]]; then
+          _slp_profile=MINIMIZED
+        else
+          SLP_SYSTEM_PROFILE=UNKNOWN
+          SLP_CLASSIFY_REASON=PROFILE
+          return 3
+        fi
+      elif [[ $_slp_server_minimal == absent && $_slp_ubuntu_minimal == installed && $_slp_ubuntu_standard == installed ]]; then
+        if [[ $_slp_version == 24.04 ]]; then
+          _slp_type=DESKTOP
+        else
+          SLP_SYSTEM_TYPE=UNKNOWN
+          SLP_CLASSIFY_REASON=TYPE
+          return 3
+        fi
+      else
+        SLP_SYSTEM_TYPE=UNKNOWN
+        SLP_CLASSIFY_REASON=TYPE
+        return 3
+      fi
+      ;;
+    debian:12|debian:13)
+      _slp_profile=SERVER
+      ;;
+    *)
+      SLP_CLASSIFY_REASON=PLATFORM
+      return 3
+      ;;
+  esac
+  if [[ -n $_slp_type ]]; then
+    _slp_environment="$_slp_platform-${_slp_type,,}"
+  else
+    _slp_environment="$_slp_platform-${_slp_profile,,}"
+  fi
+  case "$_slp_environment" in
+    @@SUPPORTED_CASES@@
+    *)
+      if [[ -n $_slp_type ]]; then
+        SLP_SYSTEM_TYPE=UNKNOWN
+        SLP_CLASSIFY_REASON=TYPE
+      else
+        SLP_SYSTEM_PROFILE=UNKNOWN
+        SLP_CLASSIFY_REASON=PROFILE
+      fi
+      SLP_SYSTEM_PLATFORM=$_slp_platform
+      return 3
+      ;;
+  esac
+  SLP_SYSTEM_PROFILE=$_slp_profile
+  SLP_SYSTEM_TYPE=$_slp_type
+  SLP_SYSTEM_PLATFORM=$_slp_platform
+  SLP_SYSTEM_ENVIRONMENT=$_slp_environment
+  return 0
+}
+
+slp_preflight_validate_text_bytes() {
+  local _slp_v_path=$1 _slp_v_hex _slp_v_byte _slp_v_n=0
+  local _slp_v_need=0 _slp_v_min=128 _slp_v_max=191
+  if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi
+  for _slp_v_byte in $_slp_v_hex; do
+    [[ $_slp_v_byte =~ ^[0-9a-f][0-9a-f]$ ]] || return 1
+    case "$_slp_v_byte" in
+      00|01|02|03|04|05|06|07|08|09|0b|0c|0d|0e|0f|10|11|12|13|14|15|16|17|18|19|1a|1b|1c|1d|1e|1f) return 1 ;;
+    esac
+    _slp_v_n=$((16#$_slp_v_byte))
+    if (( _slp_v_need > 0 )); then
+      (( _slp_v_n >= _slp_v_min && _slp_v_n <= _slp_v_max )) || return 1
+      ((_slp_v_need-=1))
+      _slp_v_min=128 _slp_v_max=191
+      continue
+    fi
+    if (( _slp_v_n <= 127 )); then
+      continue
+    elif (( _slp_v_n >= 194 && _slp_v_n <= 223 )); then
+      _slp_v_need=1
+    elif (( _slp_v_n == 224 )); then
+      _slp_v_need=2 _slp_v_min=160
+    elif (( (_slp_v_n >= 225 && _slp_v_n <= 236) || (_slp_v_n >= 238 && _slp_v_n <= 239) )); then
+      _slp_v_need=2
+    elif (( _slp_v_n == 237 )); then
+      _slp_v_need=2 _slp_v_max=159
+    elif (( _slp_v_n == 240 )); then
+      _slp_v_need=3 _slp_v_min=144
+    elif (( _slp_v_n >= 241 && _slp_v_n <= 243 )); then
+      _slp_v_need=3
+    elif (( _slp_v_n == 244 )); then
+      _slp_v_need=3 _slp_v_max=143
+    else
+      return 1
+    fi
+  done
+  (( _slp_v_need == 0 )) || return 1
+  return 0
+}
+
+SLP_OS_RELEASE_VALUE=''
+SLP_OS_RELEASE_ID=''
+SLP_OS_RELEASE_VERSION_ID=''
+SLP_OS_RELEASE_PRETTY_NAME=''
+
+slp_parse_os_release_value() {
+  local LC_ALL=C
+  local _slp_in=$1 _slp_mode=unquoted _slp_body='' _slp_out='' _slp_ch='' _slp_next=''
+  local _slp_len=${#1}
+  SLP_OS_RELEASE_VALUE=''
+  if (( _slp_len > 0 )) && [[ ${_slp_in:0:1} == '"' ]]; then
+    (( _slp_len >= 2 )) || return 1
+    [[ ${_slp_in: -1} == '"' ]] || return 1
+    _slp_mode=double
+    _slp_body=${_slp_in:1:_slp_len-2}
+  elif (( _slp_len > 0 )) && [[ ${_slp_in:0:1} == "'" ]]; then
+    (( _slp_len >= 2 )) || return 1
+    [[ ${_slp_in: -1} == "'" ]] || return 1
+    _slp_mode=single
+    _slp_body=${_slp_in:1:_slp_len-2}
+  else
+    _slp_body=$_slp_in
+  fi
+  if [[ $_slp_mode == single ]]; then
+    [[ $_slp_body != *"'"* ]] || return 1
+    SLP_OS_RELEASE_VALUE=$_slp_body
+    return 0
+  fi
+  while [[ -n $_slp_body ]]; do
+    _slp_ch=${_slp_body:0:1}
+    _slp_body=${_slp_body:1}
+    if [[ $_slp_ch == '\' ]]; then
+      [[ -n $_slp_body ]] || return 1
+      _slp_next=${_slp_body:0:1}
+      if [[ $_slp_mode == double ]]; then
+        case "$_slp_next" in
+          '$'|'`'|'"'|'\') _slp_out+=$_slp_next; _slp_body=${_slp_body:1} ;;
+          *) _slp_out+='\' ;;
+        esac
+      else
+        _slp_out+=$_slp_next
+        _slp_body=${_slp_body:1}
+      fi
+      continue
+    fi
+    if [[ $_slp_mode == double ]]; then
+      case "$_slp_ch" in
+        '"'|'$'|'`') return 1 ;;
+      esac
+    else
+      case "$_slp_ch" in
+        "'"|'"'|'$'|'`'|' '|$'\t'|';') return 1 ;;
+      esac
+    fi
+    _slp_out+=$_slp_ch
+  done
+  SLP_OS_RELEASE_VALUE=$_slp_out
+  return 0
+}
+
+slp_parse_os_release_file() {
+  local _slp_p_path=$1 _slp_p_line='' _slp_p_key='' _slp_p_raw=''
+  SLP_OS_RELEASE_ID=''
+  SLP_OS_RELEASE_VERSION_ID=''
+  SLP_OS_RELEASE_PRETTY_NAME=''
+  while IFS= read -r _slp_p_line || [[ -n $_slp_p_line ]]; do
+    [[ $_slp_p_line == *=* ]] || continue
+    _slp_p_key=${_slp_p_line%%=*}
+    case "$_slp_p_key" in
+      ID|VERSION_ID|PRETTY_NAME)
+        _slp_p_raw=${_slp_p_line#*=}
+        slp_parse_os_release_value "$_slp_p_raw" || return 1
+        case "$_slp_p_key" in
+          ID) SLP_OS_RELEASE_ID=$SLP_OS_RELEASE_VALUE ;;
+          VERSION_ID) SLP_OS_RELEASE_VERSION_ID=$SLP_OS_RELEASE_VALUE ;;
+          PRETTY_NAME) SLP_OS_RELEASE_PRETTY_NAME=$SLP_OS_RELEASE_VALUE ;;
+        esac
+        ;;
+    esac
+  done < "$_slp_p_path"
+  return 0
+}
+
 slp_target_preflight() {
-  local _slp_id='' _slp_version='' _slp_arch='' _slp_k _slp_v
+  local _slp_id='' _slp_version='' _slp_pretty='' _slp_arch='' _slp_k _slp_v _slp_vrc=0
+  local _slp_server_minimal=na _slp_ubuntu_minimal=na _slp_ubuntu_standard=na
   if [[ ! -r /etc/os-release ]]; then
     printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2
     return 3
   fi
-  while IFS='=' read -r _slp_k _slp_v; do
-    case "$_slp_k" in
-      ID)
-        _slp_v=${_slp_v#\"}
-        _slp_v=${_slp_v%\"}
-        _slp_id=$_slp_v
-        ;;
-      VERSION_ID)
-        _slp_v=${_slp_v#\"}
-        _slp_v=${_slp_v%\"}
-        _slp_version=$_slp_v
-        ;;
-    esac
-  done < /etc/os-release
+  slp_preflight_validate_text_bytes /etc/os-release; _slp_vrc=$?
+  if (( _slp_vrc != 0 )); then
+    printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2
+    return 3
+  fi
+  slp_parse_os_release_file /etc/os-release || {
+    printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2
+    return 3
+  }
+  _slp_id=$SLP_OS_RELEASE_ID
+  _slp_version=$SLP_OS_RELEASE_VERSION_ID
+  _slp_pretty=$SLP_OS_RELEASE_PRETTY_NAME
   _slp_arch=$(command /usr/bin/uname -m 2>/dev/null) || {
     printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2
     return 3
   }
-  if [[ $_slp_id != ubuntu || $_slp_version != 24.04 || $_slp_arch != x86_64 ]]; then
-    printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2
-    return 3
+  case "$_slp_id:$_slp_version:$_slp_arch" in
+    ubuntu:22.04:x86_64|ubuntu:24.04:x86_64|ubuntu:26.04:x86_64|debian:12:x86_64|debian:13:x86_64) ;;
+    *)
+      printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2
+      return 3
+      ;;
+  esac
+  if [[ $_slp_id == ubuntu ]]; then
+    _slp_server_minimal=$(slp_dpkg_package_state ubuntu-server-minimal) || {
+      printf '%s\n' 'UNSUPPORTED_PROFILE' >&2
+      return 3
+    }
+    _slp_ubuntu_minimal=$(slp_dpkg_package_state ubuntu-minimal) || {
+      printf '%s\n' 'UNSUPPORTED_PROFILE' >&2
+      return 3
+    }
+    _slp_ubuntu_standard=$(slp_dpkg_package_state ubuntu-standard) || {
+      printf '%s\n' 'UNSUPPORTED_PROFILE' >&2
+      return 3
+    }
   fi
+  slp_classify_environment "$_slp_id" "$_slp_version" "$_slp_arch" \
+    "$_slp_server_minimal" "$_slp_ubuntu_minimal" "$_slp_ubuntu_standard" || {
+    case "$SLP_CLASSIFY_REASON" in
+      PROFILE) printf '%s\n' 'UNSUPPORTED_PROFILE' >&2 ;;
+      TYPE) printf '%s\n' 'UNSUPPORTED_TYPE' >&2 ;;
+      *) printf '%s\n' 'UNSUPPORTED_PLATFORM' >&2 ;;
+    esac
+    return 3
+  }
+  [[ -n $_slp_pretty ]] || _slp_pretty="$_slp_id $_slp_version"
+  SLP_SYSTEM_PRETTY_NAME=$_slp_pretty
   return 0
 }
 
 slp_provenance_all() {
-  cat <<'SLP_PROVENANCE_EOF'
+  command /usr/bin/cat <<'SLP_PROVENANCE_EOF'
 @@PROV_ALL@@
 SLP_PROVENANCE_EOF
 }
@@ -527,12 +877,17 @@ slp_build_info() {
     'CONTROL_MANIFEST_SHA256=@@MANIFEST_SHA@@' \
     'ADAPTER_COUNT=@@ADAPTER_COUNT@@' \
     'ADAPTER_REGISTRY_SHA256=@@REGISTRY_SHA@@' \
-    'TARGET_ID=@@TARGET_ID@@' \
+    'TARGET_FAMILY_ID=@@TARGET_FAMILY_ID@@' \
+    'SUPPORTED_PROFILE_ENVIRONMENTS=@@SUPPORTED_PROFILE_COUNT@@' \
+    'SUPPORTED_DESKTOP_ENVIRONMENTS=@@SUPPORTED_DESKTOP_COUNT@@' \
+    'SUPPORTED_ENVIRONMENTS=@@SUPPORTED_COUNT@@' \
+    'PLATFORM_MATRIX_SHA256=@@PLATFORM_MATRIX_SHA@@' \
+    'DESKTOP_MATRIX_SHA256=@@DESKTOP_MATRIX_SHA@@' \
     'MUTATING_MODES=NONE'
 }
 
 slp_help() {
-  cat <<'SLP_HELP_EOF'
+  command /usr/bin/cat <<'SLP_HELP_EOF'
 SecureLinux-Policy v3 — единый read-only CLI
 
 Использование:
@@ -543,7 +898,6 @@ SecureLinux-Policy v3 — единый read-only CLI
   ./securelinux-policy.sh --version
   ./securelinux-policy.sh --help
   ./securelinux-policy.sh --apply
-  ./securelinux-policy.sh --restore
 
 Режимы:
   --check               read-only проверка текущих canonical controls
@@ -556,7 +910,6 @@ SecureLinux-Policy v3 — единый read-only CLI
   --provenance          provenance всех controls или одного CONTROL_ID
   --version             версия product CLI
   --apply               NOT_IMPLEMENTED; ничего не изменяет
-  --restore             NOT_IMPLEMENTED; ничего не изменяет
 
 Без аргументов печатается эта справка. CHECK не изменяет состояние хоста.
 SLP_HELP_EOF
@@ -568,16 +921,44 @@ slp_version() {
     'PRODUCT_CLI=@@PRODUCT_CLI_ID@@' \
     'STATUS=@@PRODUCT_STATUS@@' \
     'CONTROL_COUNT=@@CONTROL_COUNT@@' \
-    'TARGET_ID=@@TARGET_ID@@'
+    'TARGET_FAMILY_ID=@@TARGET_FAMILY_ID@@'
 }
 
 slp_json_escape() {
   local _slp_s=$1
   _slp_s=${_slp_s//\\/\\\\}
   _slp_s=${_slp_s//\"/\\\"}
+  _slp_s=${_slp_s//$'\x01'/\\u0001}
+  _slp_s=${_slp_s//$'\x02'/\\u0002}
+  _slp_s=${_slp_s//$'\x03'/\\u0003}
+  _slp_s=${_slp_s//$'\x04'/\\u0004}
+  _slp_s=${_slp_s//$'\x05'/\\u0005}
+  _slp_s=${_slp_s//$'\x06'/\\u0006}
+  _slp_s=${_slp_s//$'\x07'/\\u0007}
+  _slp_s=${_slp_s//$'\x08'/\\b}
   _slp_s=${_slp_s//$'\t'/\\t}
-  _slp_s=${_slp_s//$'\r'/\\r}
   _slp_s=${_slp_s//$'\n'/\\n}
+  _slp_s=${_slp_s//$'\x0b'/\\u000b}
+  _slp_s=${_slp_s//$'\x0c'/\\f}
+  _slp_s=${_slp_s//$'\r'/\\r}
+  _slp_s=${_slp_s//$'\x0e'/\\u000e}
+  _slp_s=${_slp_s//$'\x0f'/\\u000f}
+  _slp_s=${_slp_s//$'\x10'/\\u0010}
+  _slp_s=${_slp_s//$'\x11'/\\u0011}
+  _slp_s=${_slp_s//$'\x12'/\\u0012}
+  _slp_s=${_slp_s//$'\x13'/\\u0013}
+  _slp_s=${_slp_s//$'\x14'/\\u0014}
+  _slp_s=${_slp_s//$'\x15'/\\u0015}
+  _slp_s=${_slp_s//$'\x16'/\\u0016}
+  _slp_s=${_slp_s//$'\x17'/\\u0017}
+  _slp_s=${_slp_s//$'\x18'/\\u0018}
+  _slp_s=${_slp_s//$'\x19'/\\u0019}
+  _slp_s=${_slp_s//$'\x1a'/\\u001a}
+  _slp_s=${_slp_s//$'\x1b'/\\u001b}
+  _slp_s=${_slp_s//$'\x1c'/\\u001c}
+  _slp_s=${_slp_s//$'\x1d'/\\u001d}
+  _slp_s=${_slp_s//$'\x1e'/\\u001e}
+  _slp_s=${_slp_s//$'\x1f'/\\u001f}
   printf '%s' "$_slp_s"
 }
 
@@ -588,7 +969,7 @@ slp_pretty_row() {
   local -a _slp_parts=()
   IFS=';' read -r -a _slp_parts <<< "$_slp_value"
   if (( ${#_slp_parts[@]} <= 1 )); then
-    printf '%-7s  %-52s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_value"
+    printf '%-7s  %-61s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_value"
     return 0
   fi
   for _slp_part in "${_slp_parts[@]}"; do
@@ -601,18 +982,18 @@ slp_pretty_row() {
       _slp_line+="$_slp_piece"
     else
       if (( _slp_first == 1 )); then
-        printf '%-7s  %-52s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_line"
+        printf '%-7s  %-61s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_line"
         _slp_first=0
       else
-        printf '%-7s  %-52s  %s\n' '' '' "$_slp_line"
+        printf '%-7s  %-61s  %s\n' '' '' "$_slp_line"
       fi
       _slp_line=$_slp_part
     fi
   done
   if (( _slp_first == 1 )); then
-    printf '%-7s  %-52s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_line"
+    printf '%-7s  %-61s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_line"
   else
-    printf '%-7s  %-52s  %s\n' '' '' "$_slp_line"
+    printf '%-7s  %-61s  %s\n' '' '' "$_slp_line"
   fi
 }
 
@@ -639,12 +1020,18 @@ slp_collect_policy() {
       return 1
     fi
     case "$_slp_status:$_slp_comp" in
-      VALUE:PASS|VALUE:FAIL|NOT_FOUND:NOT_FOUND|ERROR:ERROR) ;;
+      VALUE:PASS|VALUE:FAIL|NOT_FOUND:FAIL|NOT_FOUND:NOT_FOUND|ERROR:ERROR) ;;
       *)
         printf '%s\n' 'CHECK_INTERNAL_ERROR' >&2
         return 1
         ;;
     esac
+    if [[ $_slp_comp == ERROR ]]; then
+      if [[ ! $_slp_value =~ ^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$ ]]; then
+        printf '%s\n' 'CHECK_INTERNAL_ERROR' >&2
+        return 1
+      fi
+    fi
     SLP_RESULTS+=("$_slp_line")
     ((SLP_TOTAL+=1))
     case "$_slp_comp" in
@@ -677,6 +1064,9 @@ slp_selected() {
 
 slp_render_raw() {
   local _slp_failed_only=$1 _slp_line _slp_tag _slp_cid _slp_status _slp_value _slp_comp
+  printf 'SLP-PLATFORM-V1\tSYSTEM=%s\tID=%s\tVERSION_ID=%s\tARCH=%s\tPROFILE=%s\tTYPE=%s\tPLATFORM=%s\tENVIRONMENT=%s\tSUPPORT=SUPPORTED\n' \
+    "$SLP_SYSTEM_PRETTY_NAME" "$SLP_SYSTEM_ID" "$SLP_SYSTEM_VERSION_ID" "$SLP_SYSTEM_ARCH" \
+    "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_TYPE" "$SLP_SYSTEM_PLATFORM" "$SLP_SYSTEM_ENVIRONMENT"
   for _slp_line in "${SLP_RESULTS[@]}"; do
     IFS=$'\t' read -r _slp_tag _slp_cid _slp_status _slp_value _slp_comp <<< "$_slp_line"
     slp_selected "$_slp_comp" "$_slp_failed_only" || continue
@@ -688,15 +1078,21 @@ slp_render_raw() {
 
 slp_render_pretty() {
   local _slp_failed_only=$1 _slp_title=$2 _slp_line _slp_tag _slp_cid _slp_status _slp_value _slp_comp
-  printf '=== SecureLinux Policy — %s ===\n\n' "$_slp_title"
-  printf '%-7s  %-52s  %s\n' 'RESULT' 'CONTROL' 'VALUE / DETAILS'
-  printf '%-7s  %-52s  %s\n' '------' '----------------------------------------------------' '--------------------------------------------------------'
+  printf '=== SecureLinux Policy — %s ===\n' "$_slp_title"
+  printf 'SYSTEM=%s   ARCH=%s\n' "$SLP_SYSTEM_PRETTY_NAME" "$SLP_SYSTEM_ARCH"
+  if [[ -n $SLP_SYSTEM_TYPE ]]; then
+    printf 'TYPE=%s   PLATFORM=%s   SUPPORT=SUPPORTED\n\n' "$SLP_SYSTEM_TYPE" "$SLP_SYSTEM_PLATFORM"
+  else
+    printf 'PROFILE=%s   PLATFORM=%s   SUPPORT=SUPPORTED\n\n' "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_PLATFORM"
+  fi
+  printf '%-7s  %-61s  %s\n' 'RESULT' 'CONTROL' 'VALUE / DETAILS'
+  printf '%-7s  %-61s  %s\n' '------' '-------------------------------------------------------------' '--------------------------------------------------------'
   for _slp_line in "${SLP_RESULTS[@]}"; do
     IFS=$'\t' read -r _slp_tag _slp_cid _slp_status _slp_value _slp_comp <<< "$_slp_line"
     slp_selected "$_slp_comp" "$_slp_failed_only" || continue
     slp_pretty_row "$_slp_comp" "$_slp_cid" "$_slp_value"
   done
-  printf '%s\n' '-------------------------------------------------------------------------------------------------------------------------'
+  printf '%s\n' '----------------------------------------------------------------------------------------------------------------------------------'
   printf 'TOTAL=%d   PASS=%d   FAIL=%d   NOT_FOUND=%d   ERROR=%d   POLICY=%s\n' \
     "$SLP_TOTAL" "$SLP_PASS" "$SLP_FAIL" "$SLP_NF" "$SLP_ERR" "$SLP_POLICY_STATUS"
 }
@@ -704,8 +1100,11 @@ slp_render_pretty() {
 slp_render_json() {
   local _slp_failed_only=$1 _slp_line _slp_tag _slp_cid _slp_status _slp_value _slp_comp _slp_first=1 _slp_filter=all
   (( _slp_failed_only == 1 )) && _slp_filter=failed
-  printf '{"schema":"SLP-REPORT-V1","filter":"%s","policy_status":"%s","summary":{"total":%d,"pass":%d,"fail":%d,"not_found":%d,"error":%d},"results":[' \
-    "$_slp_filter" "$SLP_POLICY_STATUS" "$SLP_TOTAL" "$SLP_PASS" "$SLP_FAIL" "$SLP_NF" "$SLP_ERR"
+  printf '{"schema":"SLP-REPORT-V1","filter":"%s","platform":{"system":"%s","id":"%s","version_id":"%s","arch":"%s","profile":"%s","type":"%s","platform_id":"%s","environment_id":"%s","support":"SUPPORTED"},"policy_status":"%s","summary":{"total":%d,"pass":%d,"fail":%d,"not_found":%d,"error":%d},"results":[' \
+    "$_slp_filter" "$(slp_json_escape "$SLP_SYSTEM_PRETTY_NAME")" "$(slp_json_escape "$SLP_SYSTEM_ID")" \
+    "$(slp_json_escape "$SLP_SYSTEM_VERSION_ID")" "$(slp_json_escape "$SLP_SYSTEM_ARCH")" \
+    "$(slp_json_escape "$SLP_SYSTEM_PROFILE")" "$(slp_json_escape "$SLP_SYSTEM_TYPE")" "$(slp_json_escape "$SLP_SYSTEM_PLATFORM")" \
+    "$(slp_json_escape "$SLP_SYSTEM_ENVIRONMENT")" "$SLP_POLICY_STATUS" "$SLP_TOTAL" "$SLP_PASS" "$SLP_FAIL" "$SLP_NF" "$SLP_ERR"
   for _slp_line in "${SLP_RESULTS[@]}"; do
     IFS=$'\t' read -r _slp_tag _slp_cid _slp_status _slp_value _slp_comp <<< "$_slp_line"
     slp_selected "$_slp_comp" "$_slp_failed_only" || continue
@@ -773,11 +1172,6 @@ slp_main() {
       slp_not_implemented APPLY
       return $?
       ;;
-    --restore)
-      (( $# == 1 )) || return 2
-      slp_not_implemented RESTORE
-      return $?
-      ;;
     --report)
       (( $# == 1 )) || return 2
       slp_run_check pretty 1 REPORT
@@ -825,7 +1219,13 @@ fi
         "@@GENERATOR_SHA@@": generator_sha,
         "@@MANIFEST_SHA@@": manifest_sha,
         "@@REGISTRY_SHA@@": registry_sha,
-        "@@TARGET_ID@@": TARGET_ID,
+        "@@TARGET_FAMILY_ID@@": TARGET_FAMILY_ID,
+        "@@PLATFORM_MATRIX_SHA@@": platform_matrix_sha,
+        "@@DESKTOP_MATRIX_SHA@@": desktop_matrix_sha,
+        "@@SUPPORTED_PROFILE_COUNT@@": str(len(platform_rows)),
+        "@@SUPPORTED_DESKTOP_COUNT@@": str(len(desktop_rows)),
+        "@@SUPPORTED_COUNT@@": str(len(platform_rows) + len(desktop_rows)),
+        "@@SUPPORTED_CASES@@": supported_cases,
         "@@CONTROL_COUNT@@": str(len(controls)),
         "@@ADAPTER_COUNT@@": str(len(adapters)),
         "@@BLOCKS@@": "\n\n".join(blocks),
@@ -895,6 +1295,8 @@ def main() -> int:
     output_is_ignored_if_inside_repo(repo, side)
 
     rows, manifest_sha = load_manifest(repo)
+    platform_rows, platform_matrix_sha = load_platform_matrix(repo)
+    desktop_rows, desktop_matrix_sha = load_desktop_matrix(repo)
     adapters, registry_sha = load_registry(repo)
     controls = [load_control(repo, row) for row in rows]
     for c in controls:
@@ -904,7 +1306,11 @@ def main() -> int:
             )
 
     generator_sha = sha_file(Path(__file__).resolve(strict=True))
-    script = render_script(controls, adapters, manifest_sha, registry_sha, generator_sha)
+    script = render_script(
+        controls, adapters, manifest_sha, registry_sha, generator_sha,
+        platform_rows=platform_rows, platform_matrix_sha=platform_matrix_sha,
+        desktop_rows=desktop_rows, desktop_matrix_sha=desktop_matrix_sha,
+    )
 
     mutating = find_known_mutating_token(script.decode("utf-8"))
     if mutating is not None:
@@ -921,6 +1327,12 @@ def main() -> int:
     print("CONTROL_COUNT=" + str(len(controls)))
     print("ADAPTER_COUNT=" + str(len(adapters)))
     print("ADAPTER_REGISTRY_SHA256=" + registry_sha)
+    print("TARGET_FAMILY_ID=" + TARGET_FAMILY_ID)
+    print("SUPPORTED_PROFILE_ENVIRONMENTS=" + str(len(platform_rows)))
+    print("SUPPORTED_DESKTOP_ENVIRONMENTS=" + str(len(desktop_rows)))
+    print("SUPPORTED_ENVIRONMENTS=" + str(len(platform_rows) + len(desktop_rows)))
+    print("PLATFORM_MATRIX_SHA256=" + platform_matrix_sha)
+    print("DESKTOP_MATRIX_SHA256=" + desktop_matrix_sha)
     print("CHECK_SHA256=" + script_sha)
     print("CHECK_PATH=" + str(out))
     print("SIDECAR_PATH=" + str(side))

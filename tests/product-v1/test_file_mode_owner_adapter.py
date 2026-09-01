@@ -173,7 +173,7 @@ class Runtime(unittest.TestCase):
 
     def test_directory_with_matching_mode_is_error(self):
         self.assertEqual(self.run_check(self.directory, "eq", "0644"),
-                         ("ERROR", "-", "ERROR"))
+                         ("ERROR", "target:invalid-type", "ERROR"))
 
     def test_absent_name_is_not_found(self):
         self.assertEqual(self.run_check(self.absent, "eq", "0644"),
@@ -181,22 +181,22 @@ class Runtime(unittest.TestCase):
 
     def test_dangling_symlink_is_error(self):
         self.assertEqual(self.run_check(self.dangling, "eq", "0644"),
-                         ("ERROR", "-", "ERROR"))
+                         ("ERROR", "target:invalid-type", "ERROR"))
 
     def test_symlink_loop_is_error(self):
-        self.assertEqual(self.run_check(self.loop, "eq", "0644"), ("ERROR", "-", "ERROR"))
+        self.assertEqual(self.run_check(self.loop, "eq", "0644"), ("ERROR", "target:invalid-type", "ERROR"))
 
     def test_parent_is_file_is_error(self):
         self.assertEqual(self.run_check(os.path.join(self.ok, "child"), "eq", "0644"),
-                         ("ERROR", "-", "ERROR"))
+                         ("ERROR", "target:stat-failed", "ERROR"))
 
     def test_existing_under_unsearchable_parent_is_error(self):
         self.assertEqual(self.run_check(self.inner, "eq", "0644", ordinary_user=True),
-                         ("ERROR", "-", "ERROR"))
+                         ("ERROR", "target:stat-failed", "ERROR"))
 
     def test_absent_under_unsearchable_parent_is_error(self):
         self.assertEqual(self.run_check(os.path.join(self.closed, "absent"), "eq", "0644", ordinary_user=True),
-                         ("ERROR", "-", "ERROR"))
+                         ("ERROR", "target:stat-failed", "ERROR"))
 
     def test_path_and_function_shadowing_do_not_override_pinned_stat(self):
         empty = os.path.join(self.tmp, "emptybin")

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import csv
+import json
 import re
 
 root = Path(__file__).resolve().parents[2]
@@ -45,6 +46,45 @@ assert rows[6]["step_id"] == "FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"
 assert rows[6]["status"] == "PAUSED_BY_CURRENT_DOCUMENT_APPLY"
 assert rows[7]["step_id"] == "APPLY_SEMANTIC_CONTRACT"
 assert rows[7]["status"] == "NEXT"
+
+# Parent-first gate: schema/registry exist before any source-specific APPLY instance.
+apply_schema_path = root / "product/contracts/apply-semantic-contract-v1.schema.json"
+apply_registry_path = root / "product/APPLY-KIND-REGISTRY.tsv"
+assert apply_schema_path.is_file()
+assert apply_registry_path.is_file()
+apply_schema = json.loads(apply_schema_path.read_text(encoding="utf-8"))
+assert apply_schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
+assert apply_schema["$id"] == "urn:securelinux-policy-v3:apply-semantic-contract:v1"
+assert apply_schema["additionalProperties"] is False
+for required in (
+    "source_row", "control_id", "check_contract_id", "apply_kind",
+    "precondition", "mutation", "concurrency", "transaction",
+    "postcondition", "recovery", "dry_run", "donor_mapping",
+):
+    assert required in apply_schema["required"], required
+with apply_registry_path.open(encoding="utf-8", newline="") as stream:
+    apply_kinds = list(csv.DictReader(stream, delimiter="\t"))
+assert apply_kinds == [{
+    "apply_kind": "local-account-password-lock",
+    "target_class": "shadow-password-field",
+    "allowed_paths": "/etc/shadow",
+    "predicate_id": "empty-password-field",
+    "transform_id": "empty-field-to-bang",
+    "commit_model": "SINGLE_ATOMIC_FILE_COMMIT",
+    "privilege": "ROOT_REQUIRED_FAIL_CLOSED",
+    "exclusive_lock": "SYSTEM_ACCOUNT_DB_LOCK",
+    "compensation_policy": "NO_SECURITY_WEAKENING_COMPENSATION",
+    "dry_run_required": "true",
+}]
+assert not (root / "product/contracts/local-account-password-state-apply-semantic-v1.json").exists()
+for marker in (
+    "Parent gate для APPLY semantic contracts",
+    "apply-semantic-contract-v1.schema.json",
+    "APPLY-KIND-REGISTRY.tsv",
+    "local-account-password-lock",
+    "0 строк source index",
+):
+    assert marker in policy, marker
 def section(text: str, heading: str, next_heading: str | None = None) -> str:
     assert heading in text, heading
     body = text.split(heading, 1)[1]

@@ -67,7 +67,7 @@ def parse_progress(path: Path) -> dict[str, str]:
 
 def parse_generator_constants(path: Path) -> dict[str, str]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    wanted = {"PRODUCT_STATUS", "TARGET_ID", "GENERATOR_ID"}
+    wanted = {"PRODUCT_STATUS", "TARGET_FAMILY_ID", "GENERATOR_ID"}
     out: dict[str, str] = {}
     for node in tree.body:
         if not isinstance(node, ast.Assign) or len(node.targets) != 1:
@@ -206,10 +206,23 @@ def collect_state(root: Path) -> dict:
             if sha256(p) != row[sha_key]:
                 raise RuntimeError(f"registry SHA mismatch: {row[path_key]}")
 
-    generator = parse_generator_constants(root / "product/generate-product-check-v1.py")
+    generator = parse_generator_constants(root / "product/generate-product-check-v2.py")
+    platform_rows = read_tsv(root / "product/SUPPORTED-PLATFORMS.tsv")
+    if len(platform_rows) != 7 or any(r.get("status") != "SUPPORTED" for r in platform_rows):
+        raise RuntimeError("supported platform matrix mismatch")
+    desktop_rows = read_tsv(root / "product/SUPPORTED-DESKTOPS.tsv")
+    if desktop_rows != [{
+        "environment_id": "ubuntu-24.04-x86_64-desktop",
+        "os_id": "ubuntu",
+        "version_id": "24.04",
+        "arch": "x86_64",
+        "type": "DESKTOP",
+        "status": "SUPPORTED",
+    }]:
+        raise RuntimeError("supported desktop matrix mismatch")
     for row in adapters:
         contract = json.loads((root / row["semantic_contract_path"]).read_text(encoding="utf-8"))
-        if contract.get("target_id") != generator["TARGET_ID"]:
+        if contract.get("target_id") != generator["TARGET_FAMILY_ID"]:
             raise RuntimeError(f"adapter target mismatch: {row['parameter_kind']}")
         if contract.get("read_only") is not True:
             raise RuntimeError(f"adapter semantic contract is not read_only: {row['parameter_kind']}")
@@ -233,6 +246,8 @@ def collect_state(root: Path) -> dict:
         "adapter_by_kind": adapter_by_kind,
         "controls_by_kind": controls_by_kind,
         "generator": generator,
+        "platform_rows": platform_rows,
+        "desktop_rows": desktop_rows,
     }
 
 
@@ -244,7 +259,7 @@ def render_status_block(state: dict) -> str:
     controls = len(state["controls"])
     closure_count = len(state["closure"])
     adapters = len(state["adapters"])
-    target = state["generator"]["TARGET_ID"]
+    target = state["generator"]["TARGET_FAMILY_ID"]
     product_status = state["generator"]["PRODUCT_STATUS"]
     lines = [
         README_BEGIN,
@@ -257,7 +272,8 @@ def render_status_block(state: dict) -> str:
         f"CANONICAL_CONTROLS={controls}",
         f"CLOSURE_CONTRACT_ROWS={closure_count}",
         f"ADAPTER_KINDS={adapters}",
-        f"CHECK_TARGET={target}",
+        f"CHECK_TARGET_FAMILY={target}",
+        f"SUPPORTED_ENVIRONMENTS={len(state['platform_rows']) + len(state['desktop_rows'])}",
         f"CHECK_STATUS={product_status}",
         "CHECK=IMPLEMENTED_READ_ONLY",
         "APPLY=NOT_IMPLEMENTED",
@@ -279,11 +295,11 @@ def render_map_status_block(state: dict) -> str:
     open_count = len(state["open_rows"])
     controls = len(state["controls"])
     adapters = len(state["adapters"])
-    target = state["generator"]["TARGET_ID"]
+    target = state["generator"]["TARGET_FAMILY_ID"]
     return "\n".join([
         MAP_BEGIN,
         f"`строки source={total} · controlled CLOSED={controlled} · OPEN={open_count} · "
-        f"canonical controls={controls} · adapters={adapters} · target={target}`",
+        f"canonical controls={controls} · adapters={adapters} · target-family={target}`",
         "",
         "Точные таблицы покрытия: [`docs/fstec-coverage.md`](fstec-coverage.md).",
         MAP_END,

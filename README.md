@@ -18,7 +18,8 @@ CLOSURE_RATIO=40/349
 CANONICAL_CONTROLS=51
 CLOSURE_CONTRACT_ROWS=40
 ADAPTER_KINDS=18
-CHECK_TARGET=ubuntu-24.04-x86_64
+CHECK_TARGET_FAMILY=linux-x86_64-supported-v1
+SUPPORTED_ENVIRONMENTS=8
 CHECK_STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 CHECK=IMPLEMENTED_READ_ONLY
 APPLY=NOT_IMPLEMENTED
@@ -86,7 +87,7 @@ RESTORE не планируется; post-APPLY rollback выполняется 
 securelinux-policy.sh
 ```
 
-На поддерживаемом target-host (`ubuntu-24.04-x86_64`) полный CHECK запускается
+На любом environment из `product/SUPPORTED-PLATFORMS.tsv` или `product/SUPPORTED-DESKTOPS.tsv` полный CHECK запускается
 одной командой:
 
 ```bash
@@ -118,8 +119,10 @@ sudo ./securelinux-policy.sh --check --format json
 ```
 
 `raw` сохраняет wire-format `SLP-CHECK-V1`/`SLP-SUMMARY-V1`; `json` выдаёт
-структурированный `SLP-REPORT-V1`. Краткий human-readable отчёт с `FAIL` и
-`ERROR`:
+структурированный `SLP-REPORT-V1`. Каждый `ERROR` сохраняет fail-closed verdict и
+обязательно несёт стабильный reason-code формата `domain:reason` в `VALUE / DETAILS`,
+raw и JSON. Reason-code определяется точкой отказа и не строится из случайного stderr;
+`-` для production `ERROR` запрещён. Краткий human-readable отчёт с `FAIL` и `ERROR`:
 
 ```bash
 sudo ./securelinux-policy.sh --report
@@ -133,10 +136,10 @@ Metadata и provenance не требуют запуска policy checks:
 ./securelinux-policy.sh --provenance
 ```
 
-`--apply` и `--restore` уже присутствуют в принятом CHECK CLI и сейчас обязаны
-завершаться `NOT_IMPLEMENTED` с RC=2 и ничего не менять на хосте. `--apply`
-зарезервирован для будущей mutation-line; `--restore` сохраняется только как
-fail-closed compatibility stub принятого CHECK и не будет получать реализацию.
+`--apply` присутствует в CLI как fail-closed `NOT_IMPLEMENTED` stub с `RC=2` и ничего
+не меняет на хосте; он зарезервирован для будущей mutation-line. Пользовательского
+ключа `--restore` в current CLI больше нет: operational RESTORE исключён из v3.
+Human-readable `--check` и `--report` явно показывают обнаруженную ОС, архитектуру и runtime platform. Для основной 7/7 матрицы выводится `PROFILE=FULL|MINIMIZED|SERVER`; для дополнительного Ubuntu 24.04 Desktop выводится `TYPE=DESKTOP`. Конкретная графическая оболочка не входит в support identity и не влияет на CHECK/APPLY routing.
 
 Sidecar текущего tracked artifact:
 
@@ -171,7 +174,7 @@ generator identity и не является текущей пользовате�
 
 | Гарантия | Статус | Чем проверяется |
 |---|---|---|
-| APPLY mutation mode пока не реализован; RESTORE намеренно не планируется | PASS | accepted CLI stubs + adapter contracts; forbidden-token scan — только defense-in-depth |
+| APPLY mutation mode пока не реализован; RESTORE намеренно исключён | PASS | `--apply` fail-closed stub; `--restore` отсутствует в current CLI; adapter contracts; forbidden-token scan — только defense-in-depth |
 | Детерминированная генерация CHECK | PASS | `tests/product-v1/test_product_generator.py` |
 | Adapter/contract bytes закреплены SHA-256 | PASS | `ADAPTER-REGISTRY.tsv` + product regressions |
 | CHECK provenance доступен машинно | PASS | generator regression / `--provenance` |

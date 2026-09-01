@@ -4,6 +4,10 @@
 
 Она отделена от historical `step7b0/`: admitted bytes и historical adapter id
 `sysctl-check-v1` не являются current product authority и здесь не изменяются.
+Сохранённые `sysctl-check-semantic-v1`, `kernel-cmdline-check-semantic-v1` и
+`local-account-password-state-check-semantic-v1` имеют lifecycle
+`HISTORICAL_UNREGISTERED`: они не зарегистрированы в `ADAPTER-REGISTRY.tsv` и
+не являются active semantic authority.
 
 ## Текущий состав
 
@@ -44,7 +48,11 @@
 - `adapters/product-home-directories-mode-check-v2.py` + JSON binding; локальный passwd + read-only наблюдение mode;
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
   semantic contract / binding / implementation с SHA-256;
-- `generate-product-check-v2.py` — текущий отслеживаемый детерминированный generator единого read-only CLI;
+- `contracts/apply-semantic-contract-v1.schema.json` — parent JSON Schema будущих source-specific APPLY semantic contracts; schema сама не разрешает host mutation;
+- `APPLY-KIND-REGISTRY.tsv` — machine-readable registry допустимых `apply_kind`; RELEASE gate автоматически связывает каждый future/current source-specific APPLY contract с exact registry row и fail-closed отвергает незарегистрированный kind или несовпадающие kind-level ограничения; текущий parent gate содержит только `local-account-password-lock`, но source-specific APPLY contract и implementation ещё отсутствуют;
+- `SUPPORTED-PLATFORMS.tsv` — machine-readable authority основной проверенной 7/7 runtime-матрицы (`FULL | MINIMIZED | SERVER`);
+- `SUPPORTED-DESKTOPS.tsv` — отдельная machine-readable authority дополнительного Ubuntu 24.04 x86_64 `TYPE=DESKTOP`; desktop environment/GUI shell не является support discriminator;
+- `generate-product-check-v2.py` — текущий отслеживаемый детерминированный generator единого read-only CLI; runtime preflight определяет OS/version/arch, затем либо основной FULL/MINIMIZED/SERVER profile, либо дополнительный `TYPE=DESKTOP`;
 - `generate-product-check-v1.py` — сохранённая предыдущая generator identity;
 - `/securelinux-policy.sh` + `/securelinux-policy.sh.sha256` — отслеживаемая byte-exact пользовательская точка входа текущей product population;
 - `dist/` — optional derived gitignored rebuild output, не источник истины.
@@ -62,13 +70,23 @@ generator. Compliance execution выполняется как executable (`./sec
 импорт environment shell functions до выполнения generated checks. Plain `bash script`
 и `source script` не являются поддерживаемым compliance execution path.
 
-- `--check` — pretty table с фиксированными колонками `RESULT`, `CONTROL`, `VALUE / DETAILS`;
+- `--check` — pretty table с обнаруженной ОС, архитектурой и runtime platform; основной 7/7 contour показывает `PROFILE`, Ubuntu 24.04 Desktop — `TYPE=DESKTOP`; один script обслуживает обе support authorities;
 - `--check --failed` — только `FAIL` и `ERROR`;
-- `--check --format raw` — прежний стабильный `SLP-CHECK-V1` TSV;
-- `--check --format json` — `SLP-REPORT-V1`;
+- `--check --format raw` — `SLP-PLATFORM-V1` identity record + стабильные `SLP-CHECK-V1` TSV records;
+- `--check --format json` — `SLP-REPORT-V1` с отдельным `platform` object;
 - `--report` — compact human report с `FAIL`/`ERROR`;
+- каждый `ERROR` имеет обязательный стабильный `domain:reason` в `VALUE / DETAILS`, raw и JSON; `ERROR` с `-` считается внутренне некорректным результатом и rejected fail-closed; reason-code не зависит от stderr;
+- raw-byte preflight выполняется до Bash line parsing: NUL отвергается для sysctl,
+  kernel cmdline и SSH config; SSH допускает CR только в canonical CRLF, а sysctl
+  сохраняет разрешённый CR как edge whitespace; `/etc/os-release` до parsing
+  проверяется на недопустимые C0 bytes и корректный UTF-8, а `ID`/`VERSION_ID`/
+  `PRETTY_NAME` читаются без `source` с поддержкой разрешённых single/double quotes
+  и shell-style escaping; malformed identity даёт `UNSUPPORTED_PLATFORM`;
+- dpkg `${Status}` принимается только как полная тройка с error flag `ok`:
+  `installed` означает installed, `not-installed`/`config-files` — absent, а
+  промежуточные или повреждённые состояния дают `UNSUPPORTED_PROFILE`;
 - `--build-info`, `--provenance`, `--version`, `--help` — metadata/UI;
-- `--apply`, `--restore` — fail-closed `NOT_IMPLEMENTED`, RC=2. `--apply` зарезервирован для будущей mutation-line; `--restore` — compatibility stub принятого CHECK, реализация RESTORE не планируется.
+- `--apply` — fail-closed `NOT_IMPLEMENTED`, RC=2, зарезервирован для будущей mutation-line; `--restore` отсутствует в current CLI, потому что operational RESTORE исключён из v3.
 
 `tests/product-v1/test_product_generator.py` содержит `UnifiedCliArtifact`, который
 детерминированно пересобирает artifact в temp и требует byte-exact equality с tracked root script и sidecar.
@@ -76,11 +94,13 @@ generator. Compliance execution выполняется как executable (`./sec
 ## Текущий статус
 
 CHECK для current population из manifest реализован и покрыт regression tests. Generated
-artifact имеет статус `NON_RELEASE_PRODUCT_CANDIDATE` и target
-`ubuntu-24.04-x86_64`.
+artifact имеет статус `NON_RELEASE_PRODUCT_CANDIDATE`; один target family
+`linux-x86_64-supported-v1` охватывает основную проверенную матрицу 7/7 из `SUPPORTED-PLATFORMS.tsv` и дополнительный Ubuntu 24.04 x86_64 Desktop из `SUPPORTED-DESKTOPS.tsv`; всего current supported environments — 8.
 
-CHECK не содержит APPLY. RESTORE не входит в целевую mutation-архитектуру. Policy noncompliance не равен execution
-failure; `NOT_FOUND`/`ERROR` делают итог `UNEVALUATED`.
+CHECK не содержит APPLY implementation. Parent schema/registry APPLY semantic contracts уже существуют, но source-specific APPLY contract ещё не принят. RESTORE не входит в целевую mutation-архитектуру. Policy noncompliance не равен execution
+failure. Result `NOT_FOUND`/`ERROR` делает итог `UNEVALUATED`; observation `NOT_FOUND`
+может быть definitive `FAIL`, если active semantic contract прямо определяет отсутствие
+обязательного объекта/технологии как noncompliance (в частности SSH/PAM).
 
 Принцип отсутствия — `proven-absence-only`: `NOT_FOUND` допустим только при
 доказанном отсутствии имени. Нечитаемый объект, dangling symlink, symlink loop
@@ -143,7 +163,7 @@ Formal `Gate 5 --probe-results` остаётся отдельным контра
 
 Один aggregate control `user-cron-files-mode` v2 проверяет пользовательские cron-файлы только в canonical target root `/var/spool/cron/crontabs`. В population входят direct regular non-symlink files (`maxdepth 1`); parent `/var/spool/cron` не является population root, поэтому unrelated direct objects и `atd` siblings/subtrees не могут быть ошибочно классифицированы как user crontabs. Точное source-отношение `chmod go-w` представлено как `mode bits-clear 0022`; требования к owner/group или к режиму root-каталога не добавляются.
 
-Пустая population compliant: на Ubuntu 24/26 `MINIMIZED` пакет `cron` отсутствовал; на Ubuntu 22 `FULL`, Ubuntu 24 `FULL`, Ubuntu 26 `FULL`, Debian 12 `SERVER` и Debian 13 `GNOME` `/var/spool/cron/crontabs` присутствовал, но regular user-crontab files на момент диагностики отсутствовали. Эти VM-факты подтверждают layout assumptions, но не расширяют current product target. Symlink/special direct object, traversal/stat error или неоднозначность canonical population дают `ERROR`; молчаливые donor-skips не переносятся.
+Пустая population compliant: на Ubuntu 24/26 `MINIMIZED` пакет `cron` отсутствовал; на Ubuntu 22 `FULL`, Ubuntu 24 `FULL`, Ubuntu 26 `FULL`, Debian 12 `SERVER` и Debian 13 `SERVER` `/var/spool/cron/crontabs` присутствовал, но regular user-crontab files на момент диагностики отсутствовали. Эти VM-факты подтверждают layout assumptions, но являются evidence поддерживаемой runtime-матрицы. Symlink/special direct object, traversal/stat error или неоднозначность canonical population дают `ERROR`; молчаливые donor-skips не переносятся.
 ## SRC-0007 / 2.3.3
 
 Один aggregate control `cron-command-paths-write-protection` проверяет persistent configured cron job targets read-only. Canonical source layout — `/etc/crontab`, active-name entries `[A-Za-z0-9_-]+` непосредственно в `/etc/cron.d` и user crontabs `/var/spool/cron/crontabs`, имена которых соответствуют локальному `/etc/passwd`. System rows содержат explicit user field; user-spool rows исполняются от имени соответствующей account. Отсутствие optional cron sources означает пустую соответствующую population, а не `NOT_FOUND`.
@@ -205,7 +225,7 @@ v2 сохраняет source-exact numeric GID `10`, но не усиливае�
 
 Один aggregate control `sudoers-reviewed-policy` представляет source-требование пересмотра `/etc/sudoers` без выдумывания универсального списка sudo-пользователей или команд. Current local decision задаётся authority `/etc/securelinux-policy/sudoers-reviewed-policy-v1`: header `SLP-SUDOERS-REVIEWED-POLICY-V1`, затем exact SHA-256 и absolute path каждого утверждённого active sudoers-файла.
 
-CHECK запускает pinned `/usr/sbin/visudo -c -f /etc/sudoers` под `LC_ALL=C`; PASS требует successful syntax validation и exact equality фактической parse closure (`/etc/sudoers` + реально разобранные include/includedir files) с authority по pathset и bytes. До line parsing authority raw bytes допускают только structural TAB/LF и canonical CRLF, а `visudo` stdout сначала переводится pinned `/usr/bin/od` в hex и проверяется как raw-byte stream, чтобы Bash command substitution не мог скрыть NUL/control-byte corruption. Missing/extra file или digest drift даёт `VALUE/FAIL`. Missing/malformed authority, embedded nonstructural control byte, NUL/invalid framing в observation, unexpected/duplicate visudo closure, symlink/nonregular/unreadable policy member либо tool failure дают `ERROR`. `%sudo`, `%wheel`, `SUDO_USER`, donor и VM defaults не используются как approved-policy authority. APPLY/RESTORE отсутствуют.
+CHECK запускает pinned `/usr/sbin/visudo -c -f /etc/sudoers` под `LC_ALL=C`; PASS требует successful syntax validation и exact equality фактической parse closure (`/etc/sudoers` + реально разобранные include/includedir files) с authority по pathset и bytes. До line parsing authority raw bytes допускают только structural TAB/LF и canonical CRLF, а `visudo` stdout сначала переводится pinned `/usr/bin/od` в hex и проверяется как raw-byte stream, чтобы Bash command substitution не мог скрыть NUL/control-byte corruption. Missing/extra file или digest drift даёт `VALUE/FAIL`. Missing/malformed authority, embedded nonstructural control byte, NUL/invalid framing в observation, unexpected/duplicate visudo closure, symlink/nonregular/unreadable policy member либо tool failure дают `ERROR`; reason-code различает конкретный класс ошибки closure/member, а не сводит их к общему `visudo:invalid-output`. `%sudo`, `%wheel`, `SUDO_USER`, donor и VM defaults не используются как approved-policy authority. APPLY/RESTORE отсутствуют.
 
 Семь ранее собранных privileged VM runs подтвердили discovery baseline: `/etc/sudoers` regular `0440 root:root`, `@includedir /etc/sudoers.d` присутствует, `visudo` full check `RC=0` на всех 7/7; это не определяет approved local policy.
 

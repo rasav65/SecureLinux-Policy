@@ -8,6 +8,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import shutil
 import shlex
 import subprocess
@@ -35,6 +36,24 @@ CRON_COMMAND_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-cron-
 SUDO_ROOT_COMMAND_FILES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sudo-root-command-files-protection-check-v1.py"
 STARTUP_FILES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-startup-files-write-protection-check-v1.py"
 BASH = shutil.which("bash")
+
+ERROR_REASON_RE = re.compile(r"^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$")
+
+def assert_stable_error_record(testcase, text, expected_control=None, expected_reason=None):
+    lines = [line for line in text.strip().splitlines() if line]
+    testcase.assertTrue(lines, text)
+    matches = []
+    for line in lines:
+        fields = line.split("\t")
+        if len(fields) == 5 and fields[0] == "SLP-CHECK-V1" and fields[2] == "ERROR" and fields[4] == "ERROR":
+            testcase.assertRegex(fields[3], ERROR_REASON_RE)
+            testcase.assertNotEqual(fields[3], "-")
+            matches.append(fields)
+    testcase.assertTrue(matches, text)
+    if expected_control is not None:
+        testcase.assertTrue(any(fields[1] == expected_control for fields in matches), text)
+    if expected_reason is not None:
+        testcase.assertTrue(any(fields[3] == expected_reason for fields in matches), text)
 
 
 def load_generator():
@@ -388,6 +407,47 @@ class GeneratorModel(unittest.TestCase):
         )
         self.assertEqual(registry_sha, sha256_file(ROOT / "product/ADAPTER-REGISTRY.tsv"))
 
+    def test_active_semantic_contract_error_values_and_historical_v1_status(self):
+        lines = (ROOT / "product/ADAPTER-REGISTRY.tsv").read_text(encoding="utf-8").splitlines()
+        header = lines[0].split("\t")
+        active_paths = {
+            dict(zip(header, line.split("\t")))["semantic_contract_path"]
+            for line in lines[1:]
+            if line
+        }
+
+        error_value_count = 0
+
+        def inspect(value):
+            nonlocal error_value_count
+            if isinstance(value, dict):
+                if value.get("status") == "ERROR" and "value" in value:
+                    error_value_count += 1
+                    self.assertEqual(value["value"], "<domain>:<reason>")
+                for nested in value.values():
+                    inspect(nested)
+            elif isinstance(value, list):
+                for nested in value:
+                    inspect(nested)
+
+        for relative in active_paths:
+            contract = json.loads((ROOT / relative).read_text(encoding="utf-8"))
+            inspect(contract)
+            wire_values = contract.get("wire_values", {})
+            if "error" in wire_values:
+                self.assertNotEqual(wire_values["error"], "-")
+
+        self.assertEqual(error_value_count, 10)
+        historical = {
+            "product/contracts/sysctl-check-semantic-v1.json",
+            "product/contracts/kernel-cmdline-check-semantic-v1.json",
+            "product/contracts/local-account-password-state-check-semantic-v1.json",
+        }
+        self.assertTrue(historical.isdisjoint(active_paths))
+        for relative in historical:
+            contract = json.loads((ROOT / relative).read_text(encoding="utf-8"))
+            self.assertEqual(contract.get("lifecycle_status"), "HISTORICAL_UNREGISTERED")
+
     def test_render_is_deterministic(self):
         _, manifest_sha, adapters, registry_sha, controls = self.load_current()
         generator_sha = sha256_file(GEN_PATH)
@@ -457,6 +517,22 @@ class GeneratorModel(unittest.TestCase):
         self.assertIn(b"IFS='|' read -r -a _slp_choices", rendered_one)
         self.assertIn(b"off|no-mount", rendered_one)
 
+        spec = importlib.util.spec_from_file_location("slp_kernel_cmdline_v2_raw", adapter_path)
+        cmdline = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cmdline)
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            target = Path(td) / "cmdline"
+            target.write_bytes(b"init_on_alloc=1\x00\n")
+            block = cmdline.shell_function("CMD.RAW", "/proc/cmdline", "init_on_alloc", "eq", "1")
+            block = block.replace(repr("/proc/cmdline"), repr(str(target)), 1)
+            cp = subprocess.run(
+                [BASH, "-c", "set -u\n" + block + "\nslp_check_CMD_RAW\n"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            )
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            self.assertEqual(cp.stderr, "")
+            self.assertEqual(cp.stdout.strip().split("\t")[2:], ["ERROR", "cmdline:invalid-bytes", "ERROR"])
+
     def test_kernel_cmdline_v2_preserves_v1_eq_present_model(self):
         def load_adapter(name, filename):
             path = ROOT / "product" / "adapters" / filename
@@ -479,7 +555,95 @@ class GeneratorModel(unittest.TestCase):
             (["slab_nomerge=1"], "slab_nomerge", "present", True),
         ]
         for case in cases:
-            self.assertEqual(v2._model(*case), v1._model(*case), case)
+            current = v2._model(*case)
+            historical = v1._model(*case)
+            self.assertEqual(current[0], historical[0], case)
+            self.assertEqual(current[2], historical[2], case)
+            if historical[2] == "ERROR":
+                expected_reason = "cmdline:unexpected-value-form" if case[2] == "present" else "cmdline:ambiguous-value"
+                self.assertEqual(current[1], expected_reason, case)
+            else:
+                self.assertEqual(current, historical, case)
+
+    def test_error_reason_sources_do_not_collapse_distinct_failure_modes(self):
+        forbidden = (
+            "cron:observation-failed", "cron:discovery-failed",
+            "startup:observation-failed", "target:observation-failed",
+            "path:observation-failed", "scan:execution-failed",
+            "sudo-policy:unsupported-semantics",
+            "proc:invalid-stat", "proc:invalid-counter", "proc:invalid-population",
+            "proc:ambiguous-no-exe", "proc:invalid-maps", "proc:invalid-exe",
+            "observation:process-changed",
+            "input:unreadable", "input:read-failed", "input:invalid-bytes",
+            "pam:symlink-input", "pam:unreadable-input",
+            '"population:incomplete"', '"cron-root:ancestor-invalid"',
+            '"sshd-config:parse-failed"',
+        )
+        for path in sorted((ROOT / "product/adapters").glob("product-*.py")):
+            text = path.read_text(encoding="utf-8")
+            for marker in forbidden:
+                self.assertNotIn(marker, text, f"{path}: {marker}")
+
+    def test_error_reason_object_state_and_stage_pairs_are_distinct(self):
+        expected = {
+            "product-home-directories-mode-check-v2.py": (
+                ('[[ -L "$_slp_passwd" ]]', '"passwd:symlink"'),
+                ('[[ ! -e "$_slp_passwd" ]]', '"passwd:not-found"'),
+                ('[[ ! -f "$_slp_passwd" ]]', '"passwd:invalid-type"'),
+                ('[[ ! -r "$_slp_passwd" ]]', '"passwd:unreadable"'),
+                ('[[ -L "$_slp_home" ]]', '"home:symlink"'),
+                ('[[ ! -d "$_slp_home" ]]', '"home:invalid-type"'),
+            ),
+            "product-home-sensitive-files-mode-check-v2.py": (
+                ('[[ ! -r "$_slp_home" ]]', '"home:unreadable"'),
+                ('[[ ! -x "$_slp_home" ]]', '"home:unsearchable"'),
+                ('[[ -L "$_slp_entry" ]]', '"target:symlink"'),
+            ),
+            "product-optional-file-root-files-mode-check-v1.py": (
+                ('[[ -L "$_slp_path" ]]', '"root:symlink"'),
+                ('[[ ! -e "$_slp_parent" && ! -L "$_slp_parent" ]]', '"root:parent-not-found"'),
+                ('[[ ! -d "$_slp_parent" ]]', '"root:parent-invalid-type"'),
+                ('[[ ! -x "$_slp_parent" ]]', '"root:parent-unsearchable"'),
+                ('"root:state-changed"', '"root:state-changed"'),
+            ),
+            "product-standard-system-paths-mode-check-v2.py": (
+                ('_slp_exec == 0', '"population:missing-exec"'),
+                ('_slp_libraries == 0', '"population:missing-libraries"'),
+                ('_slp_modules == 0', '"population:missing-modules"'),
+            ),
+            "product-suid-sgid-applications-check-v2.py": (
+                ('[[ -L "$_slp_mountinfo" ]]', '"mountinfo:symlink"'),
+                ('[[ ! -e "$_slp_mountinfo" ]]', '"mountinfo:not-found"'),
+                ('[[ ! -f "$_slp_mountinfo" ]]', '"mountinfo:invalid-type"'),
+                ('[[ ! -r "$_slp_mountinfo" ]]', '"mountinfo:unreadable"'),
+            ),
+            "product-user-cron-files-mode-check-v2.py": (
+                ('[[ -L "$_slp_probe" ]]', '"cron-root:ancestor-symlink"'),
+                ('[[ ! -d "$_slp_probe" ]]', '"cron-root:ancestor-invalid-type"'),
+                ('[[ ! -x "$_slp_probe" ]]', '"cron-root:ancestor-unsearchable"'),
+            ),
+            "product-sshd-root-login-check-v1.py": (
+                ('_slp_parser_reason=sshd-config:include-depth', 'sshd-config:include-depth'),
+                ('_slp_parser_reason=sshd-config:include-cycle', 'sshd-config:include-cycle'),
+                ('_slp_parser_reason=sshd-config:include-glob-failed', 'sshd-config:include-glob-failed'),
+                ('_slp_parser_reason=sshd-config:read-failed', 'sshd-config:read-failed'),
+            ),
+        }
+        for filename, pairs in expected.items():
+            text = (ROOT / "product" / "adapters" / filename).read_text(encoding="utf-8")
+            for condition, reason in pairs:
+                with self.subTest(filename=filename, condition=condition, reason=reason):
+                    self.assertIn(condition, text)
+                    self.assertIn(reason, text)
+        for filename in (
+            "product-cron-command-paths-write-protection-check-v1.py",
+            "product-running-process-paths-write-protection-check-v1.py",
+        ):
+            text = (ROOT / "product" / "adapters" / filename).read_text(encoding="utf-8")
+            self.assertIn('if (( _slp_rc != 0 )); then', text)
+            self.assertIn('"observer:execution-failed"', text)
+            self.assertIn('if [[ -z $_slp_obs ||', text)
+            self.assertIn('"observer:invalid-output"', text)
 
     def test_unknown_kind_fails_closed(self):
         _, manifest_sha, adapters, registry_sha, controls = self.load_current()
@@ -560,15 +724,15 @@ class OptionalFileRootFilesAdapterFixtures(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
             d = base / "nested-case"; d.mkdir(); os.chmod(d, 0o700); (d / "nested").mkdir()
-            self.assertEqual(self.run_fileset(d).stdout.strip(), "SLP-CHECK-V1\tTEST-FILESET\tERROR\t-\tERROR")
+            assert_stable_error_record(self, self.run_fileset(d).stdout, "TEST-FILESET", "target:invalid-type")
             target = base / "target"; target.write_text("x\n")
             link = base / "link"; link.symlink_to(target)
-            self.assertEqual(self.run_fileset(link).stdout.strip(), "SLP-CHECK-V1\tTEST-FILESET\tERROR\t-\tERROR")
+            assert_stable_error_record(self, self.run_fileset(link).stdout, "TEST-FILESET", "root:symlink")
             s = base / "symlink-child"; s.mkdir(); os.chmod(s, 0o700); (s / "l").symlink_to(target)
-            self.assertEqual(self.run_fileset(s).stdout.strip(), "SLP-CHECK-V1\tTEST-FILESET\tERROR\t-\tERROR")
+            assert_stable_error_record(self, self.run_fileset(s).stdout, "TEST-FILESET", "target:symlink")
             if hasattr(os, "mkfifo"):
                 f = base / "special"; f.mkdir(); os.chmod(f, 0o700); os.mkfifo(f / "pipe")
-                self.assertEqual(self.run_fileset(f).stdout.strip(), "SLP-CHECK-V1\tTEST-FILESET\tERROR\t-\tERROR")
+                assert_stable_error_record(self, self.run_fileset(f).stdout, "TEST-FILESET", "target:invalid-type")
 
     def test_generation_rejects_wrong_contract_fields(self):
         for args in (
@@ -634,19 +798,19 @@ class UserCronFilesModeFixtures(unittest.TestCase):
             base = Path(td)
             target = base / "target"; target.write_text("x\n", encoding="utf-8")
             root_link = base / "root-link"; root_link.symlink_to(base, target_is_directory=True)
-            self.assertEqual(self.run_user_cron([root_link]).stdout.strip(), "SLP-CHECK-V1\tTEST-USER-CRON\tERROR\t-\tERROR")
+            assert_stable_error_record(self, self.run_user_cron([root_link]).stdout, "TEST-USER-CRON")
 
             root = base / "crontabs"; root.mkdir(); (root / "link").symlink_to(target)
-            self.assertEqual(self.run_user_cron([root]).stdout.strip(), "SLP-CHECK-V1\tTEST-USER-CRON\tERROR\t-\tERROR")
+            assert_stable_error_record(self, self.run_user_cron([root]).stdout, "TEST-USER-CRON")
             (root / "link").unlink()
 
             if hasattr(os, "mkfifo"):
                 os.mkfifo(root / "pipe")
-                self.assertEqual(self.run_user_cron([root]).stdout.strip(), "SLP-CHECK-V1\tTEST-USER-CRON\tERROR\t-\tERROR")
+                assert_stable_error_record(self, self.run_user_cron([root]).stdout, "TEST-USER-CRON")
                 (root / "pipe").unlink()
 
             bad_root = base / "file-root"; bad_root.write_text("x\n", encoding="utf-8")
-            self.assertEqual(self.run_user_cron([bad_root]).stdout.strip(), "SLP-CHECK-V1\tTEST-USER-CRON\tERROR\t-\tERROR")
+            assert_stable_error_record(self, self.run_user_cron([bad_root]).stdout, "TEST-USER-CRON")
 
             # v2 does not recurse into directory entries below the canonical root.
             locked = root / "locked"; locked.mkdir(); os.chmod(locked, 0)
@@ -663,7 +827,7 @@ class UserCronFilesModeFixtures(unittest.TestCase):
             os.chmod(root, 0)
             try:
                 cp = self.run_user_cron([root], ordinary_user=True)
-                self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-USER-CRON\tERROR\t-\tERROR")
+                assert_stable_error_record(self, cp.stdout, "TEST-USER-CRON")
             finally:
                 os.chmod(root, 0o700)
 
@@ -787,7 +951,7 @@ class StandardSystemPathsModeFixtures(unittest.TestCase):
             self.assertIn("violations=1\tFAIL", cp.stdout)
             link.unlink(); link.symlink_to(base / "missing.so")
             cp = self.run_standard([exe], [lib], mod)
-            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-STANDARD-PATHS\tERROR\t-\tERROR")
+            assert_stable_error_record(self, cp.stdout, "TEST-STANDARD-PATHS")
 
     def test_missing_role_and_candidate_special_fail_closed(self):
         with tempfile.TemporaryDirectory() as td:
@@ -795,11 +959,11 @@ class StandardSystemPathsModeFixtures(unittest.TestCase):
             exe, lib, mod, *_ = self.make_layout(base)
             empty_mod = base / "empty-mod"; empty_mod.mkdir()
             cp = self.run_standard([exe], [lib], empty_mod)
-            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-STANDARD-PATHS\tERROR\t-\tERROR")
+            assert_stable_error_record(self, cp.stdout, "TEST-STANDARD-PATHS")
             if hasattr(os, "mkfifo"):
                 os.mkfifo(exe / "pipe")
                 cp = self.run_standard([exe], [lib], mod)
-                self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-STANDARD-PATHS\tERROR\t-\tERROR")
+                assert_stable_error_record(self, cp.stdout, "TEST-STANDARD-PATHS")
 
     def test_traversal_error_fail_closed_for_ordinary_user(self):
         with tempfile.TemporaryDirectory() as td:
@@ -810,7 +974,7 @@ class StandardSystemPathsModeFixtures(unittest.TestCase):
             locked = lib / "locked"; locked.mkdir(); os.chmod(locked, 0)
             try:
                 cp = self.run_standard([exe], [lib], mod, ordinary_user=True)
-                self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-STANDARD-PATHS\tERROR\t-\tERROR")
+                assert_stable_error_record(self, cp.stdout, "TEST-STANDARD-PATHS")
             finally:
                 os.chmod(locked, 0o700)
 
@@ -881,11 +1045,15 @@ class SuidSgidApplicationsFixtures(unittest.TestCase):
             app = base / "app"; app.write_text("x\n", encoding="utf-8"); os.chmod(app, 0o4755)
             missing = base / "missing"
             cp = self.run_fixture(base, "approved-set", "subset-of-file", str(missing))
-            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SUID-SGID\tERROR\t-\tERROR")
+            assert_stable_error_record(self, cp.stdout, "TEST-SUID-SGID", "allowlist:not-found")
             allow = base / "allowlist"
             allow.write_text("relative/path\n", encoding="utf-8")
             cp = self.run_fixture(base, "approved-set", "subset-of-file", str(allow))
-            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SUID-SGID\tERROR\t-\tERROR")
+            assert_stable_error_record(self, cp.stdout, "TEST-SUID-SGID", "allowlist:invalid-path")
+            allow.unlink()
+            allow.symlink_to(base / "missing-target")
+            cp = self.run_fixture(base, "approved-set", "subset-of-file", str(allow))
+            assert_stable_error_record(self, cp.stdout, "TEST-SUID-SGID", "allowlist:symlink")
 
     def test_nosuid_mount_is_included(self):
         with tempfile.TemporaryDirectory() as td:
@@ -913,7 +1081,7 @@ class SuidSgidApplicationsFixtures(unittest.TestCase):
             allow = base / "allowlist"
             allow.write_bytes(str(app).encode("utf-8") + b"\x00\n")
             cp = self.run_fixture(base, "approved-set", "subset-of-file", str(allow))
-            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SUID-SGID\tERROR\t-\tERROR")
+            assert_stable_error_record(self, cp.stdout, "TEST-SUID-SGID", "allowlist:invalid-bytes")
 
     def test_generation_rejects_wrong_contract_fields(self):
         for args in (
@@ -968,9 +1136,9 @@ class LocalAccountPasswordStateFixtures(unittest.TestCase):
             "root:x:0:0:root:/root:/bin/bash\nuser:x:1000:1000::/home/user:/bin/bash\n",
             "root:!:1:0:99999:7:::\n",
         )
-        self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SHADOW\tERROR\t-\tERROR")
+        assert_stable_error_record(self, cp.stdout, "TEST-SHADOW", "passwd:missing-shadow-account")
         cp = self.run_shadow("broken\n", "root:!:1:0:99999:7:::\n")
-        self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SHADOW\tERROR\t-\tERROR")
+        assert_stable_error_record(self, cp.stdout, "TEST-SHADOW", "passwd:invalid-fields")
 
     def test_nul_and_cr_bytes_fail_closed(self):
         passwd = b"root:x:0:0:root:/root:/bin/bash\n"
@@ -980,7 +1148,24 @@ class LocalAccountPasswordStateFixtures(unittest.TestCase):
         ):
             with self.subTest(shadow=shadow):
                 cp = self.run_shadow(passwd, shadow)
-                self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SHADOW\tERROR\t-\tERROR")
+                assert_stable_error_record(self, cp.stdout, "TEST-SHADOW", "shadow:invalid-bytes")
+
+    def test_unreadable_and_symlink_reason_domains_match_the_observed_file(self):
+        src = SHADOW._shell_function_for_paths(
+            "TEST-SHADOW", "/tmp/passwd", "/tmp/shadow",
+            "password-field", "all-nonempty", True,
+        )
+        for marker in (
+            '[[ -L "$_slp_passwd" ]]', '"passwd:symlink"',
+            '[[ -L "$_slp_shadow" ]]', '"shadow:symlink"',
+            '[[ ! -e "$_slp_passwd" ]]', '"passwd:not-found"',
+            '[[ ! -f "$_slp_passwd" ]]', '"passwd:invalid-type"',
+            '[[ ! -r "$_slp_passwd" ]]', '"passwd:unreadable"',
+            '[[ ! -e "$_slp_shadow" ]]', '"shadow:not-found"',
+            '[[ ! -f "$_slp_shadow" ]]', '"shadow:invalid-type"',
+            '[[ ! -r "$_slp_shadow" ]]', '"shadow:unreadable"',
+        ):
+            self.assertIn(marker, src)
 
     def test_generation_rejects_wrong_contract_fields(self):
         for args in (
@@ -1053,9 +1238,12 @@ class TestedSettingAttestationFixtures(unittest.TestCase):
         for content in cases:
             with self.subTest(content=content):
                 cp = self.run_authority(content)
-                self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-ATTEST\tERROR\t-\tERROR")
+                if content is None:
+                    assert_stable_error_record(self, cp.stdout, "TEST-ATTEST", "authority:not-found")
+                else:
+                    assert_stable_error_record(self, cp.stdout, "TEST-ATTEST")
         cp = self.run_authority(symlink=True)
-        self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-ATTEST\tERROR\t-\tERROR")
+        assert_stable_error_record(self, cp.stdout, "TEST-ATTEST", "authority:symlink")
 
     def test_generation_rejects_wrong_contract_fields_and_adapter_is_read_only(self):
         src = TESTED_SETTING_ATTESTATION.shell_function(
@@ -1169,11 +1357,11 @@ class HomeSensitiveFilesAdapterFixtures(unittest.TestCase):
 
     def test_missing_inventory_fails_closed(self):
         self.inventory.unlink()
-        self.assertIn("\tERROR\t-\tERROR", self.run_check().stdout)
+        assert_stable_error_record(self, self.run_check().stdout, "TEST.HOME", "inventory:not-found")
 
     def test_inventory_must_cover_all_source_examples(self):
         self.inventory.write_text(".bashrc\n", encoding="utf-8")
-        self.assertIn("\tERROR\t-\tERROR", self.run_check().stdout)
+        assert_stable_error_record(self, self.run_check().stdout)
 
     def test_additional_nested_inventory_member_is_checked(self):
         self.inventory.write_text("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\n.config/fish/config.fish\n", encoding="utf-8")
@@ -1185,15 +1373,15 @@ class HomeSensitiveFilesAdapterFixtures(unittest.TestCase):
     def test_symlink_member_fails_closed(self):
         outside=self.base / "outside"; outside.write_text("x\n",encoding="utf-8")
         (self.user_home / ".bashrc").symlink_to(outside)
-        self.assertIn("\tERROR\t-\tERROR", self.run_check().stdout)
+        assert_stable_error_record(self, self.run_check().stdout)
 
     def test_nul_or_cr_in_passwd_or_inventory_is_error(self):
         original = self.passwd.read_bytes()
         self.passwd.write_bytes(original + b"bad:x:2:2::/tmp/bad:/bin/sh\x00\n")
-        self.assertIn("\tERROR\t-\tERROR", self.run_check().stdout)
+        assert_stable_error_record(self, self.run_check().stdout, "TEST.HOME", "passwd:invalid-bytes")
         self.passwd.write_bytes(original)
         self.inventory.write_bytes(("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\r\n").encode("utf-8"))
-        self.assertIn("\tERROR\t-\tERROR", self.run_check().stdout)
+        assert_stable_error_record(self, self.run_check().stdout, "TEST.HOME", "inventory:invalid-bytes")
 
     def test_generation_rejects_wrong_contract_fields(self):
         for args in (
@@ -1237,12 +1425,12 @@ class HomeDirectoriesModeAdapterFixtures(unittest.TestCase):
         self.user_home.rmdir(); cp=self.run_check(); self.assertIn("accounts=3;homes=2;violations=0\tPASS",cp.stdout)
     def test_symlink_home_fails_closed(self):
         self.user_home.rmdir(); self.user_home.symlink_to(self.root_home,target_is_directory=True)
-        self.assertIn("\tERROR\t-\tERROR",self.run_check().stdout)
+        assert_stable_error_record(self, self.run_check().stdout)
     def test_nul_or_cr_in_passwd_is_error(self):
         raw=self.passwd.read_bytes()
         for bad in (raw+b"bad:x:2:2::/tmp/bad:/bin/sh\x00\n", raw.replace(b"\n",b"\r\n",1)):
             self.passwd.write_bytes(bad)
-            self.assertIn("\tERROR\t-\tERROR",self.run_check().stdout)
+            assert_stable_error_record(self, self.run_check().stdout)
         self.passwd.write_bytes(raw)
     def test_generation_rejects_wrong_contract_fields(self):
         for args in (("TEST","/etc/passwd|/etc/login.defs","mode","eq","0700"),("TEST",HOME_DIRECTORIES.CANONICAL_LOCATOR,"owner","eq","0700"),("TEST",HOME_DIRECTORIES.CANONICAL_LOCATOR,"mode","bits-clear","0700"),("TEST",HOME_DIRECTORIES.CANONICAL_LOCATOR,"mode","eq","0750")):
@@ -1340,7 +1528,7 @@ class GeneratedArtifact(unittest.TestCase):
 
 @unittest.skipIf(BASH is None, "bash not available")
 class PamWheelAccessAdapterFixtures(unittest.TestCase):
-    def run_fixture(self, pam_text=None, group_text=None, authority_text=None, symlink=None, prelude=""):
+    def run_fixture(self, pam_text=None, group_text=None, authority_text=None, symlink=None, prelude="", env=None):
         if BASH is None:
             self.skipTest("bash not found")
         with tempfile.TemporaryDirectory(dir=ROOT) as td:
@@ -1377,7 +1565,7 @@ class PamWheelAccessAdapterFixtures(unittest.TestCase):
             )
             cp = subprocess.run(
                 [BASH, "-c", "set -u\n" + prelude + "\n" + block + "\nslp_check_PAM_WHEEL_TEST\n"],
-                text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+                text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, env=env,
             )
             self.assertEqual(cp.returncode, 0, cp.stderr)
             row = cp.stdout.strip().split("\t")
@@ -1495,7 +1683,7 @@ class PamWheelAccessAdapterFixtures(unittest.TestCase):
 
     def test_missing_authority_is_error_only_after_structural_requirements(self):
         row = self.run_fixture("auth required pam_wheel.so use_uid\n", "wheel:x:10:root\n", None)
-        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "authority:not-found", "ERROR"))
 
     def test_malformed_authority_is_error(self):
         for authority_text in ("root\n", "alice\nalice\n", "alice,bob\n", "alice bob\n", "ali#ce\n"):
@@ -1514,23 +1702,46 @@ class PamWheelAccessAdapterFixtures(unittest.TestCase):
                 row = self.run_fixture("auth required pam_wheel.so use_uid\n", group_text, "")
                 self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
 
+    def test_unicode_whitespace_in_names_is_locale_independent_error(self):
+        locales = subprocess.run(["/usr/bin/locale", "-a"], capture_output=True, text=True, check=True).stdout.splitlines()
+        utf8_locale = next((name for name in locales if name.lower() in {"c.utf8", "c.utf-8"}), None)
+        self.assertIsNotNone(utf8_locale, locales)
+        cases = (
+            ("wheel:x:10:root,user\u2003name\n", "user\u2003name\n", "group:invalid-members"),
+            ("wheel:x:10:root,user\u3000name\n", "user\u3000name\n", "group:invalid-members"),
+            ("wheel:x:10:root,alice\n", "ali\u2003ce\n", "authority:invalid-record"),
+            ("wheel:x:10:root,alice\n", "ali\u3000ce\n", "authority:invalid-record"),
+        )
+        for group_text, authority_text, reason in cases:
+            observed = []
+            for lc_all in ("C", utf8_locale):
+                env = os.environ.copy()
+                env["LC_ALL"] = lc_all
+                row = self.run_fixture(
+                    "auth required pam_wheel.so use_uid\n", group_text, authority_text, env=env
+                )
+                observed.append(row)
+                self.assertEqual((row[2], row[3], row[4]), ("ERROR", reason, "ERROR"))
+            self.assertEqual(observed[0], observed[1])
+
     def test_symlink_inputs_fail_closed(self):
-        for which in ("pam", "group", "authority"):
+        expected = {"pam": "pam:symlink", "group": "group:symlink", "authority": "authority:symlink"}
+        for which, reason in expected.items():
             with self.subTest(which=which):
                 row = self.run_fixture("auth required pam_wheel.so use_uid\n", "wheel:x:10:root\n", "", symlink=which)
-                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+                self.assertEqual((row[2], row[3], row[4]), ("ERROR", reason, "ERROR"))
 
     def test_nul_and_internal_cr_fail_closed(self):
         cases = (
-            (b"auth required pam_wheel.so\x00 use_uid\n", b"wheel:x:10:root\n", b""),
-            (b"auth required pam_wheel.so use_uid\nfoo\rbar\n", b"wheel:x:10:root\n", b""),
-            (b"auth required pam_wheel.so use_uid\n", b"wheel:x:10:root\x00\n", b""),
-            (b"auth required pam_wheel.so use_uid\n", b"wheel:x:10:root\n", b"alice\x00\n"),
+            (b"auth required pam_wheel.so\x00 use_uid\n", b"wheel:x:10:root\n", b"", "pam:invalid-bytes"),
+            (b"auth required pam_wheel.so use_uid\nfoo\rbar\n", b"wheel:x:10:root\n", b"", "pam:invalid-bytes"),
+            (b"auth required pam_wheel.so use_uid\n", b"wheel:x:10:root\x00\n", b"", "group:invalid-bytes"),
+            (b"auth required pam_wheel.so use_uid\n", b"wheel:x:10:root\n", b"alice\x00\n", "authority:invalid-bytes"),
         )
-        for pam_text, group_text, authority_text in cases:
+        for pam_text, group_text, authority_text, reason in cases:
             with self.subTest(pam_text=pam_text, group_text=group_text, authority_text=authority_text):
                 row = self.run_fixture(pam_text, group_text, authority_text)
-                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+                self.assertEqual((row[2], row[3], row[4]), ("ERROR", reason, "ERROR"))
 
     def test_slash_named_od_function_cannot_override_nul_validation(self):
         row = self.run_fixture(
@@ -1667,8 +1878,14 @@ class SudoersReviewedPolicyAdapterFixtures(unittest.TestCase):
                 self.assertEqual((row[2],row[4]),("VALUE","FAIL"))
 
     def test_authority_visudo_and_closure_ambiguity_error(self):
-        cases=("missing-authority","bad-header","visudo-fail","unexpected-output","duplicate-path")
-        for case in cases:
+        cases={
+            "missing-authority": "authority:not-found",
+            "bad-header": "authority:invalid-header",
+            "visudo-fail": "visudo:validation-failed",
+            "unexpected-output": "visudo:unexpected-line",
+            "duplicate-path": "visudo-path:duplicate-path",
+        }
+        for case, expected_reason in cases.items():
             with self.subTest(case=case), tempfile.TemporaryDirectory(dir=ROOT) as td:
                 root=Path(td); sudoers=root/"sudoers"; sudoers.write_text("Defaults env_reset\n",encoding="utf-8"); authority=root/"authority"; fake=root/"visudo"
                 if case!="missing-authority": authority.write_text("BAD\n" if case=="bad-header" else "SLP-SUDOERS-REVIEWED-POLICY-V1\n"+hashlib.sha256(sudoers.read_bytes()).hexdigest()+"\t"+str(sudoers)+"\n",encoding="utf-8")
@@ -1680,8 +1897,10 @@ class SudoersReviewedPolicyAdapterFixtures(unittest.TestCase):
                 src=SUDOERS_REVIEWED_POLICY._render("TEST-SUDOERS",str(sudoers),str(authority),str(fake)); script=root/"run.sh"; script.write_text("#!/bin/bash -p\n"+src+"\nslp_check_TEST_SUDOERS\n",encoding="utf-8"); script.chmod(0o755)
                 cp=subprocess.run([str(script)],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True); row=cp.stdout.strip().split("\t")
                 self.assertEqual((row[2],row[4]),("ERROR","ERROR"))
+                self.assertEqual(row[3], expected_reason)
 
     def test_symlink_member_and_binary_authority_error(self):
+        expected = {"symlink": "visudo-path:symlink", "nul": "authority:invalid-bytes", "bare-cr": "authority:invalid-bytes"}
         for case in ("symlink","nul","bare-cr"):
             with self.subTest(case=case), tempfile.TemporaryDirectory(dir=ROOT) as td:
                 root=Path(td); sudoers=root/"sudoers"; sudoers.write_text("Defaults env_reset\n",encoding="utf-8"); member=root/"site.target"; member.write_text("alice ALL=ALL\n",encoding="utf-8"); site=root/"site"; site.symlink_to(member); authority=root/"authority"; fake=root/"visudo"
@@ -1693,6 +1912,50 @@ class SudoersReviewedPolicyAdapterFixtures(unittest.TestCase):
                 src=SUDOERS_REVIEWED_POLICY._render("TEST-SUDOERS",str(sudoers),str(authority),str(fake)); script=root/"run.sh"; script.write_text("#!/bin/bash -p\n"+src+"\nslp_check_TEST_SUDOERS\n",encoding="utf-8"); script.chmod(0o755)
                 cp=subprocess.run([str(script)],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True); row=cp.stdout.strip().split("\t")
                 self.assertEqual((row[2],row[4]),("ERROR","ERROR"))
+                self.assertEqual(row[3], expected[case])
+
+    def test_visudo_reported_member_object_state_reasons_are_distinct(self):
+        cases = {"missing": "visudo-path:not-found", "directory": "visudo-path:invalid-type"}
+        for case, expected_reason in cases.items():
+            with self.subTest(case=case), tempfile.TemporaryDirectory(dir=ROOT) as td:
+                root = Path(td)
+                sudoers = root / "sudoers"
+                sudoers.write_text("Defaults env_reset\n", encoding="utf-8")
+                member = root / "member"
+                if case == "directory":
+                    member.mkdir()
+                authority = root / "authority"
+                authority.write_text(
+                    "SLP-SUDOERS-REVIEWED-POLICY-V1\n"
+                    + hashlib.sha256(sudoers.read_bytes()).hexdigest() + "\t" + str(sudoers) + "\n",
+                    encoding="utf-8",
+                )
+                fake = root / "visudo"
+                fake.write_text(
+                    "#!/bin/bash\n"
+                    + "printf '%s\n' " + shlex.quote(str(sudoers) + ": parsed OK") + "\n"
+                    + "printf '%s\n' " + shlex.quote(str(member) + ": parsed OK") + "\n",
+                    encoding="utf-8",
+                )
+                fake.chmod(0o755)
+                src = SUDOERS_REVIEWED_POLICY._render("TEST-SUDOERS", str(sudoers), str(authority), str(fake))
+                script = root / "run.sh"
+                script.write_text("#!/bin/bash -p\n" + src + "\nslp_check_TEST_SUDOERS\n", encoding="utf-8")
+                script.chmod(0o755)
+                cp = subprocess.run([str(script)], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                assert_stable_error_record(self, cp.stdout, "TEST-SUDOERS", expected_reason)
+
+    def test_sudoers_visudo_reason_contract_is_branch_specific(self):
+        src = SUDOERS_REVIEWED_POLICY._render("TEST-SUDOERS", "/tmp/sudoers", "/tmp/authority", "/tmp/visudo")
+        for reason in (
+            "visudo:unexpected-line", "visudo:empty-output", "visudo:incomplete-output",
+            "visudo-path:invalid-path", "visudo-path:duplicate-path", "visudo-path:symlink",
+            "visudo-path:not-found", "visudo-path:invalid-type", "visudo-path:unreadable",
+            "visudo-path:hash-failed", "visudo-path:invalid-hash", "authority:read-failed",
+        ):
+            self.assertIn(reason, src)
+        self.assertNotIn('[[ -e "$_slp_path" && -f "$_slp_path" && ! -L "$_slp_path" && -r "$_slp_path" ]]', src)
 
     def test_slash_named_od_function_cannot_override_binary_authority_validation(self):
         with tempfile.TemporaryDirectory(dir=ROOT) as td:
@@ -1825,7 +2088,7 @@ class SudoersReviewedPolicyAdapterFixtures(unittest.TestCase):
             script.chmod(0o755)
             cp = subprocess.run([str(script)], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             self.assertEqual(cp.returncode, 0, cp.stderr)
-            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SUDOERS\tERROR\t-\tERROR")
+            assert_stable_error_record(self, cp.stdout, "TEST-SUDOERS")
 
     def test_visudo_nul_before_parsed_ok_is_error_before_line_parsing(self):
         if BASH is None:
@@ -1853,8 +2116,13 @@ class SudoersReviewedPolicyAdapterFixtures(unittest.TestCase):
             script.chmod(0o755)
             cp = subprocess.run([str(script)], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             self.assertEqual(cp.returncode, 0, cp.stderr)
-            self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-SUDOERS\tERROR\t-\tERROR")
+            assert_stable_error_record(self, cp.stdout, "TEST-SUDOERS", "visudo:invalid-bytes")
             self.assertNotIn("ignored null byte", cp.stderr.lower())
+
+    def test_symlink_precheck_precedes_existence_for_broken_symlink_diagnostics(self):
+        src = SUDOERS_REVIEWED_POLICY._render("TEST-SUDOERS", "/tmp/sudoers", "/tmp/authority", "/tmp/visudo")
+        self.assertLess(src.index('[[ ! -L "$_slp_root" ]]'), src.index('[[ -e "$_slp_root" ]]'))
+        self.assertLess(src.index('[[ ! -L "$_slp_authority" ]]'), src.index('[[ -e "$_slp_authority" ]]'))
 
     def test_generation_rejects_wrong_contract_fields(self):
         cases=(("/tmp/sudoers",SUDOERS_REVIEWED_POLICY.CANONICAL_KEY,SUDOERS_REVIEWED_POLICY.CANONICAL_OP,SUDOERS_REVIEWED_POLICY.CANONICAL_AUTHORITY),(SUDOERS_REVIEWED_POLICY.CANONICAL_LOCATOR,"users",SUDOERS_REVIEWED_POLICY.CANONICAL_OP,SUDOERS_REVIEWED_POLICY.CANONICAL_AUTHORITY),(SUDOERS_REVIEWED_POLICY.CANONICAL_LOCATOR,SUDOERS_REVIEWED_POLICY.CANONICAL_KEY,"eq",SUDOERS_REVIEWED_POLICY.CANONICAL_AUTHORITY),(SUDOERS_REVIEWED_POLICY.CANONICAL_LOCATOR,SUDOERS_REVIEWED_POLICY.CANONICAL_KEY,SUDOERS_REVIEWED_POLICY.CANONICAL_OP,"/tmp/policy"))
@@ -1995,6 +2263,7 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
             extra_executables=("/bin/tool arg",),
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:ambiguous-command-path")
 
     def test_root_only_invoker_all_is_outside_population(self):
         row = self.run_fixture([self._user_spec(user="root", runas="ALL", command="ALL")])
@@ -2007,20 +2276,30 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
         self.assertIn("files=0", row[3])
 
     def test_unbounded_and_dynamic_command_forms_are_error(self):
-        for command in ("ALL", "/opt/*/tool", "^/usr/bin/[a-z]+$", "relative", "/opt/tools/"):
+        cases = {
+            "ALL": "sudo-policy:all-command",
+            "/opt/*/tool": "sudo-policy:wildcard-command",
+            "^/usr/bin/[a-z]+$": "sudo-policy:regex-command",
+            "relative": "sudo-policy:nonabsolute-command",
+            "/opt/tools/": "sudo-policy:directory-command",
+        }
+        for command, reason in cases.items():
             with self.subTest(command=command):
                 row = self.run_fixture([self._user_spec(command=command)])
                 self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+                self.assertEqual(row[3], reason)
 
     def test_negated_command_is_error_not_overchecked(self):
         row = self.run_fixture([self._user_spec(command="/bin/tool", negated=True)], mode=0o775)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:negated-command")
 
     def test_command_digest_is_error_not_overchecked(self):
         spec = self._user_spec(command="/bin/tool")
         spec["Cmnd_Specs"][0]["Commands"][0]["sha256"] = "00" * 32
         row = self.run_fixture([spec], mode=0o775)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:digest-qualified-command")
 
     def test_host_qualified_rule_is_error_not_overchecked(self):
         row = self.run_fixture(
@@ -2028,32 +2307,39 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
             mode=0o775,
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:unsupported-host-selector")
 
     def test_ambiguous_invoker_membership_is_error_not_overchecked(self):
         spec = self._user_spec()
         spec["User_List"] = [{"usergroup": "admins"}]
         row = self.run_fixture([spec], mode=0o775)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:unsupported-user-selector")
 
     def test_ambiguous_runas_membership_is_error_not_overchecked(self):
         spec = self._user_spec()
         spec["Cmnd_Specs"][0]["runasusers"] = [{"usergroup": "admins"}]
         row = self.run_fixture([spec], mode=0o775)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:unsupported-runas-selector")
 
     def test_policy_authority_drift_is_error(self):
         row = self.run_fixture([self._user_spec()], policy_drift=True)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "authority:policy-mismatch")
 
     def test_cvtsudoers_failure_and_malformed_json_are_error(self):
         row = self.run_fixture([self._user_spec()], cvt_rc=1)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "cvtsudoers:execution-failed")
         row = self.run_fixture([self._user_spec()], malformed_json=True)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "cvtsudoers:invalid-output")
 
     def test_target_snapshot_drift_is_error(self):
         row = self.run_fixture([self._user_spec()], mutate_target_second_cvt=True)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "observation:target-changed")
 
     def test_case_insensitive_root_identity_is_not_misclassified(self):
         # sudo user-name matching is case-insensitive by default.  An alternate
@@ -2072,6 +2358,7 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
                 spec["Cmnd_Specs"][0]["Options"] = [option]
                 row = self.run_fixture([spec], mode=0o775)
                 self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:time-qualified-command")
 
     def test_case_insensitive_user_default_override_is_error(self):
         row = self.run_fixture(
@@ -2080,6 +2367,7 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
             defaults=[{"Options": [{"case_insensitive_user": False}]}],
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:case-insensitive-user-unsupported")
 
     def test_runas_default_is_error_not_overchecked(self):
         # Without an explicit Runas_Spec, sudo uses Defaults runas_default.
@@ -2092,17 +2380,20 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
             defaults=[{"Options": [{"runas_default": "nobody"}]}],
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:runas-default-unsupported")
 
     def test_runchroot_option_or_default_is_error(self):
         spec = self._user_spec()
         spec["Cmnd_Specs"][0]["Options"] = [{"runchroot": "/srv/chroot"}]
         row = self.run_fixture([spec])
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:runchroot-enabled")
         row = self.run_fixture(
             [self._user_spec()],
             defaults=[{"Options": [{"runchroot": "/srv/chroot"}]}],
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:runchroot-enabled")
 
     def test_interpreter_and_execution_frontend_are_error(self):
         for path in ("/bin/sh", "/usr/bin/env", "/usr/bin/time", "/usr/bin/run-parts"):
@@ -2112,6 +2403,7 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
                     target_logical=path,
                 )
                 self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+                self.assertEqual(row[3], "target:unsupported-execution-chain")
 
     def test_symlink_alias_to_execution_frontend_is_error(self):
         row = self.run_fixture(
@@ -2121,6 +2413,7 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
             symlink_real_name="env",
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "target:unsupported-execution-chain")
 
     def test_hardlink_alias_is_error(self):
         row = self.run_fixture(
@@ -2129,6 +2422,7 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
             hardlink_real_name="env",
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "target:unsupported-execution-chain")
 
 
     def test_shebang_execution_chain_is_error(self):
@@ -2140,6 +2434,7 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
                     extra_executables=(("/opt/custominterp", interpreter_mode),),
                 )
                 self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+                self.assertEqual(row[3], "target:unsupported-execution-chain")
 
     def test_generation_rejects_wrong_contract_fields(self):
         bad = (
@@ -2156,7 +2451,7 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
 class SshdRootLoginAdapterFixtures(unittest.TestCase):
     def run_fixture(
         self, config_text=None, effective="no", syntax_rc=0, include_files=None,
-        make_symlink=False, shadow_compgen=False, sort_fail=False,
+        make_symlink=False, shadow_compgen=False, sort_fail=False, env=None,
     ):
         if BASH is None:
             self.skipTest("bash not found")
@@ -2165,9 +2460,12 @@ class SshdRootLoginAdapterFixtures(unittest.TestCase):
             root = Path(td)
             cfg = root / "sshd_config"
             if config_text is not None:
-                config_text = config_text.replace("/etc/ssh/TEST-INCLUDE.conf", str(root / "TEST-INCLUDE.conf"))
-                config_text = config_text.replace("/etc/ssh/TEST-INCLUDE-DIR", str(root / "TEST-INCLUDE-DIR"))
-                cfg.write_bytes(config_text.encode("utf-8"))
+                if isinstance(config_text, bytes):
+                    cfg.write_bytes(config_text)
+                else:
+                    config_text = config_text.replace("/etc/ssh/TEST-INCLUDE.conf", str(root / "TEST-INCLUDE.conf"))
+                    config_text = config_text.replace("/etc/ssh/TEST-INCLUDE-DIR", str(root / "TEST-INCLUDE-DIR"))
+                    cfg.write_bytes(config_text.encode("utf-8"))
             if make_symlink:
                 target = root / "real-config"
                 target.write_text("PermitRootLogin no\n", encoding="utf-8")
@@ -2177,7 +2475,7 @@ class SshdRootLoginAdapterFixtures(unittest.TestCase):
             for name, body in include_files.items():
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_bytes(body.encode("utf-8"))
+                path.write_bytes(body if isinstance(body, bytes) else body.encode("utf-8"))
             sshd = root / "sshd"
             sshd.write_text(
                 "#!/usr/bin/env bash\n"
@@ -2200,6 +2498,7 @@ class SshdRootLoginAdapterFixtures(unittest.TestCase):
             cp = subprocess.run(
                 [BASH, "-c", "set -u\n" + prelude + block + "\nslp_check_SSH_TEST\n"],
                 text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+                env=env,
             )
             self.assertEqual(cp.returncode, 0, cp.stderr)
             return cp.stdout.strip().split("\t")
@@ -2230,6 +2529,29 @@ class SshdRootLoginAdapterFixtures(unittest.TestCase):
             include_files={"TEST-INCLUDE.conf": "Match User root\nPermitRootLogin yes\n"},
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    def test_unicode_whitespace_is_not_a_locale_dependent_sshd_separator(self):
+        for edge in ("\u2003", "\u3000"):
+            with self.subTest(edge=repr(edge)):
+                observed = []
+                for locale_name in ("C", "C.utf8"):
+                    env = os.environ.copy()
+                    env["LC_ALL"] = locale_name
+                    row = self.run_fixture("PermitRootLogin" + edge + "no\n", env=env)
+                    observed.append(tuple(row[2:5]))
+                self.assertEqual(observed[0], observed[1])
+                self.assertEqual(observed[0], ("VALUE", "main_global_no=0;effective=no", "FAIL"))
+
+    def test_nul_and_non_crlf_cr_are_rejected_before_line_parsing(self):
+        row = self.run_fixture(b"PermitRootLogin no\x00\n")
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "sshd-config:invalid-bytes", "ERROR"))
+        row = self.run_fixture(b"PermitRootLogin no\r")
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "sshd-config:invalid-bytes", "ERROR"))
+        row = self.run_fixture(
+            "PermitRootLogin no\nInclude /etc/ssh/TEST-INCLUDE.conf\n",
+            include_files={"TEST-INCLUDE.conf": b"PermitRootLogin no\x00\n"},
+        )
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "sshd-config:invalid-bytes", "ERROR"))
 
     def test_malformed_relevant_directives_error(self):
         for line in (
@@ -2353,7 +2675,7 @@ class SshdRootLoginAdapterFixtures(unittest.TestCase):
 
     def test_syntax_failure_errors(self):
         row = self.run_fixture("PermitRootLogin no\n", syntax_rc=1)
-        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "sshd-config:validation-failed", "ERROR"))
 
     def test_missing_config_not_found(self):
         row = self.run_fixture(None)
@@ -2493,18 +2815,47 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
         return row
 
     @staticmethod
-    def _serve_fifo_once(path, text):
+    def _start_fifo_writer_handshake(path, text):
+        opened = threading.Event()
+        release = threading.Event()
         failures = []
+
         def writer():
             try:
                 with open(path, "w", encoding="utf-8") as stream:
+                    opened.set()
+                    if not release.wait(timeout=20.0):
+                        raise TimeoutError("FIFO writer release handshake timed out")
                     stream.write(text)
                     stream.flush()
             except Exception as exc:
                 failures.append(exc)
+                opened.set()
+
         thread = threading.Thread(target=writer, daemon=True)
         thread.start()
-        return thread, failures
+        return thread, opened, release, failures
+
+    @staticmethod
+    def _runtime_reason_namespace():
+        tree = ast.parse(RUNNING_PROCESS_PATHS._PY)
+        selected = []
+        wanted = {"error", "obj_state", "recheck_files", "recheck_parents"}
+        for node in tree.body:
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                selected.append(node)
+            elif isinstance(node, ast.FunctionDef) and node.name in wanted:
+                selected.append(node)
+        namespace = {}
+        exec(
+            compile(
+                ast.fix_missing_locations(ast.Module(body=selected, type_ignores=[])),
+                "<running-process-recheck-semantics>",
+                "exec",
+            ),
+            namespace,
+        )
+        return namespace
 
     def run_fixture(
         self, *, file_mode=0o555, parent_mode=0o555, deleted_library=False,
@@ -2573,6 +2924,8 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
         row = self.run_fixture(parent_mode=0o770)
         expected = ("ERROR", "ERROR") if os.geteuid() == 0 else ("VALUE", "FAIL")
         self.assertEqual((row[2], row[4]), expected)
+        if os.geteuid() == 0:
+            self.assertEqual(row[3], "parent:group-write-ambiguous")
 
     def test_write_without_search_in_group_class_is_not_alone_a_violation(self):
         # With a root-owned fixture (root test runner), 0720 has group write but
@@ -2586,10 +2939,12 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
     def test_deleted_library_is_error(self):
         row = self.run_fixture(deleted_library=True)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "proc-maps:deleted-path")
 
     def test_missing_library_population_is_error(self):
         row = self.run_fixture(no_library=True)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "proc-maps:empty-executable-population")
 
     def test_executable_mapping_without_shared_object_name_is_checked(self):
         row = self.run_fixture(mapped_name="render.plugin", file_mode=0o575)
@@ -2602,6 +2957,7 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
     def test_malformed_proc_escape_is_error(self):
         row = self.run_fixture(malformed_escape=True)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "proc:invalid-path-escape")
 
     def test_each_pid_requires_file_backed_executable_mapping(self):
         if BASH is None:
@@ -2637,6 +2993,7 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
                 os.close(fd)
             row = self._finish_popen(cp)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "pid-population:mid-snapshot-changed")
 
     def test_identity_change_after_no_exe_classification_is_error(self):
         tree = ast.parse(RUNNING_PROCESS_PATHS._PY)
@@ -2678,7 +3035,7 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
                 with self.assertRaises(SystemExit) as cm:
                     namespace["classify_no_exe"](pid, "123")
             self.assertEqual(cm.exception.code, 0)
-            self.assertEqual(captured.getvalue().strip(), "ERROR")
+            self.assertEqual(captured.getvalue().strip(), "ERROR\tproc-stat:excluded-classification-changed")
 
     def _snapshot_drift_case(self, mutate_parent):
         with tempfile.TemporaryDirectory(dir=ROOT) as td:
@@ -2688,32 +3045,89 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
             proc = self._prepare_proc(root)
             self._add_pid(proc, "100", exe1, self._maps_line(str(lib1)))
             pid2 = self._add_pid(proc, "200", exe2, None)
-            fifo = pid2 / "maps"; os.mkfifo(fifo)
+            fifo = pid2 / "maps"
+            first_fifo = pid2 / "maps.first"
+            os.mkfifo(fifo)
             self._seal_fs(fsroot, ("app1", "app2"))
+
+            maps_text = self._maps_line(str(lib2))
+            first_thread, first_opened, first_release, first_failures = (
+                self._start_fifo_writer_handshake(fifo, maps_text)
+            )
             cp = self._popen_script(self._script(root, proc, fsroot))
-            fd = self._open_fifo_writer(fifo)
-            try:
-                if mutate_parent:
-                    libdir1.chmod(0o775)
-                else:
-                    lib1.chmod(0o575)
-                os.write(fd, self._maps_line(str(lib2)).encode("utf-8"))
-            finally:
-                os.close(fd)
-            thread, failures = self._serve_fifo_once(fifo, self._maps_line(str(lib2)))
+
+            self.assertTrue(
+                first_opened.wait(timeout=20.0),
+                "observer did not reach first maps snapshot",
+            )
+            self.assertEqual(first_failures, [])
+
+            if mutate_parent:
+                libdir1.chmod(0o775)
+            else:
+                lib1.chmod(0o575)
+
+            os.replace(fifo, first_fifo)
+            os.mkfifo(fifo)
+            second_thread, second_opened, second_release, second_failures = (
+                self._start_fifo_writer_handshake(fifo, maps_text)
+            )
+
+            first_release.set()
+            first_thread.join(timeout=20.0)
+            self.assertFalse(first_thread.is_alive(), "first maps FIFO writer did not finish")
+            self.assertEqual(first_failures, [])
+
+            self.assertTrue(
+                second_opened.wait(timeout=20.0),
+                "observer did not reach maps recheck",
+            )
+            self.assertEqual(second_failures, [])
+            second_release.set()
+
             row = self._finish_popen(cp)
-            thread.join(timeout=20.0)
-            self.assertFalse(thread.is_alive(), "second maps FIFO writer did not finish")
-            self.assertEqual(failures, [])
+            second_thread.join(timeout=20.0)
+            self.assertFalse(second_thread.is_alive(), "second maps FIFO writer did not finish")
+            self.assertEqual(second_failures, [])
             return row
+
+    def test_file_recheck_reason_semantics_are_exact(self):
+        namespace = self._runtime_reason_namespace()
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            path = Path(td) / "fixture"
+            path.write_text("x\n", encoding="utf-8")
+            state = namespace["obj_state"](os.stat(path))
+            records = {str(path): (str(path), state, state)}
+            path.chmod(0o575)
+            captured = io.StringIO()
+            with contextlib.redirect_stdout(captured):
+                with self.assertRaises(SystemExit) as cm:
+                    namespace["recheck_files"](records)
+            self.assertEqual(cm.exception.code, 0)
+            self.assertEqual(captured.getvalue().strip(), "ERROR\tpath:recheck-snapshot-changed")
+
+    def test_parent_recheck_reason_semantics_are_exact(self):
+        namespace = self._runtime_reason_namespace()
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            path = Path(td) / "fixture-parent"
+            path.mkdir()
+            state = namespace["obj_state"](os.stat(path))
+            records = {str(path): state}
+            path.chmod(0o775)
+            captured = io.StringIO()
+            with contextlib.redirect_stdout(captured):
+                with self.assertRaises(SystemExit) as cm:
+                    namespace["recheck_parents"](records)
+            self.assertEqual(cm.exception.code, 0)
+            self.assertEqual(captured.getvalue().strip(), "ERROR\tparent:recheck-snapshot-changed")
 
     def test_file_snapshot_drift_is_error(self):
         row = self._snapshot_drift_case(False)
-        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "path:recheck-snapshot-changed", "ERROR"))
 
     def test_parent_snapshot_drift_is_error(self):
         row = self._snapshot_drift_case(True)
-        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "parent:recheck-snapshot-changed", "ERROR"))
 
 
     def test_maps_declared_identity_mismatch_is_error(self):
@@ -2817,6 +3231,7 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
                 os.close(fd)
             row = self._finish_popen(cp)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "proc-counter:mid-snapshot-changed")
 
     def test_same_pid_mapping_population_drift_is_error(self):
         if BASH is None:
@@ -2849,6 +3264,7 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
                 os.close(fd)
             row = self._finish_popen(cp)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "proc-maps:recheck-changed")
 
     def test_same_pid_exe_target_drift_is_error(self):
         if BASH is None:
@@ -2874,6 +3290,30 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
                 os.close(fd)
             row = self._finish_popen(cp)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "proc-exe:recheck-changed")
+
+    def test_process_change_reason_inventory_is_complete_and_unique(self):
+        for forbidden in (
+            "observation:process-changed",
+            "observation:file-changed",
+            "observation:parent-changed",
+        ):
+            self.assertNotIn(forbidden, RUNNING_PROCESS_PATHS._PY)
+        process_reasons = RUNNING_PROCESS_PATHS.PROCESS_CHANGE_REASONS
+        file_parent_reasons = RUNNING_PROCESS_PATHS.FILE_PARENT_CHANGE_REASONS
+        self.assertEqual(len(process_reasons), 21)
+        self.assertEqual(len(set(process_reasons)), 21)
+        self.assertEqual(len(file_parent_reasons), 9)
+        self.assertEqual(len(set(file_parent_reasons)), 9)
+        tree = ast.parse(RUNNING_PROCESS_PATHS._PY)
+        observed = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name) or node.func.id != "error":
+                continue
+            if len(node.args) == 1 and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+                observed.append(node.args[0].value)
+        for reason in process_reasons + file_parent_reasons:
+            self.assertEqual(observed.count(reason), 1, reason)
 
     def test_generation_rejects_wrong_contract_fields(self):
         cases = (
@@ -2893,16 +3333,16 @@ class UnifiedCliArtifact(unittest.TestCase):
     ARTIFACT = ROOT / "securelinux-policy.sh"
     SIDECAR = ROOT / "securelinux-policy.sh.sha256"
 
-    def run_cli(self, *args):
+    def run_cli(self, *args, env=None):
         return subprocess.run(
             [str(self.ARTIFACT), *args], cwd=ROOT,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env,
         )
 
-    def run_sourced(self, body):
+    def run_sourced(self, body, env=None):
         return subprocess.run(
             [BASH, "-c", f"set -u\nsource {self.ARTIFACT!s}\n{body}"],
-            cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env,
         )
 
     @staticmethod
@@ -2912,7 +3352,7 @@ SLP_RESULTS=(
 $'SLP-CHECK-V1\tFSTEC-LINUX-2022-2.3.1-GROUP-MODE\tVALUE\t0644\tPASS'
 $'SLP-CHECK-V1\tFSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE\tVALUE\taccounts=2;homes=2;violations=1\tFAIL'
 $'SLP-CHECK-V1\tFSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE\tVALUE\troots_present=9;roots_absent=0;aliases=4;exec=1236;libraries=999;modules=6474;checked=8300;violations=0\tPASS'
-$'SLP-CHECK-V1\tFSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE\tERROR\t-\tERROR'
+$'SLP-CHECK-V1\tFSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE\tERROR\ttest:synthetic-error\tERROR'
 )
 SLP_TOTAL=4
 SLP_PASS=2
@@ -2922,6 +3362,21 @@ SLP_ERR=1
 SLP_POLICY_STATUS=UNEVALUATED
 SLP_POLICY_RC=1
 '''
+
+    def test_unified_collector_rejects_missing_or_malformed_error_reason(self):
+        cid = "FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE"
+        fn = "slp_check_FSTEC_LINUX_2022_2_1_1_LOCAL_ACCOUNT_PASSWORD_STATE"
+        for reason in ("-", "BAD", "domain:bad_reason", "stderr:random text"):
+            with self.subTest(reason=reason):
+                body = (
+                    f"{fn}() {{ printf 'SLP-CHECK-V1\t{cid}\tERROR\t{reason}\tERROR\n'; }}\n"
+                    "slp_collect_policy\n"
+                    "printf 'RC=%s\n' \"$?\"\n"
+                )
+                cp = self.run_sourced(body)
+                self.assertEqual(cp.returncode, 0)
+                self.assertEqual(cp.stdout.strip(), "RC=1")
+                self.assertIn("CHECK_INTERNAL_ERROR", cp.stderr)
 
     def test_unified_tracked_artifact_matches_fresh_generator_exactly(self):
         self.assertTrue(self.GEN_V2.is_file())
@@ -2943,6 +3398,10 @@ SLP_POLICY_RC=1
             current_adapter_count = len(GEN_V2_CURRENT.load_registry(ROOT)[0])
             self.assertIn(f"CONTROL_COUNT={current_control_count}\n", cp.stdout)
             self.assertIn(f"ADAPTER_COUNT={current_adapter_count}\n", cp.stdout)
+            self.assertIn("TARGET_FAMILY_ID=linux-x86_64-supported-v1\n", cp.stdout)
+            self.assertIn("SUPPORTED_PROFILE_ENVIRONMENTS=7\n", cp.stdout)
+            self.assertIn("SUPPORTED_DESKTOP_ENVIRONMENTS=1\n", cp.stdout)
+            self.assertIn("SUPPORTED_ENVIRONMENTS=8\n", cp.stdout)
             self.assertEqual(out.read_bytes(), self.ARTIFACT.read_bytes())
             self.assertEqual(out.with_name(out.name + ".sha256").read_bytes(), self.SIDECAR.read_bytes())
         expected = f"{sha256_file(self.ARTIFACT)}  {self.ARTIFACT.name}\n"
@@ -2980,7 +3439,239 @@ SLP_POLICY_RC=1
         self.assertEqual(plain_bash_control.returncode, 0, plain_bash_control.stderr)
         self.assertIn("POISONED-COMMAND", plain_bash_control.stdout + plain_bash_control.stderr)
 
-    def test_unified_help_version_build_info_and_stubs(self):
+    def test_supported_environment_classifier_exact_7_plus_desktop_and_fail_closed(self):
+        cases = (
+            ("ubuntu", "22.04", "x86_64", "installed", "installed", "installed", "FULL", "ubuntu-22.04-x86_64-full"),
+            ("ubuntu", "24.04", "x86_64", "installed", "absent", "absent", "MINIMIZED", "ubuntu-24.04-x86_64-minimized"),
+            ("ubuntu", "24.04", "x86_64", "installed", "installed", "installed", "FULL", "ubuntu-24.04-x86_64-full"),
+            ("ubuntu", "26.04", "x86_64", "installed", "absent", "absent", "MINIMIZED", "ubuntu-26.04-x86_64-minimized"),
+            ("ubuntu", "26.04", "x86_64", "installed", "installed", "installed", "FULL", "ubuntu-26.04-x86_64-full"),
+            ("debian", "12", "x86_64", "na", "na", "na", "SERVER", "debian-12-x86_64-server"),
+            ("debian", "13", "x86_64", "na", "na", "na", "SERVER", "debian-13-x86_64-server"),
+        )
+        for os_id, version, arch, server_minimal, minimal, standard, profile, env_id in cases:
+            with self.subTest(env_id=env_id):
+                body = (
+                    f"slp_classify_environment {os_id!r} {version!r} {arch!r} "
+                    f"{server_minimal!r} {minimal!r} {standard!r}; "
+                    'printf "%s|%s|%s\\n" "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_PLATFORM" "$SLP_SYSTEM_ENVIRONMENT"'
+                )
+                cp = self.run_sourced(body)
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                self.assertEqual(cp.stdout.strip(), f"{profile}|{os_id}-{version}-{arch}|{env_id}")
+
+        desktop = self.run_sourced(
+            "slp_classify_environment ubuntu 24.04 x86_64 absent installed installed; "
+            'printf "%s|%s|%s|%s\n" "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_TYPE" "$SLP_SYSTEM_PLATFORM" "$SLP_SYSTEM_ENVIRONMENT"'
+        )
+        self.assertEqual(desktop.returncode, 0, desktop.stderr)
+        self.assertEqual(desktop.stdout.strip(), "|DESKTOP|ubuntu-24.04-x86_64|ubuntu-24.04-x86_64-desktop")
+
+        rejected_profile = (
+            ("ubuntu", "22.04", "x86_64", "installed", "absent", "absent"),
+            ("ubuntu", "24.04", "x86_64", "installed", "installed", "absent"),
+            ("ubuntu", "24.04", "x86_64", "installed", "absent", "installed"),
+        )
+        for args in rejected_profile:
+            with self.subTest(rejected_profile=args):
+                cmd = (
+                    "slp_classify_environment " + " ".join(repr(x) for x in args)
+                    + '; _slp_rc=$?; printf "%s|%s|%s\\n" "$_slp_rc" "$SLP_CLASSIFY_REASON" "$SLP_SYSTEM_PROFILE"'
+                )
+                cp = self.run_sourced(cmd)
+                self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+                self.assertEqual(cp.stdout.strip(), "3|PROFILE|UNKNOWN")
+
+        rejected_type = (
+            ("ubuntu", "22.04", "x86_64", "absent", "installed", "installed"),
+            ("ubuntu", "26.04", "x86_64", "absent", "installed", "installed"),
+            ("ubuntu", "24.04", "x86_64", "absent", "absent", "absent"),
+        )
+        for args in rejected_type:
+            with self.subTest(rejected_type=args):
+                cmd = (
+                    "slp_classify_environment " + " ".join(repr(x) for x in args)
+                    + '; _slp_rc=$?; printf "%s|%s|%s\n" "$_slp_rc" "$SLP_CLASSIFY_REASON" "$SLP_SYSTEM_TYPE"'
+                )
+                cp = self.run_sourced(cmd)
+                self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+                self.assertEqual(cp.stdout.strip(), "3|TYPE|UNKNOWN")
+
+        rejected_platform = (
+            ("ubuntu", "24.04", "aarch64", "installed", "installed", "installed"),
+            ("ubuntu", "25.04", "x86_64", "installed", "installed", "installed"),
+            ("debian", "11", "x86_64", "na", "na", "na"),
+        )
+        for args in rejected_platform:
+            with self.subTest(rejected_platform=args):
+                cmd = (
+                    "slp_classify_environment " + " ".join(repr(x) for x in args)
+                    + '; _slp_rc=$?; printf "%s|%s\\n" "$_slp_rc" "$SLP_CLASSIFY_REASON"'
+                )
+                cp = self.run_sourced(cmd)
+                self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+                self.assertEqual(cp.stdout.strip(), "3|PLATFORM")
+
+    def test_raw_os_release_bytes_and_dpkg_status_are_fail_closed(self):
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            path = Path(td) / "os-release"
+            cases = (
+                (b"ID=ubuntu\n", "0"),
+                (b"ID=ub\x00untu\n", "1"),
+                (b"ID=ubuntu\r\n", "1"),
+                (b'ID=ubuntu\nVERSION_ID="24.04"\nPRETTY_NAME="Ubuntu\t24.04"\n', "1"),
+                (b'ID=ubuntu\nVERSION_ID="24.04"\nPRETTY_NAME="Ubuntu\x08 24.04"\n', "1"),
+                (b'ID=ubuntu\nVERSION_ID="24.04"\nPRETTY_NAME="Ubuntu\x0c 24.04"\n', "1"),
+                (b'ID=ubuntu\nVERSION_ID="24.04"\nPRETTY_NAME="Ubuntu\x1b 24.04"\n', "1"),
+                (b'ID=debian\nVERSION_ID=13\nPRETTY_NAME="Debian \xff"\n', "1"),
+                (b'ID=debian\nVERSION_ID=13\nPRETTY_NAME="Debian \xc3"\n', "1"),
+                (b'ID=debian\nVERSION_ID=13\nPRETTY_NAME="Debian \xc0\xaf"\n', "1"),
+                ('ID=debian\nVERSION_ID=13\nPRETTY_NAME="Дебиан 13"\n'.encode('utf-8'), "0"),
+            )
+            for raw, expected_rc in cases:
+                with self.subTest(raw=raw):
+                    path.write_bytes(raw)
+                    cp = self.run_sourced(
+                        f"slp_preflight_validate_text_bytes {shlex.quote(str(path))}; "
+                        'printf "%s\n" "$?"'
+                    )
+                    self.assertEqual(cp.returncode, 0, cp.stderr)
+                    self.assertEqual(cp.stdout.strip(), expected_rc)
+
+        cases = (
+            ("install ok installed", "0|installed"),
+            ("hold ok installed", "0|installed"),
+            ("deinstall ok config-files", "0|absent"),
+            ("unknown ok not-installed", "0|absent"),
+            ("install ok unpacked", "1|"),
+            ("install ok half-configured", "1|"),
+            ("install ok half-installed", "1|"),
+            ("install ok triggers-pending", "1|"),
+            ("install reinstreq installed", "1|"),
+            ("invalid ok not-installed", "1|"),
+        )
+        for status, expected in cases:
+            with self.subTest(status=status):
+                cp = self.run_sourced(
+                    f"_slp_result=$(slp_classify_dpkg_status {shlex.quote(status)}); "
+                    '_slp_rc=$?; printf "%s|%s\n" "$_slp_rc" "$_slp_result"'
+                )
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                self.assertEqual(cp.stdout.strip(), expected)
+
+    def test_os_release_parser_accepts_single_quotes_and_shell_style_escapes(self):
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            path = Path(td) / "os-release"
+            fixtures = (
+                (
+                    "ID='debian'\nVERSION_ID='13'\nPRETTY_NAME='Debian GNU/Linux 13 (trixie)'\n",
+                    "debian|13|Debian GNU/Linux 13 (trixie)",
+                ),
+                (
+                    'ID="debian"\nVERSION_ID="13"\nPRETTY_NAME="Debian \\"quoted\\" \\\\ path"\n',
+                    'debian|13|Debian "quoted" \\ path',
+                ),
+                (
+                    'ID=debian\nVERSION_ID=13\nPRETTY_NAME="Дебиан 13"\n',
+                    'debian|13|Дебиан 13',
+                ),
+            )
+            for content, expected in fixtures:
+                with self.subTest(content=content):
+                    path.write_text(content, encoding="utf-8")
+                    cp = self.run_sourced(
+                        f"slp_preflight_validate_text_bytes {shlex.quote(str(path))}; _slp_vrc=$?; "
+                        f"slp_parse_os_release_file {shlex.quote(str(path))}; _slp_prc=$?; "
+                        'printf "%s|%s|%s|%s|%s\n" "$_slp_vrc" "$_slp_prc" "$SLP_OS_RELEASE_ID" "$SLP_OS_RELEASE_VERSION_ID" "$SLP_OS_RELEASE_PRETTY_NAME"'
+                    )
+                    self.assertEqual(cp.returncode, 0, cp.stderr)
+                    self.assertEqual(cp.stdout.strip(), "0|0|" + expected)
+
+    def test_unified_collector_accepts_definitive_not_found_fail(self):
+        artifact = self.ARTIFACT.read_text(encoding="utf-8")
+        match = re.search(
+            r"local -a _slp_fns=\((.*?)\)\n  local -a _slp_ids=\((.*?)\)",
+            artifact,
+        )
+        self.assertIsNotNone(match)
+        fns = shlex.split(match.group(1))
+        ids = shlex.split(match.group(2))
+        self.assertEqual(len(fns), len(ids))
+        targets = {
+            "FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN",
+            "FSTEC-LINUX-2022-2.2.1-SU-WHEEL-ACCESS",
+        }
+        for target in sorted(targets):
+            with self.subTest(target=target):
+                body = []
+                for fn, cid in zip(fns, ids):
+                    if cid == target:
+                        status, value, result = "NOT_FOUND", "-", "FAIL"
+                    else:
+                        status, value, result = "VALUE", "synthetic", "PASS"
+                    body.append(
+                        f"{fn}() {{ printf '%s\\t%s\\t%s\\t%s\\t%s\\n' "
+                        f"'SLP-CHECK-V1' {shlex.quote(cid)} {shlex.quote(status)} "
+                        f"{shlex.quote(value)} {shlex.quote(result)}; }}"
+                    )
+                body.append(
+                    "slp_collect_policy; _slp_rc=$?; "
+                    "printf 'RC=%s|POLICY=%s|FAIL=%s|NOT_FOUND=%s|ERROR=%s\\n' "
+                    '"$_slp_rc" "$SLP_POLICY_STATUS" "$SLP_FAIL" "$SLP_NF" "$SLP_ERR"'
+                )
+                cp = self.run_sourced("\n".join(body))
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                self.assertEqual(cp.stdout.strip(), "RC=0|POLICY=NONCOMPLIANT|FAIL=1|NOT_FOUND=0|ERROR=0")
+                self.assertNotIn("CHECK_INTERNAL_ERROR", cp.stderr)
+
+    def test_dpkg_package_observation_ignores_caller_database_redirectors(self):
+        baseline = self.run_sourced(
+            '_slp_state=$(slp_dpkg_package_state ubuntu-server-minimal); _slp_rc=$?; printf "%s|%s\n" "$_slp_rc" "$_slp_state"'
+        )
+        self.assertEqual(baseline.returncode, 0, baseline.stderr)
+        self.assertRegex(baseline.stdout.strip(), r"^0\|(installed|absent)$")
+        baseline_state = baseline.stdout.strip().split("|", 1)[1]
+        fake_status = (
+            "Package: ubuntu-server-minimal\nStatus: install ok installed\nArchitecture: all\nVersion: 1\n\n"
+            if baseline_state == "absent" else ""
+        )
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            td_path = Path(td)
+            admindir = td_path / "admindir"
+            admindir.mkdir()
+            (admindir / "status").write_text(fake_status, encoding="utf-8")
+            fake_root = td_path / "root"
+            root_admindir = fake_root / "var/lib/dpkg"
+            root_admindir.mkdir(parents=True)
+            (root_admindir / "status").write_text(fake_status, encoding="utf-8")
+            for var, value in (("DPKG_ADMINDIR", admindir), ("DPKG_ROOT", fake_root)):
+                with self.subTest(var=var):
+                    env = os.environ.copy()
+                    env.pop("DPKG_ADMINDIR", None)
+                    env.pop("DPKG_ROOT", None)
+                    env[var] = str(value)
+                    cp = self.run_sourced(
+                        '_slp_state=$(slp_dpkg_package_state ubuntu-server-minimal); _slp_rc=$?; printf "%s|%s\n" "$_slp_rc" "$_slp_state"',
+                        env=env,
+                    )
+                    self.assertEqual(cp.returncode, 0, cp.stderr)
+                    self.assertEqual(cp.stdout, baseline.stdout)
+
+    def test_raw_platform_record_has_fixed_arity_for_valid_identity(self):
+        body = (
+            "SLP_SYSTEM_PRETTY_NAME='Ubuntu 24.04.4 LTS'; "
+            "SLP_SYSTEM_ID=ubuntu; SLP_SYSTEM_VERSION_ID=24.04; SLP_SYSTEM_ARCH=x86_64; "
+            "SLP_SYSTEM_PROFILE=FULL; SLP_SYSTEM_TYPE=''; "
+            "SLP_SYSTEM_PLATFORM=ubuntu-24.04-x86_64; SLP_SYSTEM_ENVIRONMENT=ubuntu-24.04-x86_64-full; "
+            "SLP_RESULTS=(); SLP_TOTAL=0; SLP_PASS=0; SLP_FAIL=0; SLP_NF=0; SLP_ERR=0; "
+            "SLP_POLICY_STATUS=COMPLIANT; SLP_POLICY_RC=0; "
+            "slp_render_raw 0 | /usr/bin/head -n 1"
+        )
+        cp = self.run_sourced(body)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(len(cp.stdout.rstrip("\n").split("\t")), 10, cp.stdout)
+
+    def test_unified_help_version_build_info_and_apply_stub(self):
         syntax = subprocess.run([BASH, "-n", str(self.ARTIFACT)], capture_output=True, text=True)
         self.assertEqual(syntax.returncode, 0, syntax.stderr)
         noargs = self.run_cli()
@@ -2993,22 +3684,77 @@ SLP_POLICY_RC=1
         build = self.run_cli("--build-info")
         self.assertEqual(build.returncode, 0)
         self.assertIn("GENERATOR_ID=product-check-generator-v2\n", build.stdout)
+        self.assertIn("TARGET_FAMILY_ID=linux-x86_64-supported-v1\n", build.stdout)
+        self.assertIn("SUPPORTED_PROFILE_ENVIRONMENTS=7\n", build.stdout)
+        self.assertIn("SUPPORTED_DESKTOP_ENVIRONMENTS=1\n", build.stdout)
+        self.assertIn("SUPPORTED_ENVIRONMENTS=8\n", build.stdout)
         self.assertIn("MUTATING_MODES=NONE\n", build.stdout)
-        for flag, name in (("--apply", "APPLY"), ("--restore", "RESTORE")):
-            cp = self.run_cli(flag)
-            self.assertEqual(cp.returncode, 2)
-            self.assertEqual(cp.stdout, "")
-            self.assertEqual(cp.stderr, f"NOT_IMPLEMENTED: {name}; host state was not changed.\n")
+        apply = self.run_cli("--apply")
+        self.assertEqual(apply.returncode, 2)
+        self.assertEqual(apply.stdout, "")
+        self.assertEqual(apply.stderr, "NOT_IMPLEMENTED: APPLY; host state was not changed.\n")
+        self.assertNotIn("--restore", noargs.stdout)
+        restore = self.run_cli("--restore")
+        self.assertEqual(restore.returncode, 2)
+        self.assertEqual(restore.stdout, "")
+        self.assertEqual(restore.stderr, "")
+
+    def test_help_and_provenance_ignore_caller_path_cat(self):
+        expected_help = self.run_cli("--help")
+        expected_provenance = self.run_cli("--provenance")
+        self.assertEqual(expected_help.returncode, 0, expected_help.stderr)
+        self.assertEqual(expected_provenance.returncode, 0, expected_provenance.stderr)
+        with tempfile.TemporaryDirectory(prefix="slp-path-cat-", dir=ROOT) as td:
+            td_path = Path(td)
+            marker = td_path / "executed"
+            fake_cat = td_path / "cat"
+            fake_cat.write_text(
+                "#!/bin/sh\nprintf '%s\\n' PATH_POISONED_CAT\n"
+                + ": > " + shlex.quote(str(marker)) + "\n",
+                encoding="utf-8",
+            )
+            fake_cat.chmod(0o755)
+            env = os.environ.copy()
+            env["PATH"] = str(td_path) + os.pathsep + env.get("PATH", "")
+            actual_help = self.run_cli("--help", env=env)
+            actual_provenance = self.run_cli("--provenance", env=env)
+            self.assertFalse(marker.exists())
+        self.assertEqual((actual_help.returncode, actual_help.stdout, actual_help.stderr),
+                         (expected_help.returncode, expected_help.stdout, expected_help.stderr))
+        self.assertEqual((actual_provenance.returncode, actual_provenance.stdout, actual_provenance.stderr),
+                         (expected_provenance.returncode, expected_provenance.stdout, expected_provenance.stderr))
+
+    def test_json_escape_covers_all_bash_representable_c0_controls(self):
+        c0 = "".join(chr(i) for i in range(1, 32))
+        bash_c0 = "".join(f"\\x{i:02x}" for i in range(1, 32))
+        pre = self.synthetic_prelude() + (
+            f"\n_slp_c0=$'{bash_c0}'\n"
+            "SLP_SYSTEM_PRETTY_NAME=$_slp_c0\n"
+            "SLP_SYSTEM_ID='ubuntu'\nSLP_SYSTEM_VERSION_ID='24.04'\n"
+            "SLP_SYSTEM_ARCH='x86_64'\nSLP_SYSTEM_PROFILE='MINIMIZED'\n"
+            "SLP_SYSTEM_PLATFORM='ubuntu-24.04-x86_64'\n"
+            "SLP_SYSTEM_ENVIRONMENT='ubuntu-24.04-x86_64-minimized'\n"
+        )
+        cp = self.run_sourced(pre + "\nslp_render_json 0\n")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        payload = cp.stdout.encode("utf-8")
+        self.assertFalse(any(byte < 0x20 for byte in payload.rstrip(b"\n")), payload)
+        self.assertEqual(json.loads(cp.stdout)["platform"]["system"], c0)
 
     def test_unified_pretty_raw_json_and_failed_renderers(self):
-        pre = self.synthetic_prelude()
+        pre = self.synthetic_prelude() + "\nSLP_SYSTEM_PRETTY_NAME='Ubuntu 24.04.4 LTS'\nSLP_SYSTEM_ID='ubuntu'\nSLP_SYSTEM_VERSION_ID='24.04'\nSLP_SYSTEM_ARCH='x86_64'\nSLP_SYSTEM_PROFILE='MINIMIZED'\nSLP_SYSTEM_PLATFORM='ubuntu-24.04-x86_64'\nSLP_SYSTEM_ENVIRONMENT='ubuntu-24.04-x86_64-minimized'\n"
         pretty = self.run_sourced(pre + "\nslp_render_pretty 0 CHECK\n")
         self.assertEqual(pretty.returncode, 0, pretty.stderr)
         lines = pretty.stdout.splitlines()
-        self.assertEqual(lines[2].index("CONTROL"), 9)
-        self.assertEqual(lines[2].index("VALUE / DETAILS"), 63)
-        continuation = [x for x in lines if x.startswith(" " * 63) and "libraries=999" in x]
+        self.assertEqual(lines[1], "SYSTEM=Ubuntu 24.04.4 LTS   ARCH=x86_64")
+        self.assertEqual(lines[2], "PROFILE=MINIMIZED   PLATFORM=ubuntu-24.04-x86_64   SUPPORT=SUPPORTED")
+        self.assertEqual(lines[4].index("CONTROL"), 9)
+        self.assertEqual(lines[4].index("VALUE / DETAILS"), 72)
+        continuation = [x for x in lines if x.startswith(" " * 72) and "libraries=999" in x]
         self.assertEqual(len(continuation), 1)
+        longest = "FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION"
+        self.assertEqual(len(longest), 61)
+        self.assertLessEqual(9 + len(longest), lines[4].index("VALUE / DETAILS"))
         failed = self.run_sourced(pre + "\nslp_render_pretty 1 CHECK\n")
         self.assertEqual(failed.returncode, 0, failed.stderr)
         self.assertIn("HOME-DIRECTORIES-MODE", failed.stdout)
@@ -3017,11 +3763,26 @@ SLP_POLICY_RC=1
         raw = self.run_sourced(pre + "\nslp_render_raw 0\n")
         self.assertEqual(raw.returncode, 0, raw.stderr)
         raw_lines = raw.stdout.splitlines()
-        self.assertEqual(len(raw_lines), 5)
-        self.assertTrue(all(x.startswith("SLP-CHECK-V1\t") for x in raw_lines[:-1]))
+        self.assertEqual(len(raw_lines), 6)
+        self.assertTrue(raw_lines[0].startswith("SLP-PLATFORM-V1\t"))
+        self.assertIn("PROFILE=MINIMIZED", raw_lines[0])
+        self.assertTrue(all(x.startswith("SLP-CHECK-V1\t") for x in raw_lines[1:-1]))
         obj = json.loads(self.run_sourced(pre + "\nslp_render_json 0\n").stdout)
         self.assertEqual(obj["schema"], "SLP-REPORT-V1")
+        self.assertEqual(obj["platform"]["profile"], "MINIMIZED")
+        self.assertEqual(obj["platform"]["platform_id"], "ubuntu-24.04-x86_64")
+        self.assertEqual(obj["platform"]["support"], "SUPPORTED")
+        self.assertEqual(obj["platform"]["type"], "")
         self.assertEqual(obj["summary"], {"total":4,"pass":2,"fail":1,"not_found":0,"error":1})
+        desktop_pre = self.synthetic_prelude() + "\nSLP_SYSTEM_PRETTY_NAME='Ubuntu 24.04.4 LTS'\nSLP_SYSTEM_ID='ubuntu'\nSLP_SYSTEM_VERSION_ID='24.04'\nSLP_SYSTEM_ARCH='x86_64'\nSLP_SYSTEM_PROFILE=''\nSLP_SYSTEM_TYPE='DESKTOP'\nSLP_SYSTEM_PLATFORM='ubuntu-24.04-x86_64'\nSLP_SYSTEM_ENVIRONMENT='ubuntu-24.04-x86_64-desktop'\n"
+        desktop_pretty = self.run_sourced(desktop_pre + "\nslp_render_pretty 0 CHECK\n")
+        self.assertEqual(desktop_pretty.returncode, 0, desktop_pretty.stderr)
+        self.assertEqual(desktop_pretty.stdout.splitlines()[2], "TYPE=DESKTOP   PLATFORM=ubuntu-24.04-x86_64   SUPPORT=SUPPORTED")
+        desktop_raw = self.run_sourced(desktop_pre + "\nslp_render_raw 0\n")
+        self.assertIn("\tPROFILE=\tTYPE=DESKTOP\t", desktop_raw.stdout.splitlines()[0])
+        desktop_obj = json.loads(self.run_sourced(desktop_pre + "\nslp_render_json 0\n").stdout)
+        self.assertEqual(desktop_obj["platform"]["profile"], "")
+        self.assertEqual(desktop_obj["platform"]["type"], "DESKTOP")
         fobj = json.loads(self.run_sourced(pre + "\nslp_render_json 1\n").stdout)
         self.assertEqual([x["result"] for x in fobj["results"]], ["FAIL", "ERROR"])
 
@@ -3054,9 +3815,9 @@ class StartupFilesWriteProtectionFixtures(unittest.TestCase):
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
         )
 
-    def assert_error(self, cp):
+    def assert_error(self, cp, reason=None):
         self.assertEqual(cp.returncode, 0, cp.stderr)
-        self.assertEqual(cp.stdout.strip(), "SLP-CHECK-V1\tTEST-STARTUP-FILES\tERROR\t-\tERROR")
+        assert_stable_error_record(self, cp.stdout, "TEST-STARTUP-FILES", reason)
 
     def test_direct_population_mask_and_recursive_dependency_reference(self):
         with tempfile.TemporaryDirectory() as td:
@@ -3097,17 +3858,17 @@ class StartupFilesWriteProtectionFixtures(unittest.TestCase):
     def test_dangling_and_special_selected_entries_are_error(self):
         with tempfile.TemporaryDirectory() as td:
             base=Path(td); units=base/"units"; units.mkdir(); (units/"bad.service").symlink_to(base/"missing")
-            self.assert_error(self.run_layout([], [units]))
+            self.assert_error(self.run_layout([], [units]), "target:stat-failed")
         if hasattr(os, "mkfifo"):
             with tempfile.TemporaryDirectory() as td:
                 units=Path(td)/"units"; units.mkdir(); os.mkfifo(units/"pipe.service")
-                self.assert_error(self.run_layout([], [units]))
+                self.assert_error(self.run_layout([], [units]), "target:invalid-type")
 
     def test_dangling_rc_entry_is_error(self):
         with tempfile.TemporaryDirectory() as td:
             base=Path(td); rc=base/"rc0.d"; units=base/"units"; rc.mkdir(); units.mkdir(); (rc/"S01bad").symlink_to(base/"missing")
             (units/"a.service").write_text("x\n")
-            self.assert_error(self.run_layout([rc], [units]))
+            self.assert_error(self.run_layout([rc], [units]), "target:stat-failed")
 
     def test_merged_unit_root_alias_is_deduplicated(self):
         with tempfile.TemporaryDirectory() as td:
@@ -3118,7 +3879,7 @@ class StartupFilesWriteProtectionFixtures(unittest.TestCase):
     def test_direct_service_directory_is_error_but_nonservice_directory_is_ignored(self):
         with tempfile.TemporaryDirectory() as td:
             units=Path(td)/"units"; units.mkdir(); (units/"x.wants").mkdir(); (units/"bad.service").mkdir()
-            self.assert_error(self.run_layout([], [units]))
+            self.assert_error(self.run_layout([], [units]), "target:invalid-type")
 
     def test_generation_rejects_wrong_contract_fields(self):
         good="/etc/rc[0-6].d|systemd-unit-paths"
@@ -3243,6 +4004,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             )
             row = self._run(root)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "command:unresolved-name")
 
     def test_root_bare_command_without_explicit_path_is_error(self):
         if BASH is None: self.skipTest("bash not found")
@@ -3251,6 +4013,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             (root / "etc/crontab").write_text("0 1 * * * root tool\n", encoding="utf-8")
             row = self._run(root)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "command:unresolved-name")
 
     def test_dynamic_shell_expansion_is_error(self):
         if BASH is None: self.skipTest("bash not found")
@@ -3259,6 +4022,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             (root / "etc/crontab").write_text("PATH=/usr/bin:/bin\n0 1 * * * root $CMD\n", encoding="utf-8")
             row = self._run(root)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "command:invalid-bytes")
 
     def test_redirection_is_error(self):
         if BASH is None: self.skipTest("bash not found")
@@ -3267,6 +4031,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             (root / "etc/crontab").write_text("PATH=/usr/bin:/bin\n0 1 * * * root tool >/tmp/out\n", encoding="utf-8")
             row = self._run(root)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "command:unsupported-redirection")
 
     def test_percent_stdin_tail_does_not_add_command(self):
         if BASH is None: self.skipTest("bash not found")
@@ -3297,6 +4062,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             (root / "etc/crontab").write_text("0 1 * * * missing /opt/job\n", encoding="utf-8")
             row = self._run(root)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "cron:unknown-user")
 
     def test_interpreter_invocation_is_error(self):
         if BASH is None: self.skipTest("bash not found")
@@ -3307,6 +4073,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             (root / "etc/crontab").write_text("0 1 * * * root /bin/sh /opt/job.py\n", encoding="utf-8")
             row = self._run(root)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "command:unsupported-execution-chain")
 
     def test_absolute_wrapper_path_is_error(self):
         if BASH is None: self.skipTest("bash not found")
@@ -3317,6 +4084,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             (root / "etc/crontab").write_text("0 1 * * * root /usr/bin/env /opt/job\n", encoding="utf-8")
             row = self._run(root)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "command:unsupported-execution-chain")
 
     def test_additional_launcher_wrappers_are_error(self):
         if BASH is None: self.skipTest("bash not found")
@@ -3335,6 +4103,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
                     (root / "etc/crontab").write_text(f"0 1 * * * root /usr/bin/{launcher_name} /opt/job\n", encoding="utf-8")
                     row = self._run(root)
                     self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+                    self.assertEqual(row[3], "command:unsupported-execution-chain")
 
     def test_symlink_alias_interpreter_is_error(self):
         if BASH is None: self.skipTest("bash not found")
@@ -3346,6 +4115,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             (root / "etc/crontab").write_text("0 1 * * * root /usr/bin/job-shell -c /opt/hidden-job\n", encoding="utf-8")
             row = self._run(root)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "command:unsupported-execution-chain")
 
     def test_symlink_alias_run_parts_expands_population(self):
         if BASH is None: self.skipTest("bash not found")
@@ -3370,6 +4140,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             (root / "etc/crontab").write_text("0 1 * * * root /usr/bin/job-launcher /opt/hidden-job\n", encoding="utf-8")
             row = self._run(root)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "command:unsupported-execution-chain")
 
     def test_hardlink_alias_interpreter_is_error(self):
         if BASH is None: self.skipTest("bash not found")
@@ -3381,6 +4152,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             (root / "etc/crontab").write_text("0 1 * * * root /usr/bin/job-shell -c /opt/hidden-job\n", encoding="utf-8")
             row = self._run(root)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "target:hardlink")
 
     def test_hardlink_alias_run_parts_is_error(self):
         if BASH is None: self.skipTest("bash not found")
@@ -3392,6 +4164,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             (root / "etc/crontab").write_text("0 1 * * * root /usr/bin/periodic-runner /etc/cron.hourly\n", encoding="utf-8")
             row = self._run(root)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "target:hardlink")
 
     def test_versioned_interpreter_path_is_error(self):
         if BASH is None: self.skipTest("bash not found")
@@ -3402,6 +4175,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             (root / "etc/crontab").write_text("0 1 * * * root /usr/bin/python3.12 /opt/job.py\n", encoding="utf-8")
             row = self._run(root)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "command:unsupported-execution-chain")
 
     def test_shell_override_is_error(self):
         if BASH is None: self.skipTest("bash not found")
@@ -3411,6 +4185,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             (root / "etc/crontab").write_text("SHELL=/bin/bash\n0 1 * * * root /opt/job\n", encoding="utf-8")
             row = self._run(root)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "cron:unsupported-shell")
 
     def test_missing_final_newline_is_error(self):
         if BASH is None: self.skipTest("bash not found")
@@ -3420,6 +4195,7 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             (root / "etc/crontab").write_text("0 1 * * * root /opt/job", encoding="utf-8")
             row = self._run(root)
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+            self.assertEqual(row[3], "cron:invalid-line-ending")
 
     def test_generation_rejects_wrong_contract_fields(self):
         bad = (

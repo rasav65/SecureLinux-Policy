@@ -1,1 +1,20 @@
-{"adapter_contract_version":"product-startup-files-write-protection-check-adapter-v1","adapter_id":"product-startup-files-write-protection-check-v1","implementation_id":"product-startup-files-write-protection-check-v1.py","implementation_path":"product/adapters/product-startup-files-write-protection-check-v1.py","implementation_sha256":"bfdb0ad2d0dc07f7384c549522e84437c841630b1ee158dc82dafe94f2001300","input_schema_id":"canonical-control-v3","input_schema_version":1,"operation":"check","output_schema_id":"slp-check-v1","output_schema_version":1,"parameter_kind":"startup-files-write-protection","semantic_contract_id":"startup-files-write-protection-check-semantic-v1","semantic_contract_path":"product/contracts/startup-files-write-protection-check-semantic-v1.json","semantic_contract_sha256":"1d3ddae058e0bed538b7ba5d74da59b0cd392db80240c45fb4f6d9be109c88c3","supported_ops":["bits-clear"],"target_id":"ubuntu-24.04-x86_64"}
+{
+  "adapter_contract_version": "product-startup-files-write-protection-check-adapter-v1",
+  "adapter_id": "product-startup-files-write-protection-check-v1",
+  "implementation_id": "product-startup-files-write-protection-check-v1.py",
+  "implementation_path": "product/adapters/product-startup-files-write-protection-check-v1.py",
+  "implementation_sha256": "0a0845beb56938f92f3a7a0a4393c43c360b4c1f69e94b0d8b1fdc6192cdf442",
+  "input_schema_id": "canonical-control-v3",
+  "input_schema_version": 1,
+  "operation": "check",
+  "output_schema_id": "slp-check-v1",
+  "output_schema_version": 1,
+  "parameter_kind": "startup-files-write-protection",
+  "semantic_contract_id": "startup-files-write-protection-check-semantic-v1",
+  "semantic_contract_path": "product/contracts/startup-files-write-protection-check-semantic-v1.json",
+  "semantic_contract_sha256": "6098e676f64447097d2c3be5c44d30bb8f8bd2a379d3dba4fb9c38af88355737",
+  "supported_ops": [
+    "bits-clear"
+  ],
+  "target_id": "linux-x86_64-supported-v1"
+}

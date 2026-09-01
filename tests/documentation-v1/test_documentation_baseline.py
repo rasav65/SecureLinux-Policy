@@ -37,6 +37,8 @@ controls_readme = (
 disposition_test_readme = (ROOT / "tests/disposition-v1/README.md").read_text(encoding="utf-8")
 index_scope = (ROOT / "index/source-v4/INDEX-SCOPE.md").read_text(encoding="utf-8")
 step7b0_status = (ROOT / "step7b0/ARTIFACT-STATUS-RU.md").read_text(encoding="utf-8")
+changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+tests_readme = (ROOT / "tests/README.md").read_text(encoding="utf-8")
 
 
 def validate_step7b0_historical_boundary(text: str) -> None:
@@ -76,6 +78,96 @@ expect_step7_rejected(
 )
 
 
+def validate_b01_changelog(text: str) -> None:
+    stale_claim = (
+        "fixtures FIFO snapshot-drift для SRC-0006 используют 20-секундный timeout "
+        "синхронизации вместо 5 секунд; это устраняет false negatives при нагрузке scheduler"
+    )
+    assert stale_claim not in text
+    for marker in (
+        "две отдельные `FIFO-generation`",
+        "явным `threading.Event` handshake",
+        "mutation выполняется только после подтверждения первого snapshot",
+        "`path:recheck-snapshot-changed`",
+        "`parent:recheck-snapshot-changed`",
+        "Production bytes и compliance semantics не изменены",
+    ):
+        assert marker in text, marker
+
+
+def expect_b01_changelog_rejected(text: str) -> None:
+    try:
+        validate_b01_changelog(text)
+    except AssertionError:
+        return
+    raise AssertionError("stale B-01 timeout-only changelog fixture unexpectedly accepted")
+
+
+validate_b01_changelog(changelog)
+expect_b01_changelog_rejected(
+    changelog.replace(
+        "- Надёжность tests SRC-0006: прежнее увеличение timeout FIFO snapshot-drift с 5 до 20 секунд не устраняло scheduler race. Regression переработан без production hooks: первый snapshot и recheck используют две отдельные `FIFO-generation` с явным `threading.Event` handshake; mutation выполняется только после подтверждения первого snapshot, а `path:recheck-snapshot-changed` и `parent:recheck-snapshot-changed` дополнительно проверяются отдельными детерминированными reason-code tests. Production bytes и compliance semantics не изменены.",
+        "- Надёжность tests: fixtures FIFO snapshot-drift для SRC-0006 используют 20-секундный timeout синхронизации вместо 5 секунд; это устраняет false negatives при нагрузке scheduler без изменения семантики adapter или compliance.",
+        1,
+    )
+)
+
+
+def runner_expected_internal_skips() -> dict[str, int]:
+    tree = ast.parse((ROOT / "tests/run-all.py").read_text(encoding="utf-8"))
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if any(isinstance(target, ast.Name) and target.id == "DEV_EXPECTED_INTERNAL_SKIPS" for target in node.targets):
+            value = ast.literal_eval(node.value)
+            assert isinstance(value, dict)
+            assert all(isinstance(path, str) and isinstance(count, int) for path, count in value.items())
+            return value
+    raise AssertionError("DEV_EXPECTED_INTERNAL_SKIPS not found in tests/run-all.py")
+
+
+def validate_tests_readme_skip_policy(text: str) -> None:
+    marker = "Разрешённые внутренние skip:"
+    assert text.count(marker) == 1
+    lines = text.splitlines()
+    marker_index = lines.index(marker)
+    section_lines = []
+    started = False
+    for line in lines[marker_index + 1:]:
+        if not line.strip():
+            if started:
+                break
+            continue
+        started = True
+        section_lines.append(line)
+    section = "\n".join(section_lines)
+    pairs = re.findall(r"- `([^`]+)`: ровно (\d+)\b", section)
+    documented = {}
+    for path, count_text in pairs:
+        assert path not in documented, f"duplicate documented skip policy: {path}"
+        documented[path] = int(count_text)
+    assert documented == runner_expected_internal_skips(), (documented, runner_expected_internal_skips())
+
+
+def expect_tests_readme_skip_policy_rejected(text: str) -> None:
+    try:
+        validate_tests_readme_skip_policy(text)
+    except AssertionError:
+        return
+    raise AssertionError("stale tests/README skip-policy fixture unexpectedly accepted")
+
+
+validate_tests_readme_skip_policy(tests_readme)
+expect_tests_readme_skip_policy_rejected(
+    tests_readme.replace(
+        "\n\nЛюбой другой или дополнительный skip",
+        "\n- `tests/product-v1/test_file_mode_owner_adapter.py`: ровно 2 permission-сценария только при запуске DEV от root."
+        "\n\nЛюбой другой или дополнительный skip",
+        1,
+    )
+)
+
+
 # Relative Markdown links in the two entry points must resolve.
 for source_path, text in ((ROOT / "README.md", readme), (ROOT / "docs/README.md", docs_index)):
     for target in re.findall(r"\[[^]]+\]\(([^)]+)\)", text):
@@ -106,7 +198,8 @@ assert "не future target model" in docs_index
 assert "целевая APPLY-only runtime-модель" not in readme
 
 assert "FSTEC core ≠ recommended ≠ corporate standard ≠ firewall" in policy
-for marker in ("SUPPORTED", "TESTED", "UNSUPPORTED", "ubuntu-24.04-x86_64"):
+for marker in ("SUPPORTED", "TESTED", "UNSUPPORTED", "linux-x86_64-supported-v1", "MINIMIZED", "Debian 13"):
+
     assert marker in compat, marker
 
 assert "**СГЕНЕРИРОВАННЫЙ ФАЙЛ.**" in coverage
@@ -816,7 +909,7 @@ for stale in (
 assert "путь к конечному `securelinux-ng.sh`" not in pmap
 assert "Финальный `securelinux-ng.sh`" not in pmap
 
-print("DOCUMENTATION_NEGATIVE_FIXTURES=PASS_29 controls_count=4 disposition_counts=3 root_live_counts=2 exact_enum=1 step7b0_historical=3 global_semantics=16")
+print("DOCUMENTATION_NEGATIVE_FIXTURES=PASS_31 controls_count=4 disposition_counts=3 root_live_counts=2 exact_enum=1 step7b0_historical=3 global_semantics=16 b01_changelog=1 skip_policy=1")
 print(f"DOCUMENTATION_REVIEW_BOUND_BASELINE=PASS_{len(review_bound_docs)} mutation_fixtures={len(review_probe_mutations)}")
 print("DOCUMENTATION_GIT_VISIBLE_POPULATION=PASS tracked=1 untracked_nonignored=1 ignored=0")
 print(

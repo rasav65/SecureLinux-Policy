@@ -1,1 +1,24 @@
-{"adapter_contract_version":"product-file-mode-owner-check-adapter-v2","adapter_id":"product-file-mode-owner-check-v2","implementation_id":"product-file-mode-owner-check-v2.py","implementation_path":"product/adapters/product-file-mode-owner-check-v2.py","implementation_sha256":"3936c0f069fe4d057b3eba34b520eb3d965c9987b1157baa3a948e828f83303b","input_schema_id":"canonical-control-v3","input_schema_version":1,"operation":"check","output_schema_id":"slp-check-v1","output_schema_version":1,"parameter_kind":"file-mode-owner","semantic_contract_id":"file-mode-owner-check-semantic-v2","semantic_contract_path":"product/contracts/file-mode-owner-check-semantic-v2.json","semantic_contract_sha256":"3ceab81c94f743f3ff821bf3687fe6fcfa319b1804c769b95fc75741883dbc12","supported_keys":["mode"],"supported_ops":["eq","bits-clear"],"target_id":"ubuntu-24.04-x86_64"}
+{
+  "adapter_contract_version": "product-file-mode-owner-check-adapter-v2",
+  "adapter_id": "product-file-mode-owner-check-v2",
+  "implementation_id": "product-file-mode-owner-check-v2.py",
+  "implementation_path": "product/adapters/product-file-mode-owner-check-v2.py",
+  "implementation_sha256": "a8e9548341c1ab2a91eb3a72d5267498ba9778884fa4c296bf4280c135a59d67",
+  "input_schema_id": "canonical-control-v3",
+  "input_schema_version": 1,
+  "operation": "check",
+  "output_schema_id": "slp-check-v1",
+  "output_schema_version": 1,
+  "parameter_kind": "file-mode-owner",
+  "semantic_contract_id": "file-mode-owner-check-semantic-v2",
+  "semantic_contract_path": "product/contracts/file-mode-owner-check-semantic-v2.json",
+  "semantic_contract_sha256": "ead8459d087217bdbb2512d5d8760e7d8635290303a08680070eff067fd9e656",
+  "supported_keys": [
+    "mode"
+  ],
+  "supported_ops": [
+    "eq",
+    "bits-clear"
+  ],
+  "target_id": "linux-x86_64-supported-v1"
+}

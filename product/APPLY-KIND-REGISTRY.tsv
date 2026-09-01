@@ -1,0 +1,2 @@
+apply_kind	target_class	allowed_paths	predicate_id	transform_id	commit_model	privilege	exclusive_lock	compensation_policy	dry_run_required
+local-account-password-lock	shadow-password-field	/etc/shadow	empty-password-field	empty-field-to-bang	SINGLE_ATOMIC_FILE_COMMIT	ROOT_REQUIRED_FAIL_CLOSED	SYSTEM_ACCOUNT_DB_LOCK	NO_SECURITY_WEAKENING_COMPENSATION	true

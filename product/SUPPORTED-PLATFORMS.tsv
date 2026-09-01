@@ -1,0 +1,8 @@
+environment_id	os_id	version_id	arch	profile	status
+ubuntu-22.04-x86_64-full	ubuntu	22.04	x86_64	FULL	SUPPORTED
+ubuntu-24.04-x86_64-minimized	ubuntu	24.04	x86_64	MINIMIZED	SUPPORTED
+ubuntu-24.04-x86_64-full	ubuntu	24.04	x86_64	FULL	SUPPORTED
+ubuntu-26.04-x86_64-minimized	ubuntu	26.04	x86_64	MINIMIZED	SUPPORTED
+ubuntu-26.04-x86_64-full	ubuntu	26.04	x86_64	FULL	SUPPORTED
+debian-12-x86_64-server	debian	12	x86_64	SERVER	SUPPORTED
+debian-13-x86_64-server	debian	13	x86_64	SERVER	SUPPORTED

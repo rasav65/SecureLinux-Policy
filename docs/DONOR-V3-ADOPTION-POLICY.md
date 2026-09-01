@@ -37,6 +37,22 @@
 
 Mapping является инженерной трассировкой происхождения. Он не является нормативным evidence.
 
+## Parent gate для APPLY semantic contracts
+
+До принятия первого source-specific APPLY semantic contract действует одна parent schema
+`product/contracts/apply-semantic-contract-v1.schema.json` и один machine-readable registry
+`product/APPLY-KIND-REGISTRY.tsv`. Registry задаёт допустимые `apply_kind` и их
+kind-level ограничения; source-specific contract обязан ссылаться на зарегистрированный kind.
+RELEASE gate автоматически проверяет каждый current source-specific APPLY semantic contract
+сначала по parent schema, затем по exact registry row; незарегистрированный kind или расхождение
+`allowed_paths` / `predicate_id` / `transform_id` / `commit_model` / `privilege` /
+`exclusive_lock` / compensation / dry-run policy являются FAIL.
+
+Текущий parent gate регистрирует первый kind `local-account-password-lock`, но сам по себе
+не создаёт source-specific contract, не реализует APPLY, не изменяет host state и закрывает
+0 строк source index. Первый instance может появиться только отдельным следующим decision point
+после проверки parent schema/registry.
+
 ## Семейства возможностей донора, которые нельзя потерять молча
 
 Как минимум mapping обязан явно учесть следующие зрелые семейства из
