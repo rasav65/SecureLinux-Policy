@@ -44,7 +44,7 @@ profile. Для Ubuntu профиль определяется fail-closed по 
 
 Это project runtime classifier, выведенный из принятого VM evidence; он не выдаётся
 за отдельный нормативный маркер Ubuntu. Его задача — не смешивать FULL и MINIMIZED
-при будущем APPLY. MINIMIZED не должен неявно расширяться установкой пакетов только
+при CHECK и APPLY. MINIMIZED не должен неявно расширяться установкой пакетов только
 ради hardening.
 
 ## TESTED
@@ -54,6 +54,13 @@ MINIMIZED проверяются и учитываются раздельно; D
 Эти VM runs подтверждают runtime/layout assumptions текущих CHECK mechanisms и
 поддержанную platform/profile matrix, но не являются утверждением, что исходное
 состояние каждой reference VM уже compliant по всем canonical controls.
+
+Для exact generated CLI SHA-256
+`98a4c67aeb392bff4e2b617f0f6593b8ff8fb149ce6bb156d9adbebd94e86928`
+полный `SRC-0001` commit/noop run подтверждён на Ubuntu 22, Ubuntu 24,
+Ubuntu 26, Debian 12 и Debian 13. Ubuntu 24 Desktop отдельно подтвердил
+`TYPE=DESKTOP` routing и dry-run без изменения `/etc/shadow`. Это не означает,
+что полный commit-path выполнен на каждом из восьми profile/type состояний.
 
 Локальный CHECK может зависеть от прав чтения наблюдаемого объекта. По semantic
 contract невозможность чтения — `ERROR`, а не `NOT_FOUND`; поэтому ограничение

@@ -4,7 +4,7 @@
 >
 > Карта показывает действующие источники истины, текстовые корпуса, source
 > index, controls, механические gates, reference-VM evidence, audit provenance,
-> policy layers, engineering donor, текущую read-only CHECK product-line и путь к будущему distributable artifact.
+> policy layers, engineering donor, текущую CHECK + `SRC-0001` APPLY product-line и путь к будущему distributable artifact.
 >
 > Старый SecureLinux-NG присутствует только как **engineering donor**. Его
 > runtime-архитектура не является нормативной архитектурой v3 и сама по себе
@@ -34,7 +34,7 @@
 ```mermaid
 flowchart LR
     subgraph SRC["1. ПЕРВИЧНЫЕ ИСТОЧНИКИ"]
-        PDF["sources/fstec/<br/>10 закреплённых PDF"]:::component
+        PDF["sources/fstec/<br/>11 закреплённых PDF"]:::component
         PHASH["sources/fstec/SHA256SUMS"]:::component
         PDF --> PHASH
     end
@@ -147,6 +147,15 @@ flowchart LR
 Восстановление читает PDF отдельным glyph-based путём только для двух
 документов, затем отдельно нормализуется в `recovered-v1/norm-v1`.
 
+Одиннадцатый закреплённый PDF — `fstec-order-137-2026-amendments-to-117.pdf` —
+image-only authority. Он не включается в обычную `pdftotext`/glyph-recovery
+population. Его exact PDF остаётся каноническим источником, page-pinned
+визуальная транскрипция хранится в `sources/visual-v1/`, а связь
+`fstec-order-117-2025-requirements` → amendment № 137 фиксируется отдельно в
+`index/source-v4/FRAMEWORK-AUTHORITY-RELATIONS.tsv`. Эта framework authority
+сама по себе не создаёт новые строки `SRC-*` и не переоткрывает
+`SRC-0001…SRC-0040`.
+
 Gate 1 выбирает нужный корпус по `SOURCE-INDEX.text_quality`:
 `recovered-glyph-map-v1` ведёт через `RECOVERY-MANIFEST.tsv`; обычные readable
 rows — через `EXTRACTION-MANIFEST.tsv`.
@@ -191,7 +200,7 @@ flowchart TB
     classDef future fill:#eeeeee,stroke:#888,color:#444,stroke-dasharray: 5 5;
 ```
 
-## 3. Текущая read-only product-line CHECK
+## 3. Текущая product-line: read-only CHECK + SRC-0001 APPLY
 
 ```mermaid
 flowchart LR
@@ -201,7 +210,9 @@ flowchart LR
     FILE["product-file-mode-owner-check-v1<br/>read-only"]:::closed
     GEN1["product/generate-product-check-v1.py<br/>предыдущая identity generator"]:::note
     GEN2["product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed
-    CLI["securelinux-policy.sh<br/>tracked единый read-only CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE<br/>pretty · raw · JSON"]:::closed
+    IMPLREG["product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding реализации"]:::closed
+    APPLY1["SRC-0001 APPLY adapter<br/>dry-run · attested commit · NOOP"]:::closed
+    CLI["securelinux-policy.sh<br/>tracked CHECK + SRC-0001 APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
 
     CTRLNOW --> REG
     REG --> SYS
@@ -209,6 +220,7 @@ flowchart LR
     SYS --> GEN2
     FILE --> GEN2
     CTRLNOW --> GEN2 --> CLI
+    IMPLREG --> APPLY1 --> GEN2
     GEN1 -. historical .-> GEN2
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
@@ -220,12 +232,13 @@ flowchart LR
 пинует semantic contract, adapter binding и implementation по SHA-256.
 Tracked `securelinux-policy.sh` и sidecar входят в root manifests и обязаны
 byte-exact совпадать со свежим generator-v2 output. `dist/` остаётся optional
-gitignored rebuild output. APPLY mutation capability здесь отсутствует. Принятый
-CHECK CLI сохраняет только `--apply` как fail-closed `NOT_IMPLEMENTED` stub;
-пользовательский `--restore` отсутствует, потому что operational RESTORE не является future feature.
+gitignored rebuild output. APPLY mutation capability ограничена `SRC-0001` и
+привязана `APPLY-IMPLEMENTATION-REGISTRY.tsv`; generated CLI поддерживает dry-run
+и commit только с exact external-snapshot attestation.
+Пользовательский `--restore` отсутствует, потому что operational RESTORE не является future feature.
 Human-readable CHECK/REPORT выводит обнаруженную ОС, архитектуру, profile и runtime platform; target family един для всей поддерживаемой матрицы.
 
-## 4. Инженерный донор → принятый mapping → будущий APPLY runtime
+## 4. Инженерный донор → принятый mapping → SRC-0001 APPLY → упаковка
 
 ```mermaid
 flowchart LR
@@ -236,10 +249,10 @@ flowchart LR
     DONOR_TESTS["engineering-tests-v1<br/>38 donor tests<br/>32 generalized contracts"]:::component
 
     MAP["DONOR_TO_V3_MAPPING<br/>ACCEPTED + COMMITTED<br/>REUSE / ADAPT / REJECT / DEFER"]:::closed
-    APPLY["APPLY<br/>semantic contract"]:::future
-    ADAPTERS["будущие implementation adapters APPLY"]:::future
-    BUILD["будущая итоговая distributable build"]:::future
-    SCRIPT["будущий итоговый<br/>distributable artifact"]:::future
+    APPLY["SRC-0001 APPLY<br/>semantic authority"]:::closed
+    ADAPTERS["SRC-0001 implementation adapter<br/>реализован"]:::closed
+    BUILD["финальная детерминированная упаковка<br/>текущий этап"]:::component
+    SCRIPT["итоговый распространяемый артефакт<br/>будущее"]:::future
 
     OLD --> ARCHIVE
     ARCHIVE --> DONOR_INDEX
@@ -298,11 +311,18 @@ Git bundle — внешний артефакт для аудита и handoff, �
 
 ## 6. Где мы находимся
 
-Эта схема показывает **текущий substantive checkpoint — отдельный `APPLY semantic contract`**
-для принятой вертикали `fstec-linux-2022`. Макроэтап Step 7B приостановлен
-(`PAUSED_BY_CURRENT_DOCUMENT_APPLY`) и не является текущим `NEXT`. Схема не
-повторяет историческую последовательность gates и не изображает уже реализованные
-CHECK adapters/generator как будущую работу.
+Модульная architecture APPLY-contract и exact predicate/transform definitions для
+`SRC-0001` закрыты после `AUTHORITY_2026_REFRESH`. Predicate выбирает ровно пустое
+второе поле bound `/etc/shadow` record; transform выполняет только exact `"" -> "!"`
+и сохраняет остальные bytes. P-03 закрыт. External snapshot precondition также
+определён exact operator-attestation contract и закрывает P-04. Lock/reread и object
+identity definitions закрывают P-05: stale prestate, lock failure, symlink/hardlink и
+дрейф пути или объекта не может перейти к изменению системы. Implementation registry,
+binding, adapter и generated CLI для `SRC-0001` реализованы и проверены на VM;
+этап 15 закрыт. Текущий содержательный этап — **финальная детерминированная
+упаковка**. Принятые байты CHECK, элементы управления и закрытие `SRC-0001…SRC-0040` не изменялись. Макроэтап
+Step 7B остаётся приостановлен (`PAUSED_BY_CURRENT_DOCUMENT_APPLY`) и не является
+текущим `NEXT`.
 
 ```mermaid
 flowchart LR
@@ -319,13 +339,20 @@ flowchart LR
     P9B["ЕДИНЫЙ CLI / БЫСТРЫЙ СТАРТ v1<br/>securelinux-policy.sh · pretty/raw/json<br/>ГОТОВО"]:::closed
     P10["fstec-linux-2022 CHECK COMPLETE<br/>tag fstec-linux-2022-check-complete-v1<br/>ГОТОВО"]:::closed
     P10A["DONOR_TO_V3_MAPPING<br/>ACCEPTED + COMMITTED<br/>1db91b0…<br/>ГОТОВО"]:::closed
-    P11["МЫ ЗДЕСЬ<br/>APPLY semantic contract<br/>СЛЕДУЮЩИЙ SUBSTANTIVE ЭТАП"]:::current
-    P12["APPLY implementation<br/>будущее"]:::future
-    P13["итоговый distributable artifact<br/>будущее"]:::future
-    SNAP["rollback после APPLY<br/>EXTERNAL SNAPSHOT<br/>вне продукта"]:::note
+    P11["APPLY parent gate<br/>ПРИНЯТО<br/>SRC-0001 flat contract candidate: REVISE"]:::note
+    P12["AUTHORITY_2026_REFRESH<br/>приказы № 117 + № 137<br/>ГОТОВО"]:::closed
+    P13["SRC-0001 modular APPLY contract architecture<br/>compact registry + SHA bindings<br/>ГОТОВО"]:::closed
+    P14["SRC-0001 predicate / transform definitions<br/>exact empty + exact bang<br/>ГОТОВО"]:::closed
+    P15["SRC-0001 external snapshot precondition<br/>exact attestation + prestate binding<br/>ГОТОВО"]:::closed
+    P16["SRC-0001 lock/reread + object identity<br/>stale + path identity fail-closed<br/>ГОТОВО"]:::closed
+    P17["SRC-0001 метаданные/транзакция/отчёт<br/>8 определений + композиция<br/>ГОТОВО"]:::closed
+    P18["APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО"]:::closed
+    P19["МЫ ЗДЕСЬ<br/>финальная детерминированная упаковка"]:::current
+    P20["единый распространяемый артефакт<br/>будущее"]:::future
+    SNAP["восстановление после APPLY<br/>ВНЕШНИЙ СНИМОК<br/>вне продукта"]:::note
 
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P9A --> P9B --> P10 --> P10A --> P11 --> P12 --> P13
-    P12 -. граница operational recovery .-> SNAP
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P9A --> P9B --> P10 --> P10A --> P11 --> P12 --> P13 --> P14 --> P15 --> P16 --> P17 --> P18 --> P19 --> P20
+    P18 -. граница operational recovery .-> SNAP
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
     classDef current fill:#ffe2a8,stroke:#c77800,color:#111,stroke-width:4px;
@@ -333,22 +360,17 @@ flowchart LR
     classDef note fill:#fff8d8,stroke:#9d8730,color:#111;
 ```
 
-`fstec-linux-2022` read-only CHECK vertical принят и закреплён tag
-`fstec-linux-2022-check-complete-v1` на commit
-`219b4cc3c0673c55575fb558e160431c11c2a681`. Project-wide source index при этом
-по-прежнему содержит OPEN rows других документов. `DONOR_TO_V3_MAPPING` уже
-принят и committed в `1db91b0e17d6ef37e4c42cd41dca77eeb2b743da`; следующий
-source-scoped substantive этап — отдельный `APPLY semantic contract` для уже
-принятого `fstec-linux-2022`, затем implementation. Read-only CHECK
-bytes/controls/adapters при этом не меняются. Unified read-only CLI не открывает
-APPLY до принятия его отдельного semantic contract; RESTORE исключён из целевой
-архитектуры.
-
-Операционная модель rollback после завершённого APPLY — внешний snapshot.
-Транзакционно-локальный compensating rollback внутри незавершённого APPLY
-остаётся допустимым failure-handling mechanism, но отдельного RESTORE mode нет.
+`fstec-linux-2022` read-only CHECK vertical и donor mapping остаются принятыми.
+Модульная architecture связывает exact SHA всех восьми definition roles; они имеют состояние `CLOSED`. Composition contract детерминированно связывает architecture, CHECK population authority и все восемь definitions. APPLY implementation для `SRC-0001` привязана отдельным registry/binding, включена в generated CLI и прошла VM acceptance. Operational recovery после завершённого
+APPLY остаётся внешним snapshot, а пользовательский RESTORE исключён.
 
 ## Что является источником истины
+
+Framework authority для текущего 2026 refresh задаётся
+`index/source-v4/FRAMEWORK-SOURCES.tsv` и
+`index/source-v4/FRAMEWORK-AUTHORITY-RELATIONS.tsv`; exact image-only bytes
+приказа № 137 пинуются `sources/fstec/SHA256SUMS`, а derived page-pinned
+представление — `sources/visual-v1/PROVENANCE.tsv`.
 
 Финальный distributable artifact пока не реализован и его имя не закреплено
 как current product contract. В будущем он должен получаться детерминированной
@@ -357,7 +379,7 @@ implementation adapters и tests.
 
 Направление проекта:
 
-`source → text corpus → index → control/disposition → gates → semantic contract → read-only adapter → generator v2 → tracked unified CHECK CLI → future APPLY`
+`source → text corpus → index → control/disposition → gates → semantic contract → CHECK/APPLY adapters → generator v2 → tracked unified CLI → final packaging`
 
 а не:
 

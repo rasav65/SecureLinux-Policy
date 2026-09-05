@@ -21,6 +21,10 @@ DESKTOP_MATRIX_REL = "product/SUPPORTED-DESKTOPS.tsv"
 MANIFEST_REL = "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 CONTROL_DIR_REL = "controls/fstec-core/linux-2022"
 REGISTRY_REL = "product/ADAPTER-REGISTRY.tsv"
+APPLY_REGISTRY_REL = "product/APPLY-IMPLEMENTATION-REGISTRY.tsv"
+APPLY_SCOPE = "SRC-0001_ONLY"
+APPLY_CONTROL_ID = "FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE"
+APPLY_INDEX_ID = "SRC-0001"
 
 MANIFEST_FIELDS = [
     "control_id", "index_id", "locator", "key", "expected", "file", "sha256"
@@ -35,6 +39,19 @@ REGISTRY_FIELDS = [
     "implementation_path",
     "implementation_sha256",
 ]
+APPLY_REGISTRY_FIELDS = [
+    "apply_kind",
+    "composition_contract_id",
+    "adapter_id",
+    "binding_path",
+    "binding_sha256",
+    "implementation_path",
+    "implementation_sha256",
+]
+APPLY_BINDING_FIELDS = {
+    "adapter_id", "binding_contract_id",
+    "composition_contract_path", "composition_contract_sha256",
+}
 
 CONTROL_ID_RE = re.compile(r"^(?!.*[\r\n])[A-Za-z0-9._-]+$")
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -249,8 +266,8 @@ def load_control(repo: Path, row: dict[str, str]) -> dict[str, object]:
         raise RuntimeError(f"parameter.key mismatch: {cid}")
     if str(expected["value"]) != row["expected"]:
         raise RuntimeError(f"expected.value mismatch: {cid}")
-    if apply["supported"] is not False:
-        raise RuntimeError(f"mutating control forbidden: {cid}")
+    if not isinstance(apply["supported"], bool):
+        raise RuntimeError(f"invalid apply.supported: {cid}")
 
     return {
         "control_id": cid,
@@ -266,6 +283,7 @@ def load_control(repo: Path, row: dict[str, str]) -> dict[str, object]:
         "expected_value": expected["value"],
         "expected_type": expected["type"],
         "control_sha256": actual_sha,
+        "apply_supported": apply["supported"],
     }
 
 
@@ -357,6 +375,92 @@ def load_registry(repo: Path):
             "module": mod,
         }
     return adapters, sha_file(path)
+
+
+def load_apply_implementation(repo: Path):
+    path = repo / APPLY_REGISTRY_REL
+    require_regular(path, "APPLY implementation registry")
+    with path.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        if reader.fieldnames != APPLY_REGISTRY_FIELDS:
+            raise RuntimeError(
+                f"unexpected APPLY implementation registry fields: {reader.fieldnames!r}"
+            )
+        rows = list(reader)
+    if len(rows) != 1:
+        raise RuntimeError(f"SRC-0001 APPLY scope requires exactly one implementation, got {len(rows)}")
+    row = rows[0]
+    if any(not row[field] for field in APPLY_REGISTRY_FIELDS):
+        raise RuntimeError("empty APPLY implementation registry field")
+    for sha_key in ("binding_sha256", "implementation_sha256"):
+        if not HEX64_RE.fullmatch(row[sha_key]):
+            raise RuntimeError(f"invalid APPLY registry SHA: {sha_key}")
+
+    binding_rel = safe_repo_rel(row["binding_path"], "product/apply-adapters/")
+    implementation_rel = safe_repo_rel(
+        row["implementation_path"], "product/apply-adapters/"
+    )
+    binding_path = repo / binding_rel
+    implementation_path = repo / implementation_rel
+    for candidate, label in (
+        (binding_path, "APPLY binding"),
+        (implementation_path, "APPLY implementation"),
+    ):
+        cursor = repo
+        for part in candidate.relative_to(repo).parts:
+            cursor = cursor / part
+            if cursor.is_symlink():
+                raise RuntimeError(f"{label}: symlink component forbidden: {candidate}")
+        require_regular(candidate, label)
+    if sha_file(binding_path) != row["binding_sha256"]:
+        raise RuntimeError("APPLY binding SHA mismatch")
+    if sha_file(implementation_path) != row["implementation_sha256"]:
+        raise RuntimeError("APPLY implementation SHA mismatch")
+
+    binding = json.loads(binding_path.read_text(encoding="utf-8"))
+    if not isinstance(binding, dict) or set(binding) != APPLY_BINDING_FIELDS:
+        raise RuntimeError("unexpected APPLY binding fields")
+    if binding["adapter_id"] != row["adapter_id"]:
+        raise RuntimeError("APPLY binding adapter id mismatch")
+    composition_rel = safe_repo_rel(
+        binding["composition_contract_path"], "product/contracts/src0001-apply/"
+    )
+    composition_path = repo / composition_rel
+    require_regular(composition_path, "APPLY composition")
+    if not HEX64_RE.fullmatch(binding["composition_contract_sha256"]):
+        raise RuntimeError("invalid APPLY composition SHA")
+    if sha_file(composition_path) != binding["composition_contract_sha256"]:
+        raise RuntimeError("APPLY composition SHA mismatch")
+    composition = json.loads(composition_path.read_text(encoding="utf-8"))
+    if composition.get("composition_contract_id") != row["composition_contract_id"]:
+        raise RuntimeError("APPLY composition id mismatch")
+    if composition.get("apply_kind") != row["apply_kind"]:
+        raise RuntimeError("APPLY kind mismatch")
+    if composition.get("control_id") != APPLY_CONTROL_ID:
+        raise RuntimeError("APPLY control id mismatch")
+
+    spec = importlib.util.spec_from_file_location("_slp_apply_adapter", implementation_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("cannot load APPLY implementation")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    for attr, expected in (
+        ("ADAPTER_ID", row["adapter_id"]),
+        ("COMPOSITION_CONTRACT_ID", row["composition_contract_id"]),
+        ("APPLY_KIND", row["apply_kind"]),
+        ("TARGET_ID", TARGET_FAMILY_ID),
+        ("OPERATION", "apply"),
+    ):
+        if getattr(mod, attr, None) != expected:
+            raise RuntimeError(f"APPLY implementation {attr} mismatch")
+    if not callable(getattr(mod, "apply_shell_function", None)):
+        raise RuntimeError("APPLY implementation function missing")
+    return {
+        "row": row,
+        "binding": binding,
+        "composition": composition,
+        "module": mod,
+    }, sha_file(path)
 
 
 PLATFORM_MATRIX_FIELDS = ["environment_id", "os_id", "version_id", "arch", "profile", "status"]
@@ -456,11 +560,23 @@ def render_script(
     platform_matrix_sha: str | None = None,
     desktop_rows=None,
     desktop_matrix_sha: str | None = None,
+    apply_implementation=None,
+    apply_registry_sha: str | None = None,
+    apply_control=None,
 ) -> bytes:
     if platform_rows is None or platform_matrix_sha is None or desktop_rows is None or desktop_matrix_sha is None:
         repo = Path(__file__).resolve(strict=True).parents[1]
         platform_rows, platform_matrix_sha = load_platform_matrix(repo)
         desktop_rows, desktop_matrix_sha = load_desktop_matrix(repo)
+    if apply_implementation is None or apply_registry_sha is None or apply_control is None:
+        repo = Path(__file__).resolve(strict=True).parents[1]
+        apply_implementation, apply_registry_sha = load_apply_implementation(repo)
+        current_rows, _current_manifest_sha = load_manifest(repo)
+        current_controls = [load_control(repo, row) for row in current_rows]
+        enabled = [item for item in current_controls if item["apply_supported"]]
+        if len(enabled) != 1:
+            raise RuntimeError("SRC-0001 APPLY scope requires exactly one enabled control")
+        apply_control = enabled[0]
     blocks = []
     function_names = []
     function_owners = {}
@@ -522,6 +638,26 @@ def render_script(
             json.dumps(prov, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         )
 
+    if apply_control["control_id"] != APPLY_CONTROL_ID or apply_control["index_id"] != APPLY_INDEX_ID:
+        raise RuntimeError("enabled APPLY control identity mismatch")
+    if apply_implementation["composition"]["control_id"] != apply_control["control_id"]:
+        raise RuntimeError("APPLY implementation/control mismatch")
+    apply_block = apply_implementation["module"].apply_shell_function(
+        apply_control["control_id"],
+        apply_control["parameter_locator"],
+        apply_control["parameter_key"],
+        apply_control["expected_op"],
+        apply_control["expected_value"],
+    )
+    if not isinstance(apply_block, str) or not apply_block.endswith("\n"):
+        raise RuntimeError("APPLY implementation returned invalid shell block")
+    if "SLP-CHECK-V1" in apply_block:
+        raise RuntimeError("CHECK wire token forbidden in APPLY block")
+    blocks.append(apply_block.rstrip("\n"))
+    apply_function_name = "slp_apply_" + re.sub(
+        r"[^A-Za-z0-9_]", "_", apply_control["control_id"]
+    )
+
     prov_all = "\n".join(provenance_lines)
     prov_cases = []
     for c, line in zip(controls, provenance_lines):
@@ -537,13 +673,15 @@ def render_script(
     supported_cases = "|".join(sh_single(r["environment_id"]) for r in (platform_rows + desktop_rows)) + ") ;;"
 
     template = r'''#!/bin/bash -p
-# SecureLinux-Policy v3 unified read-only product CLI
+# SecureLinux-Policy v3 unified product CLI
 # STATUS=@@PRODUCT_STATUS@@
 # PRODUCT_CLI=@@PRODUCT_CLI_ID@@
 # GENERATOR_ID=@@GENERATOR_ID@@
 # GENERATOR_SHA256=@@GENERATOR_SHA@@
 # CONTROL_MANIFEST_SHA256=@@MANIFEST_SHA@@
 # ADAPTER_REGISTRY_SHA256=@@REGISTRY_SHA@@
+# APPLY_SCOPE=@@APPLY_SCOPE@@
+# APPLY_IMPLEMENTATION_REGISTRY_SHA256=@@APPLY_REGISTRY_SHA@@
 # TARGET_FAMILY_ID=@@TARGET_FAMILY_ID@@
 # PLATFORM_MATRIX_SHA256=@@PLATFORM_MATRIX_SHA@@
 # DESKTOP_MATRIX_SHA256=@@DESKTOP_MATRIX_SHA@@
@@ -877,18 +1015,21 @@ slp_build_info() {
     'CONTROL_MANIFEST_SHA256=@@MANIFEST_SHA@@' \
     'ADAPTER_COUNT=@@ADAPTER_COUNT@@' \
     'ADAPTER_REGISTRY_SHA256=@@REGISTRY_SHA@@' \
+    'APPLY_SCOPE=@@APPLY_SCOPE@@' \
+    'APPLY_IMPLEMENTATION_COUNT=1' \
+    'APPLY_IMPLEMENTATION_REGISTRY_SHA256=@@APPLY_REGISTRY_SHA@@' \
     'TARGET_FAMILY_ID=@@TARGET_FAMILY_ID@@' \
     'SUPPORTED_PROFILE_ENVIRONMENTS=@@SUPPORTED_PROFILE_COUNT@@' \
     'SUPPORTED_DESKTOP_ENVIRONMENTS=@@SUPPORTED_DESKTOP_COUNT@@' \
     'SUPPORTED_ENVIRONMENTS=@@SUPPORTED_COUNT@@' \
     'PLATFORM_MATRIX_SHA256=@@PLATFORM_MATRIX_SHA@@' \
     'DESKTOP_MATRIX_SHA256=@@DESKTOP_MATRIX_SHA@@' \
-    'MUTATING_MODES=NONE'
+    'MUTATING_MODES=APPLY_SRC0001_ONLY'
 }
 
 slp_help() {
   command /usr/bin/cat <<'SLP_HELP_EOF'
-SecureLinux-Policy v3 — единый read-only CLI
+SecureLinux-Policy v3 — единый product CLI
 
 Использование:
   ./securelinux-policy.sh --check [--failed] [--format pretty|raw|json]
@@ -897,7 +1038,8 @@ SecureLinux-Policy v3 — единый read-only CLI
   ./securelinux-policy.sh --provenance [CONTROL_ID]
   ./securelinux-policy.sh --version
   ./securelinux-policy.sh --help
-  ./securelinux-policy.sh --apply
+  ./securelinux-policy.sh --apply --dry-run
+  ./securelinux-policy.sh --apply --snapshot-attestation FILE
 
 Режимы:
   --check               read-only проверка текущих canonical controls
@@ -909,7 +1051,9 @@ SecureLinux-Policy v3 — единый read-only CLI
   --build-info          metadata сборки
   --provenance          provenance всех controls или одного CONTROL_ID
   --version             версия product CLI
-  --apply               NOT_IMPLEMENTED; ничего не изменяет
+  --apply --dry-run     рассчитать точный набор SRC-0001 без изменения хоста
+  --apply --snapshot-attestation FILE
+                        применить SRC-0001 с внешней аттестацией снимка
 
 Без аргументов печатается эта справка. CHECK не изменяет состояние хоста.
 SLP_HELP_EOF
@@ -1129,10 +1273,11 @@ slp_run_check() {
   return "$SLP_POLICY_RC"
 }
 
-slp_not_implemented() {
-  local _slp_mode=$1
-  printf 'NOT_IMPLEMENTED: %s; host state was not changed.\n' "$_slp_mode" >&2
-  return 2
+slp_run_apply() {
+  local _slp_mode=$1 _slp_attestation=${2:-}
+  slp_target_preflight || return $?
+  @@APPLY_FUNCTION@@ "$_slp_mode" "$_slp_attestation"
+  return $?
 }
 
 slp_main() {
@@ -1168,9 +1313,16 @@ slp_main() {
       return 0
       ;;
     --apply)
-      (( $# == 1 )) || return 2
-      slp_not_implemented APPLY
-      return $?
+      shift
+      if (( $# == 1 )) && [[ $1 == --dry-run ]]; then
+        slp_run_apply DRY_RUN
+        return $?
+      fi
+      if (( $# == 2 )) && [[ $1 == --snapshot-attestation && -n $2 ]]; then
+        slp_run_apply APPLY "$2"
+        return $?
+      fi
+      return 2
       ;;
     --report)
       (( $# == 1 )) || return 2
@@ -1219,6 +1371,9 @@ fi
         "@@GENERATOR_SHA@@": generator_sha,
         "@@MANIFEST_SHA@@": manifest_sha,
         "@@REGISTRY_SHA@@": registry_sha,
+        "@@APPLY_SCOPE@@": APPLY_SCOPE,
+        "@@APPLY_REGISTRY_SHA@@": apply_registry_sha,
+        "@@APPLY_FUNCTION@@": apply_function_name,
         "@@TARGET_FAMILY_ID@@": TARGET_FAMILY_ID,
         "@@PLATFORM_MATRIX_SHA@@": platform_matrix_sha,
         "@@DESKTOP_MATRIX_SHA@@": desktop_matrix_sha,
@@ -1241,6 +1396,9 @@ fi
         scaffolding = scaffolding.replace(key, value)
     if "\r" in scaffolding:
         raise RuntimeError("generated script contains CR")
+    mutating = find_known_mutating_token(scaffolding.replace(apply_block.rstrip("\n"), ""))
+    if mutating is not None:
+        raise RuntimeError(f"known mutating token leaked into generated CHECK: {mutating!r}")
     return scaffolding.encode("utf-8")
 
 
@@ -1278,7 +1436,7 @@ def write_exclusive(path: Path, data: bytes, mode: int) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="Generate deterministic read-only SecureLinux-Policy unified product CLI."
+        description="Generate deterministic SecureLinux-Policy unified product CLI."
     )
     ap.add_argument("--repo", required=True)
     ap.add_argument("--out", required=True)
@@ -1304,17 +1462,22 @@ def main() -> int:
             raise RuntimeError(
                 f"no adapter for current control {c['control_id']} kind={c['parameter_kind']}"
             )
+    apply_implementation, apply_registry_sha = load_apply_implementation(repo)
+    apply_controls = [control for control in controls if control["apply_supported"]]
+    if len(apply_controls) != 1:
+        raise RuntimeError("SRC-0001 APPLY scope requires exactly one enabled control")
+    if apply_controls[0]["control_id"] != APPLY_CONTROL_ID:
+        raise RuntimeError("enabled APPLY control must be SRC-0001")
 
     generator_sha = sha_file(Path(__file__).resolve(strict=True))
     script = render_script(
         controls, adapters, manifest_sha, registry_sha, generator_sha,
         platform_rows=platform_rows, platform_matrix_sha=platform_matrix_sha,
         desktop_rows=desktop_rows, desktop_matrix_sha=desktop_matrix_sha,
+        apply_implementation=apply_implementation,
+        apply_registry_sha=apply_registry_sha,
+        apply_control=apply_controls[0],
     )
-
-    mutating = find_known_mutating_token(script.decode("utf-8"))
-    if mutating is not None:
-        raise RuntimeError(f"known mutating token leaked into generated CHECK: {mutating!r}")
 
     write_exclusive(out, script, 0o755)
     script_sha = sha_bytes(script)
@@ -1327,6 +1490,9 @@ def main() -> int:
     print("CONTROL_COUNT=" + str(len(controls)))
     print("ADAPTER_COUNT=" + str(len(adapters)))
     print("ADAPTER_REGISTRY_SHA256=" + registry_sha)
+    print("APPLY_SCOPE=" + APPLY_SCOPE)
+    print("APPLY_IMPLEMENTATION_COUNT=1")
+    print("APPLY_IMPLEMENTATION_REGISTRY_SHA256=" + apply_registry_sha)
     print("TARGET_FAMILY_ID=" + TARGET_FAMILY_ID)
     print("SUPPORTED_PROFILE_ENVIRONMENTS=" + str(len(platform_rows)))
     print("SUPPORTED_DESKTOP_ENVIRONMENTS=" + str(len(desktop_rows)))
@@ -1338,7 +1504,7 @@ def main() -> int:
     print("SIDECAR_PATH=" + str(side))
     print("TRACKED_REPO_MODIFIED=false")
     print("DERIVED_OUTPUT_WRITTEN=true")
-    print("MUTATION_CAPABILITY=false")
+    print("MUTATION_CAPABILITY=true")
     print("RELEASE=false")
     print("RESULT=PASS")
     return 0

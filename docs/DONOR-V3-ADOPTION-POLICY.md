@@ -39,19 +39,33 @@ Mapping является инженерной трассировкой прои�
 
 ## Parent gate для APPLY semantic contracts
 
-До принятия первого source-specific APPLY semantic contract действует одна parent schema
-`product/contracts/apply-semantic-contract-v1.schema.json` и один machine-readable registry
-`product/APPLY-KIND-REGISTRY.tsv`. Registry задаёт допустимые `apply_kind` и их
-kind-level ограничения; source-specific contract обязан ссылаться на зарегистрированный kind.
-RELEASE gate автоматически проверяет каждый current source-specific APPLY semantic contract
-сначала по parent schema, затем по exact registry row; незарегистрированный kind или расхождение
-`allowed_paths` / `predicate_id` / `transform_id` / `commit_model` / `privilege` /
-`exclusive_lock` / compensation / dry-run policy являются FAIL.
+Parent schema `product/contracts/apply-semantic-contract-v1.schema.json` остаётся принятой
+coarse gate. После design review `product/APPLY-KIND-REGISTRY.tsv` не дублирует low-level
+predicate/transform/path/lock/transaction semantics: registry является compact identity binding
+`apply_kind` + `target_class` → локальный объект архитектуры источника + SHA-256.
 
-Текущий parent gate регистрирует первый kind `local-account-password-lock`, но сам по себе
-не создаёт source-specific contract, не реализует APPLY, не изменяет host state и закрывает
-0 строк source index. Первый instance может появиться только отдельным следующим decision point
-после проверки parent schema/registry.
+Для первого kind `local-account-password-lock` registry связывает exact
+`product/contracts/src0001-apply/architecture-v1.json`. Architecture object пинует accepted
+parent schema, flat SRC-0001 `REVISE` candidate, current CHECK population authority и
+Draft 2020-12 composition schema; восемь low-level definition roles остаются локальными для `SRC-0001` до
+второго доказанного случая использования. `target_class` обязан совпадать между registry и architecture;
+устаревшая SHA-привязка является `FAIL`. Predicate и transform теперь отдельно закреплены
+как closed SHA-bound definitions: exact empty second shadow field и exact `"" -> "!"`
+с сохранением всех невыбранных bytes. Это закрывает P-03, не перенося donor semantics.
+
+P-04 закрыт отдельным `snapshot-precondition-v1.json`: caller-supplied read-only attestation
+обязательна до host mutation, exact связывает host identity и `/etc/shadow` prestate SHA-256
+с external provider/snapshot id и READY rollback-capable full-host/VM snapshot. Missing, malformed,
+mismatched или not-ready evidence → `ABORT_NO_MUTATION`; attestation явно не выдаётся за
+provider-cryptographic proof. P-05 закрыт отдельными `lock-reread-v1.json` и
+`object-identity-v1.json`: exclusive libc `lckpwdf(3)` password-database lock предшествует under-lock reread обеих `/etc/passwd` и `/etc/shadow`,
+bytes/selected-set drift означает stale abort, а `/etc/shadow` обязан оставаться regular,
+non-symlink, single-link object с nofollow fd/fstat identity binding. P-06 закрыт exact metadata-preservation, atomic-transaction и dry-run/report definitions;
+composition связывает все восемь `CLOSED` roles по SHA-256. Implementation
+`product-local-account-password-state-apply-v1` привязана отдельным
+`APPLY-IMPLEMENTATION-REGISTRY.tsv`, binding и SHA-256, встроена в generated CLI
+и закрывает этап `APPLY_IMPLEMENTATION_ADAPTERS` только в scope `SRC-0001_ONLY`.
+Это не закрывает дополнительных строк source index.
 
 ## Семейства возможностей донора, которые нельзя потерять молча
 

@@ -590,8 +590,8 @@ def validate_global_current_semantics(rel: str, body: str) -> None:
         if not lower.strip():
             continue
 
-        # APPLY implementation adapters remain a future roadmap stage. Current lack
-        # of implementation is allowed; cancellation/removal from future plans is not.
+        # Identity этапа адаптеров APPLY сохраняется после CLOSED; отмена или
+        # удаление из roadmap по-прежнему запрещены.
         # Evaluate sentence/line scope so an unrelated RESTORE "не планируется" in a
         # table cannot contaminate a separate Adapter row.
         for segment in re.split(r"(?<=[.!?])\s+|\n", paragraph):
@@ -892,12 +892,39 @@ for marker in (
     "SRC-0005 / 2.3.1", "CHECK-11", "CHECK-17", "SRC-0040 / 2.6.6",
     "CHECK-18", "SRC-0033 / 2.5.10", "CHECK-19", "CHECK-28",
     "DONOR_TO_V3_MAPPING", "ACCEPTED + COMMITTED", "1db91b0",
-    "APPLY semantic contract", "fstec-linux-2022 CHECK COMPLETE", "EXTERNAL SNAPSHOT",
+    "APPLY parent gate", "AUTHORITY_2026_REFRESH",
+    "SRC-0001 modular APPLY contract architecture",
+    "SRC-0001 predicate / transform definitions", "SRC-0001 external snapshot precondition",
+    "SRC-0001 lock/reread + object identity", "SRC-0001 метаданные/транзакция/отчёт", "APPLY для SRC-0001", "финальная детерминированная упаковка",
+    "fstec-linux-2022 CHECK COMPLETE", "ВНЕШНИЙ СНИМОК",
 ):
     assert marker in current_map, marker
-assert "МЫ ЗДЕСЬ<br/>APPLY semantic contract" in current_map
-assert "текущий substantive checkpoint — отдельный `APPLY semantic contract`" in current_map
+assert "APPLY parent gate<br/>ПРИНЯТО<br/>SRC-0001 flat contract candidate: REVISE" in current_map
+assert "SRC-0001 current contract<br/>ПРИНЯТО" not in current_map
+assert "AUTHORITY_2026_REFRESH<br/>приказы № 117 + № 137<br/>ГОТОВО" in current_map
+assert "SRC-0001 modular APPLY contract architecture<br/>compact registry + SHA bindings<br/>ГОТОВО" in current_map
+assert "SRC-0001 predicate / transform definitions<br/>exact empty + exact bang<br/>ГОТОВО" in current_map
+assert "SRC-0001 external snapshot precondition<br/>exact attestation + prestate binding<br/>ГОТОВО" in current_map
+assert "SRC-0001 lock/reread + object identity<br/>stale + path identity fail-closed<br/>ГОТОВО" in current_map
+assert "SRC-0001 метаданные/транзакция/отчёт<br/>8 определений + композиция<br/>ГОТОВО" in current_map
+assert "APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО" in current_map
+assert "МЫ ЗДЕСЬ<br/>финальная детерминированная упаковка" in current_map
+assert "Модульная architecture APPLY-contract" in current_map
 assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" in current_map
+
+stale_checkpoint_markers = (
+    "текущий substantive checkpoint — `APPLY implementation` для SRC-0001",
+    "МЫ ЗДЕСЬ<br/>SRC-0001 APPLY implementation",
+    "единственным текущим substantive checkpoint этап `APPLY implementation`",
+    "МЫ ЗДЕСЬ<br/>APPLY для SRC-0001",
+    "SRC-0001 current contract<br/>ПРИНЯТО",
+    "первый source-specific APPLY semantic contract для `SRC-0001` приняты",
+)
+for rel in current_markdown:
+    body = (ROOT / rel).read_text(encoding="utf-8")
+    for marker in stale_checkpoint_markers:
+        assert marker not in body, (rel, marker)
+
 for stale in (
     "МЫ ЗДЕСЬ<br/>Step 7B",
     "текущий product checkpoint внутри макроэтапа Step 7B",

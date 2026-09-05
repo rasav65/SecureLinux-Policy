@@ -20,6 +20,22 @@ with (ROOT / "product/ADAPTER-REGISTRY.tsv").open(
     encoding="utf-8", newline=""
 ) as stream:
     adapters = list(csv.DictReader(stream, delimiter="\t"))
+with (ROOT / "product/APPLY-IMPLEMENTATION-REGISTRY.tsv").open(
+    encoding="utf-8", newline=""
+) as stream:
+    apply_implementations = list(csv.DictReader(stream, delimiter="\t"))
+with (ROOT / "index/source-v4/FRAMEWORK-SOURCES.tsv").open(
+    encoding="utf-8", newline=""
+) as stream:
+    framework_sources = list(csv.DictReader(stream, delimiter="\t"))
+with (ROOT / "index/source-v4/FRAMEWORK-AUTHORITY-RELATIONS.tsv").open(
+    encoding="utf-8", newline=""
+) as stream:
+    framework_relations = list(csv.DictReader(stream, delimiter="\t"))
+with (ROOT / "sources/visual-v1/PROVENANCE.tsv").open(
+    encoding="utf-8", newline=""
+) as stream:
+    visual_provenance = list(csv.DictReader(stream, delimiter="\t"))
 
 total = len(index_rows)
 controlled = sum(
@@ -75,6 +91,9 @@ for marker in (
     f"CLOSURE_RATIO={controlled + disposed}/{total}",
     f"CANONICAL_CONTROLS={len(controls)}",
     f"ADAPTER_KINDS={len(adapters)}",
+    "APPLY=IMPLEMENTED",
+    "APPLY_SCOPE=SRC-0001_ONLY",
+    f"APPLY_IMPLEMENTATION_COUNT={len(apply_implementations)}",
     "FULL_FSTEC_COMPLIANCE_CLAIM=false",
 ):
     assert marker in readme, marker
@@ -157,6 +176,46 @@ assert (ROOT / "product/generate-product-check-v2.py").is_file()
 assert (ROOT / "securelinux-policy.sh").is_file()
 assert (ROOT / "securelinux-policy.sh.sha256").is_file()
 
+framework_by_id = {row["source_id"]: row for row in framework_sources}
+assert set(framework_by_id) == {
+    "fstec-order-117-2025-requirements",
+    "fstec-order-137-2026-amendments-to-117",
+    "fstec-methodology-2026-04-12",
+}
+order137 = framework_by_id["fstec-order-137-2026-amendments-to-117"]
+assert order137["source_sha256"] == "eea32d569889ed57e9b7081b3a69fd31e44d0422d23349fefa3521427401c61a"
+assert order137["source_role"] == "framework"
+assert order137["closure_counted"] == "NO"
+assert "amends fstec-order-117-2025-requirements" in order137["followup"]
+
+assert framework_relations == [{
+    "base_source_id": "fstec-order-117-2025-requirements",
+    "amendment_source_id": "fstec-order-137-2026-amendments-to-117",
+    "relation": "AMENDED_BY",
+    "effective_from": "2026-09-01",
+    "deferred_locator": "application-point-7",
+    "deferred_effective_from": "2027-03-01",
+    "evidence_path": "sources/visual-v1/PROVENANCE.tsv",
+}]
+assert len(visual_provenance) == 19
+assert visual_provenance[0]["record_id"] == "ORDER137-METADATA"
+assert visual_provenance[0]["pdf_page"] == "1"
+change7 = [row for row in visual_provenance if row["record_id"] == "ORDER137-CHANGE-007"]
+assert len(change7) == 1
+assert change7[0]["pdf_page"] == "2-3"
+assert change7[0]["effective_from"] == "2027-03-01"
+assert all(
+    row["source_pdf_sha256"] == "eea32d569889ed57e9b7081b3a69fd31e44d0422d23349fefa3521427401c61a"
+    for row in visual_provenance
+)
+assert not any(
+    row["source_id"] == "fstec-order-137-2026-amendments-to-117"
+    for row in index_rows
+)
+linux40 = [row for row in index_rows if row["index_id"].startswith("SRC-") and 1 <= int(row["index_id"].split("-")[1]) <= 40]
+assert len(linux40) == 40
+assert all(row["source_id"] == "fstec-linux-2022" and row["status"] == "CLOSED" for row in linux40)
+
 current = pmap.split("## 6. Где мы находимся", 1)[1].split(
     "## Что является источником истины", 1
 )[0]
@@ -167,11 +226,21 @@ for marker in (
     "CHECK-18", "SRC-0033 / 2.5.10", "CHECK-19", "CHECK-28",
     "securelinux-policy.sh", "fstec-linux-2022 CHECK COMPLETE",
     "fstec-linux-2022-check-complete-v1", "DONOR_TO_V3_MAPPING",
-    "ACCEPTED + COMMITTED", "1db91b0", "APPLY semantic contract",
-    "EXTERNAL SNAPSHOT",
+    "ACCEPTED + COMMITTED", "1db91b0", "AUTHORITY_2026_REFRESH",
+    "SRC-0001 modular APPLY contract architecture",
+    "SRC-0001 predicate / transform definitions", "SRC-0001 external snapshot precondition", "SRC-0001 lock/reread + object identity", "SRC-0001 метаданные/транзакция/отчёт", "ВНЕШНИЙ СНИМОК",
 ):
     assert marker in current, marker
-assert "МЫ ЗДЕСЬ<br/>APPLY semantic contract" in current
+assert "приказы № 117 + № 137<br/>ГОТОВО" in current
+assert "SRC-0001 modular APPLY contract architecture<br/>compact registry + SHA bindings<br/>ГОТОВО" in current
+assert "SRC-0001 predicate / transform definitions<br/>exact empty + exact bang<br/>ГОТОВО" in current
+assert "SRC-0001 external snapshot precondition<br/>exact attestation + prestate binding<br/>ГОТОВО" in current
+assert "SRC-0001 lock/reread + object identity<br/>stale + path identity fail-closed<br/>ГОТОВО" in current
+assert 'P17["SRC-0001 метаданные/транзакция/отчёт<br/>8 определений + композиция<br/>ГОТОВО"]:::closed' in current
+assert 'P18["APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО"]:::closed' in current
+assert 'P19["МЫ ЗДЕСЬ<br/>финальная детерминированная упаковка"]:::current' in current
+assert "SRC-0001 flat contract candidate: REVISE" in current
+assert "SRC-0001 current contract<br/>ПРИНЯТО" not in current
 assert "RESTORE исключён" in current
 assert "МЫ ЗДЕСЬ<br/>Step 7B" not in current
 
@@ -180,12 +249,25 @@ with (ROOT / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream
 by_id = {row["step_id"]: row["status"] for row in rows}
 assert by_id["SOURCE_BLOCK_REGENERATION_PARITY"] == "CLOSED"
 assert by_id["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "PAUSED_BY_CURRENT_DOCUMENT_APPLY"
-assert by_id["APPLY_SEMANTIC_CONTRACT"] == "NEXT"
+assert by_id["APPLY_SEMANTIC_CONTRACT"] == "PARENT_GATE_CLOSED_SOURCE_INSTANCE_REVISE"
+assert by_id["AUTHORITY_2026_REFRESH"] == "CLOSED"
+assert by_id["SRC0001_MODULAR_APPLY_CONTRACT_ARCHITECTURE"] == "CLOSED"
+assert by_id["SRC0001_PREDICATE_TRANSFORM_DEFINITIONS"] == "CLOSED"
+assert by_id["SRC0001_SNAPSHOT_PRECONDITION_DEFINITION"] == "CLOSED"
+assert by_id["SRC0001_LOCK_REREAD_OBJECT_IDENTITY_DEFINITIONS"] == "CLOSED"
+assert by_id["SRC0001_METADATA_TRANSACTION_REPORT_DEFINITIONS"] == "CLOSED"
+assert by_id["APPLY_IMPLEMENTATION_ADAPTERS"] == "CLOSED"
+assert by_id["FINAL_DETERMINISTIC_PACKAGING"] == "NEXT"
 assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" in roadmap
-assert "единственный текущий" in roadmap
-assert "APPLY semantic contract" in roadmap
+next_rows = [row["step_id"] for row in rows if row["status"] == "NEXT"]
+assert next_rows == ["FINAL_DETERMINISTIC_PACKAGING"], next_rows
+assert "SRC0001_MODULAR_APPLY_CONTRACT_ARCHITECTURE" in roadmap
+assert "SRC0001_PREDICATE_TRANSFORM_DEFINITIONS" in roadmap
+assert "SRC0001_SNAPSHOT_PRECONDITION_DEFINITION" in roadmap
+assert "SRC0001_LOCK_REREAD_OBJECT_IDENTITY_DEFINITIONS" in roadmap
 
 print("SOURCE_PROGRESS_CONTRACT=PASS_EXACT_SIX_KEYS negative_fixtures=3")
+print("AUTHORITY_2026_REFRESH=PASS framework_sources=3 relations=1 visual_records=19 linux40_unchanged=1")
 print(
     "CURRENT_STATUS_CONSISTENCY=PASS "
     f"source_rows={total} closed={controlled} open={open_rows} "

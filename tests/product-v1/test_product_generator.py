@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""product-v1 tests for the tracked product CHECK generator."""
+"""product-v1 tests for the tracked unified product CLI generator."""
 import ast
 import contextlib
 import errno
@@ -457,6 +457,7 @@ class GeneratorModel(unittest.TestCase):
         self.assertIn(f"CONTROL_COUNT={len(controls)}".encode("ascii"), one)
         self.assertIn(f"ADAPTER_COUNT={len(adapters)}".encode("ascii"), one)
         self.assertIn(b"TOTAL=%d", one)
+        self.assertIn(b"SLP-APPLY-REPORT-V1", one)
         for c in controls:
             self.assertGreaterEqual(one.count(c["control_id"].encode("utf-8")), 2)
 
@@ -1493,7 +1494,7 @@ class GeneratedArtifact(unittest.TestCase):
         cp = self.run_check("--help")
         self.assertEqual(cp.returncode, 0)
         self.assertEqual(cp.stderr, "")
-        self.assertIn("единый read-only CLI", cp.stdout)
+        self.assertIn("единый product CLI", cp.stdout)
         self.assertEqual(self.run_check("--bogus").returncode, 2)
         self.assertEqual(self.run_check("--help", "extra").returncode, 2)
 
@@ -1505,7 +1506,9 @@ class GeneratedArtifact(unittest.TestCase):
         rows, _, _, _, _ = load_current()
         self.assertIn(f"CONTROL_COUNT={len(rows)}\n", cp.stdout)
         self.assertIn(f"ADAPTER_COUNT={len(load_current()[2])}\n", cp.stdout)
-        self.assertIn("MUTATING_MODES=NONE\n", cp.stdout)
+        self.assertIn("APPLY_SCOPE=SRC-0001_ONLY\n", cp.stdout)
+        self.assertIn("APPLY_IMPLEMENTATION_COUNT=1\n", cp.stdout)
+        self.assertIn("MUTATING_MODES=APPLY_SRC0001_ONLY\n", cp.stdout)
 
     def test_provenance_all_and_one(self):
         cp = self.run_check("--provenance")
@@ -3402,6 +3405,8 @@ SLP_POLICY_RC=1
             self.assertIn("SUPPORTED_PROFILE_ENVIRONMENTS=7\n", cp.stdout)
             self.assertIn("SUPPORTED_DESKTOP_ENVIRONMENTS=1\n", cp.stdout)
             self.assertIn("SUPPORTED_ENVIRONMENTS=8\n", cp.stdout)
+            self.assertIn("APPLY_SCOPE=SRC-0001_ONLY\n", cp.stdout)
+            self.assertIn("APPLY_IMPLEMENTATION_COUNT=1\n", cp.stdout)
             self.assertEqual(out.read_bytes(), self.ARTIFACT.read_bytes())
             self.assertEqual(out.with_name(out.name + ".sha256").read_bytes(), self.SIDECAR.read_bytes())
         expected = f"{sha256_file(self.ARTIFACT)}  {self.ARTIFACT.name}\n"
@@ -3671,12 +3676,12 @@ SLP_POLICY_RC=1
         self.assertEqual(cp.returncode, 0, cp.stderr)
         self.assertEqual(len(cp.stdout.rstrip("\n").split("\t")), 10, cp.stdout)
 
-    def test_unified_help_version_build_info_and_apply_stub(self):
+    def test_unified_help_version_build_info_and_apply_dispatch(self):
         syntax = subprocess.run([BASH, "-n", str(self.ARTIFACT)], capture_output=True, text=True)
         self.assertEqual(syntax.returncode, 0, syntax.stderr)
         noargs = self.run_cli()
         self.assertEqual(noargs.returncode, 0)
-        self.assertIn("SecureLinux-Policy v3 — единый read-only CLI", noargs.stdout)
+        self.assertIn("SecureLinux-Policy v3 — единый product CLI", noargs.stdout)
         self.assertIn("--check [--failed] [--format pretty|raw|json]", noargs.stdout)
         version = self.run_cli("--version")
         self.assertEqual(version.returncode, 0)
@@ -3688,11 +3693,36 @@ SLP_POLICY_RC=1
         self.assertIn("SUPPORTED_PROFILE_ENVIRONMENTS=7\n", build.stdout)
         self.assertIn("SUPPORTED_DESKTOP_ENVIRONMENTS=1\n", build.stdout)
         self.assertIn("SUPPORTED_ENVIRONMENTS=8\n", build.stdout)
-        self.assertIn("MUTATING_MODES=NONE\n", build.stdout)
-        apply = self.run_cli("--apply")
-        self.assertEqual(apply.returncode, 2)
-        self.assertEqual(apply.stdout, "")
-        self.assertEqual(apply.stderr, "NOT_IMPLEMENTED: APPLY; host state was not changed.\n")
+        self.assertIn("APPLY_SCOPE=SRC-0001_ONLY\n", build.stdout)
+        self.assertIn("APPLY_IMPLEMENTATION_COUNT=1\n", build.stdout)
+        self.assertIn("MUTATING_MODES=APPLY_SRC0001_ONLY\n", build.stdout)
+        for args in (
+            ("--apply",),
+            ("--apply", "--snapshot-attestation"),
+            ("--apply", "--dry-run", "extra"),
+            ("--apply", "--snapshot-attestation", "/tmp/a", "extra"),
+            ("--apply", "--dry-run", "--snapshot-attestation", "/tmp/a"),
+        ):
+            with self.subTest(args=args):
+                result = self.run_cli(*args)
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+        apply_fn = "slp_apply_FSTEC_LINUX_2022_2_1_1_LOCAL_ACCOUNT_PASSWORD_STATE"
+        dry_run = self.run_sourced(
+            "slp_target_preflight() { return 0; }\n"
+            + f"{apply_fn}() {{ printf '%s|%s\\n' \"$1\" \"${{2:-}}\"; }}\n"
+            + "slp_main --apply --dry-run"
+        )
+        self.assertEqual(dry_run.returncode, 0, dry_run.stderr)
+        self.assertEqual(dry_run.stdout, "DRY_RUN|\n")
+        apply = self.run_sourced(
+            "slp_target_preflight() { return 0; }\n"
+            + f"{apply_fn}() {{ printf '%s|%s\\n' \"$1\" \"${{2:-}}\"; }}\n"
+            + "slp_main --apply --snapshot-attestation /tmp/a"
+        )
+        self.assertEqual(apply.returncode, 0, apply.stderr)
+        self.assertEqual(apply.stdout, "APPLY|/tmp/a\n")
         self.assertNotIn("--restore", noargs.stdout)
         restore = self.run_cli("--restore")
         self.assertEqual(restore.returncode, 2)

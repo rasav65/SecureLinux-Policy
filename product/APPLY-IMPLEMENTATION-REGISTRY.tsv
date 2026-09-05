@@ -1,0 +1,2 @@
+apply_kind	composition_contract_id	adapter_id	binding_path	binding_sha256	implementation_path	implementation_sha256
+local-account-password-lock	local-account-password-state-apply-composition-v1	product-local-account-password-state-apply-v1	product/apply-adapters/product-local-account-password-state-apply-v1.json	4ce4f551f29c4d046bb2686805612f645b09f1801e40e324300d95c8464aa3f6	product/apply-adapters/product-local-account-password-state-apply-v1.py	0dc2b7d9c22f8a0408f3a20ef3cb74ce40c4696dbc745dcc34430a63e34db61f

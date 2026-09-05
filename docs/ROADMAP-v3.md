@@ -11,10 +11,16 @@ Step 5. Нельзя начинать более поздний этап, пок
 5. Универсальный по индексу генератор блока `source:`
 6. Gate паритета регенерации `source:`
 7. Расширение FSTEC + corporate index / dispositions
-8. Семантический контракт APPLY
-9. Адаптеры реализации APPLY
-10. Детерминированная финальная упаковка
-11. Единый распространяемый артефакт (имя не закреплено)
+8. Parent gate APPLY + проверка source-specific instance
+9. Authority refresh 2026: приказ № 117 + изменения № 137
+10. Модульная архитектура APPLY-contract для `SRC-0001`
+11. Точные определения предиката и преобразования для `SRC-0001`
+12. Определение условия внешнего снимка для `SRC-0001`
+13. Определения блокировки, повторного чтения и идентичности объекта для `SRC-0001`
+14. Определения метаданных, атомарной транзакции и сухого запуска с отчётом для `SRC-0001`
+15. Адаптеры реализации APPLY
+16. Детерминированная финальная упаковка
+17. Единый распространяемый артефакт (имя не закреплено)
 
 Неизменяемые правила:
 
@@ -46,17 +52,53 @@ Step 5. Нельзя начинать более поздний этап, пок
   удалённого репозитория.
 
 ТЕКУЩИЙ СТАТУС: этапы roadmap 1–6 `CLOSED`. Макроэтап 7
-`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` ещё не завершён, но временно
-имеет статус `PAUSED_BY_CURRENT_DOCUMENT_APPLY`: Step 7A закрыт, а дальнейшее
-расширение Step 7B отложено до вертикального завершения текущего нормативного
-документа `fstec-linux-2022`.
+`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` ещё не завершён и остаётся
+`PAUSED_BY_CURRENT_DOCUMENT_APPLY`: Step 7A закрыт, а дальнейшее расширение
+Step 7B отложено до вертикального завершения текущего документа.
 
 Для `fstec-linux-2022` read-only CHECK принят (`40/40 CLOSED`), обязательный
-`DONOR_TO_V3_MAPPING` принят и опубликован. Поэтому единственный текущий
-substantive checkpoint — отдельный `APPLY semantic contract`, и в
-`ROADMAP-v3.tsv` именно `APPLY_SEMANTIC_CONTRACT` имеет статус `NEXT`.
-До прохождения локальных APPLY gates, применимой VM-матрицы и точки
-`DOCUMENT COMPLETE` следующий нормативный документ ФСТЭК не начинается.
+`DONOR_TO_V3_MAPPING` принят и опубликован. Этап 8
+`APPLY_SEMANTIC_CONTRACT` имеет status `PARENT_GATE_CLOSED_SOURCE_INSTANCE_REVISE`:
+parent schema/registry gate остаётся принят и не переоткрывается, а flat
+source-specific contract-кандидат `SRC-0001` сохраняется только как `REVISE` input;
+финальную authority задают модульная архитектура, восемь определений и композиция.
+Этап 9 `AUTHORITY_2026_REFRESH` закрыт после интеграции приказа ФСТЭК
+России № 137 как изменения к приказу № 117; это framework-only обновление и
+оно не переоткрывает `SRC-0001…SRC-0040`.
+
+Этап 10 `SRC0001_MODULAR_APPLY_CONTRACT_ARCHITECTURE` закрыт: компактный
+`APPLY-KIND-REGISTRY.tsv` связывает `apply_kind`/`target_class` только с локальным
+объектом архитектуры по SHA-256. Этап 11 `SRC0001_PREDICATE_TRANSFORM_DEFINITIONS`
+также закрыт: predicate закрепляет **ровно пустое второе поле** соответствующей
+`/etc/shadow` записи в exact population текущего CHECK, а transform выполняет
+единственную замену байтов `"" -> "!"` только в выбранном втором поле. Все
+невыбранные записи, непустые password fields, остальные поля, порядок записей и
+остальные bytes файла обязаны сохраняться exact; stale/non-empty selected field
+даёт `ABORT_NO_MUTATION`. Обе definition identity SHA-bound в architecture, а
+transform отдельно SHA-bound к predicate. Этим P-03 закрыт. Этап 12
+`SRC0001_SNAPSHOT_PRECONDITION_DEFINITION` также закрыт: до любой host mutation
+обязателен caller-supplied read-only `SLP-EXTERNAL-SNAPSHOT-ATTESTATION-V1`.
+Attestation связывает `SRC-0001`, control, `/etc/shadow`, текущий
+`/etc/machine-id` и SHA-256 exact prestate bytes `/etc/shadow` с non-empty
+external provider/snapshot id, scope `FULL_TARGET_HOST_OR_VM`, `state=READY` и
+`rollback_capable=true`. Missing/malformed/mismatched/not-ready evidence всегда
+`ABORT_NO_MUTATION`; product не создаёт и не восстанавливает snapshot, а evidence
+явно является operator attestation, не provider-cryptographic proof. Этим P-04
+закрыт. Этап 13 `SRC0001_LOCK_REREAD_OBJECT_IDENTITY_DEFINITIONS` также закрыт:
+exclusive libc `lckpwdf(3)` password-database lock должен быть получен до under-lock reread и любой
+host mutation; exact bytes и ordered selected usernames reread под lock обязаны
+совпасть с pre-lock reference, иначе `ABORT_NO_MUTATION`. `/etc/shadow` обязан быть
+regular non-symlink с `st_nlink == 1`; target и parent identities связываются через
+`lstat` + nofollow fd/fstat и не могут дрейфовать до собственного atomic commit.
+Этим P-05 закрыт. Этап 14 `SRC0001_METADATA_TRANSACTION_REPORT_DEFINITIONS` также закрыт: точные определения сохранения метаданных, атомарной транзакции и сухого запуска с отчётом привязаны по SHA-256 в архитектуре, а композиция связывает все восемь ролей со статусом `CLOSED`.
+
+Этап 15 `APPLY_IMPLEMENTATION_ADAPTERS` закрыт в scope `SRC-0001_ONLY`: отдельный
+implementation registry, binding и adapter привязаны к композиции; generated CLI
+прошёл dry-run, attested commit, post-check, idempotent NOOP и fail-closed VM cases.
+Общая библиотека APPLY и вторая вертикаль не создавались. Единственный текущий
+этап — 16 `FINAL_DETERMINISTIC_PACKAGING` со статусом `NEXT`.
+
+Линия obligation-generator / method regression / rescan закрыта и сохраняется только как история; approved plan rev3 отменён; design v5 не создаётся. До прохождения этапов финальной упаковки и точки `DOCUMENT COMPLETE` Step 7B остаётся приостановлен; дальнейшее расширение запрещено.
 
 Существующая read-only CHECK product-line уже содержит adapters,
 `ADAPTER-REGISTRY.tsv`, детерминированный generator и единый CLI. Исторические
@@ -69,9 +111,9 @@ substantive checkpoint — отдельный `APPLY semantic contract`, и в
 ## Правило сохранения инженерного донора
 
 Сохранённый проект SecureLinux-NG v16.2.11 остаётся **инженерным донором**, а
-не нормативным источником. До начала этапа 8
-(`APPLY semantic contract`) проект ОБЯЗАН завершить и проверить
-`DONOR_TO_V3_MAPPING` с решениями `REUSE | ADAPT | REJECT | DEFER`.
+не нормативным источником. Обязательный `DONOR_TO_V3_MAPPING` с решениями
+`REUSE | ADAPT | REJECT | DEFER` был завершён до APPLY-contract track и
+остаётся входным engineering evidence для дальнейшей модульной архитектуры.
 
 Mapping должен явно учитывать зрелые механизмы донора, перечисленные в
 `docs/DONOR-V3-ADOPTION-POLICY.md`. Сам mapping закрывает 0 строк FSTEC или
@@ -79,11 +121,11 @@ corporate source index. Ни один implementation adapter не может о�
 контракт APPLY только потому, что эквивалентный код существовал в
 доноре.
 
-## Модель отката для будущего APPLY
+## Модель отката для APPLY
 
 Проект не реализует пользовательский режим `RESTORE`.
 
-Эксплуатационный контракт будущей mutation-line:
+Эксплуатационный контракт текущей вертикали:
 
 `external snapshot -> CHECK -> APPLY -> CHECK`
 
@@ -99,8 +141,15 @@ RESTORE после APPLY.
 rollback текущей незавершённой транзакции допустим там, где exact rollback
 доказуем; это внутренний failure-handling APPLY, а не отдельный RESTORE mode.
 
-Точный способ подтверждения внешнего snapshot precondition будет определён
-семантическим контрактом APPLY. До этого не выдумывать fake snapshot evidence.
+Exact snapshot precondition определён `product/contracts/src0001-apply/snapshot-precondition-v1.json`.
+Product принимает только explicit caller-supplied attestation, привязанную к host identity и exact
+`/etc/shadow` prestate SHA-256; отсутствие, malformed data, mismatch или state не `READY`
+дают `ABORT_NO_MUTATION`. Это не выдаётся за криптографическое доказательство provider snapshot.
+
+Exact lock/reread contract (`lckpwdf(3)` + exact `/etc/passwd`/`/etc/shadow` reread + precommit revalidation) определён `product/contracts/src0001-apply/lock-reread-v1.json`,
+а object identity boundary — `product/contracts/src0001-apply/object-identity-v1.json`.
+Lock обязателен до reread/mutation; stale bytes/target-set или object/path drift всегда
+останавливают попытку без mutation. Hardlink ambiguity (`st_nlink != 1`) запрещена.
 
 ## Закрытие Gate 6
 
@@ -291,4 +340,5 @@ Carry-forward non-blocking findings R3: NUL, `U+2028/U+2029`, VT/FF и CRLF
 `source_role ↔ disposition`, multi-index ledger и устаревшим notes сохраняются
 в backlog и должны учитываться перед соответствующими изменениями.
 
-NEXT: `APPLY_SEMANTIC_CONTRACT` для принятой вертикали `fstec-linux-2022`. Step 7B остаётся приостановленным backlog до `DOCUMENT COMPLETE`.
+NEXT: `FINAL_DETERMINISTIC_PACKAGING`. `APPLY_IMPLEMENTATION_ADAPTERS` закрыт в
+scope `SRC-0001_ONLY`; Step 7B остаётся приостановленным до `DOCUMENT COMPLETE`.

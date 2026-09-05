@@ -67,7 +67,7 @@ def parse_progress(path: Path) -> dict[str, str]:
 
 def parse_generator_constants(path: Path) -> dict[str, str]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    wanted = {"PRODUCT_STATUS", "TARGET_FAMILY_ID", "GENERATOR_ID"}
+    wanted = {"PRODUCT_STATUS", "TARGET_FAMILY_ID", "GENERATOR_ID", "APPLY_SCOPE"}
     out: dict[str, str] = {}
     for node in tree.body:
         if not isinstance(node, ast.Assign) or len(node.targets) != 1:
@@ -206,6 +206,33 @@ def collect_state(root: Path) -> dict:
             if sha256(p) != row[sha_key]:
                 raise RuntimeError(f"registry SHA mismatch: {row[path_key]}")
 
+    implementation_registry = root / "product/APPLY-IMPLEMENTATION-REGISTRY.tsv"
+    with implementation_registry.open(encoding="utf-8", newline="") as stream:
+        reader = csv.DictReader(stream, delimiter="\t")
+        expected_fields = (
+            "apply_kind", "composition_contract_id", "adapter_id", "binding_path",
+            "binding_sha256", "implementation_path", "implementation_sha256",
+        )
+        if tuple(reader.fieldnames or ()) != expected_fields:
+            raise RuntimeError("APPLY implementation registry field-set mismatch")
+        implementation_rows = list(reader)
+    if not implementation_rows:
+        raise RuntimeError("APPLY implementation registry is empty")
+    if len({row["adapter_id"] for row in implementation_rows}) != len(implementation_rows):
+        raise RuntimeError("duplicate adapter_id in APPLY implementation registry")
+    for row in implementation_rows:
+        if any(not row[field] for field in expected_fields):
+            raise RuntimeError("empty field in APPLY implementation registry")
+        for path_key, sha_key in (
+            ("binding_path", "binding_sha256"),
+            ("implementation_path", "implementation_sha256"),
+        ):
+            p = root / row[path_key]
+            if not p.is_file() or p.is_symlink():
+                raise RuntimeError(f"APPLY registry target missing/non-regular: {row[path_key]}")
+            if sha256(p) != row[sha_key]:
+                raise RuntimeError(f"APPLY registry SHA mismatch: {row[path_key]}")
+
     generator = parse_generator_constants(root / "product/generate-product-check-v2.py")
     platform_rows = read_tsv(root / "product/SUPPORTED-PLATFORMS.tsv")
     if len(platform_rows) != 7 or any(r.get("status") != "SUPPORTED" for r in platform_rows):
@@ -243,6 +270,7 @@ def collect_state(root: Path) -> dict:
         "closure": closure,
         "closure_by_id": closure_by_id,
         "adapters": adapters,
+        "implementation_rows": implementation_rows,
         "adapter_by_kind": adapter_by_kind,
         "controls_by_kind": controls_by_kind,
         "generator": generator,
@@ -276,7 +304,9 @@ def render_status_block(state: dict) -> str:
         f"SUPPORTED_ENVIRONMENTS={len(state['platform_rows']) + len(state['desktop_rows'])}",
         f"CHECK_STATUS={product_status}",
         "CHECK=IMPLEMENTED_READ_ONLY",
-        "APPLY=NOT_IMPLEMENTED",
+        "APPLY=IMPLEMENTED",
+        f"APPLY_SCOPE={state['generator']['APPLY_SCOPE']}",
+        f"APPLY_IMPLEMENTATION_COUNT={len(state['implementation_rows'])}",
         "RESTORE=NOT_PLANNED",
         "ROLLBACK_MODEL=EXTERNAL_SNAPSHOT",
         "FULL_FSTEC_COMPLIANCE_CLAIM=false",

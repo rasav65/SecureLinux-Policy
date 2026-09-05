@@ -38,7 +38,8 @@ Machine truth порядка и статуса roadmap находится в `RO
 ## DONOR-REFERENCE — справочные материалы донора
 
 Эти документы содержат инженерные знания донора и архитектурные ориентиры для
-будущего APPLY. Они **не описывают current product как уже реализованный APPLY**.
+APPLY и его будущего расширения. Они **не являются источником current product
+status**; фактический scope берётся из product registries, roadmap и primary map.
 Historical RESTORE-механика хранится в donor archive/mapping, но не показывается
 как operational/future ветвь целевой архитектуры v3.
 

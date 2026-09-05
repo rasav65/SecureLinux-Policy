@@ -34,14 +34,16 @@ for marker in (
     assert marker in text, marker
 
 # Current product CHECK components are implemented in the dedicated product line.
-product_line = text.split("## 3. Текущая read-only product-line CHECK", 1)[1].split(
+product_line = text.split("## 3. Текущая product-line: read-only CHECK + SRC-0001 APPLY", 1)[1].split(
     "## 4. Инженерный донор", 1
 )[0]
 for marker in (
     'product-sysctl-check-v2<br/>read-only `eq` + integer `ge`"]:::closed',
     'product-file-mode-owner-check-v1<br/>read-only"]:::closed',
     'product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed',
-    'securelinux-policy.sh<br/>tracked единый read-only CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE<br/>pretty · raw · JSON"]:::closed',
+    'product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding реализации"]:::closed',
+    'SRC-0001 APPLY adapter<br/>dry-run · attested commit · NOOP"]:::closed',
+    'securelinux-policy.sh<br/>tracked CHECK + SRC-0001 APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed',
 ):
     assert marker in product_line, marker
 
@@ -58,7 +60,9 @@ current = text.split("## 6. Где мы находимся", 1)[1].split(
     "## Что является источником истины", 1
 )[0]
 assert current.count(":::current") == 1
-assert "текущий substantive checkpoint — отдельный `APPLY semantic contract`" in current
+assert "Implementation registry" in current
+assert "predicate / transform definitions" in current
+assert "AUTHORITY_2026_REFRESH" in current
 assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" in current
 assert "текущий product checkpoint внутри макроэтапа Step 7B" not in current
 assert "Step 7B разрешён" not in current
@@ -71,7 +75,17 @@ assert 'P9["batch kernel-cmdline exact-token<br/>7 source rows · 9 controls + C
 assert 'P9B["ЕДИНЫЙ CLI / БЫСТРЫЙ СТАРТ v1<br/>securelinux-policy.sh · pretty/raw/json<br/>ГОТОВО"]:::closed' in current
 assert 'P10["fstec-linux-2022 CHECK COMPLETE<br/>tag fstec-linux-2022-check-complete-v1<br/>ГОТОВО"]:::closed' in current
 assert 'P10A["DONOR_TO_V3_MAPPING<br/>ACCEPTED + COMMITTED<br/>1db91b0…<br/>ГОТОВО"]:::closed' in current
-assert 'P11["МЫ ЗДЕСЬ<br/>APPLY semantic contract<br/>СЛЕДУЮЩИЙ SUBSTANTIVE ЭТАП"]:::current' in current
+assert 'P11["APPLY parent gate<br/>ПРИНЯТО<br/>SRC-0001 flat contract candidate: REVISE"]:::note' in current
+assert 'P12["AUTHORITY_2026_REFRESH<br/>приказы № 117 + № 137<br/>ГОТОВО"]:::closed' in current
+assert 'P13["SRC-0001 modular APPLY contract architecture<br/>compact registry + SHA bindings<br/>ГОТОВО"]:::closed' in current
+assert 'P14["SRC-0001 predicate / transform definitions<br/>exact empty + exact bang<br/>ГОТОВО"]:::closed' in current
+assert 'P15["SRC-0001 external snapshot precondition<br/>exact attestation + prestate binding<br/>ГОТОВО"]:::closed' in current
+assert 'P16["SRC-0001 lock/reread + object identity<br/>stale + path identity fail-closed<br/>ГОТОВО"]:::closed' in current
+assert 'P17["SRC-0001 метаданные/транзакция/отчёт<br/>8 определений + композиция<br/>ГОТОВО"]:::closed' in current
+assert 'P18["APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО"]:::closed' in current
+assert 'P19["МЫ ЗДЕСЬ<br/>финальная детерминированная упаковка"]:::current' in current
+assert 'P20["единый распространяемый артефакт<br/>будущее"]:::future' in current
+assert 'P18["адаптеры реализации APPLY<br/>заблокировано до semantic chain"]:::future' not in current
 diagram = current.split("```mermaid", 1)[1].split("```", 1)[0]
 for marker in (
     "CHECK-8 product-line",
@@ -92,10 +106,17 @@ for marker in (
     "securelinux-policy.sh · pretty/raw/json",
     "fstec-linux-2022 CHECK COMPLETE",
     "DONOR_TO_V3_MAPPING",
-    "APPLY semantic contract",
-    "APPLY implementation",
-    "итоговый distributable artifact",
-    "EXTERNAL SNAPSHOT",
+    "APPLY parent gate",
+    "AUTHORITY_2026_REFRESH",
+    "SRC-0001 modular APPLY contract architecture",
+    "SRC-0001 predicate / transform definitions",
+    "SRC-0001 external snapshot precondition",
+    "SRC-0001 lock/reread + object identity",
+    "SRC-0001 метаданные/транзакция/отчёт",
+    "APPLY для SRC-0001",
+    "финальная детерминированная упаковка",
+    "единый распространяемый артефакт",
+    "ВНЕШНИЙ СНИМОК",
 ):
     assert marker in current, marker
 
@@ -117,9 +138,16 @@ positions = [diagram.index(marker) for marker in (
     "securelinux-policy.sh · pretty/raw/json",
     "fstec-linux-2022 CHECK COMPLETE",
     "DONOR_TO_V3_MAPPING",
-    "APPLY semantic contract",
-    "APPLY implementation",
-    "итоговый distributable artifact",
+    "APPLY parent gate",
+    "AUTHORITY_2026_REFRESH",
+    "SRC-0001 modular APPLY contract architecture",
+    "SRC-0001 predicate / transform definitions",
+    "SRC-0001 external snapshot precondition",
+    "SRC-0001 lock/reread + object identity",
+    "SRC-0001 метаданные/транзакция/отчёт",
+    "APPLY для SRC-0001",
+    "финальная детерминированная упаковка",
+    "единый распространяемый артефакт",
 )]
 assert positions == sorted(positions)
 
@@ -133,13 +161,13 @@ for stale in (
 
 assert "путь к конечному `securelinux-ng.sh`" not in text
 assert "Финальный `securelinux-ng.sh`" not in text
-assert "итоговый distributable artifact" in text
-assert "tracked единый read-only CLI" in text
+assert "итоговый распространяемый артефакт" in text
+assert "tracked CHECK + SRC-0001 APPLY CLI" in text
 assert "Gate 0 PASS" in text
 assert "только byte-generation parity" in text
 assert "docs/PROJECT-MAP-v3.md" in readme
 print(
-    "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=apply-semantic-contract "
+    "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=final-deterministic-packaging "
     "src0005_check11_done=1 exact_eq_check17_done=1 src0040_check18_done=1 "
-    "src0033_check19_done=1 kernel_cmdline_check28_done=1 unified_cli_done=1 future_apply=1 restore_out_of_scope=1"
+    "src0033_check19_done=1 kernel_cmdline_check28_done=1 unified_cli_done=1 src0001_apply_done=1 restore_out_of_scope=1"
 )

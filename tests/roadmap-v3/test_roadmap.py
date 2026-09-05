@@ -16,6 +16,12 @@ expected = [
     "SOURCE_BLOCK_REGENERATION_PARITY",
     "FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS",
     "APPLY_SEMANTIC_CONTRACT",
+    "AUTHORITY_2026_REFRESH",
+    "SRC0001_MODULAR_APPLY_CONTRACT_ARCHITECTURE",
+    "SRC0001_PREDICATE_TRANSFORM_DEFINITIONS",
+    "SRC0001_SNAPSHOT_PRECONDITION_DEFINITION",
+    "SRC0001_LOCK_REREAD_OBJECT_IDENTITY_DEFINITIONS",
+    "SRC0001_METADATA_TRANSACTION_REPORT_DEFINITIONS",
     "APPLY_IMPLEMENTATION_ADAPTERS",
     "FINAL_DETERMINISTIC_PACKAGING",
     "SINGLE_DISTRIBUTABLE_ARTIFACT",
@@ -28,8 +34,16 @@ assert rows[3]["status"] == "CLOSED"
 assert rows[4]["status"] == "CLOSED"
 assert rows[5]["status"] == "CLOSED"
 assert rows[6]["status"] == "PAUSED_BY_CURRENT_DOCUMENT_APPLY"
-assert rows[7]["status"] == "NEXT"
-assert all(r["status"] == "BLOCKED_BY_PREVIOUS" for r in rows[8:])
+assert rows[7]["status"] == "PARENT_GATE_CLOSED_SOURCE_INSTANCE_REVISE"
+assert rows[8]["status"] == "CLOSED"
+assert rows[9]["status"] == "CLOSED"
+assert rows[10]["status"] == "CLOSED"
+assert rows[11]["status"] == "CLOSED"
+assert rows[12]["status"] == "CLOSED"
+assert rows[13]["status"] == "CLOSED"
+assert rows[14]["status"] == "CLOSED"
+assert rows[15]["status"] == "NEXT"
+assert rows[16]["status"] == "BLOCKED_BY_PREVIOUS"
 roadmap_md = (root / "docs/ROADMAP-v3.md").read_text(encoding="utf-8")
 project_map = (root / "docs/PROJECT-MAP-v3.md").read_text(encoding="utf-8")
 disposition_doc = (root / "docs/disposition-ledger.md").read_text(encoding="utf-8")
@@ -42,17 +56,32 @@ def validate_markdown_order(text: str) -> None:
         match = __import__("re").match(r"^(\d+)\.\s+(.+)$", line)
         if match:
             numbered[int(match.group(1))] = match.group(2).strip()
-    assert numbered.get(9) == "Адаптеры реализации APPLY", numbered.get(9)
-    assert numbered.get(10) == "Детерминированная финальная упаковка", numbered.get(10)
-    assert numbered.get(11) == "Единый распространяемый артефакт (имя не закреплено)", numbered.get(11)
+    assert numbered.get(9) == "Authority refresh 2026: приказ № 117 + изменения № 137", numbered.get(9)
+    assert numbered.get(10) == "Модульная архитектура APPLY-contract для `SRC-0001`", numbered.get(10)
+    assert numbered.get(11) == "Точные определения предиката и преобразования для `SRC-0001`", numbered.get(11)
+    assert numbered.get(12) == "Определение условия внешнего снимка для `SRC-0001`", numbered.get(12)
+    assert numbered.get(13) == "Определения блокировки, повторного чтения и идентичности объекта для `SRC-0001`", numbered.get(13)
+    assert numbered.get(14) == "Определения метаданных, атомарной транзакции и сухого запуска с отчётом для `SRC-0001`", numbered.get(14)
+    assert numbered.get(15) == "Адаптеры реализации APPLY", numbered.get(15)
+    assert numbered.get(16) == "Детерминированная финальная упаковка", numbered.get(16)
+    assert numbered.get(17) == "Единый распространяемый артефакт (имя не закреплено)", numbered.get(17)
 
 
 def validate_current_checkpoint(roadmap_text: str, map_text: str, disposition_text: str) -> None:
     assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" in roadmap_text
     assert "APPLY_SEMANTIC_CONTRACT" in roadmap_text
-    assert "Step 7B сейчас приостановлен (`PAUSED_BY_CURRENT_DOCUMENT_APPLY`)" in roadmap_text
-    assert "текущий substantive checkpoint — отдельный `APPLY semantic contract`" in map_text
-    assert "Step 7B приостановлен" in map_text
+    assert "AUTHORITY_2026_REFRESH" in roadmap_text
+    assert "SRC0001_MODULAR_APPLY_CONTRACT_ARCHITECTURE" in roadmap_text
+    assert "SRC0001_PREDICATE_TRANSFORM_DEFINITIONS" in roadmap_text
+    assert "SRC0001_SNAPSHOT_PRECONDITION_DEFINITION" in roadmap_text
+    assert "Step 7B" in roadmap_text and "приостанов" in roadmap_text
+    assert "Модульная architecture APPLY-contract" in map_text
+    assert "predicate / transform definitions" in map_text
+    assert "external snapshot precondition" in map_text
+    assert "lock/reread + object identity" in map_text
+    assert "метаданные/транзакция/отчёт" in map_text
+    assert "AUTHORITY_2026_REFRESH" in map_text
+    assert "Step 7B" in map_text and "приостанов" in map_text
     assert "Step 7B приостановлен (`PAUSED_BY_CURRENT_DOCUMENT_APPLY`)" in disposition_text
     assert "текущий product checkpoint внутри макроэтапа Step 7B" not in map_text
     # Step 7B может упоминаться только как paused/backlog/history. Активный/current
@@ -86,7 +115,7 @@ def validate_current_checkpoint(roadmap_text: str, map_text: str, disposition_te
                 assert not re_mod.search(pattern, normalized), paragraph
 
 
-def validate_apply_adapters_future_stage(text: str) -> None:
+def validate_apply_adapters_roadmap_identity(text: str) -> None:
     stage_ref = re.compile(
         r"(?i)(?:APPLY[^\n]{0,36}(?:adapter|адаптер)|(?:adapter|адаптер)\w*[^\n]{0,36}APPLY)"
     )
@@ -133,10 +162,10 @@ assert "external snapshot" in roadmap_md
 validate_markdown_order(roadmap_md)
 validate_current_checkpoint(roadmap_md, project_map, disposition_doc)
 validate_no_manual_live_population_counts(roadmap_md)
-validate_apply_adapters_future_stage(roadmap_md)
+validate_apply_adapters_roadmap_identity(roadmap_md)
 expect_rejected(
     validate_markdown_order,
-    roadmap_md.replace("9. Адаптеры реализации APPLY\n", "9. Этап реализации после APPLY\n", 1),
+    roadmap_md.replace("12. Определение условия внешнего снимка для `SRC-0001`\n", "12. Этап после predicate/transform\n", 1),
 )
 expect_rejected(
     validate_current_checkpoint,
@@ -159,11 +188,11 @@ expect_rejected(
     roadmap_md + "\nТекущих контролей сейчас восемь.\n",
 )
 expect_rejected(
-    validate_apply_adapters_future_stage,
+    validate_apply_adapters_roadmap_identity,
     roadmap_md + "\nЭтап APPLY-adapters отменён и больше не планируется.\n",
 )
 expect_rejected(
-    validate_apply_adapters_future_stage,
+    validate_apply_adapters_roadmap_identity,
     roadmap_md + "\nВ дальнейшем реализация адаптеров APPLY не предусмотрена.\n",
 )
 expect_rejected(
@@ -173,7 +202,7 @@ expect_rejected(
     disposition_doc,
 )
 expect_rejected(
-    validate_apply_adapters_future_stage,
+    validate_apply_adapters_roadmap_identity,
     roadmap_md + "\nВ дальнейшем этап реализации APPLY-адаптеров больше не входит в планы проекта.\n",
 )
 expect_rejected(

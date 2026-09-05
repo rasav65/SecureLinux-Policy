@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import csv
+import hashlib
 import json
 import re
+import shutil
+import subprocess
+import tempfile
 
 root = Path(__file__).resolve().parents[2]
 policy = (root / "docs/DONOR-V3-ADOPTION-POLICY.md").read_text(encoding="utf-8")
@@ -42,45 +46,252 @@ with (root / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream
     rows = list(csv.DictReader(stream, delimiter="\t"))
 orders = [int(row["order"]) for row in rows]
 assert orders == list(range(1, len(rows) + 1))
-assert rows[6]["step_id"] == "FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"
-assert rows[6]["status"] == "PAUSED_BY_CURRENT_DOCUMENT_APPLY"
-assert rows[7]["step_id"] == "APPLY_SEMANTIC_CONTRACT"
-assert rows[7]["status"] == "NEXT"
+by_step = {row["step_id"]: row["status"] for row in rows}
+assert by_step["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "PAUSED_BY_CURRENT_DOCUMENT_APPLY"
+assert by_step["APPLY_SEMANTIC_CONTRACT"] == "PARENT_GATE_CLOSED_SOURCE_INSTANCE_REVISE"
+assert by_step["AUTHORITY_2026_REFRESH"] == "CLOSED"
+assert by_step["SRC0001_MODULAR_APPLY_CONTRACT_ARCHITECTURE"] == "CLOSED"
+assert by_step["SRC0001_PREDICATE_TRANSFORM_DEFINITIONS"] == "CLOSED"
+assert by_step["SRC0001_SNAPSHOT_PRECONDITION_DEFINITION"] == "CLOSED"
+assert by_step["SRC0001_LOCK_REREAD_OBJECT_IDENTITY_DEFINITIONS"] == "CLOSED"
+assert by_step["SRC0001_METADATA_TRANSACTION_REPORT_DEFINITIONS"] == "CLOSED"
+assert by_step["APPLY_IMPLEMENTATION_ADAPTERS"] == "CLOSED"
+assert by_step["FINAL_DETERMINISTIC_PACKAGING"] == "NEXT"
 
-# Parent-first gate: schema/registry exist before any source-specific APPLY instance.
+# Parent schema remains accepted; compact registry now binds kind/target-class to architecture.
 apply_schema_path = root / "product/contracts/apply-semantic-contract-v1.schema.json"
 apply_registry_path = root / "product/APPLY-KIND-REGISTRY.tsv"
-assert apply_schema_path.is_file()
-assert apply_registry_path.is_file()
+architecture_path = root / "product/contracts/src0001-apply/architecture-v1.json"
+assert apply_schema_path.is_file() and apply_registry_path.is_file() and architecture_path.is_file()
 apply_schema = json.loads(apply_schema_path.read_text(encoding="utf-8"))
 assert apply_schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
 assert apply_schema["$id"] == "urn:securelinux-policy-v3:apply-semantic-contract:v1"
-assert apply_schema["additionalProperties"] is False
-for required in (
-    "source_row", "control_id", "check_contract_id", "apply_kind",
-    "precondition", "mutation", "concurrency", "transaction",
-    "postcondition", "recovery", "dry_run", "donor_mapping",
-):
-    assert required in apply_schema["required"], required
 with apply_registry_path.open(encoding="utf-8", newline="") as stream:
-    apply_kinds = list(csv.DictReader(stream, delimiter="\t"))
-assert apply_kinds == [{
-    "apply_kind": "local-account-password-lock",
-    "target_class": "shadow-password-field",
-    "allowed_paths": "/etc/shadow",
-    "predicate_id": "empty-password-field",
-    "transform_id": "empty-field-to-bang",
-    "commit_model": "SINGLE_ATOMIC_FILE_COMMIT",
-    "privilege": "ROOT_REQUIRED_FAIL_CLOSED",
-    "exclusive_lock": "SYSTEM_ACCOUNT_DB_LOCK",
-    "compensation_policy": "NO_SECURITY_WEAKENING_COMPENSATION",
-    "dry_run_required": "true",
-}]
-assert not (root / "product/contracts/local-account-password-state-apply-semantic-v1.json").exists()
+    reader = csv.DictReader(stream, delimiter="\t")
+    assert tuple(reader.fieldnames or ()) == (
+        "apply_kind", "target_class", "architecture_id", "architecture_path", "architecture_sha256"
+    )
+    apply_kinds = list(reader)
+assert len(apply_kinds) == 1
+row = apply_kinds[0]
+assert row["apply_kind"] == "local-account-password-lock"
+assert row["target_class"] == "shadow-password-field"
+assert row["architecture_id"] == "src0001-local-account-password-state-apply-modular-v1"
+assert row["architecture_path"] == "product/contracts/src0001-apply/architecture-v1.json"
+import hashlib
+def _sha(path):
+    h = hashlib.sha256(); h.update(path.read_bytes()); return h.hexdigest()
+assert row["architecture_sha256"] == _sha(architecture_path)
+arch = json.loads(architecture_path.read_text(encoding="utf-8"))
+assert arch["apply_kind"] == row["apply_kind"]
+assert arch["target_class"] == row["target_class"]
+assert arch["definition_reuse_scope"] == "SRC0001_SOURCE_LOCAL_UNTIL_SECOND_PROVEN_USE_CASE"
+assert arch["bindings"]["flat_candidate"]["status"] == "REVISE_INPUT_NOT_FINAL_AUTHORITY"
+assert arch["definition_progress"] == {
+    "closed_roles": ["predicate", "transform", "snapshot_precondition", "lock_reread", "object_identity", "metadata_preservation", "atomic_transaction", "dry_run_report"],
+    "pending_roles": [],
+}
+by_role = {rec["role"]: rec for rec in arch["definition_roles"]}
+for role in ("predicate", "transform", "snapshot_precondition", "lock_reread", "object_identity", "metadata_preservation", "atomic_transaction", "dry_run_report"):
+    rec = by_role[role]
+    assert rec["state"] == "CLOSED"
+    assert rec["sha256"] == _sha(root / rec["path"])
+predicate = json.loads((root / by_role["predicate"]["path"]).read_text(encoding="utf-8"))
+transform = json.loads((root / by_role["transform"]["path"]).read_text(encoding="utf-8"))
+assert predicate["predicate"] == {"expected_length": 0, "match": "SELECT_FOR_TRANSFORM", "nonmatch": "NOT_SELECTED_PRESERVE_UNCHANGED", "operator": "BYTE_LENGTH_EQ"}
+assert predicate["input_field"]["field_index_1_based"] == 2
+assert transform["transform"]["input_field_bytes_hex"] == ""
+assert transform["transform"]["output_field_bytes_hex"] == "21"
+assert transform["predicate_binding"]["sha256"] == _sha(root / by_role["predicate"]["path"])
+assert transform["preservation"]["nonselected_record_bytes"] == "EXACT"
+assert transform["preservation"]["file_bytes_outside_selected_second_fields"] == "EXACT"
+snapshot = json.loads((root / by_role["snapshot_precondition"]["path"]).read_text(encoding="utf-8"))
+assert snapshot["definition_class"] == "APPLY_SNAPSHOT_PRECONDITION"
+assert snapshot["evidence"]["format"] == "SLP-EXTERNAL-SNAPSHOT-ATTESTATION-V1"
+wire = snapshot["evidence"]["wire_contract"]
+assert wire["additional_properties"] is False
+assert wire["required"] == ["attestation_version", "control_id", "host_identity", "prestate_sha256", "provider", "rollback_capable", "snapshot_id", "snapshot_scope", "source_row", "state", "target_path"]
+assert set(wire["properties"]) == set(wire["required"])
+assert wire["properties"]["host_identity"]["pattern"] == "^[0-9a-f]{32}$"
+assert wire["properties"]["prestate_sha256"]["pattern"] == "^[0-9a-f]{64}$"
+assert snapshot["evidence"]["claim_strength"] == "EXTERNAL_OPERATOR_ATTESTATION_NOT_PROVIDER_CRYPTOGRAPHIC_PROOF"
+assert snapshot["evidence"]["constraints"]["snapshot_scope"] == "FULL_TARGET_HOST_OR_VM"
+assert snapshot["evidence"]["constraints"]["state"] == "READY"
+assert snapshot["evidence"]["constraints"]["rollback_capable"] is True
+assert snapshot["precondition"]["target_prestate_binding"] == "SHA256_EXACT_FILE_BYTES"
+assert snapshot["failure"]["missing_evidence"] == "ABORT_NO_MUTATION"
+assert snapshot["failure"]["mismatched_evidence"] == "ABORT_NO_MUTATION"
+assert snapshot["recovery_model"]["product_creates_snapshot"] is False
+assert snapshot["recovery_model"]["product_restores_snapshot"] is False
+lock_reread = json.loads((root / by_role["lock_reread"]["path"]).read_text(encoding="utf-8"))
+assert lock_reread["definition_class"] == "APPLY_LOCK_REREAD"
+assert lock_reread["lock"]["authority"] == "LIBC_LCKPWDF_PASSWORD_DATABASE_LOCK"
+assert lock_reread["lock"]["api"] == "lckpwdf(3)"
+assert lock_reread["lock"]["release_api"] == "ulckpwdf(3)"
+assert lock_reread["lock"]["documented_lock_file"] == "/etc/.pwd.lock"
+assert lock_reread["lock"]["interoperability"] == "SERIALIZES_WITH_PASSWORD_DATABASE_WRITERS_THAT_HONOR_LCKPWDF"
+assert lock_reread["lock"]["noncooperating_direct_writers"] == "NOT_SERIALIZED_BY_LCKPWDF"
+assert lock_reread["lock"]["mode"] == "EXCLUSIVE"
+assert lock_reread["lock"]["acquire_before"] == "UNDER_LOCK_REREAD_AND_ANY_HOST_MUTATION"
+assert lock_reread["reread"]["under_lock"] is True
+assert lock_reread["reread"]["input_paths"] == ["/etc/passwd", "/etc/shadow"]
+assert lock_reread["reread"]["comparator"]["all_input_file_sha256"] == "EXACT_EQUAL_BY_PATH"
+assert lock_reread["reread"]["final_precommit_revalidation"]["required"] is True
+assert lock_reread["reread"]["final_precommit_revalidation"]["failure"] == "ABORT_NO_MUTATION"
+assert lock_reread["reread"]["comparator"]["selected_record_keys"] == "EXACT_EQUAL"
+assert lock_reread["failure"]["stale_prestate"] == "ABORT_NO_MUTATION"
+object_identity = json.loads((root / by_role["object_identity"]["path"]).read_text(encoding="utf-8"))
+assert object_identity["definition_class"] == "APPLY_OBJECT_IDENTITY"
+assert object_identity["identity"]["target"]["lstat_type"] == "REGULAR_FILE"
+assert object_identity["identity"]["target"]["symlink"] == "FORBIDDEN"
+assert object_identity["identity"]["target"]["st_nlink"] == 1
+assert object_identity["identity"]["target"]["open_binding"] == "NOFOLLOW_FD_WITH_FSTAT_IDENTITY_MATCH"
+assert object_identity["failure"]["identity_drift"] == "ABORT_NO_MUTATION"
+assert object_identity["path_replacement_boundary"]["external_replace_between_capture_points"] == "STALE_ABORT_NO_MUTATION"
+assert arch["implementation_binding"]["model"] == "SEPARATE_REGISTRY"
+assert arch["composition_contract"]["state"] == "CLOSED"
+composition_actual = json.loads((root / arch["composition_contract"]["path"]).read_text(encoding="utf-8"))
+assert composition_actual["architecture_binding"]["sha256"] == hashlib.sha256((root / "product/contracts/src0001-apply/architecture-v1.json").read_bytes()).hexdigest()
+assert set(composition_actual["definition_bindings"]) == set(by_role)
+for role, binding in composition_actual["definition_bindings"].items():
+    assert binding["sha256"] == by_role[role]["sha256"]
+impl_binding_decl = arch["implementation_binding"]
+assert impl_binding_decl["registry_state"] == "PRESENT"
+assert tuple(impl_binding_decl["required_fields"]) == (
+    "apply_kind", "composition_contract_id", "adapter_id", "binding_path",
+    "binding_sha256", "implementation_path", "implementation_sha256",
+)
+impl_registry_path = root / impl_binding_decl["registry_path"]
+assert impl_registry_path.is_file() and not impl_registry_path.is_symlink()
+impl_lines = impl_registry_path.read_text(encoding="utf-8").splitlines()
+assert len(impl_lines) == 2, impl_lines
+assert tuple(impl_lines[0].split("\t")) == tuple(impl_binding_decl["required_fields"])
+impl_row = dict(zip(impl_lines[0].split("\t"), impl_lines[1].split("\t")))
+assert len(impl_row) == len(impl_binding_decl["required_fields"])
+assert all(impl_row[field] for field in impl_binding_decl["required_fields"])
+assert impl_row["apply_kind"] == arch["apply_kind"]
+assert impl_row["composition_contract_id"] == composition_actual["composition_contract_id"]
+for impl_rel in (impl_row["binding_path"], impl_row["implementation_path"]):
+    assert impl_rel and not impl_rel.startswith("/")
+    assert "\\" not in impl_rel and "\x00" not in impl_rel
+    impl_parts = impl_rel.split("/")
+    assert all(impl_parts) and "." not in impl_parts and ".." not in impl_parts
+    impl_probe = root
+    for impl_part in impl_parts:
+        impl_probe = impl_probe / impl_part
+        assert not impl_probe.is_symlink(), impl_rel
+    assert impl_probe.is_file(), impl_rel
+assert impl_row["binding_sha256"] == _sha(root / impl_row["binding_path"])
+assert impl_row["implementation_sha256"] == _sha(root / impl_row["implementation_path"])
+impl_binding_doc = json.loads(
+    (root / impl_row["binding_path"]).read_text(encoding="utf-8")
+)
+assert set(impl_binding_doc) == {
+    "adapter_id", "binding_contract_id",
+    "composition_contract_path", "composition_contract_sha256",
+}
+assert impl_binding_doc["adapter_id"] == impl_row["adapter_id"]
+assert impl_binding_doc["composition_contract_path"] == arch["composition_contract"]["path"]
+assert impl_binding_doc["composition_contract_sha256"] == _sha(
+    root / arch["composition_contract"]["path"]
+)
+for forbidden in ("allowed_paths", "predicate_id", "transform_id", "commit_model", "privilege", "exclusive_lock"):
+    assert forbidden not in row
+
+# Deterministic binding checker: stale registry SHA is repairable only by explicit --write;
+# drift of a pinned dependency is never auto-rebound.
+binding_tool = root / "tools/rebuild-apply-contract-bindings.py"
+check = subprocess.run(
+    ["/usr/bin/python3", "-I", "-S", "-B", str(binding_tool), "--project-root", str(root), "--check"],
+    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+)
+assert check.returncode == 0, check.stdout + check.stderr
+with tempfile.TemporaryDirectory(prefix="src0001-apply-binding-") as td:
+    probe = Path(td)
+    for rel in (
+        "product/APPLY-KIND-REGISTRY.tsv",
+        "product/contracts/src0001-apply/architecture-v1.json",
+        "product/contracts/src0001-apply/composition-v1.schema.json",
+        "product/contracts/src0001-apply/predicate-empty-second-shadow-field-v1.json",
+        "product/contracts/src0001-apply/transform-empty-second-shadow-field-to-bang-v1.json",
+        "product/contracts/src0001-apply/snapshot-precondition-v1.json",
+        "product/contracts/src0001-apply/lock-reread-v1.json",
+        "product/contracts/src0001-apply/object-identity-v1.json",
+        "product/contracts/src0001-apply/metadata-preservation-v1.json",
+        "product/contracts/src0001-apply/atomic-transaction-v1.json",
+        "product/contracts/src0001-apply/dry-run-report-v1.json",
+        "product/contracts/src0001-apply/composition-v1.json",
+        "product/contracts/apply-semantic-contract-v1.schema.json",
+        "product/contracts/local-account-password-state-apply-semantic-v1.json",
+        "product/contracts/local-account-password-state-check-semantic-v2.json",
+        "tools/rebuild-apply-contract-bindings.py",
+    ):
+        src = root / rel
+        dst = probe / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+    probe_reg = probe / "product/APPLY-KIND-REGISTRY.tsv"
+    probe_reg.write_text(
+        probe_reg.read_text(encoding="utf-8").replace(row["architecture_sha256"], "0" * 64),
+        encoding="utf-8", newline="\n",
+    )
+    stale = subprocess.run(
+        ["/usr/bin/python3", "-I", "-S", "-B", str(probe / "tools/rebuild-apply-contract-bindings.py"), "--project-root", str(probe), "--check"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    assert stale.returncode == 1 and "stale" in stale.stderr.lower(), stale.stdout + stale.stderr
+    repaired = subprocess.run(
+        ["/usr/bin/python3", "-I", "-S", "-B", str(probe / "tools/rebuild-apply-contract-bindings.py"), "--project-root", str(probe), "--write"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    assert repaired.returncode == 0, repaired.stdout + repaired.stderr
+    predicate_probe = probe / "product/contracts/src0001-apply/predicate-empty-second-shadow-field-v1.json"
+    predicate_original = predicate_probe.read_bytes()
+    predicate_probe.write_bytes(predicate_original + b" ")
+    stale_definition = subprocess.run(
+        ["/usr/bin/python3", "-I", "-S", "-B", str(probe / "tools/rebuild-apply-contract-bindings.py"), "--project-root", str(probe), "--check"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    assert stale_definition.returncode == 1 and "stale definition binding: predicate" in stale_definition.stderr, stale_definition.stdout + stale_definition.stderr
+    predicate_probe.write_bytes(predicate_original)
+    snapshot_probe = probe / "product/contracts/src0001-apply/snapshot-precondition-v1.json"
+    snapshot_original = snapshot_probe.read_bytes()
+    snapshot_probe.write_bytes(snapshot_original + b" ")
+    stale_snapshot = subprocess.run(
+        ["/usr/bin/python3", "-I", "-S", "-B", str(probe / "tools/rebuild-apply-contract-bindings.py"), "--project-root", str(probe), "--check"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    assert stale_snapshot.returncode == 1 and "stale definition binding: snapshot_precondition" in stale_snapshot.stderr, stale_snapshot.stdout + stale_snapshot.stderr
+    snapshot_probe.write_bytes(snapshot_original)
+    for role_name, rel_path in (("lock_reread", "product/contracts/src0001-apply/lock-reread-v1.json"), ("object_identity", "product/contracts/src0001-apply/object-identity-v1.json")):
+        role_probe = probe / rel_path
+        role_original = role_probe.read_bytes()
+        role_probe.write_bytes(role_original + b" ")
+        stale_role = subprocess.run(
+            ["/usr/bin/python3", "-I", "-S", "-B", str(probe / "tools/rebuild-apply-contract-bindings.py"), "--project-root", str(probe), "--check"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        assert stale_role.returncode == 1 and f"stale definition binding: {role_name}" in stale_role.stderr, stale_role.stdout + stale_role.stderr
+        role_probe.write_bytes(role_original)
+    dependency = probe / "product/contracts/local-account-password-state-check-semantic-v2.json"
+    dependency.write_bytes(dependency.read_bytes() + b" ")
+    for mode in ("--check", "--write"):
+        rejected = subprocess.run(
+            ["/usr/bin/python3", "-I", "-S", "-B", str(probe / "tools/rebuild-apply-contract-bindings.py"), "--project-root", str(probe), mode],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        assert rejected.returncode == 1 and "stale architecture binding" in rejected.stderr, (mode, rejected.stdout, rejected.stderr)
+
+src0001_apply_path = root / "product/contracts/local-account-password-state-apply-semantic-v1.json"
+assert src0001_apply_path.is_file()
+src0001_apply = json.loads(src0001_apply_path.read_text(encoding="utf-8"))
+assert src0001_apply["source_row"] == "SRC-0001"
+assert src0001_apply["apply_kind"] == "local-account-password-lock"
 for marker in (
     "Parent gate для APPLY semantic contracts",
     "apply-semantic-contract-v1.schema.json",
     "APPLY-KIND-REGISTRY.tsv",
+    "architecture-v1.json",
     "local-account-password-lock",
     "0 строк source index",
 ):
@@ -359,5 +570,6 @@ expect_rejected(
     policy + "\nДля будущего distributable результат сборки при тех же входах может меняться.\n",
     "determinism_same_inputs_result_may_change",
 )
+print("SRC0001_APPLY_ARCHITECTURE_BINDING=PASS compact_registry=1 target_class=1 stale_registry=1 stale_dependency=2")
 print("DONOR_POLICY_NEGATIVE_FIXTURES=PASS_18 restore_stage=5 donor_restore_history=4 artifact_truth=6 future_name=3")
 print("DONOR_V3_POLICY=PASS donor_is_non_normative=1 roadmap_precondition=1")

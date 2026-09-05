@@ -19,6 +19,27 @@
   нумерованными положениями;
 - ни одна строка Step 3 не является перенесённым control.
 
+## Framework authority refresh 2026
+
+`FRAMEWORK-SOURCES.tsv` регистрирует framework authority отдельно от
+`SOURCE-INDEX.tsv`. Приказ ФСТЭК России от 8 мая 2026 г. № 137
+`fstec-order-137-2026-amendments-to-117.pdf` изменяет framework source
+`fstec-order-117-2025-requirements.pdf`.
+
+Связь base/amendment и даты вступления в силу фиксируются в
+`FRAMEWORK-AUTHORITY-RELATIONS.tsv`: основная часть изменений действует
+с `2026-09-01`, а пункт 7 приложения — с `2027-03-01`.
+
+Приказ № 137 является image-only PDF. Канонической authority остаются exact
+bytes PDF; derived page-pinned visual transcription/provenance хранится в
+`sources/visual-v1/` и не подменяет источник. Он не проходит через обычный
+`pdftotext`/glyph-recovery pipeline и сам по себе не создаёт строки
+`SOURCE-INDEX.tsv`.
+
+Authority refresh не переоткрывает `SRC-0001…SRC-0040`: их technical-core
+authority остаётся `fstec-linux-2022.pdf`, а CLOSED status меняется только при
+прямом source mapping/invalidation evidence.
+
 Известные blockers текстового слоя:
 - fstec-linux-2022
 - fstec-vulnerability-analysis-2025

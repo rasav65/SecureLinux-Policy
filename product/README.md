@@ -1,6 +1,7 @@
-# Продуктовая линия CHECK
+# Продуктовая линия CHECK и SRC-0001 APPLY
 
-Постоянная read-only product-line SecureLinux-Policy v3.
+Постоянная read-only CHECK product-line и первая ограниченная APPLY-вертикаль
+SecureLinux-Policy v3.
 
 Она отделена от historical `step7b0/`: admitted bytes и historical adapter id
 `sysctl-check-v1` не являются current product authority и здесь не изменяются.
@@ -48,11 +49,26 @@
 - `adapters/product-home-directories-mode-check-v2.py` + JSON binding; локальный passwd + read-only наблюдение mode;
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
   semantic contract / binding / implementation с SHA-256;
-- `contracts/apply-semantic-contract-v1.schema.json` — parent JSON Schema будущих source-specific APPLY semantic contracts; schema сама не разрешает host mutation;
-- `APPLY-KIND-REGISTRY.tsv` — machine-readable registry допустимых `apply_kind`; RELEASE gate автоматически связывает каждый future/current source-specific APPLY contract с exact registry row и fail-closed отвергает незарегистрированный kind или несовпадающие kind-level ограничения; текущий parent gate содержит только `local-account-password-lock`, но source-specific APPLY contract и implementation ещё отсутствуют;
+- `contracts/apply-semantic-contract-v1.schema.json` — parent JSON Schema source-specific APPLY semantic contracts; schema сама не разрешает host mutation;
+- `contracts/local-account-password-state-apply-semantic-v1.json` — flat source-specific APPLY contract-кандидат для `SRC-0001`; сохраняется как `REVISE_INPUT_NOT_FINAL_AUTHORITY`, а финальная semantic authority строится через модульные definitions;
+- `APPLY-KIND-REGISTRY.tsv` — компактная машиночитаемая привязка: `apply_kind` + `target_class` → exact объект архитектуры `SRC-0001` + SHA-256; низкоуровневые semantics `predicate`/`transform`/path/lock/transaction больше не дублируются в registry;
+- `contracts/src0001-apply/architecture-v1.json` — принятая узкая модульная архитектура только для `SRC-0001`: все восемь локальных ролей имеют state `CLOSED` и exact SHA, implementation registry имеет state `PRESENT`;
+- `contracts/src0001-apply/predicate-empty-second-shadow-field-v1.json` — exact P-03 predicate: population берётся только из bound current CHECK semantic v2; выбирается ровно password field №2 с byte-length `0`; CHECK ERROR/ambiguity → `ABORT_NO_MUTATION`, CHECK PASS → `NOOP_SUCCESS`;
+- `contracts/src0001-apply/transform-empty-second-shadow-field-to-bang-v1.json` — exact P-03 transform, SHA-bound к predicate: только выбранное поле `"" -> "!"` (`0x21`); non-selected/non-empty fields, остальные поля/records/order/delimiters и все bytes вне выбранных вторых полей сохраняются `EXACT`;
+- `contracts/src0001-apply/snapshot-precondition-v1.json` — exact P-04 precondition: до host mutation обязателен caller-supplied read-only JSON attestation `SLP-EXTERNAL-SNAPSHOT-ATTESTATION-V1`, exact bound к host `/etc/machine-id` и SHA-256 текущих `/etc/shadow` bytes, с `FULL_TARGET_HOST_OR_VM`, `READY`, `rollback_capable=true`; missing/malformed/mismatch/not-ready → `ABORT_NO_MUTATION`; attestation не объявляется provider-cryptographic proof; product snapshot не создаёт и не восстанавливает;
+- `contracts/src0001-apply/lock-reread-v1.json` — exact P-05 libc `lckpwdf(3)`/`ulckpwdf(3)` password-database lock + under-lock reread comparator; `/etc/passwd` и `/etc/shadow` exact bytes, ordered selected usernames и final precommit revalidation обязаны совпасть, иначе `ABORT_NO_MUTATION`;
+- `contracts/src0001-apply/object-identity-v1.json` — exact P-05 `/etc` + `/etc/shadow` identity boundary: final target regular non-symlink, `st_nlink == 1`, nofollow fd/fstat identity binding, prelock→under-lock drift запрещён;
+- `contracts/src0001-apply/metadata-preservation-v1.json` — точная граница P-06 для допустимости и сохранения метаданных проверенного `/etc/shadow`; владелец, группа и режим сохраняются, а расширенный ACL, xattr или неразрешимое состояние метаданных завершают APPLY до фиксации изменения;
+- `contracts/src0001-apply/atomic-transaction-v1.json` — точная P-06 транзакция с единственной атомарной заменой в том же каталоге: проверка временного файла, финальная повторная проверка P-05, переименование, `fsync` родительского каталога, постпроверка при удерживаемой блокировке и освобождение блокировки до итогового отчёта;
+- `contracts/src0001-apply/dry-run-report-v1.json` — точный P-06 сухой запуск без записи и `SLP-APPLY-REPORT-V1` с закрытым множеством состояний, привязкой источника ошибки и приоритетом постпроверки;
+- `contracts/src0001-apply/composition-v1.schema.json` + `composition-v1.json` — схема Draft 2020-12 и привязанная по SHA-256 композиция всех восьми ролей определений со статусом `CLOSED`;
+- `APPLY-IMPLEMENTATION-REGISTRY.tsv` — семипольная exact-привязка kind/composition/adapter к binding и implementation SHA-256;
+- `apply-adapters/product-local-account-password-state-apply-v1.json` — binding реализации к exact композиции;
+- `apply-adapters/product-local-account-password-state-apply-v1.py` — реализация `SRC-0001`: dry-run, external-snapshot attestation, `lckpwdf(3)`, under-lock reread, atomic replacement, directory fsync, post-check и idempotent NOOP;
+- `tools/rebuild-apply-contract-bindings.py` — с отказом при несоответствии проверяет точные идентификаторы и SHA-256 всех восьми определений, связи зависимостей и композицию; `--write` детерминированно пересобирает композицию и SHA-256 архитектуры в компактном реестре;
 - `SUPPORTED-PLATFORMS.tsv` — machine-readable authority основной проверенной 7/7 runtime-матрицы (`FULL | MINIMIZED | SERVER`);
 - `SUPPORTED-DESKTOPS.tsv` — отдельная machine-readable authority дополнительного Ubuntu 24.04 x86_64 `TYPE=DESKTOP`; desktop environment/GUI shell не является support discriminator;
-- `generate-product-check-v2.py` — текущий отслеживаемый детерминированный generator единого read-only CLI; runtime preflight определяет OS/version/arch, затем либо основной FULL/MINIMIZED/SERVER profile, либо дополнительный `TYPE=DESKTOP`;
+- `generate-product-check-v2.py` — текущий отслеживаемый детерминированный generator единого CLI с read-only CHECK и `SRC-0001` APPLY; runtime preflight определяет OS/version/arch, затем либо основной FULL/MINIMIZED/SERVER profile, либо дополнительный `TYPE=DESKTOP`;
 - `generate-product-check-v1.py` — сохранённая предыдущая generator identity;
 - `/securelinux-policy.sh` + `/securelinux-policy.sh.sha256` — отслеживаемая byte-exact пользовательская точка входа текущей product population;
 - `dist/` — optional derived gitignored rebuild output, не источник истины.
@@ -86,7 +102,9 @@ generator. Compliance execution выполняется как executable (`./sec
   `installed` означает installed, `not-installed`/`config-files` — absent, а
   промежуточные или повреждённые состояния дают `UNSUPPORTED_PROFILE`;
 - `--build-info`, `--provenance`, `--version`, `--help` — metadata/UI;
-- `--apply` — fail-closed `NOT_IMPLEMENTED`, RC=2, зарезервирован для будущей mutation-line; `--restore` отсутствует в current CLI, потому что operational RESTORE исключён из v3.
+- `--apply --dry-run` — `SRC-0001` dry-run без attestation и без записи;
+- `--apply --snapshot-attestation <path>` — `SRC-0001` commit только после exact внешней attestation; отчёт — единственный `SLP-APPLY-REPORT-V1` JSON на stdout;
+- голый `--apply`, `--dry-run` без `--apply` и несовместимые комбинации дают `RC=2` до mutation; `--restore` отсутствует, потому что operational RESTORE исключён из v3.
 
 `tests/product-v1/test_product_generator.py` содержит `UnifiedCliArtifact`, который
 детерминированно пересобирает artifact в temp и требует byte-exact equality с tracked root script и sidecar.
@@ -97,7 +115,7 @@ CHECK для current population из manifest реализован и покры
 artifact имеет статус `NON_RELEASE_PRODUCT_CANDIDATE`; один target family
 `linux-x86_64-supported-v1` охватывает основную проверенную матрицу 7/7 из `SUPPORTED-PLATFORMS.tsv` и дополнительный Ubuntu 24.04 x86_64 Desktop из `SUPPORTED-DESKTOPS.tsv`; всего current supported environments — 8.
 
-CHECK не содержит APPLY implementation. Parent schema/registry APPLY semantic contracts уже существуют, но source-specific APPLY contract ещё не принят. RESTORE не входит в целевую mutation-архитектуру. Policy noncompliance не равен execution
+Родительская схема, реестр kind, модульная архитектура и все восемь определений приняты; плоский кандидат для конкретного источника остаётся входом со статусом `REVISE`. `APPLY-IMPLEMENTATION-REGISTRY.tsv`, binding и adapter связывают реализацию `SRC-0001` с exact композицией. Generated CLI реализует scope `SRC-0001_ONLY`; VM acceptance подтвердил dry-run, attested commit, локальную post-check, повторный NOOP и fail-closed ветви до commit. Этап `APPLY_IMPLEMENTATION_ADAPTERS` закрыт; следующий этап — `FINAL_DETERMINISTIC_PACKAGING`. RESTORE не входит в целевую mutation-архитектуру. Policy noncompliance не равен execution
 failure. Result `NOT_FOUND`/`ERROR` делает итог `UNEVALUATED`; observation `NOT_FOUND`
 может быть definitive `FAIL`, если active semantic contract прямо определяет отсутствие
 обязательного объекта/технологии как noncompliance (в частности SSH/PAM).
@@ -148,7 +166,8 @@ key — наблюдаемое `VALUE/FAIL`; для bare flag `present` отсу
 PASS; adapter не пытается определить, возможно ли `off` для конкретного ядра.
 
 Formal `Gate 5 --probe-results` остаётся отдельным контрактным артефактом и не
-подменяется выводом generated CHECK. APPLY/RESTORE не реализованы.
+подменяется выводом generated CHECK. Для kernel-cmdline APPLY отсутствует; RESTORE
+не входит в продукт.
 
 Тесты: `tests/product-v1/`.
 
@@ -158,7 +177,7 @@ Formal `Gate 5 --probe-results` остаётся отдельным контра
 
 ## SRC-0001 / 2.1.1
 
-Один aggregate control проверяет локальную account population из `/etc/passwd` против source-anchored `/etc/shadow`. Для каждого локального пользователя требуется определимая shadow-запись с непустым password field. Empty field → `VALUE/FAIL`; missing/unreadable/symlink/malformed/duplicate mapping → fail-closed `ERROR`. APPLY/RESTORE не реализованы.
+Один aggregate control проверяет локальную account population из `/etc/passwd` против source-anchored `/etc/shadow`. Для каждого локального пользователя требуется определимая shadow-запись с непустым password field. Empty field → `VALUE/FAIL`; missing/unreadable/symlink/malformed/duplicate mapping → fail-closed `ERROR`. APPLY для этого control реализован в scope `SRC-0001_ONLY`: пустое второе поле заменяется exact байтом `!`; dry-run не пишет, commit требует external-snapshot attestation, повторный запуск даёт NOOP. RESTORE не входит в продукт.
 ## SRC-0011 / 2.3.7
 
 Один aggregate control `user-cron-files-mode` v2 проверяет пользовательские cron-файлы только в canonical target root `/var/spool/cron/crontabs`. В population входят direct regular non-symlink files (`maxdepth 1`); parent `/var/spool/cron` не является population root, поэтому unrelated direct objects и `atd` siblings/subtrees не могут быть ошибочно классифицированы как user crontabs. Точное source-отношение `chmod go-w` представлено как `mode bits-clear 0022`; требования к owner/group или к режиму root-каталога не добавляются.
