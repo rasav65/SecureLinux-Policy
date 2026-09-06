@@ -954,6 +954,50 @@ class StandardSystemPathsModeFixtures(unittest.TestCase):
             cp = self.run_standard([exe], [lib], mod)
             assert_stable_error_record(self, cp.stdout, "TEST-STANDARD-PATHS")
 
+    def test_exec_symlink_to_observed_exec_root_is_skipped(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            exe, lib, mod, *_ = self.make_layout(base)
+            baseline = self.run_standard([exe], [lib], mod)
+            self.assertEqual(baseline.stderr, "")
+            self.assertIn("exec=1;libraries=1;modules=1;checked=3;violations=0\tPASS", baseline.stdout)
+
+            own = exe / "X11"; own.symlink_to(exe, target_is_directory=True)
+            cp = self.run_standard([exe], [lib], mod)
+            self.assertEqual(cp.stderr, "")
+            self.assertEqual(cp.stdout, baseline.stdout)
+
+            other_root = base / "usr-sbin"; other_root.mkdir()
+            tool2 = other_root / "tool2"; tool2.write_text("x\n", encoding="utf-8"); os.chmod(tool2, 0o755)
+            cross_root = exe / "sbinlink"; cross_root.symlink_to(other_root, target_is_directory=True)
+            cp = self.run_standard([exe, other_root], [lib], mod)
+            self.assertEqual(cp.stderr, "")
+            self.assertIn("exec=2;libraries=1;modules=1;checked=4;violations=0\tPASS", cp.stdout)
+            cross_root.unlink()
+
+    def test_directory_symlink_outside_exception_stays_error(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            exe, lib, mod, *_ = self.make_layout(base)
+            outside = base / "other"; outside.mkdir()
+            sub = exe / "sub"; sub.mkdir()
+            cases = (
+                (exe / "badlink", outside),
+                (exe / "sublink", sub),
+                (exe / "liblink", lib),
+                (lib / "libroot.so", lib),
+                (mod / "root.ko", mod),
+            )
+            for link, target in cases:
+                with self.subTest(link=link.name):
+                    link.symlink_to(target, target_is_directory=True)
+                    try:
+                        cp = self.run_standard([exe], [lib], mod)
+                        self.assertEqual(cp.stderr, "")
+                        assert_stable_error_record(self, cp.stdout, "TEST-STANDARD-PATHS", "target:invalid-type")
+                    finally:
+                        link.unlink()
+
     def test_missing_role_and_candidate_special_fail_closed(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
@@ -978,6 +1022,72 @@ class StandardSystemPathsModeFixtures(unittest.TestCase):
                 assert_stable_error_record(self, cp.stdout, "TEST-STANDARD-PATHS")
             finally:
                 os.chmod(locked, 0o700)
+
+    def test_python_dependency_failure_records(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            exe, lib, mod, *_ = self.make_layout(base)
+            source = STANDARD_PATHS._shell_function_for_layout(
+                "TEST-STANDARD-PATHS", [str(exe)], [str(lib)], str(mod))
+            missing = base / "missing-python"
+            nonexec = base / "nonexec-python"
+            nonexec.write_bytes(b"#!/bin/sh\n")
+            os.chmod(nonexec, 0o644)
+            # Existing executable avoids requiring execution from temporary mounts.
+            failing = Path("/usr/bin/false")
+            self.assertTrue(os.access(failing, os.X_OK), str(failing))
+            for path, reason in (
+                (missing, "runtime:python3-missing"),
+                (nonexec, "runtime:python3-missing"),
+                (failing, "runtime:observer-failed"),
+            ):
+                with self.subTest(reason=reason, path=path.name):
+                    # Substitute the interpreter only inside this temporary fixture.
+                    self.assertEqual(source.count("/usr/bin/python3"), 2)
+                    altered = source.replace("/usr/bin/python3", str(path))
+                    cp = subprocess.run(
+                        [BASH, "-p", "-c", altered + "\nslp_check_TEST_STANDARD_PATHS"],
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    self.assertEqual(cp.returncode, 0, cp.stderr)
+                    self.assertEqual(cp.stderr, "")
+                    self.assertEqual(cp.stdout,
+                        "SLP-CHECK-V1\tTEST-STANDARD-PATHS\tERROR\t" + reason + "\tERROR\n")
+
+    def test_observer_invalid_argument_count(self):
+        cp = subprocess.run(
+            ["/usr/bin/python3", "-I", "-S", "-B", "-", "TEST-STANDARD-PATHS",
+             "0022", "1", "1"],
+            input=STANDARD_PATHS._OBSERVER, text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        self.assertEqual(cp.stdout,
+            "SLP-CHECK-V1\tTEST-STANDARD-PATHS\tERROR\truntime:observer-arguments\tERROR\n")
+
+    def test_error_vocabulary_matches_rendered_reasons(self):
+        semantic = json.loads((ROOT /
+            "product/contracts/standard-system-paths-mode-check-semantic-v2.json").read_text())
+        source = STANDARD_PATHS.shell_function(
+            "TEST-STANDARD-PATHS", STANDARD_PATHS.CANONICAL_LOCATOR,
+            "mode", "bits-clear", "0022")
+        reasons = set(re.findall(
+            r"""["']((?:runtime|path|kernel|root|target|scan|population):[a-z0-9-]+)["']""",
+            source))
+        # resolve() constructs these reasons for its two caller roles.
+        for role in ("root", "target"):
+            for suffix in ("resolve-failed", "resolve-empty"):
+                reasons.add(role + ":" + suffix)
+        self.assertEqual(set(semantic["error_reasons"]), reasons)
+        self.assertTrue(all(isinstance(v, str) and v for v in semantic["error_reasons"].values()))
+        self.assertNotIn("target:mode-read-failed", reasons)
+        self.assertNotIn("scan:invalid-marker", reasons)
+        dependency = semantic["runtime_dependency"]
+        self.assertEqual(dependency["path"], "/usr/bin/python3")
+        self.assertEqual(dependency["error"], "runtime:python3-missing")
+        guard = "if " + dependency["check"] + "; then"
+        self.assertIn(guard, source)
+        self.assertLess(source.index(guard), source.index("command /usr/bin/python3"))
+        self.assertGreater(source.index(guard), source.index("command /usr/bin/uname -r"))
 
     def test_generation_rejects_wrong_contract_fields(self):
         good = "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>"
