@@ -169,7 +169,7 @@ expect_tests_readme_skip_policy_rejected(
 
 
 # Relative Markdown links in the two entry points must resolve.
-for source_path, text in ((ROOT / "README.md", readme), (ROOT / "docs/README.md", docs_index)):
+for source_path, text in ((ROOT / "README.md", readme), (ROOT / "docs/README.md", docs_index), (ROOT / "product/README.md", product_readme)):
     for target in re.findall(r"\[[^]]+\]\(([^)]+)\)", text):
         if "://" in target or target.startswith("#"):
             continue
@@ -178,6 +178,36 @@ for source_path, text in ((ROOT / "README.md", readme), (ROOT / "docs/README.md"
             continue
         resolved = (source_path.parent / target_path).resolve()
         assert resolved.exists(), f"broken link {source_path.relative_to(ROOT)} -> {target}"
+
+
+# Пользовательский маршрут и закреплённая загрузка: без выполнения скачанного кода.
+def validate_readme_entrypoint(text: str) -> None:
+    for heading in ("## Скачать", "## Быстрый старт", "## Требования", "## Поддерживаемые системы", "## Применение изменений", "## Как читать результат", "## Документация"):
+        assert text.count(heading) == 1, heading
+    assert "git clone --filter=blob:none --no-checkout https://github.com/rasav65/SecureLinux-Policy.git securelinux-policy-download" in text
+    pins = re.findall(r"git checkout ([0-9a-f]{40}) -- securelinux-policy\.sh securelinux-policy\.sh\.sha256", text)
+    assert len(pins) == 1
+    assert "raw.githubusercontent.com" not in text
+    assert "sha256sum -c securelinux-policy.sh.sha256" in text
+    assert "sudo /bin/bash -p ./securelinux-policy.sh --check" in text
+    assert "sudo /bin/bash -p ./securelinux-policy.sh --apply --dry-run" in text
+    assert "--snapshot-attestation /path/to/attestation.json" in text
+    assert "snapshot-precondition-v1.json" in text
+    assert "product/README.md#readme-engineering-reference" in text
+    assert "DRAFT_UNVERIFIED" not in text and "Исходный README — сохранён полностью" not in text
+
+validate_readme_entrypoint(readme)
+for bad in (
+    readme.replace("sha256sum -c securelinux-policy.sh.sha256", "true"),
+    readme.replace("/bin/bash -p", "/bin/bash"),
+    re.sub(r"git checkout [0-9a-f]{40} --", "git checkout main --", readme),
+):
+    try:
+        validate_readme_entrypoint(bad)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("README entrypoint negative fixture accepted")
 
 # Every docs/*.md except the index itself must appear exactly once in docs/README.
 doc_names = sorted(
@@ -190,8 +220,8 @@ for name in doc_names:
 assert docs_index.count("**PRIMARY**") == 1
 assert "PROJECT-MAP-v3.md" in readme
 assert "ARCHITECTURE-DIAGRAMS.md" in readme
-assert "historical donor runtime reference" in readme
-assert "не future target" in readme
+assert "historical donor runtime reference" in product_readme
+assert "не future target" in product_readme
 assert "ARCHITECTURE-DIAGRAMS.md" in docs_index
 assert "historical donor runtime reference" in docs_index
 assert "не future target model" in docs_index
