@@ -15,10 +15,10 @@ impossible rather than merely unlikely.
 
 Scope of this version
 ---------------------
-Only ``unit_kind=numbered-position`` (74 index rows: 40 in fstec-linux-2022,
-34 in fstec-perimeter-2026). The index declares thirteen unit kinds; a single
-extraction rule for all of them would silently produce wrong quotes, so each
-kind is added separately, with its own ground truth.
+``unit_kind=numbered-position`` and ``unit_kind=general-numbered-position``.
+The index declares thirteen unit kinds; a single extraction rule for all of
+them would silently produce wrong quotes, so each kind is added separately,
+with its own ground truth.
 
 Ground truth for this kind is the five accepted pilot controls: regenerating
 their ``source:`` blocks must reproduce the committed files byte for byte.
@@ -36,6 +36,17 @@ footer token at corpus EOF, an index-specific trailing page-number token, or
 an index-specific inline page-number fragment with exact surrounding text.
 The result is re-normalized with norm-v1 and required to be unchanged -- if
 normalization would alter the span, the row is refused rather than guessed.
+
+Extraction rule (general-numbered-position)
+-------------------------------------------
+The locator is ``<section>:<ordinal>`` rather than a dotted outline path.
+The ordinal selects the N-th top-level marker of the accepted outline, so
+the same successor filter decides unit boundaries for both kinds. A unit
+ends at the next top-level marker; the last unit of a section has no such
+marker and would otherwise run to end of corpus, swallowing the appendices.
+Its end is therefore one exact pinned section terminator, required to occur
+exactly once and after the start of the unit -- absence, duplication or a
+position at or before the unit start is refused rather than approximated.
 
 Output is refused, never approximated. A row that cannot be extracted exactly
 is reported and skipped; it is not emitted with a best-effort quote. The
@@ -56,7 +67,7 @@ from pathlib import Path
 
 NORM_VERSION = "norm-v1"
 NORMALIZER_SHA256 = "fdf11e5abc24c966e7b9c9abe318259fd29c06de026addf54cf3710cc937639a"
-SUPPORTED_UNIT_KINDS = {"numbered-position"}
+SUPPORTED_UNIT_KINDS = {"numbered-position", "general-numbered-position"}
 
 # Source-specific terminal page furniture that is visibly present in the pinned
 # PDF but is not part of the normative numbered position. The rule is narrow:
@@ -66,10 +77,18 @@ TERMINAL_PAGE_FURNITURE = {
     "fstec-linux-2022": "________________________",
 }
 
+# The last unit of a section has no following top-level marker. Its end is one
+# exact pinned terminator, keyed by (source_id, section). Nothing is inferred:
+# a missing, duplicated or misplaced terminator refuses the row.
+SECTION_TERMINATOR = {
+    ("fstec-logging-2025", "main"): "Приложение 1",
+}
+
 # Internal page-number furniture is never stripped generically. Each exception
 # is pinned to one exact index row and one exact trailing token.
 INDEX_TRAILING_PAGE_FURNITURE = {
     "SRC-0001": "3",
+    "SRC-0049": "4",
 }
 
 # Inline page-number furniture is also never stripped generically. For an
@@ -87,6 +106,10 @@ INDEX_INLINE_PAGE_FURNITURE = {
         "файлы 5 настройки оболочки, .rhosts",
         ".bash_profile, .bashrc, .profile, .bash_logout и т. п. - "
         "файлы настройки оболочки, .rhosts",
+    ),
+    "SRC-0048": (
+        "требованиям по безопасности 3 ФСТЭК России",
+        "требованиям по безопасности ФСТЭК России",
     ),
 }
 INDEX_FIELDS = {
@@ -279,6 +302,39 @@ def extract_unit(corpus: str, locator: str):
     return corpus[begin:end].strip()
 
 
+def extract_general_unit(corpus: str, locator: str, source_id: str):
+    """Return the exact span of one ``<section>:<ordinal>`` unit, or raise."""
+    section, separator, ordinal_text = locator.partition(":")
+    if not separator or not ordinal_text.isdigit():
+        raise ValueError(f"malformed general locator {locator!r}")
+    ordinal = int(ordinal_text)
+    tops = [(offset, loc) for offset, loc in outline_markers(corpus)
+            if depth(loc) == 1]
+    if ordinal < 1 or ordinal > len(tops):
+        raise ValueError(
+            f"ordinal {ordinal} outside top-level outline of {len(tops)} markers"
+        )
+    begin = tops[ordinal - 1][0]
+    if ordinal < len(tops):
+        return corpus[begin:tops[ordinal][0]].strip()
+
+    terminator = SECTION_TERMINATOR.get((source_id, section))
+    if terminator is None:
+        raise ValueError(
+            f"no pinned section terminator for {source_id}:{section}; "
+            "refusing rather than running to end of corpus"
+        )
+    hits = [m.start() for m in re.finditer(re.escape(terminator), corpus)]
+    if len(hits) != 1:
+        raise ValueError(
+            f"pinned section terminator matches={len(hits)} for "
+            f"{source_id}:{section}"
+        )
+    if hits[0] <= begin:
+        raise ValueError("pinned section terminator precedes the unit start")
+    return corpus[begin:hits[0]].strip()
+
+
 def strip_terminal_page_furniture(corpus: str, quote: str, row) -> str:
     """Remove only a pinned source-specific terminal footer token.
 
@@ -338,7 +394,12 @@ def build_source_block(project_root: Path, row, normalize_text):
     corpus = resolve_corpus(project_root, row).read_text(encoding="utf-8")
     if corpus.endswith("\n"):
         corpus = corpus[:-1]
-    raw_quote = extract_unit(corpus, row["locator"])
+    if row["unit_kind"] == "general-numbered-position":
+        raw_quote = extract_general_unit(
+            corpus, row["locator"], row["source_id"]
+        )
+    else:
+        raw_quote = extract_unit(corpus, row["locator"])
     if raw_quote not in corpus:
         raise ValueError("raw extracted quote is not a substring of the corpus")
 

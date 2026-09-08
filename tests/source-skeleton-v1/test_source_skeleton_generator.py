@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CONTROL_MANIFEST = ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 GEN = ROOT / "tools/source_skeleton_generator.py"
-EXPECTED_GEN_SHA = "7d1e20c0d393a932d3ccd14f14366f3d3f4695c7e2cfe1d69b403b40feaabcc7"
+EXPECTED_GEN_SHA = "f4c568c9d54a0bef9837f592c106029a2346b64154abcd3fe837d70e69e92532"
 EXPECTED_SRC0018_SHA = "016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d"
 EXPECTED_SRC0040_SHA = "f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d"
 EXPECTED_SRC0001_SHA = "799b85637928264e6f43d5e32d8cc6b48af6694e30f6fbf5e4c6ddef3a207f3b"
@@ -62,7 +62,10 @@ rows, by_id = gate.load_index(ROOT / "index/source-v4/SOURCE-INDEX.tsv")
 
 assert len(rows) == 349
 assert len({row["unit_kind"] for row in rows}) == 13
-assert gate.SUPPORTED_UNIT_KINDS == {"numbered-position"}
+assert gate.SUPPORTED_UNIT_KINDS == {
+    "numbered-position",
+    "general-numbered-position",
+}
 
 # Positive ground truth: every current control is in the supported kind and
 # regenerates byte-identically. The count comes from CONTROL-MANIFEST.tsv.
@@ -340,7 +343,7 @@ assert "supported/exact/refused population" in source_doc.lower()
 
 expected_summary = (
     "SOURCE_SKELETON_TESTS=PASS "
-    f"pilot={control_count} unit_kinds=1/{len({row['unit_kind'] for row in rows})} "
+    f"pilot={control_count} unit_kinds={len(gate.SUPPORTED_UNIT_KINDS)}/{len({row['unit_kind'] for row in rows})} "
     f"supported_rows={len(supported)} exact={len(ok)} refused={len(refused)} "
     "index_generic_path=1 negative_duplicate_index=1 "
     "negative_quote_anchor=1 negative_normalizer_sha=1 "
