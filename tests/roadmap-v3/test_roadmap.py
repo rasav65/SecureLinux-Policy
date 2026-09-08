@@ -33,7 +33,7 @@ assert rows[2]["status"] == "CLOSED"
 assert rows[3]["status"] == "CLOSED"
 assert rows[4]["status"] == "CLOSED"
 assert rows[5]["status"] == "CLOSED"
-assert rows[6]["status"] == "PAUSED_BY_CURRENT_DOCUMENT_APPLY"
+assert rows[6]["status"] == "NEXT"
 assert rows[7]["status"] == "PARENT_GATE_CLOSED_SOURCE_INSTANCE_REVISE"
 assert rows[8]["status"] == "CLOSED"
 assert rows[9]["status"] == "CLOSED"
@@ -42,8 +42,10 @@ assert rows[11]["status"] == "CLOSED"
 assert rows[12]["status"] == "CLOSED"
 assert rows[13]["status"] == "CLOSED"
 assert rows[14]["status"] == "CLOSED"
-assert rows[15]["status"] == "NEXT"
-assert rows[16]["status"] == "BLOCKED_BY_PREVIOUS"
+assert rows[15]["status"] == "CLOSED"
+assert rows[16]["status"] == "CLOSED"
+with (root / "index/source-v4/SOURCE-INDEX.tsv").open(encoding="utf-8", newline="") as f:
+    source_index_rows = list(csv.DictReader(f, delimiter="\t"))
 roadmap_md = (root / "docs/ROADMAP-v3.md").read_text(encoding="utf-8")
 project_map = (root / "docs/PROJECT-MAP-v3.md").read_text(encoding="utf-8")
 disposition_doc = (root / "docs/disposition-ledger.md").read_text(encoding="utf-8")
@@ -68,49 +70,30 @@ def validate_markdown_order(text: str) -> None:
 
 
 def validate_current_checkpoint(roadmap_text: str, map_text: str, disposition_text: str) -> None:
-    assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" in roadmap_text
-    assert "APPLY_SEMANTIC_CONTRACT" in roadmap_text
-    assert "AUTHORITY_2026_REFRESH" in roadmap_text
-    assert "SRC0001_MODULAR_APPLY_CONTRACT_ARCHITECTURE" in roadmap_text
-    assert "SRC0001_PREDICATE_TRANSFORM_DEFINITIONS" in roadmap_text
-    assert "SRC0001_SNAPSHOT_PRECONDITION_DEFINITION" in roadmap_text
-    assert "Step 7B" in roadmap_text and "приостанов" in roadmap_text
-    assert "Модульная architecture APPLY-contract" in map_text
-    assert "predicate / transform definitions" in map_text
-    assert "external snapshot precondition" in map_text
-    assert "lock/reread + object identity" in map_text
-    assert "метаданные/транзакция/отчёт" in map_text
-    assert "AUTHORITY_2026_REFRESH" in map_text
-    assert "Step 7B" in map_text and "приостанов" in map_text
-    assert "Step 7B приостановлен (`PAUSED_BY_CURRENT_DOCUMENT_APPLY`)" in disposition_text
-    assert "текущий product checkpoint внутри макроэтапа Step 7B" not in map_text
-    # Step 7B может упоминаться только как paused/backlog/history. Активный/current
-    # статус запрещён даже при перефразировке; известные отрицательные формулировки
-    # сначала удаляются, чтобы не ловить "не является текущим NEXT".
+    assert "DOCUMENT COMPLETE" in roadmap_text
+    assert "FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS" in roadmap_text
+    assert "Step 7B" in roadmap_text and "NEXT" in roadmap_text
+    assert "МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC" in map_text
+    assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in roadmap_text
+    assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in map_text
+    assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in disposition_text
+    assert "Step 7B возвращён в `NEXT`" in disposition_text
     re_mod = __import__("re")
     for doc in (roadmap_text, map_text, disposition_text):
         for paragraph in re_mod.split(r"\n\s*\n", doc):
             if "Step 7B" not in paragraph or paragraph.lstrip().startswith("### Step 7B"):
                 continue
-            assert re_mod.search(
-                r"(?i)(?:приостанов\w*|отлож\w*|PAUSED_BY_CURRENT_DOCUMENT_APPLY|backlog|historical|историческ\w*)",
-                paragraph,
-            ), paragraph
             normalized = re_mod.sub(
-                r"(?i)не\s+(?:является|являются|считается|считаются)\s+(?:текущ\w*|активн\w*|\bNEXT\b)(?:\s+\w+)?",
-                "", paragraph,
+                r"(?i)пауз\w*\s+Step\s+7B\s+снят\w*",
+                "",
+                paragraph,
             )
-            normalized = re_mod.sub(r"(?i)до\s+разрешённого\s+возврата", "", normalized)
             for pattern in (
-                r"(?i)Step 7B\s+(?:является|служит|ведущ\w*|активн\w*|разрешён\w*|приоритет\w*|текущ\w*|(?:остаётся|считается)\s+(?:текущ\w*|активн\w*|ведущ\w*|разрешён\w*|приоритет\w*|NEXT))",
-                r"(?i)Step 7B[^\n.]{0,40}\bNEXT\b",
-                r"(?i)(?:ведущ\w*|активн\w*|приоритет\w*|текущ\w*)\s+(?:этап\w*|направлен\w*|checkpoint\w*)?[^\n.]{0,20}Step 7B",
-                r"(?i)\bNEXT\b\s*[:—-]?\s*Step 7B",
-                r"(?i)разрешён\w*[^\n.]{0,20}Step 7B",
-                r"(?i)(?:фактически|на\s+деле|реально)?[^\n.]{0,36}(?:возобнов\w*|активирован\w*)[^\n.]{0,36}(?:Step 7B|работ\w*|поток\w*|направлен\w*)",
-                r"(?i)(?:Step 7B|работ\w*\s+по\s+Step 7B)[^\n.]{0,60}(?:возобнов\w*|активирован\w*|основн\w*\s+(?:поток\w*|трек\w*|направлен\w*))",
-                r"(?i)(?:основн\w*|главн\w*|ведущ\w*|приоритет\w*)\s+(?:поток\w*|трек\w*|направлен\w*|этап\w*|checkpoint\w*)[^\n.]{0,40}Step 7B",
-                r"(?i)Step 7B[^\n.]{0,100}(?:работ\w*\s+(?:снова\s+)?(?:идут|ведутся|продолжаются)|(?:главн\w*|основн\w*|ведущ\w*|приоритет\w*)\s+направлен\w*)",
+                r"(?i)приостанов\w*",
+                r"(?i)отлож\w*",
+                r"(?i)пауз\w*",
+                r"PAUSED_BY_CURRENT_DOCUMENT_APPLY",
+                r"(?i)до\s+DOCUMENT\s+COMPLETE",
             ):
                 assert not re_mod.search(pattern, normalized), paragraph
 
@@ -148,6 +131,25 @@ def validate_no_manual_live_population_counts(text: str) -> None:
         ), line
 
 
+def validate_document_complete_definition(text: str, index_rows: list) -> None:
+    normalized = re.sub(r"\s+", " ", text)
+    for fragment in (
+        "Для `fstec-linux-2022` `DOCUMENT COMPLETE` достигается, когда все строки "
+        "этого документа в `index/source-v4/SOURCE-INDEX.tsv` имеют `status=CLOSED`, "
+        "APPLY завершён в принятом scope `SRC-0001_ONLY`, а этапы "
+        "`FINAL_DETERMINISTIC_PACKAGING` и `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыты.",
+        "Настоящим решением APPLY для остальных строк `fstec-linux-2022` в критерий "
+        "`DOCUMENT COMPLETE` не входит.",
+        "Для следующих документов критерий определяется отдельно и автоматически "
+        "не наследуется.",
+    ):
+        assert fragment in normalized, fragment
+    document_rows = [r for r in index_rows if r["source_id"] == "fstec-linux-2022"]
+    assert document_rows, "fstec-linux-2022 rows not found in SOURCE-INDEX.tsv"
+    assert all(r["status"] == "CLOSED" for r in document_rows), [
+        r["index_id"] for r in document_rows if r["status"] != "CLOSED"
+    ]
+
 def expect_rejected(check, *args) -> None:
     try:
         check(*args)
@@ -163,6 +165,7 @@ validate_markdown_order(roadmap_md)
 validate_current_checkpoint(roadmap_md, project_map, disposition_doc)
 validate_no_manual_live_population_counts(roadmap_md)
 validate_apply_adapters_roadmap_identity(roadmap_md)
+validate_document_complete_definition(roadmap_md, source_index_rows)
 expect_rejected(
     validate_markdown_order,
     roadmap_md.replace("12. Определение условия внешнего снимка для `SRC-0001`\n", "12. Этап после predicate/transform\n", 1),
@@ -171,13 +174,13 @@ expect_rejected(
     validate_current_checkpoint,
     roadmap_md,
     project_map,
-    disposition_doc + "\n\nStep 7B является текущим разрешённым этапом.\n",
+    disposition_doc + "\n\nStep 7B снова приостановлен до следующего этапа.\n",
 )
 expect_rejected(
     validate_current_checkpoint,
     roadmap_md,
     project_map,
-    disposition_doc + "\n\nStep 7B является ведущим активным направлением работ проекта.\n",
+    disposition_doc + "\n\nStep 7B формально возвращён в паузу.\n",
 )
 expect_rejected(
     validate_no_manual_live_population_counts,
@@ -197,7 +200,7 @@ expect_rejected(
 )
 expect_rejected(
     validate_current_checkpoint,
-    roadmap_md + "\n\nХотя формально Step 7B помечен PAUSED_BY_CURRENT_DOCUMENT_APPLY, фактически работы по нему возобновлены и это основной поток проекта.\n",
+    roadmap_md + "\n\nПосле DOCUMENT COMPLETE Step 7B снова объявлен PAUSED_BY_CURRENT_DOCUMENT_APPLY.\n",
     project_map,
     disposition_doc,
 )
@@ -207,9 +210,10 @@ expect_rejected(
 )
 expect_rejected(
     validate_current_checkpoint,
-    roadmap_md + "\n\nStep 7B формально PAUSED_BY_CURRENT_DOCUMENT_APPLY, однако работы снова идут и это главное направление проекта.\n",
+    roadmap_md + "\n\nStep 7B снова отложен после DOCUMENT COMPLETE.\n",
     project_map,
     disposition_doc,
 )
-print("ROADMAP_NEGATIVE_FIXTURES=PASS_10 apply_adapters_item=4 step7_active_rephrase=4 live_counts=2")
+print("ROADMAP_NEGATIVE_FIXTURES=PASS_10 apply_adapters_item=4 step7_stale_pause=4 live_counts=2")
+print("DOCUMENT_COMPLETE_DEFINITION=PASS")
 print("ROADMAP_V3_ORDER=PASS")

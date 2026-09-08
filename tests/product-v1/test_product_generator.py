@@ -3498,27 +3498,31 @@ SLP_POLICY_RC=1
         self.assertEqual(self.ARTIFACT.stat().st_mode & 0o777, 0o755)
         self.assertEqual(self.SIDECAR.stat().st_mode & 0o777, 0o644)
         self.assertTrue(self.ARTIFACT.read_bytes().startswith(b"#!/bin/bash -p\n"))
-        with tempfile.TemporaryDirectory(prefix="slp-unified-cli-rebuild-") as td:
-            out = Path(td) / "securelinux-policy.sh"
-            cp = subprocess.run(
-                [os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B",
-                 str(self.GEN_V2), "--repo", str(ROOT), "--out", str(out)],
-                cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-            )
-            self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
-            self.assertIn("GENERATOR_ID=product-check-generator-v2\n", cp.stdout)
-            current_control_count = len(GEN_V2_CURRENT.load_manifest(ROOT)[0])
-            current_adapter_count = len(GEN_V2_CURRENT.load_registry(ROOT)[0])
-            self.assertIn(f"CONTROL_COUNT={current_control_count}\n", cp.stdout)
-            self.assertIn(f"ADAPTER_COUNT={current_adapter_count}\n", cp.stdout)
-            self.assertIn("TARGET_FAMILY_ID=linux-x86_64-supported-v1\n", cp.stdout)
-            self.assertIn("SUPPORTED_PROFILE_ENVIRONMENTS=7\n", cp.stdout)
-            self.assertIn("SUPPORTED_DESKTOP_ENVIRONMENTS=1\n", cp.stdout)
-            self.assertIn("SUPPORTED_ENVIRONMENTS=8\n", cp.stdout)
-            self.assertIn("APPLY_SCOPE=SRC-0001_ONLY\n", cp.stdout)
-            self.assertIn("APPLY_IMPLEMENTATION_COUNT=1\n", cp.stdout)
-            self.assertEqual(out.read_bytes(), self.ARTIFACT.read_bytes())
-            self.assertEqual(out.with_name(out.name + ".sha256").read_bytes(), self.SIDECAR.read_bytes())
+        for mask in (0o022, 0o077):
+            with self.subTest(umask=oct(mask)):
+                with tempfile.TemporaryDirectory(prefix="slp-unified-cli-rebuild-") as td:
+                    out = Path(td) / "securelinux-policy.sh"
+                    cp = subprocess.run(
+                        [os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B",
+                         str(self.GEN_V2), "--repo", str(ROOT), "--out", str(out)],
+                        cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, umask=mask,
+                    )
+                    self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+                    self.assertIn("GENERATOR_ID=product-check-generator-v2\n", cp.stdout)
+                    current_control_count = len(GEN_V2_CURRENT.load_manifest(ROOT)[0])
+                    current_adapter_count = len(GEN_V2_CURRENT.load_registry(ROOT)[0])
+                    self.assertIn(f"CONTROL_COUNT={current_control_count}\n", cp.stdout)
+                    self.assertIn(f"ADAPTER_COUNT={current_adapter_count}\n", cp.stdout)
+                    self.assertIn("TARGET_FAMILY_ID=linux-x86_64-supported-v1\n", cp.stdout)
+                    self.assertIn("SUPPORTED_PROFILE_ENVIRONMENTS=7\n", cp.stdout)
+                    self.assertIn("SUPPORTED_DESKTOP_ENVIRONMENTS=1\n", cp.stdout)
+                    self.assertIn("SUPPORTED_ENVIRONMENTS=8\n", cp.stdout)
+                    self.assertIn("APPLY_SCOPE=SRC-0001_ONLY\n", cp.stdout)
+                    self.assertIn("APPLY_IMPLEMENTATION_COUNT=1\n", cp.stdout)
+                    self.assertEqual(out.stat().st_mode & 0o777, 0o755)
+                    self.assertEqual(out.with_name(out.name + ".sha256").stat().st_mode & 0o777, 0o644)
+                    self.assertEqual(out.read_bytes(), self.ARTIFACT.read_bytes())
+                    self.assertEqual(out.with_name(out.name + ".sha256").read_bytes(), self.SIDECAR.read_bytes())
         expected = f"{sha256_file(self.ARTIFACT)}  {self.ARTIFACT.name}\n"
         self.assertEqual(self.SIDECAR.read_text(encoding="utf-8"), expected)
 
@@ -3932,6 +3936,24 @@ SLP_POLICY_RC=1
         rows = [json.loads(x) for x in prov.stdout.splitlines()]
         current_control_count = len(GEN_V2_CURRENT.load_manifest(ROOT)[0])
         self.assertEqual(len(rows), current_control_count)
+        apply_impl, _ = GEN_V2_CURRENT.load_apply_implementation(ROOT)
+        apply_id = GEN_V2_CURRENT.APPLY_CONTROL_ID
+        apply_rows = [row for row in rows if "apply" in row]
+        self.assertEqual(len(apply_rows), 1)
+        row = apply_rows[0]
+        self.assertEqual(row["control_id"], apply_id)
+        self.assertEqual(row["apply"], {
+            "adapter_id": apply_impl["row"]["adapter_id"],
+            "adapter_contract_version": "product-local-account-password-state-apply-adapter-v1",
+            "implementation_sha256": sha256_file(ROOT / apply_impl["row"]["implementation_path"]),
+            "composition_contract_id": apply_impl["composition"]["composition_contract_id"],
+            "control_id": apply_id,
+            "source_locator": row["source_locator"],
+            "quote_sha256": row["quote_sha256"],
+        })
+        apply_one = self.run_cli("--provenance", apply_id)
+        self.assertEqual(apply_one.returncode, 0, apply_one.stderr)
+        self.assertEqual(json.loads(apply_one.stdout), row)
         one = self.run_cli("--provenance", rows[0]["control_id"])
         self.assertEqual(json.loads(one.stdout)["control_id"], rows[0]["control_id"])
         for args in (("--bogus",), ("--help", "extra"), ("--check", "--format"),

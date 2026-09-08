@@ -63,9 +63,10 @@ assert current.count(":::current") == 1
 assert "Implementation registry" in current
 assert "predicate / transform definitions" in current
 assert "AUTHORITY_2026_REFRESH" in current
-assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" in current
-assert "текущий product checkpoint внутри макроэтапа Step 7B" not in current
-assert "Step 7B разрешён" not in current
+assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in current
+assert "DOCUMENT COMPLETE" in current
+assert "Step 7B · расширение FSTEC" in current
+assert "Step 7B возвращён в `NEXT`" not in current
 assert 'P4["SRC-0005 / 2.3.1<br/>3 canonical file-mode controls<br/>ГОТОВО"]:::closed' in current
 assert 'P5["CHECK-11<br/>регенерация + read-only запуск<br/>ГОТОВО"]:::closed' in current
 assert 'P6["batch sysctl exact-eq<br/>SRC-0030,0031,0036–0039 + CHECK-17<br/>ГОТОВО"]:::closed' in current
@@ -83,8 +84,9 @@ assert 'P15["SRC-0001 external snapshot precondition<br/>exact attestation + pre
 assert 'P16["SRC-0001 lock/reread + object identity<br/>stale + path identity fail-closed<br/>ГОТОВО"]:::closed' in current
 assert 'P17["SRC-0001 метаданные/транзакция/отчёт<br/>8 определений + композиция<br/>ГОТОВО"]:::closed' in current
 assert 'P18["APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО"]:::closed' in current
-assert 'P19["МЫ ЗДЕСЬ<br/>финальная детерминированная упаковка"]:::current' in current
-assert 'P20["единый распространяемый артефакт<br/>будущее"]:::future' in current
+assert 'P19["финальная детерминированная упаковка<br/>ГОТОВО"]:::closed' in current
+assert 'P20["единый распространяемый артефакт<br/>ГОТОВО"]:::closed' in current
+assert 'P21["МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC"]:::current' in current
 assert 'P18["адаптеры реализации APPLY<br/>заблокировано до semantic chain"]:::future' not in current
 diagram = current.split("```mermaid", 1)[1].split("```", 1)[0]
 for marker in (
@@ -116,6 +118,7 @@ for marker in (
     "APPLY для SRC-0001",
     "финальная детерминированная упаковка",
     "единый распространяемый артефакт",
+    "Step 7B · расширение FSTEC",
     "ВНЕШНИЙ СНИМОК",
 ):
     assert marker in current, marker
@@ -148,11 +151,12 @@ positions = [diagram.index(marker) for marker in (
     "APPLY для SRC-0001",
     "финальная детерминированная упаковка",
     "единый распространяемый артефакт",
+    "Step 7B · расширение FSTEC",
 )]
 assert positions == sorted(positions)
 
 for stale in (
-    "МЫ ЗДЕСЬ<br/>Step 7B",
+    "МЫ ЗДЕСЬ<br/>единый распространяемый артефакт",
     'implementation<br/>adapters"]:::future',
     'deterministic<br/>build"]:::future',
     "single distributable<br/>securelinux-ng.sh",
@@ -167,7 +171,7 @@ assert "Gate 0 PASS" in text
 assert "только byte-generation parity" in text
 assert "docs/PROJECT-MAP-v3.md" in readme
 print(
-    "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=final-deterministic-packaging "
+    "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=step7b-fstec-expansion "
     "src0005_check11_done=1 exact_eq_check17_done=1 src0040_check18_done=1 "
     "src0033_check19_done=1 kernel_cmdline_check28_done=1 unified_cli_done=1 src0001_apply_done=1 restore_out_of_scope=1"
 )

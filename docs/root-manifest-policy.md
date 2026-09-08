@@ -62,9 +62,13 @@ worktree `0600` / `0644` / `0664` сами по себе не входят в Gi
 нормализуется к `0644`, чтобы чтение не зависело от случайного source/umask.
 Исполняемые project files сохраняют Git executable semantics.
 
-Финальная упаковка обязана задавать canonical archive modes детерминированно
-(`0644` для regular data/source files и `0755` только для реально executable
-files), а не наследовать произвольные worktree modes.
+На этапе 16 права выдаваемых файлов задаются детерминированно: `0644` для
+regular data/source files и `0755` только для реально executable files.
+Этап 17 закрыт существующим generated `securelinux-policy.sh` без нового
+архивного слоя; sidecar остаётся сопутствующим integrity metadata. Поэтому
+archive modes не являются выполненным требованием текущей вертикали. Если
+отдельным будущим решением будет введён архивный формат, его canonical modes
+должны задаваться явно по тем же правилам, а не наследовать worktree modes.
 
 ## Runtime state донора
 

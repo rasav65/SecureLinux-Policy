@@ -251,8 +251,8 @@ flowchart LR
     MAP["DONOR_TO_V3_MAPPING<br/>ACCEPTED + COMMITTED<br/>REUSE / ADAPT / REJECT / DEFER"]:::closed
     APPLY["SRC-0001 APPLY<br/>semantic authority"]:::closed
     ADAPTERS["SRC-0001 implementation adapter<br/>реализован"]:::closed
-    BUILD["финальная детерминированная упаковка<br/>текущий этап"]:::component
-    SCRIPT["итоговый распространяемый артефакт<br/>будущее"]:::future
+    BUILD["финальная детерминированная упаковка<br/>ГОТОВО"]:::closed
+    SCRIPT["итоговый распространяемый артефакт<br/>ГОТОВО"]:::closed
 
     OLD --> ARCHIVE
     ARCHIVE --> DONOR_INDEX
@@ -274,6 +274,7 @@ flowchart LR
     classDef donor fill:#efe3ff,stroke:#7651a8,color:#111,stroke-width:2px;
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
     classDef component fill:#dcecff,stroke:#3e6ea8,color:#111;
+    classDef current fill:#ffe2a8,stroke:#c77800,color:#111,stroke-width:4px;
     classDef future fill:#eeeeee,stroke:#888,color:#444,stroke-dasharray: 5 5;
     classDef note fill:#fff8d8,stroke:#9d8730,color:#111;
 ```
@@ -319,10 +320,11 @@ Git bundle — внешний артефакт для аудита и handoff, �
 identity definitions закрывают P-05: stale prestate, lock failure, symlink/hardlink и
 дрейф пути или объекта не может перейти к изменению системы. Implementation registry,
 binding, adapter и generated CLI для `SRC-0001` реализованы и проверены на VM;
-этап 15 закрыт. Текущий содержательный этап — **финальная детерминированная
-упаковка**. Принятые байты CHECK, элементы управления и закрытие `SRC-0001…SRC-0040` не изменялись. Макроэтап
-Step 7B остаётся приостановлен (`PAUSED_BY_CURRENT_DOCUMENT_APPLY`) и не является
-текущим `NEXT`.
+этапы 15–17 закрыты. `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыт существующим generated
+`securelinux-policy.sh` без нового архивного слоя; текущая вертикаль достигла
+`DOCUMENT COMPLETE`. Принятые байты CHECK, элементы управления и закрытие
+`SRC-0001…SRC-0040` не изменялись. Текущий `NEXT` — Step 7B
+`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`.
 
 ```mermaid
 flowchart LR
@@ -347,11 +349,12 @@ flowchart LR
     P16["SRC-0001 lock/reread + object identity<br/>stale + path identity fail-closed<br/>ГОТОВО"]:::closed
     P17["SRC-0001 метаданные/транзакция/отчёт<br/>8 определений + композиция<br/>ГОТОВО"]:::closed
     P18["APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО"]:::closed
-    P19["МЫ ЗДЕСЬ<br/>финальная детерминированная упаковка"]:::current
-    P20["единый распространяемый артефакт<br/>будущее"]:::future
+    P19["финальная детерминированная упаковка<br/>ГОТОВО"]:::closed
+    P20["единый распространяемый артефакт<br/>ГОТОВО"]:::closed
+    P21["МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC"]:::current
     SNAP["восстановление после APPLY<br/>ВНЕШНИЙ СНИМОК<br/>вне продукта"]:::note
 
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P9A --> P9B --> P10 --> P10A --> P11 --> P12 --> P13 --> P14 --> P15 --> P16 --> P17 --> P18 --> P19 --> P20
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P9A --> P9B --> P10 --> P10A --> P11 --> P12 --> P13 --> P14 --> P15 --> P16 --> P17 --> P18 --> P19 --> P20 --> P21
     P18 -. граница operational recovery .-> SNAP
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
@@ -372,10 +375,13 @@ Framework authority для текущего 2026 refresh задаётся
 приказа № 137 пинуются `sources/fstec/SHA256SUMS`, а derived page-pinned
 представление — `sources/visual-v1/PROVENANCE.tsv`.
 
-Финальный distributable artifact пока не реализован и его имя не закреплено
-как current product contract. В будущем он должен получаться детерминированной
-сборкой из проверенных нормативных controls, инженерных semantic contracts,
-implementation adapters и tests.
+Текущий single distributable artifact этой вертикали — generated
+`securelinux-policy.sh`; он получается детерминированной сборкой из проверенных
+normative controls, semantic contracts и implementation adapters. Sidecar
+используется как сопутствующее integrity metadata и не образует отдельный
+архивный слой.
+
+Имя будущего release/distributable остаётся не закреплено.
 
 Направление проекта:
 

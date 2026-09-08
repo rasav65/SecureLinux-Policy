@@ -52,9 +52,9 @@ Step 5. Нельзя начинать более поздний этап, пок
   удалённого репозитория.
 
 ТЕКУЩИЙ СТАТУС: этапы roadmap 1–6 `CLOSED`. Макроэтап 7
-`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` ещё не завершён и остаётся
-`PAUSED_BY_CURRENT_DOCUMENT_APPLY`: Step 7A закрыт, а дальнейшее расширение
-Step 7B отложено до вертикального завершения текущего документа.
+`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` ещё не завершён и имеет
+`NEXT`: Step 7A закрыт, а Step 7B возобновлён после `DOCUMENT COMPLETE`
+текущей вертикали.
 
 Для `fstec-linux-2022` read-only CHECK принят (`40/40 CLOSED`), обязательный
 `DONOR_TO_V3_MAPPING` принят и опубликован. Этап 8
@@ -95,18 +95,32 @@ regular non-symlink с `st_nlink == 1`; target и parent identities связыв
 Этап 15 `APPLY_IMPLEMENTATION_ADAPTERS` закрыт в scope `SRC-0001_ONLY`: отдельный
 implementation registry, binding и adapter привязаны к композиции; generated CLI
 прошёл dry-run, attested commit, post-check, idempotent NOOP и fail-closed VM cases.
-Общая библиотека APPLY и вторая вертикаль не создавались. Единственный текущий
-этап — 16 `FINAL_DETERMINISTIC_PACKAGING` со статусом `NEXT`.
+Общая библиотека APPLY и вторая вертикаль не создавались. Этап 16
+`FINAL_DETERMINISTIC_PACKAGING` закрыт: исправленная APPLY provenance вошла в
+generated CLI, семь случаев воспроизводимости сборки прошли, а права выдаваемых
+CLI/sidecar проверены как `0755/0644`.
 
-Линия obligation-generator / method regression / rescan закрыта и сохраняется только как история; approved plan rev3 отменён; design v5 не создаётся. До прохождения этапов финальной упаковки и точки `DOCUMENT COMPLETE` Step 7B остаётся приостановлен; дальнейшее расширение запрещено.
+Этап 17 `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыт существующим generated
+`securelinux-policy.sh`: его current bytes совпадают с exact SHA предмета
+воспроизводимости этапа 16, свежая генерация даёт byte-exact тот же CLI и sidecar,
+а `--provenance` несёт требуемые source/adapter bindings. Sidecar остаётся
+сопутствующим integrity metadata; новый архивный слой не создавался, архивный
+формат не выбирался, имя будущего release/distributable не закреплено.
+Текущая вертикаль достигла точки `DOCUMENT COMPLETE`.
 
-Существующая read-only CHECK product-line уже содержит adapters,
-`ADAPTER-REGISTRY.tsv`, детерминированный generator и единый CLI. Исторические
-закрытия Step 7B (`SRC-0005/CHECK-11`, sysctl batches, `kernel-cmdline` и
-последующие controls) остаются принятыми фактами и не являются текущим NEXT.
-Оставшиеся `OPEN` строки других документов сохраняются в backlog макроэтапа 7
-до разрешённого возврата к расширению после `DOCUMENT COMPLETE` текущей
-вертикали.
+Определение критерия. Для `fstec-linux-2022` `DOCUMENT COMPLETE` достигается,
+когда все строки этого документа в `index/source-v4/SOURCE-INDEX.tsv` имеют
+`status=CLOSED`, APPLY завершён в принятом scope `SRC-0001_ONLY`, а этапы
+`FINAL_DETERMINISTIC_PACKAGING` и `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыты.
+Настоящим решением APPLY для остальных строк `fstec-linux-2022` в критерий
+`DOCUMENT COMPLETE` не входит. Для следующих документов критерий определяется
+отдельно и автоматически не наследуется.
+
+После `DOCUMENT COMPLETE` пауза Step 7B снята. Текущий `NEXT` —
+`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`; оставшиеся `OPEN` строки
+корпуса снова доступны для source-first расширения. Исторические закрытия Step 7B
+(`SRC-0005/CHECK-11`, sysctl batches, `kernel-cmdline` и последующие controls)
+остаются принятыми фактами.
 
 ## Правило сохранения инженерного донора
 
@@ -318,8 +332,8 @@ Negative-control методика: parser-level негативные случа�
 
 ### Step 7B — расширение FSTEC
 
-Step 7B сейчас приостановлен (`PAUSED_BY_CURRENT_DOCUMENT_APPLY`). После снятия
-этой паузы расширение FSTEC выполняется только по source-first пути:
+Step 7B возобновлён после достижения `DOCUMENT COMPLETE` текущей вертикали и
+является текущим `NEXT`. Расширение FSTEC выполняется только по source-first пути:
 
 - новые технические controls должны проходить generator/parity/gates;
 - real disposition остаётся запрещён до quote-anchor contract/API;
@@ -340,5 +354,6 @@ Carry-forward non-blocking findings R3: NUL, `U+2028/U+2029`, VT/FF и CRLF
 `source_role ↔ disposition`, multi-index ledger и устаревшим notes сохраняются
 в backlog и должны учитываться перед соответствующими изменениями.
 
-NEXT: `FINAL_DETERMINISTIC_PACKAGING`. `APPLY_IMPLEMENTATION_ADAPTERS` закрыт в
-scope `SRC-0001_ONLY`; Step 7B остаётся приостановленным до `DOCUMENT COMPLETE`.
+NEXT: `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` (Step 7B).
+`APPLY_IMPLEMENTATION_ADAPTERS`, `FINAL_DETERMINISTIC_PACKAGING` и
+`SINGLE_DISTRIBUTABLE_ARTIFACT` закрыты; текущая вертикаль имеет `DOCUMENT COMPLETE`.

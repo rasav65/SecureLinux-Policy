@@ -47,7 +47,7 @@ with (root / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream
 orders = [int(row["order"]) for row in rows]
 assert orders == list(range(1, len(rows) + 1))
 by_step = {row["step_id"]: row["status"] for row in rows}
-assert by_step["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "PAUSED_BY_CURRENT_DOCUMENT_APPLY"
+assert by_step["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "NEXT"
 assert by_step["APPLY_SEMANTIC_CONTRACT"] == "PARENT_GATE_CLOSED_SOURCE_INSTANCE_REVISE"
 assert by_step["AUTHORITY_2026_REFRESH"] == "CLOSED"
 assert by_step["SRC0001_MODULAR_APPLY_CONTRACT_ARCHITECTURE"] == "CLOSED"
@@ -56,7 +56,8 @@ assert by_step["SRC0001_SNAPSHOT_PRECONDITION_DEFINITION"] == "CLOSED"
 assert by_step["SRC0001_LOCK_REREAD_OBJECT_IDENTITY_DEFINITIONS"] == "CLOSED"
 assert by_step["SRC0001_METADATA_TRANSACTION_REPORT_DEFINITIONS"] == "CLOSED"
 assert by_step["APPLY_IMPLEMENTATION_ADAPTERS"] == "CLOSED"
-assert by_step["FINAL_DETERMINISTIC_PACKAGING"] == "NEXT"
+assert by_step["FINAL_DETERMINISTIC_PACKAGING"] == "CLOSED"
+assert by_step["SINGLE_DISTRIBUTABLE_ARTIFACT"] == "CLOSED"
 
 # Parent schema remains accepted; compact registry now binds kind/target-class to architecture.
 apply_schema_path = root / "product/contracts/apply-semantic-contract-v1.schema.json"

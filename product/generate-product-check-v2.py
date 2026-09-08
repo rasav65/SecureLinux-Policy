@@ -446,6 +446,7 @@ def load_apply_implementation(repo: Path):
     spec.loader.exec_module(mod)
     for attr, expected in (
         ("ADAPTER_ID", row["adapter_id"]),
+        ("ADAPTER_CONTRACT_VERSION", "product-local-account-password-state-apply-adapter-v1"),
         ("COMPOSITION_CONTRACT_ID", row["composition_contract_id"]),
         ("APPLY_KIND", row["apply_kind"]),
         ("TARGET_ID", TARGET_FAMILY_ID),
@@ -634,6 +635,17 @@ def render_script(
             "source_locator": c["source_locator"],
             "target_id": TARGET_FAMILY_ID,
         }
+        if c["control_id"] == apply_control["control_id"]:
+            apply_row = apply_implementation["row"]
+            prov["apply"] = {
+                "adapter_id": apply_row["adapter_id"],
+                "adapter_contract_version": apply_implementation["module"].ADAPTER_CONTRACT_VERSION,
+                "implementation_sha256": apply_row["implementation_sha256"],
+                "composition_contract_id": apply_row["composition_contract_id"],
+                "control_id": apply_control["control_id"],
+                "source_locator": apply_control["source_locator"],
+                "quote_sha256": apply_control["quote_sha256"],
+            }
         provenance_lines.append(
             json.dumps(prov, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         )

@@ -549,6 +549,15 @@ for rel in cp_lines:
     body = (ROOT / rel).read_text(encoding="utf-8")
     assert re.search(r"[А-Яа-яЁё]", body), f"current Markdown has no Russian prose: {rel}"
 
+with (ROOT / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream:
+    _roadmap_rows = list(csv.DictReader(stream, delimiter="\t"))
+_roadmap_status = {row["step_id"]: row["status"] for row in _roadmap_rows}
+STEP7B_RESUMED = (
+    _roadmap_status["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "NEXT"
+    and _roadmap_status["SINGLE_DISTRIBUTABLE_ARTIFACT"] == "CLOSED"
+)
+assert STEP7B_RESUMED
+
 
 def semantic_guard_visible(text: str) -> str:
     # Machine-rendered status blocks are allowed to contain live counts because they
@@ -642,23 +651,16 @@ def validate_global_current_semantics(rel: str, body: str) -> None:
             )
             assert not cancellation, f"APPLY adapter future stage cancelled: {rel}: {segment}"
 
-        # Formal PAUSED text cannot coexist with an opposite natural-language claim
-        # that Step 7B is actually the main/active flow.
-        if "step 7b" in lower:
-            active = (
-                re.search(r"возобнов\w*|активирован\w*|вновь\s+(?:ведутся|идут)|снова\s+(?:ведутся|идут)", lower)
-                or re.search(
-                    r"работ\w*[^\n]{0,36}(?:ведутся|идут|продолжаются)[^\n]{0,70}"
-                    r"(?:ключев\w*|главн\w*|основн\w*|ведущ\w*|приоритет\w*)",
-                    lower,
-                )
-                or re.search(
-                    r"(?:ключев\w*|главн\w*|основн\w*|ведущ\w*|приоритет\w*)\s+"
-                    r"(?:трек\w*|поток\w*|направлен\w*|этап\w*)",
-                    lower,
-                )
+        # После DOCUMENT COMPLETE machine truth разрешает Step 7B как NEXT.
+        # Старые current claims о PAUSED теперь являются противоположным состоянием.
+        if "step 7b" in lower and STEP7B_RESUMED:
+            stale_pause = re.search(
+                r"приостанов\w*|PAUSED_BY_CURRENT_DOCUMENT_APPLY|"
+                r"step\s+7b[^\n]{0,80}отлож\w*|отлож\w*[^\n]{0,80}step\s+7b",
+                paragraph,
+                flags=re.I,
             )
-            assert not active, f"Step 7B reactivated in current prose: {rel}: {paragraph}"
+            assert not stale_pause, f"Step 7B stale pause claim: {rel}: {paragraph}"
 
         # Historical donor RESTORE maturity is checked sentence-by-sentence so an
         # explicit phrase such as "not a stub" is not mistaken for a downgrade.
@@ -763,7 +765,7 @@ for label, claim in (
     ("global_manual_controls_count", "Текущее число canonical controls — 52."),
     ("global_manual_status_counts", "Текущее покрытие source index: 40 CLOSED / 309 OPEN."),
     ("global_apply_adapters_removed", "В последующих версиях адаптеры APPLY отсутствуют в плане работ."),
-    ("global_step7b_reactivated", "Несмотря на PAUSED_BY_CURRENT_DOCUMENT_APPLY, работы по Step 7B вновь ведутся как ключевой трек."),
+    ("global_step7b_repaused", "После DOCUMENT COMPLETE Step 7B снова приостановлен PAUSED_BY_CURRENT_DOCUMENT_APPLY."),
     ("global_donor_restore_downgrade", "Исторический donor RESTORE был пробным демонстрационным прототипом."),
     ("global_nondeterministic_package", "При неизменных исходных данных итоговый пакет может получаться иным."),
     ("global_future_shell_name", "Релизный скрипт v3 будет называться `securelinux-policy-final.sh`."),
@@ -925,7 +927,7 @@ for marker in (
     "APPLY parent gate", "AUTHORITY_2026_REFRESH",
     "SRC-0001 modular APPLY contract architecture",
     "SRC-0001 predicate / transform definitions", "SRC-0001 external snapshot precondition",
-    "SRC-0001 lock/reread + object identity", "SRC-0001 метаданные/транзакция/отчёт", "APPLY для SRC-0001", "финальная детерминированная упаковка",
+    "SRC-0001 lock/reread + object identity", "SRC-0001 метаданные/транзакция/отчёт", "APPLY для SRC-0001", "финальная детерминированная упаковка", "единый распространяемый артефакт", "Step 7B · расширение FSTEC",
     "fstec-linux-2022 CHECK COMPLETE", "ВНЕШНИЙ СНИМОК",
 ):
     assert marker in current_map, marker
@@ -938,9 +940,12 @@ assert "SRC-0001 external snapshot precondition<br/>exact attestation + prestate
 assert "SRC-0001 lock/reread + object identity<br/>stale + path identity fail-closed<br/>ГОТОВО" in current_map
 assert "SRC-0001 метаданные/транзакция/отчёт<br/>8 определений + композиция<br/>ГОТОВО" in current_map
 assert "APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО" in current_map
-assert "МЫ ЗДЕСЬ<br/>финальная детерминированная упаковка" in current_map
+assert "финальная детерминированная упаковка<br/>ГОТОВО" in current_map
+assert "единый распространяемый артефакт<br/>ГОТОВО" in current_map
+assert "МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC" in current_map
 assert "Модульная architecture APPLY-contract" in current_map
-assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" in current_map
+assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in current_map
+assert "DOCUMENT COMPLETE" in current_map
 
 stale_checkpoint_markers = (
     "текущий substantive checkpoint — `APPLY implementation` для SRC-0001",
@@ -956,7 +961,7 @@ for rel in current_markdown:
         assert marker not in body, (rel, marker)
 
 for stale in (
-    "МЫ ЗДЕСЬ<br/>Step 7B",
+    "МЫ ЗДЕСЬ<br/>единый распространяемый артефакт",
     "текущий product checkpoint внутри макроэтапа Step 7B",
     'implementation<br/>adapters"]:::future',
     'deterministic<br/>build"]:::future',

@@ -238,17 +238,19 @@ assert "SRC-0001 external snapshot precondition<br/>exact attestation + prestate
 assert "SRC-0001 lock/reread + object identity<br/>stale + path identity fail-closed<br/>ГОТОВО" in current
 assert 'P17["SRC-0001 метаданные/транзакция/отчёт<br/>8 определений + композиция<br/>ГОТОВО"]:::closed' in current
 assert 'P18["APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО"]:::closed' in current
-assert 'P19["МЫ ЗДЕСЬ<br/>финальная детерминированная упаковка"]:::current' in current
+assert 'P19["финальная детерминированная упаковка<br/>ГОТОВО"]:::closed' in current
+assert 'P20["единый распространяемый артефакт<br/>ГОТОВО"]:::closed' in current
+assert 'P21["МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC"]:::current' in current
 assert "SRC-0001 flat contract candidate: REVISE" in current
 assert "SRC-0001 current contract<br/>ПРИНЯТО" not in current
 assert "RESTORE исключён" in current
-assert "МЫ ЗДЕСЬ<br/>Step 7B" not in current
+assert "МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC" in current
 
 with (ROOT / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream:
     rows = list(csv.DictReader(stream, delimiter="\t"))
 by_id = {row["step_id"]: row["status"] for row in rows}
 assert by_id["SOURCE_BLOCK_REGENERATION_PARITY"] == "CLOSED"
-assert by_id["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "PAUSED_BY_CURRENT_DOCUMENT_APPLY"
+assert by_id["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "NEXT"
 assert by_id["APPLY_SEMANTIC_CONTRACT"] == "PARENT_GATE_CLOSED_SOURCE_INSTANCE_REVISE"
 assert by_id["AUTHORITY_2026_REFRESH"] == "CLOSED"
 assert by_id["SRC0001_MODULAR_APPLY_CONTRACT_ARCHITECTURE"] == "CLOSED"
@@ -257,10 +259,12 @@ assert by_id["SRC0001_SNAPSHOT_PRECONDITION_DEFINITION"] == "CLOSED"
 assert by_id["SRC0001_LOCK_REREAD_OBJECT_IDENTITY_DEFINITIONS"] == "CLOSED"
 assert by_id["SRC0001_METADATA_TRANSACTION_REPORT_DEFINITIONS"] == "CLOSED"
 assert by_id["APPLY_IMPLEMENTATION_ADAPTERS"] == "CLOSED"
-assert by_id["FINAL_DETERMINISTIC_PACKAGING"] == "NEXT"
-assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" in roadmap
+assert by_id["FINAL_DETERMINISTIC_PACKAGING"] == "CLOSED"
+assert by_id["SINGLE_DISTRIBUTABLE_ARTIFACT"] == "CLOSED"
+assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in roadmap
+assert "DOCUMENT COMPLETE" in roadmap
 next_rows = [row["step_id"] for row in rows if row["status"] == "NEXT"]
-assert next_rows == ["FINAL_DETERMINISTIC_PACKAGING"], next_rows
+assert next_rows == ["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"], next_rows
 assert "SRC0001_MODULAR_APPLY_CONTRACT_ARCHITECTURE" in roadmap
 assert "SRC0001_PREDICATE_TRANSFORM_DEFINITIONS" in roadmap
 assert "SRC0001_SNAPSHOT_PRECONDITION_DEFINITION" in roadmap

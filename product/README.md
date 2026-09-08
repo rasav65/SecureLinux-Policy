@@ -115,7 +115,7 @@ CHECK для current population из manifest реализован и покры
 artifact имеет статус `NON_RELEASE_PRODUCT_CANDIDATE`; один target family
 `linux-x86_64-supported-v1` охватывает основную проверенную матрицу 7/7 из `SUPPORTED-PLATFORMS.tsv` и дополнительный Ubuntu 24.04 x86_64 Desktop из `SUPPORTED-DESKTOPS.tsv`; всего current supported environments — 8.
 
-Родительская схема, реестр kind, модульная архитектура и все восемь определений приняты; плоский кандидат для конкретного источника остаётся входом со статусом `REVISE`. `APPLY-IMPLEMENTATION-REGISTRY.tsv`, binding и adapter связывают реализацию `SRC-0001` с exact композицией. Generated CLI реализует scope `SRC-0001_ONLY`; VM acceptance подтвердил dry-run, attested commit, локальную post-check, повторный NOOP и fail-closed ветви до commit. Этап `APPLY_IMPLEMENTATION_ADAPTERS` закрыт; следующий этап — `FINAL_DETERMINISTIC_PACKAGING`. RESTORE не входит в целевую mutation-архитектуру. Policy noncompliance не равен execution
+Родительская схема, реестр kind, модульная архитектура и все восемь определений приняты; плоский кандидат для конкретного источника остаётся входом со статусом `REVISE`. `APPLY-IMPLEMENTATION-REGISTRY.tsv`, binding и adapter связывают реализацию `SRC-0001` с exact композицией. Generated CLI реализует scope `SRC-0001_ONLY`; VM acceptance подтвердил dry-run, attested commit, локальную post-check, повторный NOOP и fail-closed ветви до commit. Этапы `APPLY_IMPLEMENTATION_ADAPTERS`, `FINAL_DETERMINISTIC_PACKAGING` и `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыты; текущая вертикаль достигла `DOCUMENT COMPLETE`, а Step 7B возвращён в `NEXT`. RESTORE не входит в целевую mutation-архитектуру. Policy noncompliance не равен execution
 failure. Result `NOT_FOUND`/`ERROR` делает итог `UNEVALUATED`; observation `NOT_FOUND`
 может быть definitive `FAIL`, если active semantic contract прямо определяет отсутствие
 обязательного объекта/технологии как noncompliance (в частности SSH/PAM).
@@ -318,9 +318,12 @@ truth и текущие counts для документа берутся из м�
 архитектуру, текущий источник состава CHECK и все восемь определений.
 Первая вертикаль APPLY для `SRC-0001` реализована, привязана отдельным реестром,
 встроена в tracked CLI и проверена на поддерживаемых Ubuntu/Debian VM. Этап
-`APPLY_IMPLEMENTATION_ADAPTERS` закрыт в scope `SRC-0001_ONLY`; следующий этап —
-`FINAL_DETERMINISTIC_PACKAGING`. Пользовательский RESTORE в целевую архитектуру
-не входит; восстановление после успешного APPLY выполняется внешним снимком.
+`APPLY_IMPLEMENTATION_ADAPTERS` закрыт в scope `SRC-0001_ONLY`; этап
+`FINAL_DETERMINISTIC_PACKAGING` и `SINGLE_DISTRIBUTABLE_ARTIFACT` также закрыты.
+Текущий generated `securelinux-policy.sh` является single distributable artifact
+этой вертикали; sidecar остаётся сопутствующим integrity metadata, а архивный
+формат не вводился. Пользовательский RESTORE в целевую архитектуру
+не входит; восстановление после успешного APPLY выполняется вне продукта через внешний snapshot.
 
 Полная машинно формируемая карта текущего покрытия:
 [`docs/fstec-coverage.md`](../docs/fstec-coverage.md).
@@ -420,7 +423,11 @@ raw и JSON. Reason-code определяется точкой отказа и �
 sudo ./securelinux-policy.sh --report
 ```
 
-Metadata и provenance не требуют запуска policy checks:
+Metadata и provenance не требуют запуска policy checks.
+`--provenance` сохраняет одну JSON-запись на control. Запись `SRC-0001`
+дополнительно содержит объект `apply`: id и версию адаптера APPLY, SHA-256 его
+реализации, id композиции и привязку к control, locator и цитате источника.
+Запрос `--provenance CONTROL_ID` возвращает ту же полную запись:
 
 ```bash
 ./securelinux-policy.sh --version
@@ -704,9 +711,8 @@ population показана в машинно сформированном ст�
 Композиция связывает все восемь ролей определений; implementation registry,
 binding и adapter связывают реализацию с этой композицией. Generated CLI выполняет
 сухой запуск, attested commit, локальную post-check и idempotent NOOP для `SRC-0001`.
-Этап `APPLY_IMPLEMENTATION_ADAPTERS` закрыт; `FINAL_DETERMINISTIC_PACKAGING` является следующим этапом.
-Оставшиеся строки `OPEN` других документов ФСТЭК сохраняются в очереди и не
-расширяются до `DOCUMENT COMPLETE` текущей вертикали.
+Этапы `APPLY_IMPLEMENTATION_ADAPTERS`, `FINAL_DETERMINISTIC_PACKAGING` и `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыты; текущая вертикаль достигла `DOCUMENT COMPLETE`.
+Оставшиеся строки `OPEN` других документов ФСТЭК возвращены в source-first очередь Step 7B.
 Семантика `chmod go-rwx /etc/shadow` представлена как `mode bits-clear 0077` и
 не усилена до выдуманного `0600`.
 

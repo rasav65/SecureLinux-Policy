@@ -87,6 +87,6 @@ failures обязаны оставаться исключениями и не п
 Текущая live population не дублируется здесь вручную и берётся из
 `SOURCE-INDEX.tsv` / сгенерированный `docs/fstec-coverage.md`.
 
-Step 7B приостановлен (`PAUSED_BY_CURRENT_DOCUMENT_APPLY`) до `DOCUMENT COMPLETE`
-текущей вертикали. Первый real disposition остаётся заблокирован до отдельного
+Текущая вертикаль достигла `DOCUMENT COMPLETE`; Step 7B возвращён в `NEXT`.
+Первый real disposition по-прежнему остаётся заблокирован до отдельного
 quote-anchor contract/API.

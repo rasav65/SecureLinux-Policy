@@ -10,7 +10,7 @@ compatibility terminology и отсутствие известных stale produ
 
 Errata 0.0.13: regression также проверяет, что PRIMARY current map не показывает historical Step 7B node как текущий product checkpoint и не переносит имя donor `securelinux-ng.sh` на будущий distributable artifact.
 
-Регрессия текущего продукта требует, чтобы сгенерированные документы совпадали с machine truth, сохраняли SRC-0005/CHECK-11, CHECK-17, SRC-0040/CHECK-18, SRC-0033/CHECK-19 и kernel-cmdline CHECK-28 как завершённую историю, показывали coverage по каждому source document, фиксировали `AUTHORITY_2026_REFRESH`, все этапы definitions и `APPLY_IMPLEMENTATION_ADAPTERS` как закрытые, а `FINAL_DETERMINISTIC_PACKAGING` — как единственный текущий `NEXT`; макрорасширение Step 7B остаётся приостановленным до `DOCUMENT COMPLETE` текущей вертикали.
+Регрессия текущего продукта требует, чтобы сгенерированные документы совпадали с machine truth, сохраняли SRC-0005/CHECK-11, CHECK-17, SRC-0040/CHECK-18, SRC-0033/CHECK-19 и kernel-cmdline CHECK-28 как завершённую историю, показывали coverage по каждому source document, фиксировали `AUTHORITY_2026_REFRESH`, все этапы definitions, `APPLY_IMPLEMENTATION_ADAPTERS`, `FINAL_DETERMINISTIC_PACKAGING` и `SINGLE_DISTRIBUTABLE_ARTIFACT` как закрытые, точку `DOCUMENT COMPLETE` текущей вертикали и Step 7B как единственный текущий `NEXT`.
 
 Русский documentation baseline: действующий контур `checker/gates-v3`, `docs/observation-value-contract.md` и README его тестов обязан сохранять русский человекочитаемый текст; технические identifiers/wire markers переводить не требуется.
 
