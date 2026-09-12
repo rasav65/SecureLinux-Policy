@@ -34,16 +34,16 @@ for marker in (
     assert marker in text, marker
 
 # Current product CHECK components are implemented in the dedicated product line.
-product_line = text.split("## 3. Текущая product-line: read-only CHECK + SRC-0001 APPLY", 1)[1].split(
+product_line = text.split("## 3. Текущая product-line: read-only CHECK + mechanism-oriented APPLY", 1)[1].split(
     "## 4. Инженерный донор", 1
 )[0]
 for marker in (
     'product-sysctl-check-v2<br/>read-only `eq` + integer `ge`"]:::closed',
     'product-file-mode-owner-check-v1<br/>read-only"]:::closed',
     'product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed',
-    'product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding реализации"]:::closed',
-    'SRC-0001 APPLY adapter<br/>dry-run · attested commit · NOOP"]:::closed',
-    'securelinux-policy.sh<br/>tracked CHECK + SRC-0001 APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed',
+    'product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding активных механизмов"]:::closed',
+    'config-line-with-runtime-v1<br/>17 sysctl controls · dry-run · APPLY"]:::closed',
+    'securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed',
 ):
     assert marker in product_line, marker
 
@@ -60,11 +60,11 @@ current = text.split("## 6. Где мы находимся", 1)[1].split(
     "## Что является источником истины", 1
 )[0]
 assert current.count(":::current") == 1
-assert "Implementation registry" in current
+assert "active APPLY registries" in current
 assert "predicate / transform definitions" in current
 assert "AUTHORITY_2026_REFRESH" in current
 assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in current
-assert "DOCUMENT COMPLETE" in current
+assert "восьмисредовый VM-cycle" in current
 assert "Step 7B · расширение FSTEC" in current
 assert "Step 7B возвращён в `NEXT`" not in current
 assert 'P4["SRC-0005 / 2.3.1<br/>3 canonical file-mode controls<br/>ГОТОВО"]:::closed' in current
@@ -166,7 +166,7 @@ for stale in (
 assert "путь к конечному `securelinux-ng.sh`" not in text
 assert "Финальный `securelinux-ng.sh`" not in text
 assert "итоговый распространяемый артефакт" in text
-assert "tracked CHECK + SRC-0001 APPLY CLI" in text
+assert "tracked CHECK + mechanism-oriented APPLY CLI" in text
 assert "Gate 0 PASS" in text
 assert "только byte-generation parity" in text
 assert "docs/PROJECT-MAP-v3.md" in readme

@@ -67,7 +67,7 @@ def parse_progress(path: Path) -> dict[str, str]:
 
 def parse_generator_constants(path: Path) -> dict[str, str]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    wanted = {"PRODUCT_STATUS", "TARGET_FAMILY_ID", "GENERATOR_ID", "APPLY_SCOPE"}
+    wanted = {"PRODUCT_STATUS", "TARGET_FAMILY_ID", "GENERATOR_ID"}
     out: dict[str, str] = {}
     for node in tree.body:
         if not isinstance(node, ast.Assign) or len(node.targets) != 1:
@@ -109,6 +109,25 @@ def parse_control_kind(path: Path) -> str:
         if in_parameter and raw.startswith("  ") and not raw.startswith("    "):
             continue
     raise RuntimeError(f"parameter.kind not found: {path}")
+
+
+def parse_control_apply_supported(path: Path) -> bool:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    in_apply = False
+    for raw in lines:
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        if not raw.startswith(" "):
+            in_apply = raw.strip() == "apply:"
+            continue
+        if in_apply and raw.startswith("  supported:"):
+            value = yaml_scalar(raw.split(":", 1)[1]).lower()
+            if value == "true":
+                return True
+            if value == "false":
+                return False
+            raise RuntimeError(f"invalid apply.supported: {path}")
+    raise RuntimeError(f"apply.supported not found: {path}")
 
 
 def split_control_ids(raw: str) -> list[str]:
@@ -161,6 +180,7 @@ def collect_state(root: Path) -> dict:
         raise RuntimeError("duplicate control id in CONTROL-MANIFEST")
 
     kinds: dict[str, str] = {}
+    apply_supported: dict[str, bool] = {}
     for row in controls:
         path = root / "controls/fstec-core/linux-2022" / row["file"]
         if not path.is_file() or path.is_symlink():
@@ -168,6 +188,7 @@ def collect_state(root: Path) -> dict:
         if sha256(path) != row["sha256"]:
             raise RuntimeError(f"control manifest SHA mismatch: {row['control_id']}")
         kinds[row["control_id"]] = parse_control_kind(path)
+        apply_supported[row["control_id"]] = parse_control_apply_supported(path)
         src = source_by_id.get(row["index_id"])
         if not src:
             raise RuntimeError(f"control references unknown source: {row['control_id']}")
@@ -206,22 +227,51 @@ def collect_state(root: Path) -> dict:
             if sha256(p) != row[sha_key]:
                 raise RuntimeError(f"registry SHA mismatch: {row[path_key]}")
 
+    kind_registry = root / "product/APPLY-KIND-REGISTRY.tsv"
+    kind_expected_fields = (
+        "apply_kind", "parameter_kind", "target_class", "authority_form",
+        "architecture_id", "architecture_path", "architecture_sha256",
+    )
+    with kind_registry.open(encoding="utf-8", newline="") as stream:
+        reader = csv.DictReader(stream, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != kind_expected_fields:
+            raise RuntimeError("APPLY kind registry field-set mismatch")
+        kind_rows = list(reader)
+    if not kind_rows:
+        raise RuntimeError("APPLY kind registry is empty")
+    if len({row["apply_kind"] for row in kind_rows}) != len(kind_rows):
+        raise RuntimeError("duplicate apply_kind in APPLY kind registry")
+    if len({row["parameter_kind"] for row in kind_rows}) != len(kind_rows):
+        raise RuntimeError("duplicate parameter_kind in APPLY kind registry")
+    for row in kind_rows:
+        if any(not row[field] for field in kind_expected_fields):
+            raise RuntimeError("empty field in APPLY kind registry")
+        if row["authority_form"] != "MECHANISM_AUTHORITY_V1":
+            raise RuntimeError("unsupported APPLY authority_form")
+        p = root / row["architecture_path"]
+        if not p.is_file() or p.is_symlink():
+            raise RuntimeError(f"APPLY authority missing/non-regular: {row['architecture_path']}")
+        if sha256(p) != row["architecture_sha256"]:
+            raise RuntimeError(f"APPLY authority SHA mismatch: {row['architecture_path']}")
+
     implementation_registry = root / "product/APPLY-IMPLEMENTATION-REGISTRY.tsv"
     with implementation_registry.open(encoding="utf-8", newline="") as stream:
         reader = csv.DictReader(stream, delimiter="\t")
-        expected_fields = (
+        implementation_expected_fields = (
             "apply_kind", "composition_contract_id", "adapter_id", "binding_path",
             "binding_sha256", "implementation_path", "implementation_sha256",
         )
-        if tuple(reader.fieldnames or ()) != expected_fields:
+        if tuple(reader.fieldnames or ()) != implementation_expected_fields:
             raise RuntimeError("APPLY implementation registry field-set mismatch")
         implementation_rows = list(reader)
     if not implementation_rows:
         raise RuntimeError("APPLY implementation registry is empty")
+    if len({row["apply_kind"] for row in implementation_rows}) != len(implementation_rows):
+        raise RuntimeError("duplicate apply_kind in APPLY implementation registry")
     if len({row["adapter_id"] for row in implementation_rows}) != len(implementation_rows):
         raise RuntimeError("duplicate adapter_id in APPLY implementation registry")
     for row in implementation_rows:
-        if any(not row[field] for field in expected_fields):
+        if any(not row[field] for field in implementation_expected_fields):
             raise RuntimeError("empty field in APPLY implementation registry")
         for path_key, sha_key in (
             ("binding_path", "binding_sha256"),
@@ -232,6 +282,17 @@ def collect_state(root: Path) -> dict:
                 raise RuntimeError(f"APPLY registry target missing/non-regular: {row[path_key]}")
             if sha256(p) != row[sha_key]:
                 raise RuntimeError(f"APPLY registry SHA mismatch: {row[path_key]}")
+    kind_by_apply = {row["apply_kind"]: row for row in kind_rows}
+    impl_by_apply = {row["apply_kind"]: row for row in implementation_rows}
+    if set(kind_by_apply) != set(impl_by_apply):
+        raise RuntimeError("APPLY registries are not paired by apply_kind")
+
+    enabled_controls = [row for row in controls if apply_supported[row["control_id"]]]
+    route_by_parameter_kind = {row["parameter_kind"]: row for row in kind_rows}
+    active_apply_kinds = sorted(
+        {row["apply_kind"] for row in kind_rows},
+        key=lambda value: value.encode("utf-8"),
+    )
 
     generator = parse_generator_constants(root / "product/generate-product-check-v2.py")
     platform_rows = read_tsv(root / "product/SUPPORTED-PLATFORMS.tsv")
@@ -270,7 +331,11 @@ def collect_state(root: Path) -> dict:
         "closure": closure,
         "closure_by_id": closure_by_id,
         "adapters": adapters,
+        "apply_kind_rows": kind_rows,
         "implementation_rows": implementation_rows,
+        "apply_supported": apply_supported,
+        "enabled_apply_controls": enabled_controls,
+        "active_apply_kinds": active_apply_kinds,
         "adapter_by_kind": adapter_by_kind,
         "controls_by_kind": controls_by_kind,
         "generator": generator,
@@ -305,7 +370,8 @@ def render_status_block(state: dict) -> str:
         f"CHECK_STATUS={product_status}",
         "CHECK=IMPLEMENTED_READ_ONLY",
         "APPLY=IMPLEMENTED",
-        f"APPLY_SCOPE={state['generator']['APPLY_SCOPE']}",
+        f"APPLY_KINDS={','.join(state['active_apply_kinds'])}",
+        f"APPLY_CONTROL_COUNT={len(state['enabled_apply_controls'])}",
         f"APPLY_IMPLEMENTATION_COUNT={len(state['implementation_rows'])}",
         "RESTORE=NOT_PLANNED",
         "ROLLBACK_MODEL=EXTERNAL_SNAPSHOT",

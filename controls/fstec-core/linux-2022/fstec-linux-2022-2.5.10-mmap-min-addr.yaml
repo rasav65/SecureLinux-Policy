@@ -23,4 +23,4 @@ expected:
   value: 4096
   type: "integer"
 apply:
-  supported: false
+  supported: true

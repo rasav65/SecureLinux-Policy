@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+import os
 
 ROOT = Path(__file__).resolve().parents[2]
 TOOL = ROOT / "tools/rebuild-root-manifests.py"
@@ -29,8 +30,8 @@ PINNED_HISTORICAL_MANIFEST_EXCEPTIONS = {
 }
 
 
-def run(argv, cwd):
-    return subprocess.run(argv, cwd=cwd, text=True, capture_output=True)
+def run(argv, cwd, env=None):
+    return subprocess.run(argv, cwd=cwd, text=True, capture_output=True, env=env)
 
 
 def sha256(path: Path) -> str:
@@ -256,7 +257,9 @@ for rel in set(review_links):
 with tempfile.TemporaryDirectory(prefix="slp-root-manifest-") as td:
     repo = Path(td) / "repo"
     repo.mkdir()
-    assert run(["git", "init", "-q"], repo).returncode == 0
+    repo_env = os.environ.copy()
+    repo_env.pop("GIT_INDEX_FILE", None)
+    assert run(["git", "init", "-q"], repo, env=repo_env).returncode == 0
     (repo / ".gitignore").write_text(".runtime/\n", encoding="utf-8")
     (repo / "tracked.txt").write_text("tracked\n", encoding="utf-8")
     (repo / "tracked-deleted.txt").write_text("deleted-after-indexing\n", encoding="utf-8")
@@ -264,11 +267,17 @@ with tempfile.TemporaryDirectory(prefix="slp-root-manifest-") as td:
     (repo / ".runtime").mkdir()
     (repo / ".runtime/state.txt").write_text("runtime\n", encoding="utf-8")
     assert run(
-        ["git", "add", ".gitignore", "tracked.txt", "tracked-deleted.txt"], repo
+        ["git", "add", ".gitignore", "tracked.txt", "tracked-deleted.txt"],
+        repo,
+        env=repo_env,
     ).returncode == 0
     (repo / "tracked-deleted.txt").unlink()
 
-    cp = run([sys.executable, "-B", str(TOOL), "--project-root", str(repo)], repo)
+    cp = run(
+        [sys.executable, "-B", str(TOOL), "--project-root", str(repo)],
+        repo,
+        env=repo_env,
+    )
     assert cp.returncode == 0, cp.stdout + cp.stderr
     ptext = (repo / "PROJECT-FILES.sha256").read_text(encoding="utf-8")
     rtext = (repo / "SHA256SUMS").read_text(encoding="utf-8")
@@ -282,6 +291,7 @@ with tempfile.TemporaryDirectory(prefix="slp-root-manifest-") as td:
     cp = run(
         [sys.executable, "-B", str(TOOL), "--project-root", str(repo), "--check"],
         repo,
+        env=repo_env,
     )
     assert cp.returncode == 0, cp.stdout + cp.stderr
 

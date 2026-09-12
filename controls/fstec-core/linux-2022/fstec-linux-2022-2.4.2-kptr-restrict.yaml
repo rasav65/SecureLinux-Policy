@@ -23,4 +23,4 @@ expected:
   value: 2
   type: "integer"
 apply:
-  supported: false
+  supported: true

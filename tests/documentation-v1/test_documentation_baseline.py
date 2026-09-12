@@ -191,8 +191,8 @@ def validate_readme_entrypoint(text: str) -> None:
     assert "sha256sum -c securelinux-policy.sh.sha256" in text
     assert "sudo /bin/bash -p ./securelinux-policy.sh --check" in text
     assert "sudo /bin/bash -p ./securelinux-policy.sh --apply --dry-run" in text
-    assert "--snapshot-attestation /path/to/attestation.json" in text
-    assert "snapshot-precondition-v1.json" in text
+    assert "sudo /bin/bash -p ./securelinux-policy.sh --apply" in text
+    assert "--snapshot-attestation" not in text
     assert "product/README.md#readme-engineering-reference" in text
     assert "DRAFT_UNVERIFIED" not in text and "Исходный README — сохранён полностью" not in text
 
@@ -239,6 +239,7 @@ assert "Canonical controls, которые ещё не закрывают стр
 assert "## Покрытие по исходным документам" in coverage
 
 import csv
+import os
 with (ROOT / "index/source-v4/SOURCE-INDEX.tsv").open(
     encoding="utf-8", newline=""
 ) as stream:
@@ -504,10 +505,11 @@ for rel, obsolete_english in (
 # Language policy: every editable current Markdown document must contain Russian
 # human-readable prose. Exact technical identifiers/tokens may remain English.
 # Frozen/historical SHA-bound material is excluded from in-place translation.
-def git_visible_markdown(root: Path) -> list[str]:
+def git_visible_markdown(root: Path, *, env=None) -> list[str]:
     cp = subprocess.run(
         ["git", "ls-files", "--cached", "--others", "--exclude-standard", "--", "*.md"],
         cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        env=env,
     )
     assert cp.returncode == 0, cp.stderr
     return [line for line in cp.stdout.splitlines() if line]
@@ -518,16 +520,33 @@ def git_visible_markdown(root: Path) -> list[str]:
 # same language/semantic/review-bound population before commit.
 with tempfile.TemporaryDirectory(prefix="slp-doc-visible-") as td:
     probe = Path(td)
-    subprocess.run(["git", "init", "-q"], cwd=probe, check=True)
+    probe_env = os.environ.copy()
+    probe_env.pop("GIT_INDEX_FILE", None)
+    inherited_index = os.environ.get("GIT_INDEX_FILE")
+    inherited_index_before = None
+    if inherited_index:
+        inherited_path = Path(inherited_index)
+        if inherited_path.is_file():
+            inherited_index_before = inherited_path.read_bytes()
+
+    subprocess.run(["git", "init", "-q"], cwd=probe, check=True, env=probe_env)
     (probe / "tracked.md").write_text("# Отслеживаемый\n", encoding="utf-8")
     (probe / "untracked.md").write_text("# Новый\n", encoding="utf-8")
     (probe / "ignored.md").write_text("# Игнорируемый\n", encoding="utf-8")
     (probe / ".gitignore").write_text("ignored.md\n", encoding="utf-8")
-    subprocess.run(["git", "add", "tracked.md", ".gitignore"], cwd=probe, check=True)
-    probe_visible = set(git_visible_markdown(probe))
+    subprocess.run(
+        ["git", "add", "tracked.md", ".gitignore"],
+        cwd=probe,
+        check=True,
+        env=probe_env,
+    )
+    probe_visible = set(git_visible_markdown(probe, env=probe_env))
     assert "tracked.md" in probe_visible
     assert "untracked.md" in probe_visible
     assert "ignored.md" not in probe_visible
+
+    if inherited_index_before is not None:
+        assert Path(inherited_index).read_bytes() == inherited_index_before
 
 cp_lines = git_visible_markdown(ROOT)
 historical_prefixes = (
@@ -943,9 +962,9 @@ assert "APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО" 
 assert "финальная детерминированная упаковка<br/>ГОТОВО" in current_map
 assert "единый распространяемый артефакт<br/>ГОТОВО" in current_map
 assert "МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC" in current_map
-assert "Модульная architecture APPLY-contract" in current_map
+assert "`MECHANISM_AUTHORITY_V1` `config-line-with-runtime-v1` r17" in current_map
 assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in current_map
-assert "DOCUMENT COMPLETE" in current_map
+assert "восьмисредовый VM-cycle" in current_map
 
 stale_checkpoint_markers = (
     "текущий substantive checkpoint — `APPLY implementation` для SRC-0001",

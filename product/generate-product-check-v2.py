@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import csv
 import hashlib
 import importlib.util
@@ -21,10 +22,9 @@ DESKTOP_MATRIX_REL = "product/SUPPORTED-DESKTOPS.tsv"
 MANIFEST_REL = "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 CONTROL_DIR_REL = "controls/fstec-core/linux-2022"
 REGISTRY_REL = "product/ADAPTER-REGISTRY.tsv"
+APPLY_KIND_REGISTRY_REL = "product/APPLY-KIND-REGISTRY.tsv"
 APPLY_REGISTRY_REL = "product/APPLY-IMPLEMENTATION-REGISTRY.tsv"
-APPLY_SCOPE = "SRC-0001_ONLY"
-APPLY_CONTROL_ID = "FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE"
-APPLY_INDEX_ID = "SRC-0001"
+AUTHORITY_FORM_MECHANISM_V1 = "MECHANISM_AUTHORITY_V1"
 
 MANIFEST_FIELDS = [
     "control_id", "index_id", "locator", "key", "expected", "file", "sha256"
@@ -38,6 +38,15 @@ REGISTRY_FIELDS = [
     "adapter_contract_sha256",
     "implementation_path",
     "implementation_sha256",
+]
+APPLY_KIND_REGISTRY_FIELDS = [
+    "apply_kind",
+    "parameter_kind",
+    "target_class",
+    "authority_form",
+    "architecture_id",
+    "architecture_path",
+    "architecture_sha256",
 ]
 APPLY_REGISTRY_FIELDS = [
     "apply_kind",
@@ -377,91 +386,150 @@ def load_registry(repo: Path):
     return adapters, sha_file(path)
 
 
-def load_apply_implementation(repo: Path):
-    path = repo / APPLY_REGISTRY_REL
-    require_regular(path, "APPLY implementation registry")
+def _load_tsv_registry(path: Path, fields: list[str], label: str) -> list[dict[str, str]]:
+    require_regular(path, label)
     with path.open("r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f, delimiter="\t")
-        if reader.fieldnames != APPLY_REGISTRY_FIELDS:
-            raise RuntimeError(
-                f"unexpected APPLY implementation registry fields: {reader.fieldnames!r}"
-            )
+        if reader.fieldnames != fields:
+            raise RuntimeError(f"unexpected {label} fields: {reader.fieldnames!r}")
         rows = list(reader)
-    if len(rows) != 1:
-        raise RuntimeError(f"SRC-0001 APPLY scope requires exactly one implementation, got {len(rows)}")
-    row = rows[0]
-    if any(not row[field] for field in APPLY_REGISTRY_FIELDS):
-        raise RuntimeError("empty APPLY implementation registry field")
-    for sha_key in ("binding_sha256", "implementation_sha256"):
-        if not HEX64_RE.fullmatch(row[sha_key]):
-            raise RuntimeError(f"invalid APPLY registry SHA: {sha_key}")
+    if not rows:
+        raise RuntimeError(f"empty {label}")
+    for row in rows:
+        if any(not row[field] for field in fields):
+            raise RuntimeError(f"empty {label} field: {row.get('apply_kind')!r}")
+    return rows
 
-    binding_rel = safe_repo_rel(row["binding_path"], "product/apply-adapters/")
-    implementation_rel = safe_repo_rel(
-        row["implementation_path"], "product/apply-adapters/"
-    )
-    binding_path = repo / binding_rel
-    implementation_path = repo / implementation_rel
-    for candidate, label in (
-        (binding_path, "APPLY binding"),
-        (implementation_path, "APPLY implementation"),
-    ):
-        cursor = repo
-        for part in candidate.relative_to(repo).parts:
-            cursor = cursor / part
-            if cursor.is_symlink():
-                raise RuntimeError(f"{label}: symlink component forbidden: {candidate}")
-        require_regular(candidate, label)
-    if sha_file(binding_path) != row["binding_sha256"]:
-        raise RuntimeError("APPLY binding SHA mismatch")
-    if sha_file(implementation_path) != row["implementation_sha256"]:
-        raise RuntimeError("APPLY implementation SHA mismatch")
 
-    binding = json.loads(binding_path.read_text(encoding="utf-8"))
-    if not isinstance(binding, dict) or set(binding) != APPLY_BINDING_FIELDS:
-        raise RuntimeError("unexpected APPLY binding fields")
-    if binding["adapter_id"] != row["adapter_id"]:
-        raise RuntimeError("APPLY binding adapter id mismatch")
-    composition_rel = safe_repo_rel(
-        binding["composition_contract_path"], "product/contracts/src0001-apply/"
-    )
-    composition_path = repo / composition_rel
-    require_regular(composition_path, "APPLY composition")
-    if not HEX64_RE.fullmatch(binding["composition_contract_sha256"]):
-        raise RuntimeError("invalid APPLY composition SHA")
-    if sha_file(composition_path) != binding["composition_contract_sha256"]:
-        raise RuntimeError("APPLY composition SHA mismatch")
-    composition = json.loads(composition_path.read_text(encoding="utf-8"))
-    if composition.get("composition_contract_id") != row["composition_contract_id"]:
-        raise RuntimeError("APPLY composition id mismatch")
-    if composition.get("apply_kind") != row["apply_kind"]:
-        raise RuntimeError("APPLY kind mismatch")
-    if composition.get("control_id") != APPLY_CONTROL_ID:
-        raise RuntimeError("APPLY control id mismatch")
+def load_apply_mechanisms(repo: Path):
+    kind_path = repo / APPLY_KIND_REGISTRY_REL
+    impl_path = repo / APPLY_REGISTRY_REL
+    kind_rows = _load_tsv_registry(kind_path, APPLY_KIND_REGISTRY_FIELDS, "APPLY kind registry")
+    impl_rows = _load_tsv_registry(impl_path, APPLY_REGISTRY_FIELDS, "APPLY implementation registry")
 
-    spec = importlib.util.spec_from_file_location("_slp_apply_adapter", implementation_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError("cannot load APPLY implementation")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    for attr, expected in (
-        ("ADAPTER_ID", row["adapter_id"]),
-        ("ADAPTER_CONTRACT_VERSION", "product-local-account-password-state-apply-adapter-v1"),
-        ("COMPOSITION_CONTRACT_ID", row["composition_contract_id"]),
-        ("APPLY_KIND", row["apply_kind"]),
-        ("TARGET_ID", TARGET_FAMILY_ID),
-        ("OPERATION", "apply"),
-    ):
-        if getattr(mod, attr, None) != expected:
-            raise RuntimeError(f"APPLY implementation {attr} mismatch")
-    if not callable(getattr(mod, "apply_shell_function", None)):
-        raise RuntimeError("APPLY implementation function missing")
-    return {
-        "row": row,
-        "binding": binding,
-        "composition": composition,
-        "module": mod,
-    }, sha_file(path)
+    kind_by_apply = {}
+    parameter_kinds = set()
+    architecture_ids = set()
+    for row in kind_rows:
+        if row["apply_kind"] in kind_by_apply:
+            raise RuntimeError(f"duplicate APPLY apply_kind: {row['apply_kind']}")
+        if row["parameter_kind"] in parameter_kinds:
+            raise RuntimeError(f"duplicate APPLY parameter_kind route: {row['parameter_kind']}")
+        if row["architecture_id"] in architecture_ids:
+            raise RuntimeError(f"duplicate APPLY architecture_id: {row['architecture_id']}")
+        if row["authority_form"] != AUTHORITY_FORM_MECHANISM_V1:
+            raise RuntimeError(f"unsupported APPLY authority_form: {row['authority_form']}")
+        kind_by_apply[row["apply_kind"]] = row
+        parameter_kinds.add(row["parameter_kind"])
+        architecture_ids.add(row["architecture_id"])
+
+    impl_by_apply = {}
+    adapter_ids = set()
+    for row in impl_rows:
+        if row["apply_kind"] in impl_by_apply:
+            raise RuntimeError(f"duplicate APPLY implementation apply_kind: {row['apply_kind']}")
+        if row["adapter_id"] in adapter_ids:
+            raise RuntimeError(f"duplicate APPLY adapter_id: {row['adapter_id']}")
+        impl_by_apply[row["apply_kind"]] = row
+        adapter_ids.add(row["adapter_id"])
+    if set(kind_by_apply) != set(impl_by_apply):
+        raise RuntimeError(
+            "unpaired APPLY registry row: "
+            f"kind_only={sorted(set(kind_by_apply)-set(impl_by_apply))!r} "
+            f"implementation_only={sorted(set(impl_by_apply)-set(kind_by_apply))!r}"
+        )
+
+    by_parameter_kind = {}
+    for apply_kind in sorted(kind_by_apply, key=lambda x: x.encode("utf-8")):
+        kind_row = kind_by_apply[apply_kind]
+        impl_row = impl_by_apply[apply_kind]
+        authority_rel = safe_repo_rel(kind_row["architecture_path"], "product/contracts/")
+        authority_path = repo / authority_rel
+        require_regular(authority_path, "APPLY authority")
+        if not HEX64_RE.fullmatch(kind_row["architecture_sha256"]):
+            raise RuntimeError("invalid APPLY authority SHA")
+        if sha_file(authority_path) != kind_row["architecture_sha256"]:
+            raise RuntimeError("APPLY authority SHA mismatch")
+        authority = json.loads(authority_path.read_text(encoding="utf-8"))
+        if authority.get("authority_form") != AUTHORITY_FORM_MECHANISM_V1:
+            raise RuntimeError("APPLY authority form mismatch")
+        rb = authority.get("registry_binding")
+        expected_rb_fields = {
+            "apply_kind", "parameter_kind", "target_class", "architecture_id",
+            "composition_contract_id", "authority_path", "legacy_column_semantics",
+            "adapter_id", "binding_contract_id",
+        }
+        if not isinstance(rb, dict) or set(rb) != expected_rb_fields:
+            raise RuntimeError("APPLY authority registry_binding fields mismatch")
+        for field in ("apply_kind", "parameter_kind", "target_class", "architecture_id"):
+            if rb[field] != kind_row[field]:
+                raise RuntimeError(f"APPLY authority identity mismatch: {field}")
+        if rb["authority_path"] != authority_rel:
+            raise RuntimeError("APPLY authority path mismatch")
+        if authority.get("mechanism_id") != apply_kind:
+            raise RuntimeError("APPLY authority mechanism/apply_kind mismatch")
+        if impl_row["composition_contract_id"] != rb["composition_contract_id"]:
+            raise RuntimeError("APPLY authority composition identity mismatch")
+        if impl_row["adapter_id"] != rb["adapter_id"]:
+            raise RuntimeError("APPLY authority adapter identity mismatch")
+
+        binding_rel = safe_repo_rel(impl_row["binding_path"], "product/apply-adapters/")
+        implementation_rel = safe_repo_rel(impl_row["implementation_path"], "product/apply-adapters/")
+        binding_path = repo / binding_rel
+        implementation_path = repo / implementation_rel
+        for candidate, label in ((binding_path, "APPLY binding"), (implementation_path, "APPLY implementation")):
+            cursor = repo
+            for part in candidate.relative_to(repo).parts:
+                cursor = cursor / part
+                if cursor.is_symlink():
+                    raise RuntimeError(f"{label}: symlink component forbidden: {candidate}")
+            require_regular(candidate, label)
+        for sha_key in ("binding_sha256", "implementation_sha256"):
+            if not HEX64_RE.fullmatch(impl_row[sha_key]):
+                raise RuntimeError(f"invalid APPLY registry SHA: {sha_key}")
+        if sha_file(binding_path) != impl_row["binding_sha256"]:
+            raise RuntimeError("APPLY binding SHA mismatch")
+        if sha_file(implementation_path) != impl_row["implementation_sha256"]:
+            raise RuntimeError("APPLY implementation SHA mismatch")
+        binding = json.loads(binding_path.read_text(encoding="utf-8"))
+        if not isinstance(binding, dict) or set(binding) != APPLY_BINDING_FIELDS:
+            raise RuntimeError("unexpected APPLY binding fields")
+        if binding["adapter_id"] != impl_row["adapter_id"]:
+            raise RuntimeError("APPLY binding adapter id mismatch")
+        if binding["binding_contract_id"] != rb["binding_contract_id"]:
+            raise RuntimeError("APPLY binding contract id mismatch")
+        if binding["composition_contract_path"] != authority_rel:
+            raise RuntimeError("APPLY binding authority path mismatch")
+        if binding["composition_contract_sha256"] != kind_row["architecture_sha256"]:
+            raise RuntimeError("APPLY binding authority SHA mismatch")
+
+        spec = importlib.util.spec_from_file_location(
+            "_slp_apply_" + re.sub(r"[^A-Za-z0-9_]", "_", kind_row["parameter_kind"]),
+            implementation_path,
+        )
+        if spec is None or spec.loader is None:
+            raise RuntimeError("cannot load APPLY implementation")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        for attr, expected in (
+            ("ADAPTER_ID", impl_row["adapter_id"]),
+            ("MECHANISM_ID", authority["mechanism_id"]),
+            ("TARGET_ID", TARGET_FAMILY_ID),
+        ):
+            if getattr(mod, attr, None) != expected:
+                raise RuntimeError(f"APPLY implementation {attr} mismatch")
+        for fn in ("execute_control", "control_result_to_report"):
+            if not callable(getattr(mod, fn, None)):
+                raise RuntimeError(f"APPLY implementation API missing: {fn}")
+        by_parameter_kind[kind_row["parameter_kind"]] = {
+            "kind_row": kind_row,
+            "implementation_row": impl_row,
+            "authority": authority,
+            "binding": binding,
+            "module": mod,
+            "implementation_source": implementation_path.read_bytes(),
+        }
+    return by_parameter_kind, sha_file(kind_path), sha_file(impl_path)
 
 
 PLATFORM_MATRIX_FIELDS = ["environment_id", "os_id", "version_id", "arch", "profile", "status"]
@@ -551,6 +619,251 @@ def shell_function_name(control_id: str) -> str:
     return "slp_check_" + re.sub(r"[^A-Za-z0-9_]", "_", control_id)
 
 
+def render_product_apply_dispatcher(apply_controls, apply_mechanisms) -> str:
+    controls_payload = []
+    used_parameter_kinds = set()
+    for c in apply_controls:
+        controls_payload.append({
+            "control_id": c["control_id"],
+            "parameter_kind": c["parameter_kind"],
+            "key": c["parameter_key"],
+            "op": c["expected_op"],
+            "expected": c["expected_value"],
+        })
+        if c["parameter_kind"] in apply_mechanisms:
+            used_parameter_kinds.add(c["parameter_kind"])
+    routes_payload = {}
+    for parameter_kind in sorted(used_parameter_kinds, key=lambda x: x.encode("utf-8")):
+        item = apply_mechanisms[parameter_kind]
+        routes_payload[parameter_kind] = {
+            "apply_kind": item["kind_row"]["apply_kind"],
+            "mechanism_id": item["authority"]["mechanism_id"],
+            "adapter_id": item["implementation_row"]["adapter_id"],
+            "implementation_sha256": item["implementation_row"]["implementation_sha256"],
+            "source_b64": base64.b64encode(item["implementation_source"]).decode("ascii"),
+        }
+    controls_json = json.dumps(controls_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    routes_json = json.dumps(routes_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    source = r'''import base64
+import datetime
+import json
+import os
+import stat
+import sys
+import tempfile
+import traceback
+
+MODE = sys.argv[1] if len(sys.argv) == 2 else ""
+if MODE not in {"APPLY", "DRY_RUN"}:
+    raise SystemExit(2)
+DRY_RUN = MODE == "DRY_RUN"
+STATE_DIR = "/var/log/securelinux-policy"
+APPLY_LOG = os.path.join(STATE_DIR, "apply.log")
+DEBUG_LOG = os.path.join(STATE_DIR, "debug.log")
+REPORT_PATH = os.path.join(STATE_DIR, "report.json")
+APPLY_CONTROLS = @@APPLY_CONTROLS_JSON@@
+ROUTES = @@APPLY_ROUTES_JSON@@
+COMMON = {
+    "control_id", "outcome", "reason", "actions_attempted", "step_rc",
+    "mutation_performed", "transaction_commit", "started_at", "finished_at",
+}
+
+def now():
+    return datetime.datetime.now(datetime.timezone.utc).astimezone().isoformat(timespec="seconds")
+
+def ensure_state_dir():
+    os.makedirs(STATE_DIR, mode=0o700, exist_ok=True)
+    st = os.lstat(STATE_DIR)
+    if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):
+        raise RuntimeError("reporting:state-dir-invalid")
+
+def atomic_report(payload):
+    fd, tmp = tempfile.mkstemp(prefix=".report.json.", dir=STATE_DIR)
+    try:
+        data = (json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+            os.fchmod(stream.fileno(), 0o600)
+        os.replace(tmp, REPORT_PATH)
+        dfd = os.open(STATE_DIR, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(dfd)
+        finally:
+            os.close(dfd)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
+        raise
+
+def append_log(path, message):
+    flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(path, flags, 0o600)
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
+            raise RuntimeError("reporting:log-target-invalid")
+        os.write(fd, (f"[{now()}] {message}\n").encode("utf-8"))
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+def load_route(meta):
+    raw = base64.b64decode(meta["source_b64"], validate=True)
+    if __import__("hashlib").sha256(raw).hexdigest() != meta["implementation_sha256"]:
+        raise RuntimeError("routing:embedded-implementation-sha-mismatch")
+    ns = {"__name__": "_slp_embedded_" + meta["mechanism_id"].replace("-", "_"), "__file__": "<embedded>"}
+    exec(compile(raw, "<embedded:" + meta["mechanism_id"] + ">", "exec"), ns)
+    if ns.get("MECHANISM_ID") != meta["mechanism_id"] or ns.get("ADAPTER_ID") != meta["adapter_id"]:
+        raise RuntimeError("routing:embedded-implementation-identity-mismatch")
+    if not callable(ns.get("execute_control")) or not callable(ns.get("control_result_to_report")):
+        raise RuntimeError("routing:embedded-implementation-api-missing")
+    return ns
+
+def unavailable_record(control, started, finished):
+    return {
+        "control_id": control["control_id"],
+        "mechanism_id": None,
+        "outcome": "ABORTED_PRECONDITION_OTHER",
+        "reason": "routing:mechanism-unavailable",
+        "actions_attempted": ["P0_ELIGIBILITY"],
+        "step_rc": "nonzero",
+        "mutation_performed": False,
+        "transaction_commit": "NOT_STARTED",
+        "started_at": started,
+        "finished_at": finished,
+        "mechanism_result": {"parameter_kind": control["parameter_kind"]},
+    }
+
+def crash_record(control, meta, started, finished, exc):
+    return {
+        "control_id": control["control_id"],
+        "mechanism_id": None if meta is None else meta["mechanism_id"],
+        "outcome": "FAILED_NOT_COMMITTED",
+        "reason": "mechanism:unhandled-exception",
+        "actions_attempted": [],
+        "step_rc": "nonzero",
+        "mutation_performed": None,
+        "transaction_commit": "UNKNOWN",
+        "started_at": started,
+        "finished_at": finished,
+        "mechanism_result": {"error_type": type(exc).__name__, "error_message": str(exc)},
+    }
+
+def _terminal_scalar(value, label):
+    if value is None or isinstance(value, (dict, list, tuple, set)):
+        raise RuntimeError("presentation:" + label + "-invalid")
+    text = str(value)
+    if not text or "\n" in text or "\r" in text:
+        raise RuntimeError("presentation:" + label + "-invalid")
+    return text
+
+def emit_operator_decision(record):
+    mechanism_result = record.get("mechanism_result")
+    if not isinstance(mechanism_result, dict):
+        return
+    decision = mechanism_result.get("operator_decision")
+    if decision is None:
+        return
+    if not isinstance(decision, dict):
+        raise RuntimeError("presentation:operator-decision-invalid")
+    if decision.get("class") != "SERVICE_MANAGED_PARAMETER" or decision.get("required") is not True:
+        raise RuntimeError("presentation:operator-decision-invalid")
+    if record.get("outcome") != "ABORTED_PRECONDITION_CONFLICT" or record.get("step_rc") == "0" or record.get("mutation_performed") is not False:
+        raise RuntimeError("presentation:operator-decision-invariant")
+    service = _terminal_scalar(decision.get("service"), "service")
+    parameter = _terminal_scalar(decision.get("parameter"), "parameter")
+    current_value = _terminal_scalar(decision.get("current_value"), "current-value")
+    control_id = _terminal_scalar(record.get("control_id"), "control-id")
+    print(f"{control_id} {current_value} {parameter}={current_value}: обнаружен штатный механизм {service}, управляющий этим параметром.")
+    print("Автоматическое изменение пропущено. Требуется решение администратора.")
+
+started_at = now()
+payload = {
+    "schema": "SLP-APPLY-REPORT-V2",
+    "dry_run": DRY_RUN,
+    "apply_kinds": sorted({meta["apply_kind"] for meta in ROUTES.values()}),
+    "apply_control_count": len(APPLY_CONTROLS),
+    "started_at": started_at,
+    "finished_at": None,
+    "complete": False,
+    "rc_zero": None,
+    "run_error": None,
+    "controls": [],
+}
+ensure_state_dir()
+atomic_report(payload)
+try:
+    append_log(APPLY_LOG, f"product apply start dry_run={str(DRY_RUN).lower()} controls={len(APPLY_CONTROLS)}")
+    loaded = {}
+    for control in APPLY_CONTROLS:
+        c_started = now()
+        meta = ROUTES.get(control["parameter_kind"])
+        if meta is None:
+            record = unavailable_record(control, c_started, now())
+        else:
+            try:
+                ns = loaded.get(control["parameter_kind"])
+                if ns is None:
+                    ns = load_route(meta)
+                    loaded[control["parameter_kind"]] = ns
+                append_log(APPLY_LOG, f"control start {control['control_id']} mechanism={meta['mechanism_id']}")
+                result = ns["execute_control"](
+                    control["control_id"], control["key"], control["op"], control["expected"], True,
+                    dry_run=DRY_RUN,
+                )
+                c_finished = now()
+                raw = ns["control_result_to_report"](result, c_started, c_finished)
+                mechanism_result = {k: v for k, v in raw.items() if k not in COMMON}
+                record = {
+                    "control_id": raw["control_id"],
+                    "mechanism_id": meta["mechanism_id"],
+                    "outcome": raw["outcome"],
+                    "reason": raw["reason"],
+                    "actions_attempted": raw["actions_attempted"],
+                    "step_rc": raw["step_rc"],
+                    "mutation_performed": raw["mutation_performed"],
+                    "transaction_commit": raw["transaction_commit"],
+                    "started_at": raw["started_at"],
+                    "finished_at": raw["finished_at"],
+                    "mechanism_result": mechanism_result,
+                }
+            except BaseException as exc:
+                c_finished = now()
+                append_log(DEBUG_LOG, traceback.format_exc().rstrip())
+                record = crash_record(control, meta, c_started, c_finished, exc)
+        payload["controls"].append(record)
+        atomic_report(payload)
+        emit_operator_decision(record)
+        append_log(APPLY_LOG, f"control finish {control['control_id']} outcome={record['outcome']} step_rc={record['step_rc']}")
+    payload["finished_at"] = now()
+    payload["complete"] = True
+    payload["rc_zero"] = all(item["step_rc"] == "0" for item in payload["controls"])
+    atomic_report(payload)
+    append_log(APPLY_LOG, f"product apply finish rc_zero={str(payload['rc_zero']).lower()}")
+    raise SystemExit(0 if payload["rc_zero"] else 1)
+except SystemExit:
+    raise
+except BaseException as exc:
+    payload["run_error"] = {"type": type(exc).__name__, "message": str(exc), "phase": "product-dispatch"}
+    payload["finished_at"] = now()
+    payload["complete"] = False
+    payload["rc_zero"] = False
+    try:
+        atomic_report(payload)
+        append_log(DEBUG_LOG, traceback.format_exc().rstrip())
+    except Exception:
+        pass
+    raise
+'''
+    return source.replace("@@APPLY_CONTROLS_JSON@@", controls_json).replace("@@APPLY_ROUTES_JSON@@", routes_json)
+
+
 def render_script(
     controls,
     adapters,
@@ -561,23 +874,21 @@ def render_script(
     platform_matrix_sha: str | None = None,
     desktop_rows=None,
     desktop_matrix_sha: str | None = None,
-    apply_implementation=None,
+    apply_mechanisms=None,
+    apply_kind_registry_sha: str | None = None,
     apply_registry_sha: str | None = None,
-    apply_control=None,
+    apply_controls=None,
 ) -> bytes:
     if platform_rows is None or platform_matrix_sha is None or desktop_rows is None or desktop_matrix_sha is None:
         repo = Path(__file__).resolve(strict=True).parents[1]
         platform_rows, platform_matrix_sha = load_platform_matrix(repo)
         desktop_rows, desktop_matrix_sha = load_desktop_matrix(repo)
-    if apply_implementation is None or apply_registry_sha is None or apply_control is None:
+    if apply_mechanisms is None or apply_kind_registry_sha is None or apply_registry_sha is None or apply_controls is None:
         repo = Path(__file__).resolve(strict=True).parents[1]
-        apply_implementation, apply_registry_sha = load_apply_implementation(repo)
+        apply_mechanisms, apply_kind_registry_sha, apply_registry_sha = load_apply_mechanisms(repo)
         current_rows, _current_manifest_sha = load_manifest(repo)
         current_controls = [load_control(repo, row) for row in current_rows]
-        enabled = [item for item in current_controls if item["apply_supported"]]
-        if len(enabled) != 1:
-            raise RuntimeError("SRC-0001 APPLY scope requires exactly one enabled control")
-        apply_control = enabled[0]
+        apply_controls = [item for item in current_controls if item["apply_supported"]]
     blocks = []
     function_names = []
     function_owners = {}
@@ -635,40 +946,38 @@ def render_script(
             "source_locator": c["source_locator"],
             "target_id": TARGET_FAMILY_ID,
         }
-        if c["control_id"] == apply_control["control_id"]:
-            apply_row = apply_implementation["row"]
-            prov["apply"] = {
-                "adapter_id": apply_row["adapter_id"],
-                "adapter_contract_version": apply_implementation["module"].ADAPTER_CONTRACT_VERSION,
-                "implementation_sha256": apply_row["implementation_sha256"],
-                "composition_contract_id": apply_row["composition_contract_id"],
-                "control_id": apply_control["control_id"],
-                "source_locator": apply_control["source_locator"],
-                "quote_sha256": apply_control["quote_sha256"],
-            }
+        if c["apply_supported"]:
+            route = apply_mechanisms.get(kind)
+            if route is None:
+                prov["apply"] = {
+                    "route_status": "UNAVAILABLE",
+                    "parameter_kind": kind,
+                    "control_id": c["control_id"],
+                }
+            else:
+                kind_row = route["kind_row"]
+                impl_row = route["implementation_row"]
+                prov["apply"] = {
+                    "route_status": "BOUND",
+                    "parameter_kind": kind,
+                    "apply_kind": kind_row["apply_kind"],
+                    "mechanism_id": route["authority"]["mechanism_id"],
+                    "authority_form": kind_row["authority_form"],
+                    "authority_sha256": kind_row["architecture_sha256"],
+                    "adapter_id": impl_row["adapter_id"],
+                    "implementation_sha256": impl_row["implementation_sha256"],
+                    "control_id": c["control_id"],
+                }
         provenance_lines.append(
             json.dumps(prov, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         )
 
-    if apply_control["control_id"] != APPLY_CONTROL_ID or apply_control["index_id"] != APPLY_INDEX_ID:
-        raise RuntimeError("enabled APPLY control identity mismatch")
-    if apply_implementation["composition"]["control_id"] != apply_control["control_id"]:
-        raise RuntimeError("APPLY implementation/control mismatch")
-    apply_block = apply_implementation["module"].apply_shell_function(
-        apply_control["control_id"],
-        apply_control["parameter_locator"],
-        apply_control["parameter_key"],
-        apply_control["expected_op"],
-        apply_control["expected_value"],
+    apply_dispatcher = render_product_apply_dispatcher(apply_controls, apply_mechanisms)
+    active_apply_kinds = sorted(
+        {item["kind_row"]["apply_kind"] for item in apply_mechanisms.values()},
+        key=lambda x: x.encode("utf-8"),
     )
-    if not isinstance(apply_block, str) or not apply_block.endswith("\n"):
-        raise RuntimeError("APPLY implementation returned invalid shell block")
-    if "SLP-CHECK-V1" in apply_block:
-        raise RuntimeError("CHECK wire token forbidden in APPLY block")
-    blocks.append(apply_block.rstrip("\n"))
-    apply_function_name = "slp_apply_" + re.sub(
-        r"[^A-Za-z0-9_]", "_", apply_control["control_id"]
-    )
+    apply_kinds_text = ",".join(active_apply_kinds)
 
     prov_all = "\n".join(provenance_lines)
     prov_cases = []
@@ -692,7 +1001,9 @@ def render_script(
 # GENERATOR_SHA256=@@GENERATOR_SHA@@
 # CONTROL_MANIFEST_SHA256=@@MANIFEST_SHA@@
 # ADAPTER_REGISTRY_SHA256=@@REGISTRY_SHA@@
-# APPLY_SCOPE=@@APPLY_SCOPE@@
+# APPLY_KINDS=@@APPLY_KINDS@@
+# APPLY_CONTROL_COUNT=@@APPLY_CONTROL_COUNT@@
+# APPLY_KIND_REGISTRY_SHA256=@@APPLY_KIND_REGISTRY_SHA@@
 # APPLY_IMPLEMENTATION_REGISTRY_SHA256=@@APPLY_REGISTRY_SHA@@
 # TARGET_FAMILY_ID=@@TARGET_FAMILY_ID@@
 # PLATFORM_MATRIX_SHA256=@@PLATFORM_MATRIX_SHA@@
@@ -1027,16 +1338,17 @@ slp_build_info() {
     'CONTROL_MANIFEST_SHA256=@@MANIFEST_SHA@@' \
     'ADAPTER_COUNT=@@ADAPTER_COUNT@@' \
     'ADAPTER_REGISTRY_SHA256=@@REGISTRY_SHA@@' \
-    'APPLY_SCOPE=@@APPLY_SCOPE@@' \
-    'APPLY_IMPLEMENTATION_COUNT=1' \
+    'APPLY_KINDS=@@APPLY_KINDS@@' \
+    'APPLY_CONTROL_COUNT=@@APPLY_CONTROL_COUNT@@' \
+    'APPLY_IMPLEMENTATION_COUNT=@@APPLY_IMPLEMENTATION_COUNT@@' \
+    'APPLY_KIND_REGISTRY_SHA256=@@APPLY_KIND_REGISTRY_SHA@@' \
     'APPLY_IMPLEMENTATION_REGISTRY_SHA256=@@APPLY_REGISTRY_SHA@@' \
     'TARGET_FAMILY_ID=@@TARGET_FAMILY_ID@@' \
     'SUPPORTED_PROFILE_ENVIRONMENTS=@@SUPPORTED_PROFILE_COUNT@@' \
     'SUPPORTED_DESKTOP_ENVIRONMENTS=@@SUPPORTED_DESKTOP_COUNT@@' \
     'SUPPORTED_ENVIRONMENTS=@@SUPPORTED_COUNT@@' \
     'PLATFORM_MATRIX_SHA256=@@PLATFORM_MATRIX_SHA@@' \
-    'DESKTOP_MATRIX_SHA256=@@DESKTOP_MATRIX_SHA@@' \
-    'MUTATING_MODES=APPLY_SRC0001_ONLY'
+    'DESKTOP_MATRIX_SHA256=@@DESKTOP_MATRIX_SHA@@'
 }
 
 slp_help() {
@@ -1050,8 +1362,8 @@ SecureLinux-Policy v3 — единый product CLI
   ./securelinux-policy.sh --provenance [CONTROL_ID]
   ./securelinux-policy.sh --version
   ./securelinux-policy.sh --help
+  ./securelinux-policy.sh --apply
   ./securelinux-policy.sh --apply --dry-run
-  ./securelinux-policy.sh --apply --snapshot-attestation FILE
 
 Режимы:
   --check               read-only проверка текущих canonical controls
@@ -1063,9 +1375,8 @@ SecureLinux-Policy v3 — единый product CLI
   --build-info          metadata сборки
   --provenance          provenance всех controls или одного CONTROL_ID
   --version             версия product CLI
-  --apply --dry-run     рассчитать точный набор SRC-0001 без изменения хоста
-  --apply --snapshot-attestation FILE
-                        применить SRC-0001 с внешней аттестацией снимка
+  --apply               применить все controls с apply.supported=true
+  --apply --dry-run     выполнить те же наблюдения и расчёт без target-мутаций
 
 Без аргументов печатается эта справка. CHECK не изменяет состояние хоста.
 SLP_HELP_EOF
@@ -1286,9 +1597,11 @@ slp_run_check() {
 }
 
 slp_run_apply() {
-  local _slp_mode=$1 _slp_attestation=${2:-}
+  local _slp_mode=$1
   slp_target_preflight || return $?
-  @@APPLY_FUNCTION@@ "$_slp_mode" "$_slp_attestation"
+  command /usr/bin/python3 -I -S -B - "$_slp_mode" <<'SLP_PRODUCT_APPLY_EOF'
+@@APPLY_DISPATCHER@@
+SLP_PRODUCT_APPLY_EOF
   return $?
 }
 
@@ -1326,12 +1639,12 @@ slp_main() {
       ;;
     --apply)
       shift
-      if (( $# == 1 )) && [[ $1 == --dry-run ]]; then
-        slp_run_apply DRY_RUN
+      if (( $# == 0 )); then
+        slp_run_apply APPLY
         return $?
       fi
-      if (( $# == 2 )) && [[ $1 == --snapshot-attestation && -n $2 ]]; then
-        slp_run_apply APPLY "$2"
+      if (( $# == 1 )) && [[ $1 == --dry-run ]]; then
+        slp_run_apply DRY_RUN
         return $?
       fi
       return 2
@@ -1383,9 +1696,12 @@ fi
         "@@GENERATOR_SHA@@": generator_sha,
         "@@MANIFEST_SHA@@": manifest_sha,
         "@@REGISTRY_SHA@@": registry_sha,
-        "@@APPLY_SCOPE@@": APPLY_SCOPE,
+        "@@APPLY_KINDS@@": apply_kinds_text,
+        "@@APPLY_CONTROL_COUNT@@": str(len(apply_controls)),
+        "@@APPLY_IMPLEMENTATION_COUNT@@": str(len(apply_mechanisms)),
+        "@@APPLY_KIND_REGISTRY_SHA@@": apply_kind_registry_sha,
         "@@APPLY_REGISTRY_SHA@@": apply_registry_sha,
-        "@@APPLY_FUNCTION@@": apply_function_name,
+        "@@APPLY_DISPATCHER@@": apply_dispatcher,
         "@@TARGET_FAMILY_ID@@": TARGET_FAMILY_ID,
         "@@PLATFORM_MATRIX_SHA@@": platform_matrix_sha,
         "@@DESKTOP_MATRIX_SHA@@": desktop_matrix_sha,
@@ -1408,7 +1724,7 @@ fi
         scaffolding = scaffolding.replace(key, value)
     if "\r" in scaffolding:
         raise RuntimeError("generated script contains CR")
-    mutating = find_known_mutating_token(scaffolding.replace(apply_block.rstrip("\n"), ""))
+    mutating = find_known_mutating_token(scaffolding.replace(apply_dispatcher, ""))
     if mutating is not None:
         raise RuntimeError(f"known mutating token leaked into generated CHECK: {mutating!r}")
     return scaffolding.encode("utf-8")
@@ -1474,21 +1790,18 @@ def main() -> int:
             raise RuntimeError(
                 f"no adapter for current control {c['control_id']} kind={c['parameter_kind']}"
             )
-    apply_implementation, apply_registry_sha = load_apply_implementation(repo)
+    apply_mechanisms, apply_kind_registry_sha, apply_registry_sha = load_apply_mechanisms(repo)
     apply_controls = [control for control in controls if control["apply_supported"]]
-    if len(apply_controls) != 1:
-        raise RuntimeError("SRC-0001 APPLY scope requires exactly one enabled control")
-    if apply_controls[0]["control_id"] != APPLY_CONTROL_ID:
-        raise RuntimeError("enabled APPLY control must be SRC-0001")
 
     generator_sha = sha_file(Path(__file__).resolve(strict=True))
     script = render_script(
         controls, adapters, manifest_sha, registry_sha, generator_sha,
         platform_rows=platform_rows, platform_matrix_sha=platform_matrix_sha,
         desktop_rows=desktop_rows, desktop_matrix_sha=desktop_matrix_sha,
-        apply_implementation=apply_implementation,
+        apply_mechanisms=apply_mechanisms,
+        apply_kind_registry_sha=apply_kind_registry_sha,
         apply_registry_sha=apply_registry_sha,
-        apply_control=apply_controls[0],
+        apply_controls=apply_controls,
     )
 
     write_exclusive(out, script, 0o755)
@@ -1502,8 +1815,14 @@ def main() -> int:
     print("CONTROL_COUNT=" + str(len(controls)))
     print("ADAPTER_COUNT=" + str(len(adapters)))
     print("ADAPTER_REGISTRY_SHA256=" + registry_sha)
-    print("APPLY_SCOPE=" + APPLY_SCOPE)
-    print("APPLY_IMPLEMENTATION_COUNT=1")
+    active_apply_kinds = sorted(
+        {item["kind_row"]["apply_kind"] for item in apply_mechanisms.values()},
+        key=lambda x: x.encode("utf-8"),
+    )
+    print("APPLY_KINDS=" + ",".join(active_apply_kinds))
+    print("APPLY_CONTROL_COUNT=" + str(len(apply_controls)))
+    print("APPLY_IMPLEMENTATION_COUNT=" + str(len(apply_mechanisms)))
+    print("APPLY_KIND_REGISTRY_SHA256=" + apply_kind_registry_sha)
     print("APPLY_IMPLEMENTATION_REGISTRY_SHA256=" + apply_registry_sha)
     print("TARGET_FAMILY_ID=" + TARGET_FAMILY_ID)
     print("SUPPORTED_PROFILE_ENVIRONMENTS=" + str(len(platform_rows)))

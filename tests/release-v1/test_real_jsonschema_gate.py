@@ -63,8 +63,10 @@ real_validator.check_schema(apply_schema)
 
 APPLY_REGISTRY_PATH = ROOT / "product/APPLY-KIND-REGISTRY.tsv"
 APPLY_REGISTRY_FIELDS = (
-    "apply_kind", "target_class", "architecture_id", "architecture_path", "architecture_sha256",
+    "apply_kind", "parameter_kind", "target_class", "authority_form",
+    "architecture_id", "architecture_path", "architecture_sha256",
 )
+ACTIVE_AUTHORITY_PATH = ROOT / "product/contracts/mechanism-config-line-runtime-v1.json"
 ARCHITECTURE_PATH = ROOT / "product/contracts/src0001-apply/architecture-v1.json"
 COMPOSITION_SCHEMA_PATH = ROOT / "product/contracts/src0001-apply/composition-v1.schema.json"
 
@@ -86,104 +88,30 @@ def load_apply_registry():
     return row
 
 
-def validate_architecture_binding(row):
-    assert row["apply_kind"] == "local-account-password-lock"
-    assert row["target_class"] == "shadow-password-field"
-    assert row["architecture_id"] == "src0001-local-account-password-state-apply-modular-v1"
-    assert row["architecture_path"] == "product/contracts/src0001-apply/architecture-v1.json"
-    assert row["architecture_sha256"] == sha256_file(ARCHITECTURE_PATH)
-    arch = json.loads(ARCHITECTURE_PATH.read_text(encoding="utf-8"))
-    assert arch["architecture_id"] == row["architecture_id"]
-    assert arch["apply_kind"] == row["apply_kind"]
-    assert arch["target_class"] == row["target_class"]
-    assert arch["source_row"] == "SRC-0001"
-    assert arch["definition_reuse_scope"] == "SRC0001_SOURCE_LOCAL_UNTIL_SECOND_PROVEN_USE_CASE"
-    assert arch["bindings"]["flat_candidate"]["status"] == "REVISE_INPUT_NOT_FINAL_AUTHORITY"
-    for rec in arch["bindings"].values():
-        bound = ROOT / rec["path"]
-        assert bound.is_file() and not bound.is_symlink()
-        assert sha256_file(bound) == rec["sha256"]
-    expected_roles = [
-        ("predicate", "src0001-empty-second-shadow-field-predicate-v1", "product/contracts/src0001-apply/predicate-empty-second-shadow-field-v1.json", "CLOSED"),
-        ("transform", "src0001-empty-second-shadow-field-to-bang-transform-v1", "product/contracts/src0001-apply/transform-empty-second-shadow-field-to-bang-v1.json", "CLOSED"),
-        ("snapshot_precondition", "src0001-external-snapshot-precondition-v1", "product/contracts/src0001-apply/snapshot-precondition-v1.json", "CLOSED"),
-        ("lock_reread", "src0001-account-db-lock-reread-v1", "product/contracts/src0001-apply/lock-reread-v1.json", "CLOSED"),
-        ("object_identity", "src0001-shadow-object-identity-v1", "product/contracts/src0001-apply/object-identity-v1.json", "CLOSED"),
-        ("metadata_preservation", "src0001-shadow-metadata-preservation-v1", "product/contracts/src0001-apply/metadata-preservation-v1.json", "CLOSED"),
-        ("atomic_transaction", "src0001-shadow-atomic-transaction-v1", "product/contracts/src0001-apply/atomic-transaction-v1.json", "CLOSED"),
-        ("dry_run_report", "src0001-dry-run-report-v1", "product/contracts/src0001-apply/dry-run-report-v1.json", "CLOSED"),
-    ]
-    assert len(arch["definition_roles"]) == len(expected_roles)
-    for rec, expected in zip(arch["definition_roles"], expected_roles):
-        role, definition_id, rel, state = expected
-        assert rec["role"] == role
-        assert rec["definition_id"] == definition_id
-        assert rec["path"] == rel
-        assert rec["state"] == state
-        target = ROOT / rel
-        if state == "CLOSED":
-            assert target.is_file() and not target.is_symlink()
-            assert rec["sha256"] == sha256_file(target)
-        else:
-            assert "sha256" not in rec
-            assert not target.exists()
-    assert arch["definition_progress"] == {
-        "closed_roles": ["predicate", "transform", "snapshot_precondition", "lock_reread", "object_identity", "metadata_preservation", "atomic_transaction", "dry_run_report"],
-        "pending_roles": [],
-    }
-    assert arch["composition_contract"]["state"] == "CLOSED"
-    assert (ROOT / arch["composition_contract"]["path"]).is_file()
-    assert arch["implementation_binding"]["model"] == "SEPARATE_REGISTRY"
-    impl_binding_decl = arch["implementation_binding"]
-    assert impl_binding_decl["registry_state"] == "PRESENT"
-    assert tuple(impl_binding_decl["required_fields"]) == (
-        "apply_kind", "composition_contract_id", "adapter_id", "binding_path",
-        "binding_sha256", "implementation_path", "implementation_sha256",
-    )
-    impl_registry_path = ROOT / impl_binding_decl["registry_path"]
-    assert impl_registry_path.is_file() and not impl_registry_path.is_symlink()
-    impl_lines = impl_registry_path.read_text(encoding="utf-8").splitlines()
-    assert len(impl_lines) == 2, impl_lines
-    assert tuple(impl_lines[0].split("\t")) == tuple(impl_binding_decl["required_fields"])
-    impl_row = dict(zip(impl_lines[0].split("\t"), impl_lines[1].split("\t")))
-    assert len(impl_row) == len(impl_binding_decl["required_fields"])
-    assert all(impl_row[field] for field in impl_binding_decl["required_fields"])
-    assert impl_row["apply_kind"] == arch["apply_kind"]
-    composition_doc = json.loads(
-        (ROOT / arch["composition_contract"]["path"]).read_text(encoding="utf-8")
-    )
-    assert impl_row["composition_contract_id"] == composition_doc["composition_contract_id"]
-    for impl_rel in (impl_row["binding_path"], impl_row["implementation_path"]):
-        assert impl_rel and not impl_rel.startswith("/")
-        assert "\\" not in impl_rel and "\x00" not in impl_rel
-        impl_parts = impl_rel.split("/")
-        assert all(impl_parts) and "." not in impl_parts and ".." not in impl_parts
-        impl_probe = ROOT
-        for impl_part in impl_parts:
-            impl_probe = impl_probe / impl_part
-            assert not impl_probe.is_symlink(), impl_rel
-        assert impl_probe.is_file(), impl_rel
-    assert impl_row["binding_sha256"] == sha256_file(ROOT / impl_row["binding_path"])
-    assert impl_row["implementation_sha256"] == sha256_file(
-        ROOT / impl_row["implementation_path"]
-    )
-    impl_binding_doc = json.loads(
-        (ROOT / impl_row["binding_path"]).read_text(encoding="utf-8")
-    )
-    assert set(impl_binding_doc) == {
-        "adapter_id", "binding_contract_id",
-        "composition_contract_path", "composition_contract_sha256",
-    }
-    assert impl_binding_doc["adapter_id"] == impl_row["adapter_id"]
-    assert impl_binding_doc["composition_contract_path"] == arch["composition_contract"]["path"]
-    assert impl_binding_doc["composition_contract_sha256"] == sha256_file(
-        ROOT / arch["composition_contract"]["path"]
-    )
-    return arch
+def validate_active_mechanism_authority(row):
+    assert row["apply_kind"] == "config-line-with-runtime-v1"
+    assert row["parameter_kind"] == "sysctl"
+    assert row["target_class"] == "sysctl-runtime-persistent"
+    assert row["authority_form"] == "MECHANISM_AUTHORITY_V1"
+    assert row["architecture_id"] == "config-line-with-runtime-v1"
+    assert row["architecture_path"] == "product/contracts/mechanism-config-line-runtime-v1.json"
+    assert row["architecture_sha256"] == sha256_file(ACTIVE_AUTHORITY_PATH)
+    authority = json.loads(ACTIVE_AUTHORITY_PATH.read_text(encoding="utf-8"))
+    assert authority["authority_form"] == row["authority_form"]
+    assert authority["mechanism_id"] == row["apply_kind"]
+    rb = authority["registry_binding"]
+    assert rb["apply_kind"] == row["apply_kind"]
+    assert rb["parameter_kind"] == row["parameter_kind"]
+    assert rb["target_class"] == row["target_class"]
+    assert rb["architecture_id"] == row["architecture_id"]
+    assert rb["authority_path"] == row["architecture_path"]
+    return authority
 
 
 apply_registry = load_apply_registry()
-apply_architecture = validate_architecture_binding(apply_registry)
+active_apply_authority = validate_active_mechanism_authority(apply_registry)
+# SRC-0001 modular contracts remain historical release-schema evidence.
+apply_architecture = json.loads(ARCHITECTURE_PATH.read_text(encoding="utf-8"))
 
 PREDICATE_PATH = ROOT / "product/contracts/src0001-apply/predicate-empty-second-shadow-field-v1.json"
 TRANSFORM_PATH = ROOT / "product/contracts/src0001-apply/transform-empty-second-shadow-field-to-bang-v1.json"

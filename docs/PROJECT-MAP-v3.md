@@ -4,7 +4,7 @@
 >
 > Карта показывает действующие источники истины, текстовые корпуса, source
 > index, controls, механические gates, reference-VM evidence, audit provenance,
-> policy layers, engineering donor, текущую CHECK + `SRC-0001` APPLY product-line и путь к будущему distributable artifact.
+> policy layers, engineering donor, текущую CHECK + mechanism-oriented APPLY product-line и путь к будущему distributable artifact.
 >
 > Старый SecureLinux-NG присутствует только как **engineering donor**. Его
 > runtime-архитектура не является нормативной архитектурой v3 и сама по себе
@@ -200,7 +200,7 @@ flowchart TB
     classDef future fill:#eeeeee,stroke:#888,color:#444,stroke-dasharray: 5 5;
 ```
 
-## 3. Текущая product-line: read-only CHECK + SRC-0001 APPLY
+## 3. Текущая product-line: read-only CHECK + mechanism-oriented APPLY
 
 ```mermaid
 flowchart LR
@@ -210,9 +210,9 @@ flowchart LR
     FILE["product-file-mode-owner-check-v1<br/>read-only"]:::closed
     GEN1["product/generate-product-check-v1.py<br/>предыдущая identity generator"]:::note
     GEN2["product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed
-    IMPLREG["product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding реализации"]:::closed
-    APPLY1["SRC-0001 APPLY adapter<br/>dry-run · attested commit · NOOP"]:::closed
-    CLI["securelinux-policy.sh<br/>tracked CHECK + SRC-0001 APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
+    IMPLREG["product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding активных механизмов"]:::closed
+    APPLY1["config-line-with-runtime-v1<br/>17 sysctl controls · dry-run · APPLY"]:::closed
+    CLI["securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
 
     CTRLNOW --> REG
     REG --> SYS
@@ -232,13 +232,13 @@ flowchart LR
 пинует semantic contract, adapter binding и implementation по SHA-256.
 Tracked `securelinux-policy.sh` и sidecar входят в root manifests и обязаны
 byte-exact совпадать со свежим generator-v2 output. `dist/` остаётся optional
-gitignored rebuild output. APPLY mutation capability ограничена `SRC-0001` и
-привязана `APPLY-IMPLEMENTATION-REGISTRY.tsv`; generated CLI поддерживает dry-run
-и commit только с exact external-snapshot attestation.
+gitignored rebuild output. APPLY scope вычисляется из `apply.supported=true` controls;
+сейчас активны 17 `sysctl` controls, маршрутизируемые через `APPLY-KIND-REGISTRY.tsv`
+в `config-line-with-runtime-v1`. SRC-0001 выведен из product APPLY, его артефакты historical.
 Пользовательский `--restore` отсутствует, потому что operational RESTORE не является future feature.
 Human-readable CHECK/REPORT выводит обнаруженную ОС, архитектуру, profile и runtime platform; target family един для всей поддерживаемой матрицы.
 
-## 4. Инженерный донор → принятый mapping → SRC-0001 APPLY → упаковка
+## 4. Инженерный донор → принятый mapping → historical SRC-0001 APPLY → упаковка
 
 ```mermaid
 flowchart LR
@@ -249,8 +249,8 @@ flowchart LR
     DONOR_TESTS["engineering-tests-v1<br/>38 donor tests<br/>32 generalized contracts"]:::component
 
     MAP["DONOR_TO_V3_MAPPING<br/>ACCEPTED + COMMITTED<br/>REUSE / ADAPT / REJECT / DEFER"]:::closed
-    APPLY["SRC-0001 APPLY<br/>semantic authority"]:::closed
-    ADAPTERS["SRC-0001 implementation adapter<br/>реализован"]:::closed
+    APPLY["SRC-0001 APPLY<br/>historical semantic authority"]:::note
+    ADAPTERS["SRC-0001 implementation adapter<br/>historical bytes"]:::note
     BUILD["финальная детерминированная упаковка<br/>ГОТОВО"]:::closed
     SCRIPT["итоговый распространяемый артефакт<br/>ГОТОВО"]:::closed
 
@@ -312,19 +312,15 @@ Git bundle — внешний артефакт для аудита и handoff, �
 
 ## 6. Где мы находимся
 
-Модульная architecture APPLY-contract и exact predicate/transform definitions для
-`SRC-0001` закрыты после `AUTHORITY_2026_REFRESH`. Predicate выбирает ровно пустое
-второе поле bound `/etc/shadow` record; transform выполняет только exact `"" -> "!"`
-и сохраняет остальные bytes. P-03 закрыт. External snapshot precondition также
-определён exact operator-attestation contract и закрывает P-04. Lock/reread и object
-identity definitions закрывают P-05: stale prestate, lock failure, symlink/hardlink и
-дрейф пути или объекта не может перейти к изменению системы. Implementation registry,
-binding, adapter и generated CLI для `SRC-0001` реализованы и проверены на VM;
-этапы 15–17 закрыты. `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыт существующим generated
-`securelinux-policy.sh` без нового архивного слоя; текущая вертикаль достигла
-`DOCUMENT COMPLETE`. Принятые байты CHECK, элементы управления и закрытие
-`SRC-0001…SRC-0040` не изменялись. Текущий `NEXT` — Step 7B
-`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`.
+Историческая SRC-0001 APPLY-вертикаль (P13–P18) остаётся закрытой как доказанная
+история, но решением DP-3 больше не является active product APPLY. Текущая authority
+APPLY — единый `MECHANISM_AUTHORITY_V1` `config-line-with-runtime-v1` r17; 17 sysctl
+controls включены через `apply.supported=true`, а общий цикл выполняет generated CLI.
+Старые SRC-0001 contracts/definitions/adapter сохраняются побайтово как historical.
+`SINGLE_DISTRIBUTABLE_ARTIFACT` остаётся generated `securelinux-policy.sh`; полная
+приёмка новой интеграции и восьмисредовый VM-cycle являются следующими gates.
+Machine roadmap в этой транзакции не меняется: текущий `NEXT` до отдельного H46-T02 —
+Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`.
 
 ```mermaid
 flowchart LR
@@ -364,8 +360,8 @@ flowchart LR
 ```
 
 `fstec-linux-2022` read-only CHECK vertical и donor mapping остаются принятыми.
-Модульная architecture связывает exact SHA всех восьми definition roles; они имеют состояние `CLOSED`. Composition contract детерминированно связывает architecture, CHECK population authority и все восемь definitions. APPLY implementation для `SRC-0001` привязана отдельным registry/binding, включена в generated CLI и прошла VM acceptance. Operational recovery после завершённого
-APPLY остаётся внешним snapshot, а пользовательский RESTORE исключён.
+Модульная SRC-0001 architecture связывает exact SHA восьми historical definition roles и сохраняется как evidence прошлой вертикали. В active APPLY registries её больше нет. Текущий generated CLI использует r17 authority и `product-config-line-runtime-apply-v1.py` для 17 sysctl-controls. Operational recovery после завершённого
+APPLY остаётся внешним snapshot/backup, а пользовательский RESTORE исключён.
 
 ## Что является источником истины
 

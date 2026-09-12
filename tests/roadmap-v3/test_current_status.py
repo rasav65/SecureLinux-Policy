@@ -92,7 +92,8 @@ for marker in (
     f"CANONICAL_CONTROLS={len(controls)}",
     f"ADAPTER_KINDS={len(adapters)}",
     "APPLY=IMPLEMENTED",
-    "APPLY_SCOPE=SRC-0001_ONLY",
+    "APPLY_KINDS=config-line-with-runtime-v1",
+    "APPLY_CONTROL_COUNT=17",
     f"APPLY_IMPLEMENTATION_COUNT={len(apply_implementations)}",
     "FULL_FSTEC_COMPLIANCE_CLAIM=false",
 ):

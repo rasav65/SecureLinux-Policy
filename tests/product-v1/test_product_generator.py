@@ -12,6 +12,7 @@ import re
 import shutil
 import shlex
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -457,7 +458,11 @@ class GeneratorModel(unittest.TestCase):
         self.assertIn(f"CONTROL_COUNT={len(controls)}".encode("ascii"), one)
         self.assertIn(f"ADAPTER_COUNT={len(adapters)}".encode("ascii"), one)
         self.assertIn(b"TOTAL=%d", one)
-        self.assertIn(b"SLP-APPLY-REPORT-V1", one)
+        self.assertIn(b"SLP-APPLY-REPORT-V2", one)
+        self.assertIn(b"SERVICE_MANAGED_PARAMETER", one)
+        self.assertIn("обнаружен штатный механизм".encode("utf-8"), one)
+        self.assertIn("Автоматическое изменение пропущено. Требуется решение администратора.".encode("utf-8"), one)
+        self.assertIn(b'decision.get("service")', one)
         for c in controls:
             self.assertGreaterEqual(one.count(c["control_id"].encode("utf-8")), 2)
 
@@ -1616,9 +1621,10 @@ class GeneratedArtifact(unittest.TestCase):
         rows, _, _, _, _ = load_current()
         self.assertIn(f"CONTROL_COUNT={len(rows)}\n", cp.stdout)
         self.assertIn(f"ADAPTER_COUNT={len(load_current()[2])}\n", cp.stdout)
-        self.assertIn("APPLY_SCOPE=SRC-0001_ONLY\n", cp.stdout)
+        self.assertIn("APPLY_KINDS=config-line-with-runtime-v1\n", cp.stdout)
+        self.assertIn("APPLY_CONTROL_COUNT=17\n", cp.stdout)
         self.assertIn("APPLY_IMPLEMENTATION_COUNT=1\n", cp.stdout)
-        self.assertIn("MUTATING_MODES=APPLY_SRC0001_ONLY\n", cp.stdout)
+        self.assertIn("APPLY_KIND_REGISTRY_SHA256=", cp.stdout)
 
     def test_provenance_all_and_one(self):
         cp = self.run_check("--provenance")
@@ -3517,7 +3523,8 @@ SLP_POLICY_RC=1
                     self.assertIn("SUPPORTED_PROFILE_ENVIRONMENTS=7\n", cp.stdout)
                     self.assertIn("SUPPORTED_DESKTOP_ENVIRONMENTS=1\n", cp.stdout)
                     self.assertIn("SUPPORTED_ENVIRONMENTS=8\n", cp.stdout)
-                    self.assertIn("APPLY_SCOPE=SRC-0001_ONLY\n", cp.stdout)
+                    self.assertIn("APPLY_KINDS=config-line-with-runtime-v1\n", cp.stdout)
+                    self.assertIn("APPLY_CONTROL_COUNT=17\n", cp.stdout)
                     self.assertIn("APPLY_IMPLEMENTATION_COUNT=1\n", cp.stdout)
                     self.assertEqual(out.stat().st_mode & 0o777, 0o755)
                     self.assertEqual(out.with_name(out.name + ".sha256").stat().st_mode & 0o777, 0o644)
@@ -3807,36 +3814,35 @@ SLP_POLICY_RC=1
         self.assertIn("SUPPORTED_PROFILE_ENVIRONMENTS=7\n", build.stdout)
         self.assertIn("SUPPORTED_DESKTOP_ENVIRONMENTS=1\n", build.stdout)
         self.assertIn("SUPPORTED_ENVIRONMENTS=8\n", build.stdout)
-        self.assertIn("APPLY_SCOPE=SRC-0001_ONLY\n", build.stdout)
+        self.assertIn("APPLY_KINDS=config-line-with-runtime-v1\n", build.stdout)
+        self.assertIn("APPLY_CONTROL_COUNT=17\n", build.stdout)
         self.assertIn("APPLY_IMPLEMENTATION_COUNT=1\n", build.stdout)
-        self.assertIn("MUTATING_MODES=APPLY_SRC0001_ONLY\n", build.stdout)
+        self.assertNotIn("SRC-0001_ONLY", build.stdout)
+        self.assertNotIn("APPLY_SRC0001_ONLY", build.stdout)
         for args in (
-            ("--apply",),
             ("--apply", "--snapshot-attestation"),
             ("--apply", "--dry-run", "extra"),
             ("--apply", "--snapshot-attestation", "/tmp/a", "extra"),
-            ("--apply", "--dry-run", "--snapshot-attestation", "/tmp/a"),
         ):
             with self.subTest(args=args):
                 result = self.run_cli(*args)
                 self.assertEqual(result.returncode, 2)
                 self.assertEqual(result.stdout, "")
                 self.assertEqual(result.stderr, "")
-        apply_fn = "slp_apply_FSTEC_LINUX_2022_2_1_1_LOCAL_ACCOUNT_PASSWORD_STATE"
         dry_run = self.run_sourced(
             "slp_target_preflight() { return 0; }\n"
-            + f"{apply_fn}() {{ printf '%s|%s\\n' \"$1\" \"${{2:-}}\"; }}\n"
-            + "slp_main --apply --dry-run"
+            "slp_run_apply() { printf '%s\\n' \"$1\"; }\n"
+            "slp_main --apply --dry-run"
         )
         self.assertEqual(dry_run.returncode, 0, dry_run.stderr)
-        self.assertEqual(dry_run.stdout, "DRY_RUN|\n")
+        self.assertEqual(dry_run.stdout, "DRY_RUN\n")
         apply = self.run_sourced(
             "slp_target_preflight() { return 0; }\n"
-            + f"{apply_fn}() {{ printf '%s|%s\\n' \"$1\" \"${{2:-}}\"; }}\n"
-            + "slp_main --apply --snapshot-attestation /tmp/a"
+            "slp_run_apply() { printf '%s\\n' \"$1\"; }\n"
+            "slp_main --apply"
         )
         self.assertEqual(apply.returncode, 0, apply.stderr)
-        self.assertEqual(apply.stdout, "APPLY|/tmp/a\n")
+        self.assertEqual(apply.stdout, "APPLY\n")
         self.assertNotIn("--restore", noargs.stdout)
         restore = self.run_cli("--restore")
         self.assertEqual(restore.returncode, 2)
@@ -3936,21 +3942,17 @@ SLP_POLICY_RC=1
         rows = [json.loads(x) for x in prov.stdout.splitlines()]
         current_control_count = len(GEN_V2_CURRENT.load_manifest(ROOT)[0])
         self.assertEqual(len(rows), current_control_count)
-        apply_impl, _ = GEN_V2_CURRENT.load_apply_implementation(ROOT)
-        apply_id = GEN_V2_CURRENT.APPLY_CONTROL_ID
+        apply_mechanisms, _, _ = GEN_V2_CURRENT.load_apply_mechanisms(ROOT)
+        self.assertEqual(set(apply_mechanisms), {"sysctl"})
         apply_rows = [row for row in rows if "apply" in row]
-        self.assertEqual(len(apply_rows), 1)
+        self.assertEqual(len(apply_rows), 17)
+        self.assertEqual({row["apply"]["route_status"] for row in apply_rows}, {"BOUND"})
+        self.assertEqual({row["apply"]["parameter_kind"] for row in apply_rows}, {"sysctl"})
+        self.assertEqual({row["apply"]["apply_kind"] for row in apply_rows}, {"config-line-with-runtime-v1"})
+        self.assertEqual({row["apply"]["mechanism_id"] for row in apply_rows}, {"config-line-with-runtime-v1"})
+        self.assertNotIn("FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE", {row["control_id"] for row in apply_rows})
         row = apply_rows[0]
-        self.assertEqual(row["control_id"], apply_id)
-        self.assertEqual(row["apply"], {
-            "adapter_id": apply_impl["row"]["adapter_id"],
-            "adapter_contract_version": "product-local-account-password-state-apply-adapter-v1",
-            "implementation_sha256": sha256_file(ROOT / apply_impl["row"]["implementation_path"]),
-            "composition_contract_id": apply_impl["composition"]["composition_contract_id"],
-            "control_id": apply_id,
-            "source_locator": row["source_locator"],
-            "quote_sha256": row["quote_sha256"],
-        })
+        apply_id = row["control_id"]
         apply_one = self.run_cli("--provenance", apply_id)
         self.assertEqual(apply_one.returncode, 0, apply_one.stderr)
         self.assertEqual(json.loads(apply_one.stdout), row)
@@ -4369,6 +4371,229 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
         for args in bad:
             with self.assertRaises(ValueError):
                 CRON_COMMAND_PATHS.shell_function(*args)
+
+
+class ApplyMechanismRegistryIntegration(unittest.TestCase):
+    """Regression for H46 mechanism-oriented APPLY integration decisions."""
+
+    def _current_apply(self):
+        rows, _ = GEN_V2_CURRENT.load_manifest(ROOT)
+        controls = [GEN_V2_CURRENT.load_control(ROOT, row) for row in rows]
+        mechanisms, _, _ = GEN_V2_CURRENT.load_apply_mechanisms(ROOT)
+        enabled = [control for control in controls if control["apply_supported"]]
+        return controls, enabled, mechanisms
+
+    def test_current_sysctl_route_and_population_are_exact(self):
+        controls, enabled, mechanisms = self._current_apply()
+        self.assertEqual(set(mechanisms), {"sysctl"})
+        mechanism = mechanisms["sysctl"]
+        self.assertEqual(mechanism["kind_row"]["apply_kind"], "config-line-with-runtime-v1")
+        self.assertEqual(mechanism["kind_row"]["authority_form"], "MECHANISM_AUTHORITY_V1")
+        self.assertEqual(mechanism["authority"]["document_id"], "MECHANISM_CONFIG_LINE_RUNTIME_V1_R21")
+        self.assertEqual(mechanism["authority"]["mechanism_id"], "config-line-with-runtime-v1")
+        self.assertEqual(
+            [r["rule_id"] for r in mechanism["authority"]["runtime_writer_conflicts"]["rules"]],
+            ["APPORT-NATIVE-SUID-DUMPABLE-V1", "APPORT-SYSV-SUID-DUMPABLE-V1"],
+        )
+        self.assertEqual(len(enabled), 17)
+        self.assertEqual({control["parameter_kind"] for control in enabled}, {"sysctl"})
+        self.assertNotIn(
+            "FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE",
+            {control["control_id"] for control in enabled},
+        )
+        src0001 = next(
+            control for control in controls
+            if control["control_id"] == "FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE"
+        )
+        self.assertFalse(src0001["apply_supported"])
+        dispatcher = GEN_V2_CURRENT.render_product_apply_dispatcher(enabled, mechanisms)
+        self.assertIn("for control in APPLY_CONTROLS:", dispatcher)
+        self.assertIn("execute_control", dispatcher)
+        self.assertIn("routing:mechanism-unavailable", dispatcher)
+        self.assertIn('payload["rc_zero"] = all(item["step_rc"] == "0"', dispatcher)
+        self.assertNotIn('item["step_rc"] == 0', dispatcher)
+        self.assertNotIn("SRC-0001", dispatcher)
+
+    def _step_rc_literal_for_dispatcher_function(self, function_name):
+        _, enabled, mechanisms = self._current_apply()
+        dispatcher = GEN_V2_CURRENT.render_product_apply_dispatcher(enabled, mechanisms)
+        tree = ast.parse(dispatcher)
+        function = next(
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == function_name
+        )
+        return_dict = next(
+            node.value for node in function.body
+            if isinstance(node, ast.Return) and isinstance(node.value, ast.Dict)
+        )
+        fields = {
+            key.value: value
+            for key, value in zip(return_dict.keys, return_dict.values)
+            if isinstance(key, ast.Constant) and isinstance(key.value, str)
+        }
+        self.assertIn("step_rc", fields)
+        literal = fields["step_rc"]
+        self.assertIsInstance(literal, ast.Constant)
+        return literal.value
+
+    def test_unavailable_record_step_rc_is_string_nonzero(self):
+        value = self._step_rc_literal_for_dispatcher_function("unavailable_record")
+        self.assertIsInstance(value, str)
+        self.assertEqual(value, "nonzero")
+        self.assertNotEqual(value, 1)
+
+    def test_crash_record_step_rc_is_string_nonzero(self):
+        value = self._step_rc_literal_for_dispatcher_function("crash_record")
+        self.assertIsInstance(value, str)
+        self.assertEqual(value, "nonzero")
+        self.assertNotEqual(value, 1)
+
+    @staticmethod
+    def _write_synthetic_pair(root: Path, suffix: str, parameter_kind: str):
+        contracts = root / "product/contracts"
+        adapters = root / "product/apply-adapters"
+        contracts.mkdir(parents=True, exist_ok=True)
+        adapters.mkdir(parents=True, exist_ok=True)
+        apply_kind = f"mechanism-{suffix}"
+        adapter_id = f"adapter-{suffix}"
+        authority_rel = f"product/contracts/{apply_kind}.json"
+        binding_rel = f"product/apply-adapters/{adapter_id}.json"
+        implementation_rel = f"product/apply-adapters/{adapter_id}.py"
+        architecture_id = f"architecture-{suffix}"
+        composition_id = f"composition-{suffix}"
+        binding_id = f"binding-{suffix}"
+        authority = {
+            "authority_form": "MECHANISM_AUTHORITY_V1",
+            "mechanism_id": apply_kind,
+            "registry_binding": {
+                "apply_kind": apply_kind,
+                "parameter_kind": parameter_kind,
+                "target_class": f"target-{suffix}",
+                "architecture_id": architecture_id,
+                "composition_contract_id": composition_id,
+                "authority_path": authority_rel,
+                "legacy_column_semantics": {"synthetic": True},
+                "adapter_id": adapter_id,
+                "binding_contract_id": binding_id,
+            },
+        }
+        authority_path = root / authority_rel
+        authority_path.write_text(
+            json.dumps(authority, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+        )
+        implementation_path = root / implementation_rel
+        implementation_path.write_text(
+            "\n".join([
+                f"ADAPTER_ID = {adapter_id!r}",
+                f"MECHANISM_ID = {apply_kind!r}",
+                "TARGET_ID = 'linux-x86_64-supported-v1'",
+                "def execute_control(*args, **kwargs): return None",
+                "def control_result_to_report(*args, **kwargs): return {}",
+                "",
+            ]),
+            encoding="utf-8",
+        )
+        authority_sha = hashlib.sha256(authority_path.read_bytes()).hexdigest()
+        implementation_sha = hashlib.sha256(implementation_path.read_bytes()).hexdigest()
+        binding = {
+            "adapter_id": adapter_id,
+            "binding_contract_id": binding_id,
+            "composition_contract_path": authority_rel,
+            "composition_contract_sha256": authority_sha,
+        }
+        binding_path = root / binding_rel
+        binding_text = json.dumps(binding, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
+        binding_path.write_text(binding_text, encoding="utf-8")
+        binding_sha = hashlib.sha256(binding_text.encode("utf-8")).hexdigest()
+        return ({
+            "apply_kind": apply_kind,
+            "parameter_kind": parameter_kind,
+            "target_class": f"target-{suffix}",
+            "authority_form": "MECHANISM_AUTHORITY_V1",
+            "architecture_id": architecture_id,
+            "architecture_path": authority_rel,
+            "architecture_sha256": authority_sha,
+        }, {
+            "apply_kind": apply_kind,
+            "composition_contract_id": composition_id,
+            "adapter_id": adapter_id,
+            "binding_path": binding_rel,
+            "binding_sha256": binding_sha,
+            "implementation_path": implementation_rel,
+            "implementation_sha256": implementation_sha,
+        }, binding_path, binding_text)
+
+    @staticmethod
+    def _write_registry(path: Path, fields, rows):
+        lines = ["\t".join(fields)]
+        for row in rows:
+            lines.append("\t".join(row[field] for field in fields))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    def _synthetic_root(self, parameter_kinds=("kind-a", "kind-b")):
+        tmp = tempfile.TemporaryDirectory()
+        root = Path(tmp.name)
+        kind_rows = []
+        impl_rows = []
+        bindings = []
+        for suffix, parameter_kind in zip(("a", "b"), parameter_kinds):
+            krow, irow, bpath, btext = self._write_synthetic_pair(root, suffix, parameter_kind)
+            kind_rows.append(krow)
+            impl_rows.append(irow)
+            bindings.append((bpath, btext))
+        self._write_registry(
+            root / "product/APPLY-KIND-REGISTRY.tsv",
+            GEN_V2_CURRENT.APPLY_KIND_REGISTRY_FIELDS,
+            kind_rows,
+        )
+        self._write_registry(
+            root / "product/APPLY-IMPLEMENTATION-REGISTRY.tsv",
+            GEN_V2_CURRENT.APPLY_REGISTRY_FIELDS,
+            impl_rows,
+        )
+        return tmp, root, kind_rows, impl_rows, bindings
+
+    def _run_rebuilder(self, root: Path, mode: str):
+        return subprocess.run(
+            [sys.executable, str(ROOT / "tools/rebuild-apply-contract-bindings.py"),
+             "--project-root", str(root), mode],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+
+    def test_rebuilder_counts_two_pairs_and_check_never_repairs(self):
+        tmp, root, _kind_rows, _impl_rows, bindings = self._synthetic_root()
+        self.addCleanup(tmp.cleanup)
+        cp = self._run_rebuilder(root, "--check")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertIn("APPLY_BINDING_ARCHITECTURES=2\n", cp.stdout)
+        stale_path, expected = bindings[0]
+        stale_path.write_text("{}\n", encoding="utf-8")
+        before = stale_path.read_bytes()
+        cp = self._run_rebuilder(root, "--check")
+        self.assertNotEqual(cp.returncode, 0)
+        self.assertEqual(stale_path.read_bytes(), before)
+        cp = self._run_rebuilder(root, "--write")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(stale_path.read_text(encoding="utf-8"), expected)
+        self.assertIn("APPLY_BINDING_ARCHITECTURES=2\n", cp.stdout)
+
+    def test_rebuilder_unknown_form_unpaired_and_ambiguous_route_fail_closed(self):
+        tmp, root, kind_rows, impl_rows, _ = self._synthetic_root()
+        self.addCleanup(tmp.cleanup)
+        kind_rows[0]["authority_form"] = "UNKNOWN_FORM"
+        self._write_registry(root / "product/APPLY-KIND-REGISTRY.tsv", GEN_V2_CURRENT.APPLY_KIND_REGISTRY_FIELDS, kind_rows)
+        self.assertNotEqual(self._run_rebuilder(root, "--check").returncode, 0)
+
+        tmp2, root2, kind_rows2, impl_rows2, _ = self._synthetic_root()
+        self.addCleanup(tmp2.cleanup)
+        self._write_registry(root2 / "product/APPLY-IMPLEMENTATION-REGISTRY.tsv", GEN_V2_CURRENT.APPLY_REGISTRY_FIELDS, impl_rows2[:1])
+        self.assertNotEqual(self._run_rebuilder(root2, "--check").returncode, 0)
+
+        tmp3, root3, kind_rows3, impl_rows3, _ = self._synthetic_root(("same-kind", "same-kind"))
+        self.addCleanup(tmp3.cleanup)
+        self.assertNotEqual(self._run_rebuilder(root3, "--check").returncode, 0)
 
 
 if __name__ == "__main__":

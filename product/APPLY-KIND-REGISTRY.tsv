@@ -1,2 +1,2 @@
-apply_kind	target_class	architecture_id	architecture_path	architecture_sha256
-local-account-password-lock	shadow-password-field	src0001-local-account-password-state-apply-modular-v1	product/contracts/src0001-apply/architecture-v1.json	f11f7485821dca7682e6bc669ddc095b9fd61647808cb9018bd553aa96810531
+apply_kind	parameter_kind	target_class	authority_form	architecture_id	architecture_path	architecture_sha256
+config-line-with-runtime-v1	sysctl	sysctl-runtime-persistent	MECHANISM_AUTHORITY_V1	config-line-with-runtime-v1	product/contracts/mechanism-config-line-runtime-v1.json	de6f40c6144f565bce5eb8fdc34ab3926662d462322cf894dc2928876e5c3d8d

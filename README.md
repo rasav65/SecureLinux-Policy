@@ -1,6 +1,6 @@
 # SecureLinux-Policy v3
 
-Проверка безопасной настройки Debian и Ubuntu по требованиям, представленным в политике проекта. Скрипт показывает нарушения и ошибки проверки; применение изменений пока доступно только для блокировки учётных записей с пустым полем пароля.
+Проверка безопасной настройки Debian и Ubuntu по требованиям, представленным в политике проекта. Скрипт показывает нарушения и ошибки проверки; APPLY текущей интеграционной вертикали обрабатывает 17 sysctl-controls через общий механизм `config-line-with-runtime-v1`.
 
 > **Статус:** кандидат продукта, не выпуск. Полное соответствие требованиям ФСТЭК не заявляется. Проверка не изменяет настройки системы.
 
@@ -14,8 +14,8 @@
 | `--check --failed` | Показать только проблемы |
 | `--report` | Получить краткий отчёт |
 | `--check --format json` | Получить машинный отчёт |
-| `--apply --dry-run` | Рассчитать изменения для `SRC-0001` без записи |
-| `--apply --snapshot-attestation …` | Применить изменения для `SRC-0001` при выполнении условия внешнего снимка |
+| `--apply --dry-run` | Рассчитать APPLY для всех текущих `apply.supported=true` controls без target-мутаций |
+| `--apply` | Применить все текущие `apply.supported=true` controls |
 
 Покрытие и ограничения перечислены в [карте требований](docs/fstec-coverage.md). Наличие проверки не означает наличия автоматического исправления.
 
@@ -95,23 +95,21 @@ sudo /bin/bash -p ./securelinux-policy.sh --check --format json
 
 ## Применение изменений
 
-**Область применения ограничена `SRC-0001`: пустое поле пароля в `/etc/shadow` заменяется на `!`. Остальные нарушения автоматически не исправляются.**
+**Текущий APPLY scope вычисляется из корпуса: 17 controls `parameter.kind=sysctl` имеют `apply.supported=true` и маршрутизируются в механизм `config-line-with-runtime-v1`. `SRC-0001` из продуктового APPLY выведен; его прежние APPLY-артефакты сохранены только как история.**
 
-Сначала выполните сухой запуск:
+Сухой запуск выполняет те же наблюдения и расчёт без target-мутаций:
 
 ```bash
 sudo /bin/bash -p ./securelinux-policy.sh --apply --dry-run
 ```
 
-Фактическое применение требует внешнего снимка с возможностью восстановления и соответствующего JSON-подтверждения. Сам скрипт снимок не создаёт. Формат и условия описаны в [контракте внешнего снимка](product/contracts/src0001-apply/snapshot-precondition-v1.json).
-
-Шаблон команды; замените путь на подготовленный файл подтверждения:
+Фактическое применение всех текущих применимых controls:
 
 ```bash
-sudo /bin/bash -p ./securelinux-policy.sh --apply --snapshot-attestation /path/to/attestation.json
+sudo /bin/bash -p ./securelinux-policy.sh --apply
 ```
 
-Отчёт содержит результат транзакции и признак выполненного изменения. Пользовательского `--restore` нет; восстановление выполняется внешним снимком.
+Продуктовый dispatcher продолжает прогон после отказа отдельного контроля и формирует единый отчёт `/var/log/securelinux-policy/report.json`; журналы — `apply.log` и `debug.log` в том же каталоге. Пользовательского `--restore` нет. Operational recovery после завершённого APPLY остаётся внешним snapshot/backup-механизмом администратора.
 
 ## Ограничения
 
@@ -170,7 +168,8 @@ SUPPORTED_ENVIRONMENTS=8
 CHECK_STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 CHECK=IMPLEMENTED_READ_ONLY
 APPLY=IMPLEMENTED
-APPLY_SCOPE=SRC-0001_ONLY
+APPLY_KINDS=config-line-with-runtime-v1
+APPLY_CONTROL_COUNT=17
 APPLY_IMPLEMENTATION_COUNT=1
 RESTORE=NOT_PLANNED
 ROLLBACK_MODEL=EXTERNAL_SNAPSHOT
