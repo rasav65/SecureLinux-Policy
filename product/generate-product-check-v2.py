@@ -619,16 +619,82 @@ def shell_function_name(control_id: str) -> str:
     return "slp_check_" + re.sub(r"[^A-Za-z0-9_]", "_", control_id)
 
 
+def required_display(op, value) -> str:
+    """Render one short human requirement directly from control machine truth."""
+    if isinstance(value, bool):
+        rendered = "true" if value else "false"
+    elif isinstance(value, int) and not isinstance(value, bool):
+        rendered = str(value)
+    elif isinstance(value, str):
+        rendered = value
+    else:
+        raise RuntimeError(f"unsupported requirement value type: {type(value).__name__}")
+    if not rendered or any(ch in rendered for ch in "\r\n\t\x00"):
+        raise RuntimeError("invalid requirement display scalar")
+
+    if op == "eq":
+        return "= " + rendered
+    if op == "ge":
+        return ">= " + rendered
+    if op == "bits-clear":
+        return "bits " + rendered + " = 0"
+    if op == "present":
+        return "present"
+    if op == "one-of":
+        return "one of: " + rendered
+    if op == "all-nonempty":
+        return "all non-empty"
+    if op == "eq-authority-file":
+        return "authority: " + rendered
+    if op == "eq-reviewed-policy":
+        return "reviewed: " + rendered
+    if op == "runtime-paths-safe":
+        return "runtime paths safe"
+    if op == "cron-command-paths-safe":
+        return "cron command paths safe"
+    if op == "root-owned-go-w":
+        return "uid=0; g/o+w=0"
+    if op == "subset-of-file":
+        return "subset: " + rendered
+    if op == "tested-before-use":
+        return "tested: " + rendered
+    raise RuntimeError(f"unsupported requirement op: {op!r}")
+
+
+def terminal_identity(control) -> tuple[str, str]:
+    """Derive compact pretty identity from canonical source machine truth."""
+    control_id = str(control["control_id"])
+    doc_id = str(control["doc_id"])
+    locator = str(control["source_locator"])
+    for value, label in ((control_id, "control_id"), (doc_id, "doc_id"), (locator, "source_locator")):
+        if not value or any(ch in value for ch in "\r\n\t\x00"):
+            raise RuntimeError(f"invalid terminal identity {label}")
+    prefix = doc_id.upper() + "-" + locator + "-"
+    if control_id.startswith(prefix):
+        short = control_id[len(prefix):]
+        if not short:
+            raise RuntimeError("empty compact control identity")
+    else:
+        # Fail-safe presentation fallback for synthetic/custom IDs:
+        # source still comes from machine truth; the full control_id is retained.
+        short = control_id
+    return f"{doc_id.lower()} §{locator}", short.lower()
+
+
 def render_product_apply_dispatcher(apply_controls, apply_mechanisms) -> str:
     controls_payload = []
     used_parameter_kinds = set()
     for c in apply_controls:
+        source_display, control_display = terminal_identity(c)
         controls_payload.append({
             "control_id": c["control_id"],
             "parameter_kind": c["parameter_kind"],
             "key": c["parameter_key"],
             "op": c["expected_op"],
             "expected": c["expected_value"],
+            "required": required_display(c["expected_op"], c["expected_value"]),
+            "source": source_display,
+            "display_control": control_display,
         })
         if c["parameter_kind"] in apply_mechanisms:
             used_parameter_kinds.add(c["parameter_kind"])
@@ -776,31 +842,204 @@ def _terminal_scalar(value, label):
         raise RuntimeError("presentation:" + label + "-invalid")
     return text
 
-def emit_operator_decision(record):
+def _compact_outcome(outcome):
+    exact = _terminal_scalar(outcome, "outcome")
+    mapping = {
+        "ALREADY_COMPLIANT": "ok",
+        "APPLIED": "done",
+        "WOULD_APPLY": "would",
+        "ABORTED_PRECONDITION_CONFLICT": "block",
+        "ABORTED_PRECONDITION_OTHER": "abort",
+        "FAILED_NOT_COMMITTED": "fail",
+        "FAILED_COMPENSATION": "fail",
+    }
+    return mapping.get(exact, exact.lower())
+
+def _table_chunks(value, width, label):
+    text = _terminal_scalar(value, label) if value != "" else ""
+    if not text:
+        return [""]
+    return [text[i:i + width] for i in range(0, len(text), width)]
+
+def _terminal_columns():
+    try:
+        cols = os.get_terminal_size(sys.stdout.fileno()).columns
+    except (OSError, ValueError):
+        return 116
+    if not isinstance(cols, int) or cols < 40 or cols > 1000:
+        return 116
+    return cols
+
+PRETTY_COLUMNS = _terminal_columns()
+PRETTY_IS_TTY = sys.stdout.isatty()
+BLOCKS = []
+
+def _terminal_layout(columns=None):
+    if columns is None and not PRETTY_IS_TTY:
+        columns = 116
+    cols = PRETTY_COLUMNS if columns is None else columns
+    if cols < 90:
+        return ("vertical", cols, (8, cols - 14))
+    if cols < 100:
+        wsrc, wc, req_min = 18, 24, 10
+    elif cols < 110:
+        wsrc, wc, req_min = 22, 28, 12
+    elif cols < 120:
+        wsrc, wc, req_min = 24, 32, 14
+    else:
+        wsrc, wc, req_min = 24, 36, 16
+    ws = 5
+    available = cols - 15
+    remaining = available - ws - wsrc - wc
+    if remaining <= req_min:
+        raise RuntimeError("presentation:terminal-width-invalid")
+    wcur = min(43, remaining - req_min)
+    wreq = remaining - wcur
+    return ("table", cols, (ws, wsrc, wc, wcur, wreq))
+
+def _emit_vertical_field(label, value, widths):
+    wfield, wvalue = widths
+    chunks = _table_chunks(value, wvalue, label) if value else [""]
+    for i, chunk in enumerate(chunks):
+        field = label if i == 0 else ""
+        print(f" {field:<{wfield}} | {chunk:<{wvalue}} |")
+
+def _emit_table_row(st, source, control, current, required):
+    mode, _cols, widths = _terminal_layout()
+    if mode == "vertical":
+        if st == "st" and source == "source" and control == "control":
+            wfield, wvalue = widths
+            print(f" {'field':<{wfield}} | {'value':<{wvalue}} |")
+            return
+        _emit_vertical_field("st", st, widths)
+        _emit_vertical_field("source", source, widths)
+        _emit_vertical_field("control", control, widths)
+        _emit_vertical_field("current", current, widths)
+        _emit_vertical_field("required", required, widths)
+        return
+    ws, wsrc, wc, wcur, wreq = widths
+    values = (st, source, control, current, required)
+    labels = ("st", "source", "display-control", "current", "required")
+    chunks = [_table_chunks(value, width, label) for value, width, label in zip(values, widths, labels)]
+    rows = max(len(item) for item in chunks)
+    for i in range(rows):
+        parts = [item[i] if i < len(item) else "" for item in chunks]
+        print(
+            f" {parts[0]:<{ws}} | {parts[1]:<{wsrc}} | {parts[2]:<{wc}} | "
+            f"{parts[3]:<{wcur}} | {parts[4]:<{wreq}} |"
+        )
+
+def _emit_separator():
+    mode, _cols, widths = _terminal_layout()
+    if mode == "vertical":
+        wfield, wvalue = widths
+        print("-" * (wfield + 2) + "+" + "-" * (wvalue + 2) + "+")
+        return
+    ws, wsrc, wc, wcur, wreq = widths
+    print(
+        "-" * (ws + 2) + "+"
+        + "-" * (wsrc + 2) + "+"
+        + "-" * (wc + 2) + "+"
+        + "-" * (wcur + 2) + "+"
+        + "-" * (wreq + 2) + "+"
+    )
+
+def _current_display(record):
     mechanism_result = record.get("mechanism_result")
     if not isinstance(mechanism_result, dict):
-        return
-    decision = mechanism_result.get("operator_decision")
-    if decision is None:
-        return
-    if not isinstance(decision, dict):
-        raise RuntimeError("presentation:operator-decision-invalid")
-    if decision.get("class") != "SERVICE_MANAGED_PARAMETER" or decision.get("required") is not True:
-        raise RuntimeError("presentation:operator-decision-invalid")
-    if record.get("outcome") != "ABORTED_PRECONDITION_CONFLICT" or record.get("step_rc") == "0" or record.get("mutation_performed") is not False:
-        raise RuntimeError("presentation:operator-decision-invariant")
-    service = _terminal_scalar(decision.get("service"), "service")
-    parameter = _terminal_scalar(decision.get("parameter"), "parameter")
-    current_value = _terminal_scalar(decision.get("current_value"), "current-value")
-    control_id = _terminal_scalar(record.get("control_id"), "control-id")
-    print(f"{control_id} {current_value} {parameter}={current_value}: обнаружен штатный механизм {service}, управляющий этим параметром.")
-    print("Автоматическое изменение пропущено. Требуется решение администратора.")
+        return "not-determined"
+    for field in ("runtime_after", "runtime_before"):
+        value = mechanism_result.get(field)
+        if value is not None:
+            return _terminal_scalar(value, "current")
+    return "not-determined"
 
-def emit_control_result(record):
+def _block_entry(record, control):
+    if record.get("outcome") != "ABORTED_PRECONDITION_CONFLICT":
+        return None
+    if record.get("step_rc") == "0" or record.get("mutation_performed") is not False:
+        raise RuntimeError("presentation:block-invariant")
+    record_id = _terminal_scalar(record.get("control_id"), "control-id")
+    control_id = _terminal_scalar(control.get("control_id"), "control-id")
+    if record_id != control_id:
+        raise RuntimeError("presentation:control-id-mismatch")
+    display_control = _terminal_scalar(control.get("display_control"), "display-control")
+    detail = _terminal_scalar(record.get("reason"), "reason")
+    notes = []
+    mechanism_result = record.get("mechanism_result")
+    if not isinstance(mechanism_result, dict):
+        raise RuntimeError("presentation:block-mechanism-result-invalid")
+    decision = mechanism_result.get("operator_decision")
+    if decision is not None:
+        if not isinstance(decision, dict):
+            raise RuntimeError("presentation:operator-decision-invalid")
+        if decision.get("class") != "SERVICE_MANAGED_PARAMETER" or decision.get("required") is not True:
+            raise RuntimeError("presentation:operator-decision-invalid")
+        service = _terminal_scalar(decision.get("service"), "service")
+        parameter = _terminal_scalar(decision.get("parameter"), "parameter")
+        current_value = _terminal_scalar(decision.get("current_value"), "current-value")
+        notes.append(
+            f"{parameter}={current_value}: обнаружен штатный механизм {service}, управляющий этим параметром."
+        )
+        notes.append("Автоматическое изменение пропущено. Требуется решение администратора.")
+    return {"control": display_control, "detail": detail, "notes": notes}
+
+def _blocks_layout():
+    cols = PRETTY_COLUMNS if PRETTY_IS_TTY else 116
+    wtype = 6
+    wcontrol = 24 if cols >= 100 else max(12, cols // 4)
+    wmessage = cols - 9 - wcontrol - wtype
+    if wmessage < 12:
+        raise RuntimeError("presentation:blocks-terminal-width-invalid")
+    return cols, (wcontrol, wtype, wmessage)
+
+def _emit_blocks_row(control, kind, message):
+    _cols, widths = _blocks_layout()
+    wcontrol, wtype, wmessage = widths
+    control_chunks = _table_chunks(control, wcontrol, "block-control")
+    kind_chunks = _table_chunks(kind, wtype, "block-type")
+    message_chunks = _table_chunks(message, wmessage, "block-message")
+    rows = max(len(control_chunks), len(kind_chunks), len(message_chunks))
+    for i in range(rows):
+        c = control_chunks[i] if i < len(control_chunks) else ""
+        k = kind_chunks[i] if i < len(kind_chunks) else ""
+        m = message_chunks[i] if i < len(message_chunks) else ""
+        print(f" {c:<{wcontrol}} | {k:<{wtype}} | {m:<{wmessage}} |")
+
+def _emit_blocks_separator():
+    _cols, widths = _blocks_layout()
+    wcontrol, wtype, wmessage = widths
+    print(
+        "-" * (wcontrol + 2) + "+"
+        + "-" * (wtype + 2) + "+"
+        + "-" * (wmessage + 2) + "+"
+    )
+
+def emit_blocks():
+    if not BLOCKS:
+        return
+    print("blocks")
+    _emit_blocks_row("control", "type", "message")
+    _emit_blocks_separator()
+    for entry in BLOCKS:
+        _emit_blocks_row(entry["control"], "detail", entry["detail"])
+        for note in entry["notes"]:
+            _emit_blocks_row("", "note", note)
+    _emit_blocks_separator()
+
+def emit_control_result(record, control):
     control_id = _terminal_scalar(record.get("control_id"), "control-id")
-    outcome = _terminal_scalar(record.get("outcome"), "outcome")
-    reason = _terminal_scalar(record.get("reason"), "reason")
-    print(f"{outcome:<31} {control_id:<58} {reason}")
+    if control_id != _terminal_scalar(control.get("control_id"), "control-id"):
+        raise RuntimeError("presentation:control-id-mismatch")
+    outcome = _compact_outcome(record.get("outcome"))
+    source = _terminal_scalar(control.get("source"), "source")
+    display_control = _terminal_scalar(control.get("display_control"), "display-control")
+    current = _current_display(record)
+    required = _terminal_scalar(control.get("required"), "required")
+    _emit_table_row(outcome, source, display_control, current, required)
+    block = _block_entry(record, control)
+    if block is not None:
+        BLOCKS.append(block)
 
 def emit_summary(payload):
     controls = payload.get("controls")
@@ -814,7 +1053,6 @@ def emit_summary(payload):
         counts[outcome] = counts.get(outcome, 0) + 1
     parts = [f"{name}={counts[name]}" for name in sorted(counts)]
     rc_text = "0" if payload.get("rc_zero") is True else "NONZERO"
-    print("-" * 112)
     middle = (" " + " ".join(parts)) if parts else ""
     print(f"TOTAL={len(controls)}{middle} RC={rc_text}")
 
@@ -838,7 +1076,8 @@ try:
     ensure_log_file(DEBUG_LOG)
     append_log(APPLY_LOG, f"product apply start dry_run={str(DRY_RUN).lower()} controls={len(APPLY_CONTROLS)}")
     print(f"MODE={MODE} APPLY_CONTROLS={len(APPLY_CONTROLS)}")
-    print(f"{'RESULT':<31} {'CONTROL':<58} DETAILS")
+    _emit_table_row("st", "source", "control", "current", "required")
+    _emit_separator()
     loaded = {}
     for control in APPLY_CONTROLS:
         c_started = now()
@@ -878,14 +1117,15 @@ try:
                 record = crash_record(control, meta, c_started, c_finished, exc)
         payload["controls"].append(record)
         atomic_report(payload)
-        emit_control_result(record)
-        emit_operator_decision(record)
+        emit_control_result(record, control)
         append_log(APPLY_LOG, f"control finish {control['control_id']} outcome={record['outcome']} step_rc={record['step_rc']}")
     payload["finished_at"] = now()
     payload["complete"] = True
     payload["rc_zero"] = all(item["step_rc"] == "0" for item in payload["controls"])
     atomic_report(payload)
     append_log(APPLY_LOG, f"product apply finish rc_zero={str(payload['rc_zero']).lower()}")
+    _emit_separator()
+    emit_blocks()
     emit_summary(payload)
     raise SystemExit(0 if payload["rc_zero"] else 1)
 except SystemExit:
@@ -1032,6 +1272,13 @@ def render_script(
         )
     fn_words = " ".join(sh_single(x) for x in function_names)
     cid_words = " ".join(sh_single(c["control_id"]) for c in controls)
+    presentation_cases = []
+    for c in controls:
+        source_display, control_display = terminal_identity(c)
+        payload = source_display + "\t" + control_display + "\t" + required_display(c["expected_op"], c["expected_value"])
+        presentation_cases.append(
+            "    " + sh_single(c["control_id"]) + ") printf '%s' " + sh_single(payload) + " ;;"
+        )
     supported_cases = "|".join(sh_single(r["environment_id"]) for r in (platform_rows + desktop_rows)) + ") ;;"
 
     template = r'''#!/bin/bash -p
@@ -1470,39 +1717,195 @@ slp_json_escape() {
   printf '%s' "$_slp_s"
 }
 
-slp_pretty_row() {
-  local _slp_result=$1 _slp_cid=$2 _slp_value=$3
-  local _slp_width=56 _slp_part _slp_piece _slp_line=''
-  local _slp_first=1
-  local -a _slp_parts=()
-  IFS=';' read -r -a _slp_parts <<< "$_slp_value"
-  if (( ${#_slp_parts[@]} <= 1 )); then
-    printf '%-7s  %-61s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_value"
+slp_presentation_for_control() {
+  local _slp_cid=$1
+  case "$_slp_cid" in
+@@PRESENTATION_CASES@@
+    *) return 1 ;;
+  esac
+}
+
+slp_pretty_status() {
+  case "$1" in
+    PASS) printf '%s' ok ;;
+    FAIL) printf '%s' fail ;;
+    ERROR) printf '%s' err ;;
+    NOT_FOUND) printf '%s' nf ;;
+    *) return 1 ;;
+  esac
+}
+
+SLP_PRETTY_COLS=116
+SLP_PRETTY_MODE=table
+SLP_PRETTY_WS=5
+SLP_PRETTY_WSRC=24
+SLP_PRETTY_WC=32
+SLP_PRETTY_WCUR=26
+SLP_PRETTY_WREQ=16
+SLP_PRETTY_VFIELD=8
+SLP_PRETTY_VVALUE=104
+
+slp_terminal_columns() {
+  local _slp_size='' _slp_rows='' _slp_cols='' _slp_extra=''
+  if [[ -r /dev/tty && -x /usr/bin/stty ]]; then
+    _slp_size=$(command /usr/bin/stty size < /dev/tty 2>/dev/null) || _slp_size=''
+    if [[ -n $_slp_size ]]; then
+      read -r _slp_rows _slp_cols _slp_extra <<< "$_slp_size"
+      if [[ $_slp_rows =~ ^[0-9]+$ && $_slp_cols =~ ^[0-9]+$ && -z $_slp_extra ]] && (( _slp_cols >= 40 && _slp_cols <= 1000 )); then
+        printf '%s\n' "$_slp_cols"
+        return 0
+      fi
+    fi
+  fi
+  printf '116\n'
+}
+
+slp_pretty_layout_for_cols() {
+  local _slp_cols=$1 _slp_available _slp_remaining _slp_req_min
+  [[ $_slp_cols =~ ^[0-9]+$ ]] || return 1
+  (( _slp_cols >= 40 && _slp_cols <= 1000 )) || return 1
+  SLP_PRETTY_COLS=$_slp_cols
+  SLP_PRETTY_WS=5
+  if (( _slp_cols < 90 )); then
+    SLP_PRETTY_MODE=vertical
+    SLP_PRETTY_VFIELD=8
+    SLP_PRETTY_VVALUE=$((_slp_cols - SLP_PRETTY_VFIELD - 6))
+    (( SLP_PRETTY_VVALUE > 0 )) || return 1
     return 0
   fi
-  for _slp_part in "${_slp_parts[@]}"; do
-    if [[ -z $_slp_line ]]; then
-      _slp_line=$_slp_part
-      continue
-    fi
-    _slp_piece=";$_slp_part"
-    if (( ${#_slp_line} + ${#_slp_piece} <= _slp_width )); then
-      _slp_line+="$_slp_piece"
-    else
-      if (( _slp_first == 1 )); then
-        printf '%-7s  %-61s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_line"
-        _slp_first=0
-      else
-        printf '%-7s  %-61s  %s\n' '' '' "$_slp_line"
-      fi
-      _slp_line=$_slp_part
-    fi
-  done
-  if (( _slp_first == 1 )); then
-    printf '%-7s  %-61s  %s\n' "$_slp_result" "$_slp_cid" "$_slp_line"
+  SLP_PRETTY_MODE=table
+  if (( _slp_cols < 100 )); then
+    SLP_PRETTY_WSRC=18
+    SLP_PRETTY_WC=24
+    _slp_req_min=10
+  elif (( _slp_cols < 110 )); then
+    SLP_PRETTY_WSRC=22
+    SLP_PRETTY_WC=28
+    _slp_req_min=12
+  elif (( _slp_cols < 120 )); then
+    SLP_PRETTY_WSRC=24
+    SLP_PRETTY_WC=32
+    _slp_req_min=14
   else
-    printf '%-7s  %-61s  %s\n' '' '' "$_slp_line"
+    SLP_PRETTY_WSRC=24
+    SLP_PRETTY_WC=36
+    _slp_req_min=16
   fi
+  _slp_available=$((_slp_cols - 15))
+  _slp_remaining=$((_slp_available - SLP_PRETTY_WS - SLP_PRETTY_WSRC - SLP_PRETTY_WC))
+  (( _slp_remaining > _slp_req_min )) || return 1
+  SLP_PRETTY_WCUR=$((_slp_remaining - _slp_req_min))
+  (( SLP_PRETTY_WCUR > 43 )) && SLP_PRETTY_WCUR=43
+  SLP_PRETTY_WREQ=$((_slp_remaining - SLP_PRETTY_WCUR))
+}
+
+slp_pretty_layout_init() {
+  local _slp_cols
+  if [[ ! -t 1 ]]; then
+    slp_pretty_layout_for_cols 116
+    return $?
+  fi
+  _slp_cols=$(slp_terminal_columns) || return 1
+  slp_pretty_layout_for_cols "$_slp_cols"
+}
+
+slp_repeat_dash() {
+  local _slp_n=$1 _slp_out
+  printf -v _slp_out '%*s' "$_slp_n" ''
+  printf '%s' "${_slp_out// /-}"
+}
+
+slp_pretty_separator() {
+  if [[ $SLP_PRETTY_MODE == vertical ]]; then
+    slp_repeat_dash $((SLP_PRETTY_VFIELD + 2))
+    printf '+'
+    slp_repeat_dash $((SLP_PRETTY_VVALUE + 2))
+    printf '+\n'
+    return 0
+  fi
+  slp_repeat_dash $((SLP_PRETTY_WS + 2))
+  printf '+'
+  slp_repeat_dash $((SLP_PRETTY_WSRC + 2))
+  printf '+'
+  slp_repeat_dash $((SLP_PRETTY_WC + 2))
+  printf '+'
+  slp_repeat_dash $((SLP_PRETTY_WCUR + 2))
+  printf '+'
+  slp_repeat_dash $((SLP_PRETTY_WREQ + 2))
+  printf '+\n'
+}
+
+slp_pretty_cell() {
+  local _slp_text=$1 _slp_width=$2 _slp_chars _slp_bytes _slp_printf_width
+  local LC_ALL=C.UTF-8
+  _slp_chars=${#_slp_text}
+  LC_ALL=C
+  _slp_bytes=${#_slp_text}
+  _slp_printf_width=$((_slp_width + _slp_bytes - _slp_chars))
+  printf '%-*s' "$_slp_printf_width" "$_slp_text"
+}
+
+slp_pretty_vertical_field() {
+  local LC_ALL=C.UTF-8
+  local _slp_label=$1 _slp_text=$2 _slp_chunk
+  if [[ -z $_slp_text ]]; then
+    printf ' '
+    slp_pretty_cell "$_slp_label" "$SLP_PRETTY_VFIELD"
+    printf ' | '
+    slp_pretty_cell '' "$SLP_PRETTY_VVALUE"
+    printf ' |\n'
+    return 0
+  fi
+  while [[ -n $_slp_text ]]; do
+    _slp_chunk=${_slp_text:0:SLP_PRETTY_VVALUE}
+    _slp_text=${_slp_text:SLP_PRETTY_VVALUE}
+    printf ' '
+    slp_pretty_cell "$_slp_label" "$SLP_PRETTY_VFIELD"
+    printf ' | '
+    slp_pretty_cell "$_slp_chunk" "$SLP_PRETTY_VVALUE"
+    printf ' |\n'
+    _slp_label=''
+  done
+}
+
+slp_pretty_row() {
+  local LC_ALL=C.UTF-8
+  local _slp_st=$1 _slp_source=$2 _slp_control=$3 _slp_current=$4 _slp_required=$5
+  local _slp_a _slp_b _slp_c _slp_d _slp_e
+  if [[ $SLP_PRETTY_MODE == vertical ]]; then
+    if [[ $_slp_st == st && $_slp_source == source && $_slp_control == control ]]; then
+      printf ' '
+      slp_pretty_cell field "$SLP_PRETTY_VFIELD"
+      printf ' | '
+      slp_pretty_cell value "$SLP_PRETTY_VVALUE"
+      printf ' |\n'
+      return 0
+    fi
+    slp_pretty_vertical_field st "$_slp_st"
+    slp_pretty_vertical_field source "$_slp_source"
+    slp_pretty_vertical_field control "$_slp_control"
+    slp_pretty_vertical_field current "$_slp_current"
+    slp_pretty_vertical_field required "$_slp_required"
+    return 0
+  fi
+  while [[ -n $_slp_st || -n $_slp_source || -n $_slp_control || -n $_slp_current || -n $_slp_required ]]; do
+    _slp_a=${_slp_st:0:SLP_PRETTY_WS}; _slp_st=${_slp_st:SLP_PRETTY_WS}
+    _slp_b=${_slp_source:0:SLP_PRETTY_WSRC}; _slp_source=${_slp_source:SLP_PRETTY_WSRC}
+    _slp_c=${_slp_control:0:SLP_PRETTY_WC}; _slp_control=${_slp_control:SLP_PRETTY_WC}
+    _slp_d=${_slp_current:0:SLP_PRETTY_WCUR}; _slp_current=${_slp_current:SLP_PRETTY_WCUR}
+    _slp_e=${_slp_required:0:SLP_PRETTY_WREQ}; _slp_required=${_slp_required:SLP_PRETTY_WREQ}
+    printf ' '
+    slp_pretty_cell "$_slp_a" "$SLP_PRETTY_WS"
+    printf ' | '
+    slp_pretty_cell "$_slp_b" "$SLP_PRETTY_WSRC"
+    printf ' | '
+    slp_pretty_cell "$_slp_c" "$SLP_PRETTY_WC"
+    printf ' | '
+    slp_pretty_cell "$_slp_d" "$SLP_PRETTY_WCUR"
+    printf ' | '
+    slp_pretty_cell "$_slp_e" "$SLP_PRETTY_WREQ"
+    printf ' |\n'
+  done
 }
 
 slp_collect_policy() {
@@ -1586,6 +1989,7 @@ slp_render_raw() {
 
 slp_render_pretty() {
   local _slp_failed_only=$1 _slp_title=$2 _slp_line _slp_tag _slp_cid _slp_status _slp_value _slp_comp
+  local _slp_current _slp_required _slp_meta _slp_source _slp_control _slp_extra _slp_st
   printf '=== SecureLinux Policy — %s ===\n' "$_slp_title"
   printf 'SYSTEM=%s   ARCH=%s\n' "$SLP_SYSTEM_PRETTY_NAME" "$SLP_SYSTEM_ARCH"
   if [[ -n $SLP_SYSTEM_TYPE ]]; then
@@ -1593,14 +1997,34 @@ slp_render_pretty() {
   else
     printf 'PROFILE=%s   PLATFORM=%s   SUPPORT=SUPPORTED\n\n' "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_PLATFORM"
   fi
-  printf '%-7s  %-61s  %s\n' 'RESULT' 'CONTROL' 'VALUE / DETAILS'
-  printf '%-7s  %-61s  %s\n' '------' '-------------------------------------------------------------' '--------------------------------------------------------'
+  slp_pretty_layout_init || return 1
+  slp_pretty_row 'st' 'source' 'control' 'current' 'required'
+  slp_pretty_separator
   for _slp_line in "${SLP_RESULTS[@]}"; do
     IFS=$'\t' read -r _slp_tag _slp_cid _slp_status _slp_value _slp_comp <<< "$_slp_line"
     slp_selected "$_slp_comp" "$_slp_failed_only" || continue
-    slp_pretty_row "$_slp_comp" "$_slp_cid" "$_slp_value"
+    if ! _slp_meta=$(slp_presentation_for_control "$_slp_cid"); then
+      printf '%s\n' 'CHECK_INTERNAL_ERROR' >&2
+      return 1
+    fi
+    IFS=$'\t' read -r _slp_source _slp_control _slp_required _slp_extra <<< "$_slp_meta"
+    if [[ -z $_slp_source || -z $_slp_control || -z $_slp_required || -n $_slp_extra ]]; then
+      printf '%s\n' 'CHECK_INTERNAL_ERROR' >&2
+      return 1
+    fi
+    if ! _slp_st=$(slp_pretty_status "$_slp_comp"); then
+      printf '%s\n' 'CHECK_INTERNAL_ERROR' >&2
+      return 1
+    fi
+    case "$_slp_status" in
+      VALUE) _slp_current=$_slp_value ;;
+      NOT_FOUND) _slp_current='<absent>' ;;
+      ERROR) _slp_current="not-determined; reason: $_slp_value" ;;
+      *) printf '%s\n' 'CHECK_INTERNAL_ERROR' >&2; return 1 ;;
+    esac
+    slp_pretty_row "$_slp_st" "$_slp_source" "$_slp_control" "$_slp_current" "$_slp_required"
   done
-  printf '%s\n' '----------------------------------------------------------------------------------------------------------------------------------'
+  slp_pretty_separator
   printf 'TOTAL=%d   PASS=%d   FAIL=%d   NOT_FOUND=%d   ERROR=%d   POLICY=%s\n' \
     "$SLP_TOTAL" "$SLP_PASS" "$SLP_FAIL" "$SLP_NF" "$SLP_ERR" "$SLP_POLICY_STATUS"
 }
@@ -1757,6 +2181,7 @@ fi
         "@@PROV_CASES@@": "\n".join(prov_cases),
         "@@FN_WORDS@@": fn_words,
         "@@CID_WORDS@@": cid_words,
+        "@@PRESENTATION_CASES@@": "\n".join(presentation_cases),
     }
     scaffolding = template
     for key, value in replacements.items():

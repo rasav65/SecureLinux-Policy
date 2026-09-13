@@ -3898,18 +3898,107 @@ SLP_POLICY_RC=1
         lines = pretty.stdout.splitlines()
         self.assertEqual(lines[1], "SYSTEM=Ubuntu 24.04.4 LTS   ARCH=x86_64")
         self.assertEqual(lines[2], "PROFILE=MINIMIZED   PLATFORM=ubuntu-24.04-x86_64   SUPPORT=SUPPORTED")
-        self.assertEqual(lines[4].index("CONTROL"), 9)
-        self.assertEqual(lines[4].index("VALUE / DETAILS"), 72)
-        continuation = [x for x in lines if x.startswith(" " * 72) and "libraries=999" in x]
-        self.assertEqual(len(continuation), 1)
-        longest = "FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION"
-        self.assertEqual(len(longest), 61)
-        self.assertLessEqual(9 + len(longest), lines[4].index("VALUE / DETAILS"))
+        header = lines[4]
+        separator = lines[5]
+        self.assertEqual(header.count("|"), 5)
+        self.assertEqual(separator.count("+"), 5)
+        self.assertEqual(header.index("source"), 9)
+        self.assertEqual(header.index("control"), 36)
+        self.assertEqual(header.index("current"), 71)
+        self.assertEqual(header.index("required"), 100)
+        total_index = lines.index("TOTAL=4   PASS=2   FAIL=1   NOT_FOUND=0   ERROR=1   POLICY=UNEVALUATED")
+        table_lines = lines[4:total_index]
+        self.assertTrue(all(len(x) == 116 for x in table_lines), pretty.stdout)
+        psql_current_stream = "".join(
+            x.split("|")[3].strip() for x in table_lines if x.count("|") == 5
+        )
+        self.assertIn("exec=1236;libraries=999;modules=6474", psql_current_stream)
+        self.assertIn("not-determined; reason: test:synthetic-error", psql_current_stream)
+        self.assertNotIn("detail: test:synthetic-error", pretty.stdout)
+        group_row = next(x for x in lines if "group-mode" in x)
+        home_row = next(x for x in lines if "home-directories-mode" in x)
+        error_row = next(x for x in lines if "home-sensitive-files-mode" in x)
+        self.assertIn("fstec-linux-2022 §2.3.1", group_row)
+        self.assertIn("= 0644", group_row)
+        self.assertIn("= 0700", home_row)
+        self.assertIn("not-determined", error_row)
+        self.assertIn("bits 0077 = 0", error_row)
+        self.assertNotIn("FSTEC-LINUX-2022-", pretty.stdout)
+
+        fallback_layout = self.run_sourced(
+            "\nslp_pretty_layout_init\nprintf 'mode=%s cols=%s\\n' \"$SLP_PRETTY_MODE\" \"$SLP_PRETTY_COLS\"\n"
+        )
+        self.assertEqual(fallback_layout.returncode, 0, fallback_layout.stderr)
+        self.assertEqual(fallback_layout.stdout.strip(), "mode=table cols=116")
+
+        for width in (80, 116, 139, 160):
+            probe = self.run_sourced(
+                f"\nslp_pretty_layout_for_cols {width}\n"
+                "slp_pretty_row 'st' 'source' 'control' 'current' 'required'\n"
+                "slp_pretty_separator\n"
+                "slp_pretty_row err 'fstec-linux-2022 §2.3.10' home-sensitive-files-mode "
+                "'not-determined; reason: pam:ambiguous-stack' 'bits 0077 = 0'\n"
+            )
+            self.assertEqual(probe.returncode, 0, probe.stderr)
+            probe_lines = probe.stdout.splitlines()
+            self.assertTrue(probe_lines, probe.stdout)
+            self.assertTrue(all(len(line) == width for line in probe_lines), probe.stdout)
+            self.assertTrue(all(line.endswith(("|", "+")) for line in probe_lines), probe.stdout)
+            if width < 90:
+                self.assertTrue(probe_lines[0].endswith(" |"), probe.stdout)
+                self.assertIn(" current  | not-determined; reason: pam:ambiguous-stack", probe.stdout)
+            else:
+                pipe_positions = [i for i, ch in enumerate(probe_lines[0]) if ch == "|"]
+                plus_positions = [i for i, ch in enumerate(probe_lines[1]) if ch == "+"]
+                self.assertEqual(pipe_positions, plus_positions)
+                self.assertEqual(len(pipe_positions), 5)
+                for line in probe_lines[2:]:
+                    if "|" in line:
+                        self.assertEqual([i for i, ch in enumerate(line) if ch == "|"], pipe_positions)
+                current_stream = "".join(
+                    line.split("|")[3].strip() for line in probe_lines[2:] if line.count("|") == 5
+                )
+                self.assertIn("not-determined; reason: pam:ambiguous-stack", current_stream)
+        for ambient_locale in ("C", "C.UTF-8"):
+            for width in (80, 116, 139, 160):
+                locale_probe = self.run_sourced(
+                    f"\nexport LC_ALL={ambient_locale}\n"
+                    f"slp_pretty_layout_for_cols {width}\n"
+                    "slp_pretty_row 'st' 'source' 'control' 'current' 'required'\n"
+                    "slp_pretty_separator\n"
+                    "slp_pretty_row ok 'fstec-linux-2022 §2.3.1' group-mode 0644 '= 0644'\n"
+                    "slp_pretty_row fail 'fstec-linux-2022 §2.3.10' home-sensitive-files-mode "
+                    "'not-determined; reason: inventory:not-found' 'bits 0077 = 0'\n"
+                    "slp_pretty_row fail 'fstec-linux-2022 §2.3.11' home-directories-mode "
+                    "'accounts=2;homes=2;violations=1' '= 0700'\n"
+                    "slp_pretty_row fail 'fstec-linux-2022 §2.5.11' randomize-va-space-tested-before-use "
+                    "'not-determined; reason: authority:not-found' '= tested'\n"
+                    "slp_pretty_separator\n"
+                )
+                self.assertEqual(locale_probe.returncode, 0, locale_probe.stderr)
+                locale_lines = locale_probe.stdout.splitlines()
+                self.assertTrue(locale_lines, locale_probe.stdout)
+                self.assertTrue(
+                    all(len(line) == width for line in locale_lines),
+                    f"locale={ambient_locale} width={width}\n{locale_probe.stdout}",
+                )
+                self.assertTrue(
+                    all(line.endswith(("|", "+")) for line in locale_lines),
+                    f"locale={ambient_locale} width={width}\n{locale_probe.stdout}",
+                )
+                for source_text in (
+                    "fstec-linux-2022 §2.3.1",
+                    "fstec-linux-2022 §2.3.10",
+                    "fstec-linux-2022 §2.3.11",
+                    "fstec-linux-2022 §2.5.11",
+                ):
+                    self.assertIn(source_text, locale_probe.stdout)
+
         failed = self.run_sourced(pre + "\nslp_render_pretty 1 CHECK\n")
         self.assertEqual(failed.returncode, 0, failed.stderr)
-        self.assertIn("HOME-DIRECTORIES-MODE", failed.stdout)
-        self.assertIn("HOME-SENSITIVE-FILES-MODE", failed.stdout)
-        self.assertNotIn("GROUP-MODE", failed.stdout)
+        self.assertIn("home-directories-mode", failed.stdout)
+        self.assertIn("home-sensitive-files-mode", failed.stdout)
+        self.assertNotIn("group-mode", failed.stdout)
         raw = self.run_sourced(pre + "\nslp_render_raw 0\n")
         self.assertEqual(raw.returncode, 0, raw.stderr)
         raw_lines = raw.stdout.splitlines()
@@ -3935,6 +4024,33 @@ SLP_POLICY_RC=1
         self.assertEqual(desktop_obj["platform"]["type"], "DESKTOP")
         fobj = json.loads(self.run_sourced(pre + "\nslp_render_json 1\n").stdout)
         self.assertEqual([x["result"] for x in fobj["results"]], ["FAIL", "ERROR"])
+
+    def test_required_presentation_covers_all_current_controls_from_machine_truth(self):
+        rows, _ = GEN_V2_CURRENT.load_manifest(ROOT)
+        controls = [GEN_V2_CURRENT.load_control(ROOT, row) for row in rows]
+        rendered = {
+            control["control_id"]: GEN_V2_CURRENT.required_display(
+                control["expected_op"], control["expected_value"]
+            )
+            for control in controls
+        }
+        identities = {control["control_id"]: GEN_V2_CURRENT.terminal_identity(control) for control in controls}
+        self.assertEqual(len(rendered), 51)
+        self.assertEqual(len(identities), 51)
+        self.assertTrue(all(value and "\n" not in value and "\r" not in value for value in rendered.values()))
+        self.assertEqual(identities["FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE"], ("fstec-linux-2022 §2.6.6", "suid-dumpable"))
+        self.assertEqual(identities["FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE"], ("fstec-linux-2022 §2.5.11", "randomize-va-space-tested-before-use"))
+        self.assertEqual(
+            GEN_V2_CURRENT.terminal_identity(
+                {"control_id": "TEST-FILE-MODE", "doc_id": "fstec-linux-2022", "source_locator": "2.1.1"}
+            ),
+            ("fstec-linux-2022 §2.1.1", "test-file-mode"),
+        )
+        self.assertEqual(rendered["FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE"], "= 0")
+        self.assertEqual(rendered["FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR"], ">= 4096")
+        self.assertEqual(rendered["FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX"], "bits 0077 = 0")
+        self.assertEqual(rendered["FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE"], "present")
+        self.assertEqual(rendered["FSTEC-LINUX-2022-2.5.3-DEBUGFS"], "one of: off|no-mount")
 
     def test_unified_provenance_invalid_cli_and_no_mutation_scaffold(self):
         prov = self.run_cli("--provenance")
@@ -4421,29 +4537,76 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             'def execute_control(control_id, key, op, expected, apply_supported, dry_run=False):\n'
             '    return control_id\n'
             'def control_result_to_report(result, started_at, finished_at):\n'
-            '    outcome = "APPLIED" if result == "CTRL-A" else "ALREADY_COMPLIANT"\n'
-            '    return {"control_id": result, "outcome": outcome, "reason": "applied" if outcome == "APPLIED" else "already-compliant", "actions_attempted": ["FINAL_POSTCHECK"], "step_rc": "0", "mutation_performed": outcome == "APPLIED", "transaction_commit": "COMMITTED", "started_at": started_at, "finished_at": finished_at, "key": "kernel.synthetic"}\n'
+            '    outcome = "APPLIED" if result.endswith("-CTRL-A") else "ALREADY_COMPLIANT"\n'
+            '    before = 0 if result.endswith("-CTRL-A") else 1\n'
+            '    return {"control_id": result, "outcome": outcome, "reason": "applied" if outcome == "APPLIED" else "already-compliant", "actions_attempted": ["FINAL_POSTCHECK"], "step_rc": "0", "mutation_performed": outcome == "APPLIED", "transaction_commit": "COMMITTED", "started_at": started_at, "finished_at": finished_at, "key": "kernel.synthetic", "runtime_before": before, "runtime_after": 1}\n'
         ).encode("utf-8")
         impl_sha = __import__("hashlib").sha256(implementation).hexdigest()
         controls = [
-            {"control_id": "CTRL-A", "parameter_kind": "synthetic", "parameter_key": "kernel.a", "expected_op": "eq", "expected_value": 1},
-            {"control_id": "CTRL-B", "parameter_kind": "synthetic", "parameter_key": "kernel.b", "expected_op": "eq", "expected_value": 1},
+            {"control_id": "FSTEC-LINUX-2099-9.9.1-CTRL-A", "doc_id": "fstec-linux-2099", "source_locator": "9.9.1", "parameter_kind": "synthetic", "parameter_key": "kernel.a", "expected_op": "eq", "expected_value": 1},
+            {"control_id": "FSTEC-LINUX-2099-9.9.2-CTRL-B", "doc_id": "fstec-linux-2099", "source_locator": "9.9.2", "parameter_kind": "synthetic", "parameter_key": "kernel.b", "expected_op": "eq", "expected_value": 1},
         ]
         mechanisms = {"synthetic": {"kind_row": {"apply_kind": "test-kind"}, "authority": {"mechanism_id": "test-mechanism"}, "implementation_row": {"adapter_id": "test-adapter", "implementation_sha256": impl_sha}, "implementation_source": implementation}}
         dispatcher = GEN_V2_CURRENT.render_product_apply_dispatcher(controls, mechanisms)
+
+        presentation = dispatcher.split("started_at = now()", 1)[0]
+        self.assertNotEqual(presentation, dispatcher)
+        for width in (80, 116, 139, 160):
+            probe_source = (
+                presentation
+                + f"\nPRETTY_COLUMNS={width}\nPRETTY_IS_TTY=True\n"
+                + "_emit_table_row('st','source','control','current','required')\n"
+                + "_emit_separator()\n"
+                + "_emit_table_row('err','fstec-linux-2022 §2.3.10','home-sensitive-files-mode',"
+                  "'not-determined; reason: pam:ambiguous-stack','bits 0077 = 0')\n"
+            )
+            probe = subprocess.run(
+                [os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", "-", "APPLY"],
+                input=probe_source,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=ROOT,
+            )
+            self.assertEqual(probe.returncode, 0, probe.stderr)
+            probe_lines = probe.stdout.splitlines()
+            self.assertTrue(probe_lines, probe.stdout)
+            self.assertTrue(all(len(line) == width for line in probe_lines), probe.stdout)
+            self.assertTrue(all(line.endswith(("|", "+")) for line in probe_lines), probe.stdout)
+            if width >= 90:
+                pipe_positions = [i for i, ch in enumerate(probe_lines[0]) if ch == "|"]
+                plus_positions = [i for i, ch in enumerate(probe_lines[1]) if ch == "+"]
+                self.assertEqual(pipe_positions, plus_positions)
+                self.assertEqual(len(pipe_positions), 5)
+                current_stream = "".join(
+                    line.split("|")[3].strip() for line in probe_lines[2:] if line.count("|") == 5
+                )
+                self.assertIn("not-determined; reason: pam:ambiguous-stack", current_stream)
+
         with tempfile.TemporaryDirectory(prefix="slp-dispatcher-terminal-", dir=ROOT) as td:
             isolated = dispatcher.replace('STATE_DIR = "/var/log/securelinux-policy"', "STATE_DIR = " + repr(td), 1)
             cp = subprocess.run([os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", "-", "APPLY"], input=isolated, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=ROOT)
             self.assertEqual(cp.returncode, 0, cp.stderr)
             self.assertEqual(cp.stderr, "")
             self.assertIn("MODE=APPLY APPLY_CONTROLS=2\n", cp.stdout)
-            rows_a = [line for line in cp.stdout.splitlines() if "CTRL-A" in line]
-            rows_b = [line for line in cp.stdout.splitlines() if "CTRL-B" in line]
+            lines = cp.stdout.splitlines()
+            header = lines[1]
+            self.assertEqual(header.count("|"), 5)
+            self.assertEqual(lines[2].count("+"), 5)
+            rows_a = [line for line in lines if "ctrl-a" in line]
+            rows_b = [line for line in lines if "ctrl-b" in line]
             self.assertEqual(len(rows_a), 1, cp.stdout)
             self.assertEqual(len(rows_b), 1, cp.stdout)
-            self.assertIn("APPLIED", rows_a[0])
-            self.assertIn("ALREADY_COMPLIANT", rows_b[0])
+            self.assertIn("done", rows_a[0])
+            self.assertIn("ok", rows_b[0])
+            self.assertIn("fstec-linux-2099 §9.9.1", rows_a[0])
+            self.assertIn("= 1", rows_a[0])
+            self.assertIn("= 1", rows_b[0])
+            self.assertNotIn("\nblocks\n", cp.stdout)
+            self.assertNotIn("detail: applied", cp.stdout)
+            self.assertNotIn("detail: already-compliant", cp.stdout)
             self.assertIn("TOTAL=2 ALREADY_COMPLIANT=1 APPLIED=1 RC=0\n", cp.stdout)
+            self.assertLess(cp.stdout.index("+"), cp.stdout.index("TOTAL=2"))
             state = Path(td)
             self.assertTrue((state / "apply.log").is_file())
             self.assertTrue((state / "debug.log").is_file())
@@ -4452,6 +4615,84 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             self.assertTrue(payload["complete"])
             self.assertTrue(payload["rc_zero"])
             self.assertEqual(len(payload["controls"]), 2)
+
+    def test_apply_dispatcher_required_column_on_precondition_conflict(self):
+        implementation = (
+            'MECHANISM_ID = "test-mechanism"\n'
+            'ADAPTER_ID = "test-adapter"\n'
+            'def execute_control(control_id, key, op, expected, apply_supported, dry_run=False):\n'
+            '    return control_id\n'
+            'def control_result_to_report(result, started_at, finished_at):\n'
+            '    return {"control_id": result, "outcome": "ABORTED_PRECONDITION_CONFLICT", "reason": "runtime-writer:APPORT-NATIVE-SUID-DUMPABLE-V1:C4:agent-exact", "actions_attempted": ["P2R_RUNTIME_WRITER"], "step_rc": "nonzero", "mutation_performed": False, "transaction_commit": "NOT_STARTED", "started_at": started_at, "finished_at": finished_at, "key": "fs.suid_dumpable", "runtime_before": 2, "runtime_after": None, "operator_decision": {"class": "SERVICE_MANAGED_PARAMETER", "required": True, "service": "Apport", "parameter": "fs.suid_dumpable", "current_value": 2}}\n'
+        ).encode("utf-8")
+        impl_sha = __import__("hashlib").sha256(implementation).hexdigest()
+        controls = [
+            {"control_id": "FSTEC-LINUX-2099-9.9.3-SUID-DUMPABLE", "doc_id": "fstec-linux-2099", "source_locator": "9.9.3", "parameter_kind": "synthetic", "parameter_key": "fs.suid_dumpable", "expected_op": "eq", "expected_value": 0},
+        ]
+        mechanisms = {"synthetic": {"kind_row": {"apply_kind": "test-kind"}, "authority": {"mechanism_id": "test-mechanism"}, "implementation_row": {"adapter_id": "test-adapter", "implementation_sha256": impl_sha}, "implementation_source": implementation}}
+        dispatcher = GEN_V2_CURRENT.render_product_apply_dispatcher(controls, mechanisms)
+        with tempfile.TemporaryDirectory(prefix="slp-dispatcher-required-", dir=ROOT) as td:
+            isolated = dispatcher.replace('STATE_DIR = "/var/log/securelinux-policy"', "STATE_DIR = " + repr(td), 1)
+            cp = subprocess.run([os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", "-", "APPLY"], input=isolated, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=ROOT)
+            self.assertEqual(cp.returncode, 1, cp.stderr)
+            self.assertEqual(cp.stderr, "")
+            lines = cp.stdout.splitlines()
+            row = next(line for line in lines if "suid-dumpable" in line and "|" in line)
+            self.assertIn("block", row)
+            self.assertIn("fstec-linux-2099 §9.9.3", row)
+            self.assertIn("| 2", row)
+            self.assertIn("= 0", row)
+            blocks_index = lines.index("blocks")
+            total_index = next(i for i, line in enumerate(lines) if line.startswith("TOTAL=1 "))
+            main_plus = [i for i, line in enumerate(lines[:blocks_index]) if "+" in line]
+            self.assertGreaterEqual(len(main_plus), 2, cp.stdout)
+            self.assertLess(max(main_plus), blocks_index)
+            self.assertLess(blocks_index, total_index)
+            main_table = [line for line in lines[1:blocks_index] if "|" in line or "+" in line]
+            self.assertTrue(main_table, cp.stdout)
+            self.assertTrue(all(len(line) == 116 for line in main_table), cp.stdout)
+            self.assertTrue(all(line.endswith(("|", "+")) for line in main_table), cp.stdout)
+            self.assertEqual(next(line for line in main_table if "source" in line).count("|"), 5)
+            table_text = "\n".join(lines[:blocks_index])
+            self.assertNotIn("detail:", table_text)
+            self.assertNotIn("note:", table_text)
+
+            blocks_header = lines[blocks_index + 1]
+            blocks_separator = lines[blocks_index + 2]
+            blocks_end = lines[total_index - 1]
+            self.assertIn("control", blocks_header)
+            self.assertIn("type", blocks_header)
+            self.assertIn("message", blocks_header)
+            self.assertEqual(blocks_header.count("|"), 3)
+            self.assertEqual(blocks_separator.count("+"), 3)
+            self.assertEqual(blocks_end.count("+"), 3)
+            block_table_lines = lines[blocks_index + 1:total_index]
+            self.assertTrue(all(len(line) == 116 for line in block_table_lines), cp.stdout)
+            self.assertTrue(all(line.endswith(("|", "+")) for line in block_table_lines), cp.stdout)
+            message_stream = "".join(
+                line.split("|")[2].strip()
+                for line in block_table_lines
+                if line.count("|") == 3
+            )
+            type_stream = " ".join(
+                line.split("|")[1].strip()
+                for line in block_table_lines
+                if line.count("|") == 3
+            )
+            self.assertIn("suid-dumpable", "\n".join(block_table_lines))
+            self.assertIn("detail", type_stream)
+            self.assertIn("note", type_stream)
+            self.assertIn("runtime-writer:APPORT-NATIVE-SUID-DUMPABLE-V1:C4:agent-exact", message_stream)
+            self.assertIn(
+                "fs.suid_dumpable=2: обнаружен штатный механизм Apport, управляющий этим параметром.",
+                message_stream,
+            )
+            self.assertIn(
+                "Автоматическое изменение пропущено. Требуется решение администратора.",
+                message_stream,
+            )
+            self.assertIn("TOTAL=1 ABORTED_PRECONDITION_CONFLICT=1 RC=NONZERO", cp.stdout)
+
 
     def _step_rc_literal_for_dispatcher_function(self, function_name):
         _, enabled, mechanisms = self._current_apply()
