@@ -3,7 +3,7 @@
 # STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 # PRODUCT_CLI=product-cli-v1
 # GENERATOR_ID=product-check-generator-v2
-# GENERATOR_SHA256=0bc2175d95b6b26cb1775fae7a5c89a8c5db45d0c9422ca9a1d8ecc039e87b16
+# GENERATOR_SHA256=61e67bf6a4363e38589514c12f809aa95c43a89738c3e5e050f64008686b402e
 # CONTROL_MANIFEST_SHA256=b9ade1a850da581d7e14fdb8df203575921572279f8725356eb7ea2db57d362f
 # ADAPTER_REGISTRY_SHA256=ef54712dfbd6a4fa4e95f8fc37a4bd8acf79fb60b3a0518298cc65db7e00f4db
 # APPLY_KINDS=config-line-with-runtime-v1
@@ -6024,7 +6024,7 @@ slp_build_info() {
     'STATUS=NON_RELEASE_PRODUCT_CANDIDATE' \
     'PRODUCT_CLI=product-cli-v1' \
     'GENERATOR_ID=product-check-generator-v2' \
-    'GENERATOR_SHA256=0bc2175d95b6b26cb1775fae7a5c89a8c5db45d0c9422ca9a1d8ecc039e87b16' \
+    'GENERATOR_SHA256=61e67bf6a4363e38589514c12f809aa95c43a89738c3e5e050f64008686b402e' \
     'CONTROL_COUNT=51' \
     'CONTROL_MANIFEST_SHA256=b9ade1a850da581d7e14fdb8df203575921572279f8725356eb7ea2db57d362f' \
     'ADAPTER_COUNT=18' \
@@ -6360,6 +6360,19 @@ def append_log(path, message):
     finally:
         os.close(fd)
 
+def ensure_log_file(path):
+    flags = os.O_WRONLY | os.O_CREAT
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(path, flags, 0o600)
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
+            raise RuntimeError("reporting:log-target-invalid")
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
 def load_route(meta):
     raw = base64.b64decode(meta["source_b64"], validate=True)
     if __import__("hashlib").sha256(raw).hexdigest() != meta["implementation_sha256"]:
@@ -6430,6 +6443,28 @@ def emit_operator_decision(record):
     print(f"{control_id} {current_value} {parameter}={current_value}: обнаружен штатный механизм {service}, управляющий этим параметром.")
     print("Автоматическое изменение пропущено. Требуется решение администратора.")
 
+def emit_control_result(record):
+    control_id = _terminal_scalar(record.get("control_id"), "control-id")
+    outcome = _terminal_scalar(record.get("outcome"), "outcome")
+    reason = _terminal_scalar(record.get("reason"), "reason")
+    print(f"{outcome:<31} {control_id:<58} {reason}")
+
+def emit_summary(payload):
+    controls = payload.get("controls")
+    if not isinstance(controls, list):
+        raise RuntimeError("presentation:controls-invalid")
+    counts = {}
+    for record in controls:
+        if not isinstance(record, dict):
+            raise RuntimeError("presentation:record-invalid")
+        outcome = _terminal_scalar(record.get("outcome"), "outcome")
+        counts[outcome] = counts.get(outcome, 0) + 1
+    parts = [f"{name}={counts[name]}" for name in sorted(counts)]
+    rc_text = "0" if payload.get("rc_zero") is True else "NONZERO"
+    print("-" * 112)
+    middle = (" " + " ".join(parts)) if parts else ""
+    print(f"TOTAL={len(controls)}{middle} RC={rc_text}")
+
 started_at = now()
 payload = {
     "schema": "SLP-APPLY-REPORT-V2",
@@ -6446,7 +6481,11 @@ payload = {
 ensure_state_dir()
 atomic_report(payload)
 try:
+    ensure_log_file(APPLY_LOG)
+    ensure_log_file(DEBUG_LOG)
     append_log(APPLY_LOG, f"product apply start dry_run={str(DRY_RUN).lower()} controls={len(APPLY_CONTROLS)}")
+    print(f"MODE={MODE} APPLY_CONTROLS={len(APPLY_CONTROLS)}")
+    print(f"{'RESULT':<31} {'CONTROL':<58} DETAILS")
     loaded = {}
     for control in APPLY_CONTROLS:
         c_started = now()
@@ -6486,6 +6525,7 @@ try:
                 record = crash_record(control, meta, c_started, c_finished, exc)
         payload["controls"].append(record)
         atomic_report(payload)
+        emit_control_result(record)
         emit_operator_decision(record)
         append_log(APPLY_LOG, f"control finish {control['control_id']} outcome={record['outcome']} step_rc={record['step_rc']}")
     payload["finished_at"] = now()
@@ -6493,6 +6533,7 @@ try:
     payload["rc_zero"] = all(item["step_rc"] == "0" for item in payload["controls"])
     atomic_report(payload)
     append_log(APPLY_LOG, f"product apply finish rc_zero={str(payload['rc_zero']).lower()}")
+    emit_summary(payload)
     raise SystemExit(0 if payload["rc_zero"] else 1)
 except SystemExit:
     raise

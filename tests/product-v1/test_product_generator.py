@@ -4414,6 +4414,45 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         self.assertNotIn('item["step_rc"] == 0', dispatcher)
         self.assertNotIn("SRC-0001", dispatcher)
 
+    def test_apply_dispatcher_terminal_rows_summary_and_debug_log(self):
+        implementation = (
+            'MECHANISM_ID = "test-mechanism"\n'
+            'ADAPTER_ID = "test-adapter"\n'
+            'def execute_control(control_id, key, op, expected, apply_supported, dry_run=False):\n'
+            '    return control_id\n'
+            'def control_result_to_report(result, started_at, finished_at):\n'
+            '    outcome = "APPLIED" if result == "CTRL-A" else "ALREADY_COMPLIANT"\n'
+            '    return {"control_id": result, "outcome": outcome, "reason": "applied" if outcome == "APPLIED" else "already-compliant", "actions_attempted": ["FINAL_POSTCHECK"], "step_rc": "0", "mutation_performed": outcome == "APPLIED", "transaction_commit": "COMMITTED", "started_at": started_at, "finished_at": finished_at, "key": "kernel.synthetic"}\n'
+        ).encode("utf-8")
+        impl_sha = __import__("hashlib").sha256(implementation).hexdigest()
+        controls = [
+            {"control_id": "CTRL-A", "parameter_kind": "synthetic", "parameter_key": "kernel.a", "expected_op": "eq", "expected_value": 1},
+            {"control_id": "CTRL-B", "parameter_kind": "synthetic", "parameter_key": "kernel.b", "expected_op": "eq", "expected_value": 1},
+        ]
+        mechanisms = {"synthetic": {"kind_row": {"apply_kind": "test-kind"}, "authority": {"mechanism_id": "test-mechanism"}, "implementation_row": {"adapter_id": "test-adapter", "implementation_sha256": impl_sha}, "implementation_source": implementation}}
+        dispatcher = GEN_V2_CURRENT.render_product_apply_dispatcher(controls, mechanisms)
+        with tempfile.TemporaryDirectory(prefix="slp-dispatcher-terminal-", dir=ROOT) as td:
+            isolated = dispatcher.replace('STATE_DIR = "/var/log/securelinux-policy"', "STATE_DIR = " + repr(td), 1)
+            cp = subprocess.run([os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", "-", "APPLY"], input=isolated, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=ROOT)
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            self.assertEqual(cp.stderr, "")
+            self.assertIn("MODE=APPLY APPLY_CONTROLS=2\n", cp.stdout)
+            rows_a = [line for line in cp.stdout.splitlines() if "CTRL-A" in line]
+            rows_b = [line for line in cp.stdout.splitlines() if "CTRL-B" in line]
+            self.assertEqual(len(rows_a), 1, cp.stdout)
+            self.assertEqual(len(rows_b), 1, cp.stdout)
+            self.assertIn("APPLIED", rows_a[0])
+            self.assertIn("ALREADY_COMPLIANT", rows_b[0])
+            self.assertIn("TOTAL=2 ALREADY_COMPLIANT=1 APPLIED=1 RC=0\n", cp.stdout)
+            state = Path(td)
+            self.assertTrue((state / "apply.log").is_file())
+            self.assertTrue((state / "debug.log").is_file())
+            self.assertEqual((state / "debug.log").read_bytes(), b"")
+            payload = json.loads((state / "report.json").read_text(encoding="utf-8"))
+            self.assertTrue(payload["complete"])
+            self.assertTrue(payload["rc_zero"])
+            self.assertEqual(len(payload["controls"]), 2)
+
     def _step_rc_literal_for_dispatcher_function(self, function_name):
         _, enabled, mechanisms = self._current_apply()
         dispatcher = GEN_V2_CURRENT.render_product_apply_dispatcher(enabled, mechanisms)

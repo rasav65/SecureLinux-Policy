@@ -10,6 +10,8 @@
 
 ## [Unreleased]
 
+- Исправлен вывод применения: сгенерированный скрипт показывает результат каждого поддерживаемого контроля и итоговую сводку; `debug.log` создаётся при инициализации журналов даже без диагностических событий. Семантика механизмов применения, выбор контролей и правила изменения системы не менялись.
+
 - Публичная точка входа README переработана без изменения product semantics: добавлены понятные Назначение/Скачать/Быстрый старт, donor-style GitHub archive для ознакомления с main, сохранён безопасный pinned-download product-checkpoint, явные CHECK/APPLY/dry-run сценарии, badges, ограничения, обратная связь и MIT License. Функциональные product bytes не изменены.
 
 - Реализован G0 Step 7B typed quote-anchor gate: генератор и source-parity используют единый machine-readable результат `EXACT | REFUSED | UNSUPPORTED` со стабильным `reason_code`; deliberate refusal отделён от integrity failures, которые остаются terminal fail-closed. Targeted regression подтверждает current baseline `82 EXACT / 1 REFUSED (SRC-0133) / 266 UNSUPPORTED`, byte identity 51 current controls и source parity `51/51`. Это implementation-targeted PASS; G0 block boundary ещё не закрыт до required manifests, full DEV и RELEASE. Source index и control population не изменены. Закрыто строк источника: 0.
