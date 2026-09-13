@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CONTROL_MANIFEST = ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 GEN = ROOT / "tools/source_skeleton_generator.py"
-EXPECTED_GEN_SHA = "f4c568c9d54a0bef9837f592c106029a2346b64154abcd3fe837d70e69e92532"
+EXPECTED_GEN_SHA = "bb4b9c48da1f45d97efee801c1fa169b75617885458aaffc99595e683290a7bb"
 EXPECTED_SRC0018_SHA = "016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d"
 EXPECTED_SRC0040_SHA = "f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d"
 EXPECTED_SRC0001_SHA = "799b85637928264e6f43d5e32d8cc6b48af6694e30f6fbf5e4c6ddef3a207f3b"
@@ -44,14 +44,21 @@ def load_gen():
     return module
 
 
-def run_cli(*args: str):
+def run_cli_at(project_root: Path, *args: str):
     cp = subprocess.run(
-        [sys.executable, "-B", str(GEN), "--project-root", str(ROOT), *args],
+        [
+            sys.executable, "-B", str(GEN),
+            "--project-root", str(project_root), *args,
+        ],
         cwd=ROOT,
         text=True,
         capture_output=True,
     )
     return cp.returncode, cp.stdout, cp.stderr
+
+
+def run_cli(*args: str):
+    return run_cli_at(ROOT, *args)
 
 
 assert sha(GEN) == EXPECTED_GEN_SHA
@@ -77,25 +84,51 @@ assert out.count("  OK    ") == control_count
 assert "  SKIP  " not in out
 assert "  DIFF  " not in out
 
-# Supported-kind coverage is deliberately partial and fail-closed.
+# Step 7B typed gate is exhaustive over the full current index population.
+typed = {
+    row["index_id"]: gate.classify_row(ROOT, row, normalize_text)
+    for row in rows
+}
+state_counts = {
+    state: sum(result.state == state for result in typed.values())
+    for state in (gate.STATE_EXACT, gate.STATE_REFUSED, gate.STATE_UNSUPPORTED)
+}
+assert state_counts == {
+    gate.STATE_EXACT: 82,
+    gate.STATE_REFUSED: 1,
+    gate.STATE_UNSUPPORTED: 266,
+}
 supported = [
     row for row in rows
     if row["unit_kind"] in gate.SUPPORTED_UNIT_KINDS
 ]
-assert supported
-
-ok = []
-refused = {}
-for row in supported:
-    try:
-        gate.build_source_block(ROOT, row, normalize_text)
-        ok.append(row["index_id"])
-    except Exception as exc:
-        refused[row["index_id"]] = str(exc)
-
-assert len(ok) + len(refused) == len(supported)
+ok = [index_id for index_id, result in typed.items()
+      if result.state == gate.STATE_EXACT]
+refused = {
+    index_id: result.reason_code
+    for index_id, result in typed.items()
+    if result.state == gate.STATE_REFUSED
+}
+unsupported = [
+    index_id for index_id, result in typed.items()
+    if result.state == gate.STATE_UNSUPPORTED
+]
+assert len(supported) == len(ok) + len(refused) == 83
 assert set(refused) == EXPECTED_REFUSED
-assert all("bare integer" in why for why in refused.values())
+assert refused["SRC-0133"] == gate.REASON_BARE_TRAILING_PAGE_INTEGER
+assert len(unsupported) == 266
+
+rc, coverage_out, coverage_err = run_cli("--coverage")
+assert rc == 0, (coverage_out, coverage_err)
+assert "INDEX_ROWS_TOTAL=349" in coverage_out
+assert "ROWS_IN_SUPPORTED_KINDS=83" in coverage_out
+assert "EXACT=82" in coverage_out
+assert "REFUSED=1" in coverage_out
+assert "UNSUPPORTED=266" in coverage_out
+assert (
+    "REFUSED SRC-0133 6.2 "
+    "REASON_CODE=BARE_TRAILING_PAGE_INTEGER"
+) in coverage_out
 
 # Exact pinned internal page boundary for SRC-0001. The recovered corpus
 # contains the page number "3" immediately before 2.1.2; only this exact
@@ -244,15 +277,19 @@ with tempfile.TemporaryDirectory(prefix="slp-duplicate-index-") as td:
     else:
         raise AssertionError("duplicate index_id was accepted")
 
-# Negative: source anchor not ready.
-bad = dict(by_id["SRC-0018"])
+# Negative: source anchor readiness is an integrity invariant and is checked
+# before UNSUPPORTED classification.
+bad = dict(next(
+    row for row in rows
+    if row["unit_kind"] not in gate.SUPPORTED_UNIT_KINDS
+))
 bad["quote_anchor_ready"] = "NO"
 try:
-    gate.build_source_block(ROOT, bad, normalize_text)
+    gate.classify_row(ROOT, bad, normalize_text)
 except ValueError as exc:
     assert "quote_anchor_ready != YES" in str(exc)
 else:
-    raise AssertionError("non-ready quote anchor was accepted")
+    raise AssertionError("non-ready quote anchor became a coverage state")
 
 # Negative: altered normalizer.
 with tempfile.TemporaryDirectory(prefix="slp-normalizer-tamper-") as td:
@@ -271,6 +308,32 @@ with tempfile.TemporaryDirectory(prefix="slp-normalizer-tamper-") as td:
         assert "SHA mismatch" in str(exc)
     else:
         raise AssertionError("altered normalizer was accepted")
+    rc, tamper_out, tamper_err = run_cli_at(temp_root, "--coverage")
+    assert rc != 0, (tamper_out, tamper_err)
+    assert "REFUSED=" not in tamper_out
+    assert "UNSUPPORTED=" not in tamper_out
+    assert "normalizer-v1.py SHA mismatch" in tamper_err
+
+# Negative: corpus/quote integrity failure must propagate and must not become
+# REFUSED or UNSUPPORTED.
+original_extract_unit = gate.extract_unit
+gate.extract_unit = lambda corpus, locator: corpus + " NOT-A-SUBSTRING"
+try:
+    gate.classify_row(ROOT, by_id["SRC-0018"], normalize_text)
+except ValueError as exc:
+    assert "raw extracted quote is not a substring" in str(exc)
+else:
+    raise AssertionError("quote integrity failure became a coverage state")
+finally:
+    gate.extract_unit = original_extract_unit
+
+# Negative: unknown typed state is terminal fail-closed.
+try:
+    gate.validate_coverage_result(gate.CoverageResult("UNKNOWN", "UNKNOWN", None))
+except RuntimeError as exc:
+    assert "unknown typed state" in str(exc)
+else:
+    raise AssertionError("unknown typed state was accepted")
 
 # Negative: corpus hash tampered in the recovery manifest.
 with tempfile.TemporaryDirectory(prefix="slp-manifest-tamper-") as td:
@@ -339,16 +402,18 @@ for doc_path in doc_paths:
 source_doc = (ROOT / "docs/source-skeleton-generator.md").read_text(encoding="utf-8")
 assert "больше не относится к refused population" in source_doc
 assert "test-owned machine truth" in source_doc
-assert "supported/exact/refused population" in source_doc.lower()
+assert "exact/refused/unsupported" in source_doc.lower()
 
 expected_summary = (
     "SOURCE_SKELETON_TESTS=PASS "
     f"pilot={control_count} unit_kinds={len(gate.SUPPORTED_UNIT_KINDS)}/{len({row['unit_kind'] for row in rows})} "
-    f"supported_rows={len(supported)} exact={len(ok)} refused={len(refused)} "
-    "index_generic_path=1 negative_duplicate_index=1 "
+    f"total_rows={len(rows)} supported_rows={len(supported)} "
+    f"exact={len(ok)} refused={len(refused)} unsupported={len(unsupported)} "
+    "typed_reason_codes=3 index_generic_path=1 negative_duplicate_index=1 "
     "negative_quote_anchor=1 negative_normalizer_sha=1 "
-    "negative_norm_sha=1 internal_page_exact=1 internal_page_negative=2 "
-    "inline_page_exact=1 inline_page_negative=2 "
+    "negative_normalizer_sha_coverage=1 negative_quote_integrity=1 "
+    "negative_unknown_state=1 negative_norm_sha=1 internal_page_exact=1 "
+    "internal_page_negative=2 inline_page_exact=1 inline_page_negative=2 "
     "terminal_footer_exact=1 terminal_footer_negative=2 "
     "documentation_population_parity=3 test_results_fresh=1"
 )

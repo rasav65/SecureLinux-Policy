@@ -73,9 +73,11 @@ def load_generator(project_root: Path):
 
     required = (
         "SUPPORTED_UNIT_KINDS",
+        "STATE_REFUSED",
+        "STATE_UNSUPPORTED",
         "load_normalizer",
         "load_index",
-        "build_source_block",
+        "classify_row",
         "render_source_block",
     )
     missing = [name for name in required if not hasattr(module, name)]
@@ -175,26 +177,31 @@ def run_parity(
             continue
 
         unit_kind = row["unit_kind"]
-        if unit_kind not in generator.SUPPORTED_UNIT_KINDS:
-            counts["unsupported"] += 1
-            details.append(
-                f"UNSUPPORTED {label}: {index_id} unit_kind={unit_kind}"
-            )
-            continue
-
-        counts["supported"] += 1
         try:
-            generated = generator.render_source_block(
-                generator.build_source_block(
-                    project_root, row, normalize_text
-                )
-            )
+            result = generator.classify_row(project_root, row, normalize_text)
         except Exception as exc:
             counts["errors"] += 1
             details.append(
                 f"ERROR {label}: {index_id} generation failed: {exc}"
             )
             continue
+
+        if result.state == generator.STATE_UNSUPPORTED:
+            counts["unsupported"] += 1
+            details.append(
+                f"UNSUPPORTED {label}: {index_id} unit_kind={unit_kind} "
+                f"reason_code={result.reason_code}"
+            )
+            continue
+        if result.state == generator.STATE_REFUSED:
+            counts["errors"] += 1
+            details.append(
+                f"REFUSED {label}: {index_id} reason_code={result.reason_code}"
+            )
+            continue
+
+        counts["supported"] += 1
+        generated = generator.render_source_block(result.source_block)
 
         if committed == generated:
             counts["matched"] += 1

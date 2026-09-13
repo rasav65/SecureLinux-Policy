@@ -31,10 +31,13 @@
 `index/source-v4/SOURCE-INDEX.tsv`; документ не закрепляет их live-counts.
 
 Эта версия поддерживает `numbered-position` и `general-numbered-position`.
-Supported/exact/refused population вычисляется при каждом regression-прогоне и
-не пинуется числами или списком refused identities в документации. Fail-closed
-refusal остаётся допустимым результатом там, где exact page-furniture boundary
-не доказана.
+Step 7B вводит единый typed-result API `classify_row()`: каждая строка current
+index получает ровно одно состояние `EXACT | REFUSED | UNSUPPORTED` и стабильный
+machine-readable `reason_code`. Exact/refused/unsupported population вычисляется
+при каждом regression-прогоне и не пинуется числами или списком identities в
+документации. `REFUSED` используется только для явно типизированного deliberate
+refusal; integrity/index failures остаются исключениями и завершают обработку
+fail-closed. `quote_anchor_ready != YES` проверяется до `UNSUPPORTED`.
 
 `SRC-0001 / 2.1.1` больше не относится к refused population: для него принят
 только exact pinned trailing page token `3`; generic bare-integer stripping
@@ -100,9 +103,12 @@ refusal остаётся допустимым результатом там, г�
 
 - все current controls, число которых берётся из `CONTROL-MANIFEST.tsv`,
   воспроизводятся побайтово;
-- supported/exact/refused population вычисляется из текущего index при каждом
-  прогоне, а не пинуется историческими числами или ручным списком identities;
-- explicit refused set сверяется fail-closed с test-owned machine truth;
+- typed `EXACT/REFUSED/UNSUPPORTED` population вычисляется по всей current index
+  population при каждом прогоне, а не пинуется документацией;
+- explicit refused set и его `reason_code` сверяются fail-closed с test-owned
+  machine truth;
+- normalizer SHA mismatch, corpus/quote integrity failure и неизвестное typed
+  state не преобразуются в `REFUSED`/`UNSUPPORTED`;
 - `SRC-0001` отдельно подтверждается как exact pinned page-furniture exception,
   а не как refused identity;
 - известный hash цитаты `SRC-0018`;

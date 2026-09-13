@@ -66,10 +66,11 @@ ledger-файл или некорректный timestamp приводят к fa
 поддерживает только часть `unit_kind`, а deliberate REFUSED остаётся возможным
 fail-closed результатом при page-furniture ambiguity. Exact/refused population
 вычисляется regression-тестом и не дублируется здесь числами или ручным списком
-identities. Текущий API generator не различает отдельным стабильным типом
-deliberate refusal и integrity failure.
+identities. Step 7B generator API теперь различает `EXACT | REFUSED | UNSUPPORTED` со
+стабильным `reason_code`; integrity failures остаются исключениями и не являются
+coverage-state.
 
-Поэтому v1 сознательно использует минимальные машинно-сверяемые утверждения:
+Сам ledger v1 по-прежнему сознательно использует минимальные машинно-сверяемые утверждения:
 уникальность ledger identity, совпадение `disposition` и `reason`, формат
 `decided_by` и строгую календарную проверку `decided_at`. После аудита R1
 зафиксировано дополнительное требование: **до первого реального disposition**
@@ -87,6 +88,6 @@ failures обязаны оставаться исключениями и не п
 Текущая live population не дублируется здесь вручную и берётся из
 `SOURCE-INDEX.tsv` / сгенерированный `docs/fstec-coverage.md`.
 
-Текущая вертикаль достигла `DOCUMENT COMPLETE`; Step 7B возвращён в `NEXT`.
-Первый real disposition по-прежнему остаётся заблокирован до отдельного
-quote-anchor contract/API.
+Step 7B current implementation вводит typed quote-anchor contract/API. Первый
+real disposition по-прежнему заблокирован до успешного закрытия Step 7B block
+boundary; наличие API само по себе не является закрытием boundary.

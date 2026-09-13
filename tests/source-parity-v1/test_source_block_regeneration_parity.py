@@ -16,7 +16,7 @@ PARITY = ROOT / "checker/source-parity-v1/source_block_regeneration_parity.py"
 INDEX = ROOT / "index/source-v4/SOURCE-INDEX.tsv"
 CONTROLS = ROOT / "controls"
 CONTROL_MANIFEST = ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
-EXPECTED_PARITY_SHA = "f62ed3b2d0da629a8adc11b50637d23b7595014078994eb6b17a27be7c9d13cb"
+EXPECTED_PARITY_SHA = "5ee1cef5a5806984175e7f5087bd161aa873fa1dcadd4fcde3c3cb5266af9ff0"
 
 def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -186,7 +186,23 @@ with tempfile.TemporaryDirectory(prefix="slp-parity-unsupported-") as td:
     assert "unsupported=1" in out
     assert "mismatches=0 errors=0" in out
 
-# Negative 5: a control referring to an absent row is explicitly
+# Negative 5: a deliberate generator refusal is typed REFUSED with its
+# machine-readable reason code and fails closed.
+with tempfile.TemporaryDirectory(prefix="slp-parity-refused-") as td:
+    controls = Path(td) / "controls"
+    mutated = mutate_source_field(
+        original, "index_id", lambda value: "SRC-0133"
+    )
+    write_one_control(controls, control_path, mutated)
+    rc, out, err = run("--controls", str(controls))
+    assert rc == 1, (out, err)
+    assert "REFUSED " in out
+    assert "SRC-0133" in out
+    assert "reason_code=BARE_TRAILING_PAGE_INTEGER" in out
+    assert "unsupported=0" in out
+    assert "errors=1" in out
+
+# Negative 6: a control referring to an absent row is explicitly
 # classified MISSING_INDEX and fails closed.
 with tempfile.TemporaryDirectory(prefix="slp-parity-missing-index-") as td:
     controls = Path(td) / "controls"
@@ -200,7 +216,7 @@ with tempfile.TemporaryDirectory(prefix="slp-parity-missing-index-") as td:
     assert "missing_index=1" in out
     assert "mismatches=0 errors=0" in out
 
-# Negative 6: malformed/duplicated top-level source block is an ERROR.
+# Negative 7: malformed/duplicated top-level source block is an ERROR.
 with tempfile.TemporaryDirectory(prefix="slp-parity-duplicate-source-") as td:
     controls = Path(td) / "controls"
     malformed = original.rstrip("\n") + "\nsource:\n  index_id: \"SRC-0016\"\n"
@@ -214,6 +230,6 @@ with tempfile.TemporaryDirectory(prefix="slp-parity-duplicate-source-") as td:
 print(
     "SOURCE_BLOCK_PARITY_TESTS=PASS "
     "positive=5 negative_quote=1 negative_quote_sha=1 "
-    "negative_locator=1 negative_unsupported_kind=1 "
+    "negative_locator=1 negative_unsupported_kind=1 negative_refused=1 "
     "negative_missing_index=1 negative_duplicate_source=1"
 )

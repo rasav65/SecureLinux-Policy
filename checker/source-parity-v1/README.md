@@ -14,13 +14,16 @@
   index, некорректном блоке `source:`, ошибке генерации или любом байтовом
   расхождении.
 
-Текущая область закрытия — пять существующих пилотных controls. Все пять имеют
-`unit_kind=numbered-position`, который поддерживается генератором, и все пять
-совпадают побайтово.
+Текущая область проверки — вся current manifest population из
+`controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv`; числовой размер checker
+не пинит. Regression требует, чтобы `controls`, `supported` и `matched`
+совпадали с фактической manifest population, а `unsupported`, `missing_index`,
+`mismatches` и `errors` оставались нулевыми.
 
-Неподдерживаемый control не пропускается молча. Он получает статус
-`UNSUPPORTED`, а parity завершается неуспешно до появления проверенного правила
-генератора для соответствующего `unit_kind`.
+Parity использует тот же Step 7B typed-result API, что и coverage:
+`EXACT | REFUSED | UNSUPPORTED` со стабильным `reason_code`. Для current
+control population допустим только `EXACT`; `REFUSED`, `UNSUPPORTED` и
+integrity failure завершают parity неуспешно и не пропускаются молча.
 
 Этот checker не закрывает строки source index и не меняет семантику Gate 1–6.
 Он защищает provenance-блок, который используют эти gates.

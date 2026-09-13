@@ -77,7 +77,7 @@ def validate_current_checkpoint(roadmap_text: str, map_text: str, disposition_te
     assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in roadmap_text
     assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in map_text
     assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in disposition_text
-    assert "Step 7B возвращён в `NEXT`" in disposition_text
+    assert "Step 7B generator API теперь различает `EXACT | REFUSED | UNSUPPORTED`" in disposition_text
     re_mod = __import__("re")
     for doc in (roadmap_text, map_text, disposition_text):
         for paragraph in re_mod.split(r"\n\s*\n", doc):

@@ -48,10 +48,11 @@ Its end is therefore one exact pinned section terminator, required to occur
 exactly once and after the start of the unit -- absence, duplication or a
 position at or before the unit start is refused rather than approximated.
 
-Output is refused, never approximated. A row that cannot be extracted exactly
-is reported and skipped; it is not emitted with a best-effort quote. The
-normalizer, source index, corpus manifests and normalized corpus hashes are
-validated fail-closed before a block is emitted.
+Coverage is typed, never approximated: each current index row is classified as
+EXACT, REFUSED or UNSUPPORTED with a machine-readable reason code. REFUSED is
+reserved for explicitly typed deliberate refusal; integrity failures remain
+exceptions and terminate fail-closed. The normalizer, source index, corpus
+manifests and normalized corpus hashes are validated before a block is emitted.
 """
 from __future__ import annotations
 
@@ -64,10 +65,51 @@ import re
 import stat
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 NORM_VERSION = "norm-v1"
 NORMALIZER_SHA256 = "fdf11e5abc24c966e7b9c9abe318259fd29c06de026addf54cf3710cc937639a"
 SUPPORTED_UNIT_KINDS = {"numbered-position", "general-numbered-position"}
+
+STATE_EXACT = "EXACT"
+STATE_REFUSED = "REFUSED"
+STATE_UNSUPPORTED = "UNSUPPORTED"
+REASON_EXACT_EXTRACTION = "EXACT_EXTRACTION"
+REASON_BARE_TRAILING_PAGE_INTEGER = "BARE_TRAILING_PAGE_INTEGER"
+REASON_UNIT_KIND_UNSUPPORTED = "UNIT_KIND_UNSUPPORTED"
+
+
+class DeliberateRefusal(ValueError):
+    """Typed deliberate refusal; integrity failures use ordinary exceptions."""
+
+    def __init__(self, reason_code: str, message: str):
+        super().__init__(message)
+        self.reason_code = reason_code
+
+
+class CoverageResult(NamedTuple):
+    state: str
+    reason_code: str
+    source_block: dict | None
+
+
+def validate_coverage_result(result: CoverageResult) -> CoverageResult:
+    allowed = {
+        STATE_EXACT: {REASON_EXACT_EXTRACTION},
+        STATE_REFUSED: {REASON_BARE_TRAILING_PAGE_INTEGER},
+        STATE_UNSUPPORTED: {REASON_UNIT_KIND_UNSUPPORTED},
+    }
+    if result.state not in allowed:
+        raise RuntimeError(f"unknown typed state: {result.state!r}")
+    if result.reason_code not in allowed[result.state]:
+        raise RuntimeError(
+            f"unknown reason_code for {result.state}: {result.reason_code!r}"
+        )
+    if (result.state == STATE_EXACT) != (result.source_block is not None):
+        raise RuntimeError(
+            f"invalid typed result payload for state {result.state}"
+        )
+    return result
 
 # Source-specific terminal page furniture that is visibly present in the pinned
 # PDF but is not part of the normative numbered position. The rule is narrow:
@@ -411,9 +453,10 @@ def build_source_block(project_root: Path, row, normalize_text):
     # which is page furniture rather than normative text. Stripping it
     # generically would be a guess, so every unpinned row is refused.
     if re.search(r"\s\d{1,3}$", quote):
-        raise ValueError(
+        raise DeliberateRefusal(
+            REASON_BARE_TRAILING_PAGE_INTEGER,
             "extracted span ends with a bare integer (page number across a "
-            "page break); refusing rather than guessing"
+            "page break); refusing rather than guessing",
         )
 
     canonical = normalize_text(quote)
@@ -430,6 +473,25 @@ def build_source_block(project_root: Path, row, normalize_text):
         "quote_sha256": sha256_text(quote),
         "norm": NORM_VERSION,
     }
+
+
+def classify_row(project_root: Path, row, normalize_text) -> CoverageResult:
+    """Return EXACT/REFUSED/UNSUPPORTED; integrity failures remain exceptions."""
+    if row["quote_anchor_ready"] != "YES":
+        raise ValueError("index quote_anchor_ready != YES")
+    if row["unit_kind"] not in SUPPORTED_UNIT_KINDS:
+        return validate_coverage_result(CoverageResult(
+            STATE_UNSUPPORTED, REASON_UNIT_KIND_UNSUPPORTED, None
+        ))
+    try:
+        block = build_source_block(project_root, row, normalize_text)
+    except DeliberateRefusal as exc:
+        return validate_coverage_result(CoverageResult(
+            STATE_REFUSED, exc.reason_code, None
+        ))
+    return validate_coverage_result(CoverageResult(
+        STATE_EXACT, REASON_EXACT_EXTRACTION, block
+    ))
 
 
 def render_source_block(block) -> str:
@@ -472,17 +534,26 @@ def verify_pilot(project_root: Path, rows_by_id, normalize_text) -> int:
             print(f"  MISS  {path.name}: index_id {index_id} not in index")
             failures += 1
             continue
-        if row["unit_kind"] not in SUPPORTED_UNIT_KINDS:
-            print(f"  SKIP  {path.name}: unit_kind {row['unit_kind']} not supported yet")
-            continue
         try:
-            generated = render_source_block(
-                build_source_block(project_root, row, normalize_text)
-            )
+            result = classify_row(project_root, row, normalize_text)
         except Exception as exc:
             print(f"  FAIL  {path.name}: {exc}")
             failures += 1
             continue
+        if result.state == STATE_UNSUPPORTED:
+            print(
+                f"  SKIP  {path.name}: state={result.state} "
+                f"reason_code={result.reason_code} unit_kind={row['unit_kind']}"
+            )
+            continue
+        if result.state == STATE_REFUSED:
+            print(
+                f"  FAIL  {path.name}: state={result.state} "
+                f"reason_code={result.reason_code}"
+            )
+            failures += 1
+            continue
+        generated = render_source_block(result.source_block)
         if generated == committed:
             print(f"  OK    {path.name}  {index_id}  {row['locator']}")
         else:
@@ -520,30 +591,40 @@ def main() -> int:
         if row is None:
             print(f"UNKNOWN_INDEX_ID={args.index_id}", file=sys.stderr)
             return 2
-        if row["unit_kind"] not in SUPPORTED_UNIT_KINDS:
-            print(f"UNSUPPORTED_UNIT_KIND={row['unit_kind']}", file=sys.stderr)
+        result = classify_row(project_root, row, normalize_text)
+        if result.state != STATE_EXACT:
+            print(f"STATE={result.state}", file=sys.stderr)
+            print(f"REASON_CODE={result.reason_code}", file=sys.stderr)
+            if result.state == STATE_UNSUPPORTED:
+                print(f"UNIT_KIND={row['unit_kind']}", file=sys.stderr)
             return 2
-        sys.stdout.write(render_source_block(
-            build_source_block(project_root, row, normalize_text)
-        ))
+        sys.stdout.write(render_source_block(result.source_block))
         return 0
 
     if args.coverage:
-        supported = [r for r in rows if r["unit_kind"] in SUPPORTED_UNIT_KINDS]
-        ok, refused = 0, []
-        for row in supported:
-            try:
-                build_source_block(project_root, row, normalize_text)
-                ok += 1
-            except Exception as exc:
-                refused.append((row["index_id"], row["locator"], str(exc)))
+        counts = {STATE_EXACT: 0, STATE_REFUSED: 0, STATE_UNSUPPORTED: 0}
+        refused = []
+        for row in rows:
+            result = classify_row(project_root, row, normalize_text)
+            counts[result.state] += 1
+            if result.state == STATE_REFUSED:
+                refused.append((
+                    row["index_id"], row["locator"], result.reason_code
+                ))
         print(f"UNIT_KINDS_SUPPORTED={','.join(sorted(SUPPORTED_UNIT_KINDS))}")
         print(f"INDEX_ROWS_TOTAL={len(rows)}")
-        print(f"ROWS_IN_SUPPORTED_KINDS={len(supported)}")
-        print(f"EXTRACTED_EXACTLY={ok}")
-        print(f"REFUSED={len(refused)}")
-        for index_id, locator, why in refused:
-            print(f"  REFUSED {index_id} {locator}: {why}")
+        print(
+            "ROWS_IN_SUPPORTED_KINDS="
+            f"{counts[STATE_EXACT] + counts[STATE_REFUSED]}"
+        )
+        print(f"EXACT={counts[STATE_EXACT]}")
+        print(f"REFUSED={counts[STATE_REFUSED]}")
+        print(f"UNSUPPORTED={counts[STATE_UNSUPPORTED]}")
+        for index_id, locator, reason_code in refused:
+            print(
+                f"  REFUSED {index_id} {locator} "
+                f"REASON_CODE={reason_code}"
+            )
         return 0
 
     ap.error("choose one of --verify-pilot, --index-id, --coverage")

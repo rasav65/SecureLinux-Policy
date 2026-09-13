@@ -37,9 +37,11 @@
 паритет регенерации без исторического числового pin.
 
 Сам генератор `source:` пока поддерживает часть текущих `unit_kind` —
-`numbered-position` и `general-numbered-position`. Если закоммиченный control ссылается на
-неподдерживаемый тип, parity выдаёт `UNSUPPORTED` и завершается неуспешно; такой
-control никогда не пропускается молча.
+`numbered-position` и `general-numbered-position`. Parity использует тот же Step 7B
+typed-result API, что и coverage. Если закоммиченный control ссылается на
+неподдерживаемый тип, parity выдаёт `UNSUPPORTED` с `reason_code` и завершается
+неуспешно. Deliberate refusal выдаётся как `REFUSED` с `reason_code`; integrity
+failure остаётся `ERROR`. Ни одно из этих состояний не пропускается молча.
 
 Постоянная отрицательная регрессия покрывает:
 
