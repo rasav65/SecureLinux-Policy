@@ -184,9 +184,18 @@ for source_path, text in ((ROOT / "README.md", readme), (ROOT / "docs/README.md"
 def validate_readme_entrypoint(text: str) -> None:
     for heading in ("## Скачать", "## Быстрый старт", "## Требования", "## Поддерживаемые системы", "## Применение изменений", "## Как читать результат", "## Документация"):
         assert text.count(heading) == 1, heading
-    assert "git clone --filter=blob:none --no-checkout https://github.com/rasav65/SecureLinux-Policy.git securelinux-policy-download" in text
-    pins = re.findall(r"git checkout ([0-9a-f]{40}) -- securelinux-policy\.sh securelinux-policy\.sh\.sha256", text)
-    assert len(pins) == 1
+
+    expected_download = """```bash
+wget https://github.com/rasav65/SecureLinux-Policy/archive/refs/heads/main.tar.gz
+tar -xzf main.tar.gz
+cd SecureLinux-Policy-main
+```"""
+    match = re.search(r"## Скачать\n\n(.*?)\n\n---\n\n## Быстрый старт", text, re.S)
+    assert match is not None
+    assert match.group(1) == expected_download
+
+    assert "git clone --filter=blob:none --no-checkout" not in text
+    assert re.search(r"\bgit checkout\b", text) is None
     assert "raw.githubusercontent.com" not in text
     assert "sha256sum -c securelinux-policy.sh.sha256" in text
     assert "sudo /bin/bash -p ./securelinux-policy.sh --check" in text
@@ -198,9 +207,14 @@ def validate_readme_entrypoint(text: str) -> None:
 
 validate_readme_entrypoint(readme)
 for bad in (
+    readme.replace(
+        "wget https://github.com/rasav65/SecureLinux-Policy/archive/refs/heads/main.tar.gz",
+        "wget https://github.com/rasav65/SecureLinux-Policy/archive/refs/heads/other.tar.gz",
+    ),
+    readme.replace("tar -xzf main.tar.gz", "tar -tzf main.tar.gz"),
+    readme.replace("cd SecureLinux-Policy-main", "cd SecureLinux-Policy-other"),
     readme.replace("sha256sum -c securelinux-policy.sh.sha256", "true"),
     readme.replace("/bin/bash -p", "/bin/bash"),
-    re.sub(r"git checkout [0-9a-f]{40} --", "git checkout main --", readme),
 ):
     try:
         validate_readme_entrypoint(bad)

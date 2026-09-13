@@ -30,37 +30,25 @@ SecureLinux-Policy предназначен для проверки конфиг
 
 ## Скачать
 
-### Закреплённый проверенный вариант
-
-Для воспроизводимого запуска используйте закреплённый product-checkpoint. В рабочее дерево извлекаются только скрипт и его контрольная сумма:
-
-```bash
-git clone --filter=blob:none --no-checkout https://github.com/rasav65/SecureLinux-Policy.git securelinux-policy-download
-cd securelinux-policy-download
-git checkout 34292041486aeacede2c773cb9dd314cea993c5f -- securelinux-policy.sh securelinux-policy.sh.sha256
-sha256sum -c securelinux-policy.sh.sha256
-```
-
-Продолжайте только после успешной проверки контрольной суммы. Она подтверждает согласованность скачанных файлов, но сама по себе не заменяет доверие к источнику.
-
-### Текущая ветка разработки
-
-Для быстрого ознакомления с текущим состоянием `main`:
-
 ```bash
 wget https://github.com/rasav65/SecureLinux-Policy/archive/refs/heads/main.tar.gz
 tar -xzf main.tar.gz
 cd SecureLinux-Policy-main
-sha256sum -c securelinux-policy.sh.sha256
 ```
-
-`main` — ветка разработки. После появления стабильных релизов для эксплуатационного применения предпочтительны закреплённые release/tag artifacts.
 
 ---
 
 ## Быстрый старт
 
 > **⚠ На рабочих серверах перед фактическим APPLY сначала выполните CHECK и dry-run. Перед изменениями рекомендуется иметь внешний snapshot/backup системы.**
+
+Проверка согласованности скачанного product-script:
+
+```bash
+sha256sum -c securelinux-policy.sh.sha256
+```
+
+Продолжайте только после успешной проверки контрольной суммы.
 
 Проверка системы:
 
