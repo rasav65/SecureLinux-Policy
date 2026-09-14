@@ -3,7 +3,7 @@
 # STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 # PRODUCT_CLI=product-cli-v1
 # GENERATOR_ID=product-check-generator-v2
-# GENERATOR_SHA256=b6dbd132fe108d4e5fba7b9e54295643fa9320df6ae805dbc7b89e031561737d
+# GENERATOR_SHA256=7de15ff802bf7d9ddea52a3300c801eaacaecd273cf363cfcc66a549ac31b7a1
 # CONTROL_MANIFEST_SHA256=b9ade1a850da581d7e14fdb8df203575921572279f8725356eb7ea2db57d362f
 # ADAPTER_REGISTRY_SHA256=ef54712dfbd6a4fa4e95f8fc37a4bd8acf79fb60b3a0518298cc65db7e00f4db
 # APPLY_KINDS=config-line-with-runtime-v1
@@ -12,7 +12,7 @@
 # APPLY_IMPLEMENTATION_REGISTRY_SHA256=9a7bb2b1824c1c18103982f0ac5eebae9b94ac2bb3456d2ab9c274184c7b21e7
 # TARGET_FAMILY_ID=linux-x86_64-supported-v1
 # PLATFORM_MATRIX_SHA256=efc7436850d1ae92df0f36b33e86663728a9fb3643ba3be8cbcaf40b0c9490d7
-# DESKTOP_MATRIX_SHA256=db17bfbe6f60a30831c2e4115bbaedbce4e15717715dd4a1174c75cecdfc4ece
+# DESKTOP_MATRIX_SHA256=5a910c9efa49fa13e2d1183cc3efc9f8c4a951f11f4aca2ee56bd990463ac29e
 
 set -u
 
@@ -6024,7 +6024,7 @@ slp_build_info() {
     'STATUS=NON_RELEASE_PRODUCT_CANDIDATE' \
     'PRODUCT_CLI=product-cli-v1' \
     'GENERATOR_ID=product-check-generator-v2' \
-    'GENERATOR_SHA256=b6dbd132fe108d4e5fba7b9e54295643fa9320df6ae805dbc7b89e031561737d' \
+    'GENERATOR_SHA256=7de15ff802bf7d9ddea52a3300c801eaacaecd273cf363cfcc66a549ac31b7a1' \
     'CONTROL_COUNT=51' \
     'CONTROL_MANIFEST_SHA256=b9ade1a850da581d7e14fdb8df203575921572279f8725356eb7ea2db57d362f' \
     'ADAPTER_COUNT=18' \
@@ -6036,10 +6036,10 @@ slp_build_info() {
     'APPLY_IMPLEMENTATION_REGISTRY_SHA256=9a7bb2b1824c1c18103982f0ac5eebae9b94ac2bb3456d2ab9c274184c7b21e7' \
     'TARGET_FAMILY_ID=linux-x86_64-supported-v1' \
     'SUPPORTED_PROFILE_ENVIRONMENTS=7' \
-    'SUPPORTED_DESKTOP_ENVIRONMENTS=1' \
-    'SUPPORTED_ENVIRONMENTS=8' \
+    'FIELD_COMPATIBILITY_ENVIRONMENTS=1' \
+    'SUPPORTED_ENVIRONMENTS=7' \
     'PLATFORM_MATRIX_SHA256=efc7436850d1ae92df0f36b33e86663728a9fb3643ba3be8cbcaf40b0c9490d7' \
-    'DESKTOP_MATRIX_SHA256=db17bfbe6f60a30831c2e4115bbaedbce4e15717715dd4a1174c75cecdfc4ece'
+    'DESKTOP_MATRIX_SHA256=5a910c9efa49fa13e2d1183cc3efc9f8c4a951f11f4aca2ee56bd990463ac29e'
 }
 
 slp_help() {
@@ -6426,11 +6426,19 @@ slp_selected() {
   [[ $_slp_result == FAIL || $_slp_result == ERROR ]]
 }
 
+slp_support_class() {
+  if [[ $SLP_SYSTEM_TYPE == DESKTOP ]]; then
+    printf '%s' FIELD_COMPATIBILITY
+  else
+    printf '%s' SUPPORTED
+  fi
+}
+
 slp_render_raw() {
   local _slp_failed_only=$1 _slp_line _slp_tag _slp_cid _slp_status _slp_value _slp_comp
-  printf 'SLP-PLATFORM-V1\tSYSTEM=%s\tID=%s\tVERSION_ID=%s\tARCH=%s\tPROFILE=%s\tTYPE=%s\tPLATFORM=%s\tENVIRONMENT=%s\tSUPPORT=SUPPORTED\n' \
+  printf 'SLP-PLATFORM-V1\tSYSTEM=%s\tID=%s\tVERSION_ID=%s\tARCH=%s\tPROFILE=%s\tTYPE=%s\tPLATFORM=%s\tENVIRONMENT=%s\tSUPPORT=%s\n' \
     "$SLP_SYSTEM_PRETTY_NAME" "$SLP_SYSTEM_ID" "$SLP_SYSTEM_VERSION_ID" "$SLP_SYSTEM_ARCH" \
-    "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_TYPE" "$SLP_SYSTEM_PLATFORM" "$SLP_SYSTEM_ENVIRONMENT"
+    "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_TYPE" "$SLP_SYSTEM_PLATFORM" "$SLP_SYSTEM_ENVIRONMENT" "$(slp_support_class)"
   for _slp_line in "${SLP_RESULTS[@]}"; do
     IFS=$'\t' read -r _slp_tag _slp_cid _slp_status _slp_value _slp_comp <<< "$_slp_line"
     slp_selected "$_slp_comp" "$_slp_failed_only" || continue
@@ -6446,9 +6454,9 @@ slp_render_pretty() {
   printf '=== SecureLinux Policy — %s ===\n' "$_slp_title"
   printf 'SYSTEM=%s   ARCH=%s\n' "$SLP_SYSTEM_PRETTY_NAME" "$SLP_SYSTEM_ARCH"
   if [[ -n $SLP_SYSTEM_TYPE ]]; then
-    printf 'TYPE=%s   PLATFORM=%s   SUPPORT=SUPPORTED\n\n' "$SLP_SYSTEM_TYPE" "$SLP_SYSTEM_PLATFORM"
+    printf 'TYPE=%s   PLATFORM=%s   SUPPORT=%s\n\n' "$SLP_SYSTEM_TYPE" "$SLP_SYSTEM_PLATFORM" "$(slp_support_class)"
   else
-    printf 'PROFILE=%s   PLATFORM=%s   SUPPORT=SUPPORTED\n\n' "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_PLATFORM"
+    printf 'PROFILE=%s   PLATFORM=%s   SUPPORT=%s\n\n' "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_PLATFORM" "$(slp_support_class)"
   fi
   slp_pretty_layout_init || return 1
   slp_pretty_row 'st' 'source' 'control' 'current' 'required'
@@ -6485,11 +6493,11 @@ slp_render_pretty() {
 slp_render_json() {
   local _slp_failed_only=$1 _slp_line _slp_tag _slp_cid _slp_status _slp_value _slp_comp _slp_first=1 _slp_filter=all
   (( _slp_failed_only == 1 )) && _slp_filter=failed
-  printf '{"schema":"SLP-REPORT-V1","filter":"%s","platform":{"system":"%s","id":"%s","version_id":"%s","arch":"%s","profile":"%s","type":"%s","platform_id":"%s","environment_id":"%s","support":"SUPPORTED"},"policy_status":"%s","summary":{"total":%d,"pass":%d,"fail":%d,"not_found":%d,"error":%d},"results":[' \
+  printf '{"schema":"SLP-REPORT-V1","filter":"%s","platform":{"system":"%s","id":"%s","version_id":"%s","arch":"%s","profile":"%s","type":"%s","platform_id":"%s","environment_id":"%s","support":"%s"},"policy_status":"%s","summary":{"total":%d,"pass":%d,"fail":%d,"not_found":%d,"error":%d},"results":[' \
     "$_slp_filter" "$(slp_json_escape "$SLP_SYSTEM_PRETTY_NAME")" "$(slp_json_escape "$SLP_SYSTEM_ID")" \
     "$(slp_json_escape "$SLP_SYSTEM_VERSION_ID")" "$(slp_json_escape "$SLP_SYSTEM_ARCH")" \
     "$(slp_json_escape "$SLP_SYSTEM_PROFILE")" "$(slp_json_escape "$SLP_SYSTEM_TYPE")" "$(slp_json_escape "$SLP_SYSTEM_PLATFORM")" \
-    "$(slp_json_escape "$SLP_SYSTEM_ENVIRONMENT")" "$SLP_POLICY_STATUS" "$SLP_TOTAL" "$SLP_PASS" "$SLP_FAIL" "$SLP_NF" "$SLP_ERR"
+    "$(slp_json_escape "$SLP_SYSTEM_ENVIRONMENT")" "$(slp_json_escape "$(slp_support_class)")" "$SLP_POLICY_STATUS" "$SLP_TOTAL" "$SLP_PASS" "$SLP_FAIL" "$SLP_NF" "$SLP_ERR"
   for _slp_line in "${SLP_RESULTS[@]}"; do
     IFS=$'\t' read -r _slp_tag _slp_cid _slp_status _slp_value _slp_comp <<< "$_slp_line"
     slp_selected "$_slp_comp" "$_slp_failed_only" || continue
@@ -6517,6 +6525,16 @@ slp_run_check() {
 slp_run_apply() {
   local _slp_mode=$1
   slp_target_preflight || return $?
+  if [[ $_slp_mode == APPLY && $SLP_SYSTEM_TYPE == DESKTOP ]]; then
+    {
+      printf '\n%s\n' '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+      printf '%s\n' '!!! ВНИМАНИЕ: UBUNTU DESKTOP = FIELD_COMPATIBILITY !!!'
+      printf '%s\n' '!!! КОРРЕКТНОСТЬ APPLY НА ИЗМЕНЁННОЙ ПОЛЬЗОВАТЕЛЕМ DESKTOP-СИСТЕМЕ НЕ ГАРАНТИРУЕТСЯ. !!!'
+      printf '%s\n' 'Установленные пакеты, службы и локальные настройки могут изменить поведение CHECK/APPLY.'
+      printf '%s\n' 'Перед APPLY выполните --apply --dry-run и обеспечьте внешний snapshot/backup.'
+      printf '%s\n\n' '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+    } >&2
+  fi
   command /usr/bin/python3 -I -S -B - "$_slp_mode" <<'SLP_PRODUCT_APPLY_EOF'
 import base64
 import datetime

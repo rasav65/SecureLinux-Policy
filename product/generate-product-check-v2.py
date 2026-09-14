@@ -17,7 +17,7 @@ PRODUCT_CLI_ID = "product-cli-v1"
 PRODUCT_STATUS = "NON_RELEASE_PRODUCT_CANDIDATE"
 TARGET_FAMILY_ID = "linux-x86_64-supported-v1"
 PLATFORM_MATRIX_REL = "product/SUPPORTED-PLATFORMS.tsv"
-DESKTOP_MATRIX_REL = "product/SUPPORTED-DESKTOPS.tsv"
+DESKTOP_MATRIX_REL = "product/FIELD-COMPATIBILITY-DESKTOPS.tsv"
 
 MANIFEST_REL = "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 CONTROL_DIR_REL = "controls/fstec-core/linux-2022"
@@ -575,24 +575,24 @@ DESKTOP_MATRIX_FIELDS = ["environment_id", "os_id", "version_id", "arch", "type"
 
 def load_desktop_matrix(repo: Path):
     path = repo / DESKTOP_MATRIX_REL
-    require_regular(path, "supported desktop matrix")
+    require_regular(path, "field compatibility desktop matrix")
     with path.open("r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f, delimiter="\t")
         if reader.fieldnames != DESKTOP_MATRIX_FIELDS:
             raise RuntimeError(f"unexpected desktop matrix fields: {reader.fieldnames!r}")
         rows = list(reader)
     if len(rows) != 1:
-        raise RuntimeError(f"supported desktop matrix must contain exact accepted 1 environment, got {len(rows)}")
+        raise RuntimeError(f"field compatibility desktop matrix must contain exact accepted 1 environment, got {len(rows)}")
     expected = {
         "environment_id": "ubuntu-24.04-x86_64-desktop",
         "os_id": "ubuntu",
         "version_id": "24.04",
         "arch": "x86_64",
         "type": "DESKTOP",
-        "status": "SUPPORTED",
+        "status": "FIELD_COMPATIBILITY",
     }
     if rows[0] != expected:
-        raise RuntimeError(f"supported desktop matrix identity mismatch: {rows[0]!r}")
+        raise RuntimeError(f"field compatibility desktop matrix identity mismatch: {rows[0]!r}")
     return rows, sha_file(path)
 
 
@@ -1633,7 +1633,7 @@ slp_build_info() {
     'APPLY_IMPLEMENTATION_REGISTRY_SHA256=@@APPLY_REGISTRY_SHA@@' \
     'TARGET_FAMILY_ID=@@TARGET_FAMILY_ID@@' \
     'SUPPORTED_PROFILE_ENVIRONMENTS=@@SUPPORTED_PROFILE_COUNT@@' \
-    'SUPPORTED_DESKTOP_ENVIRONMENTS=@@SUPPORTED_DESKTOP_COUNT@@' \
+    'FIELD_COMPATIBILITY_ENVIRONMENTS=@@SUPPORTED_DESKTOP_COUNT@@' \
     'SUPPORTED_ENVIRONMENTS=@@SUPPORTED_COUNT@@' \
     'PLATFORM_MATRIX_SHA256=@@PLATFORM_MATRIX_SHA@@' \
     'DESKTOP_MATRIX_SHA256=@@DESKTOP_MATRIX_SHA@@'
@@ -1973,11 +1973,19 @@ slp_selected() {
   [[ $_slp_result == FAIL || $_slp_result == ERROR ]]
 }
 
+slp_support_class() {
+  if [[ $SLP_SYSTEM_TYPE == DESKTOP ]]; then
+    printf '%s' FIELD_COMPATIBILITY
+  else
+    printf '%s' SUPPORTED
+  fi
+}
+
 slp_render_raw() {
   local _slp_failed_only=$1 _slp_line _slp_tag _slp_cid _slp_status _slp_value _slp_comp
-  printf 'SLP-PLATFORM-V1\tSYSTEM=%s\tID=%s\tVERSION_ID=%s\tARCH=%s\tPROFILE=%s\tTYPE=%s\tPLATFORM=%s\tENVIRONMENT=%s\tSUPPORT=SUPPORTED\n' \
+  printf 'SLP-PLATFORM-V1\tSYSTEM=%s\tID=%s\tVERSION_ID=%s\tARCH=%s\tPROFILE=%s\tTYPE=%s\tPLATFORM=%s\tENVIRONMENT=%s\tSUPPORT=%s\n' \
     "$SLP_SYSTEM_PRETTY_NAME" "$SLP_SYSTEM_ID" "$SLP_SYSTEM_VERSION_ID" "$SLP_SYSTEM_ARCH" \
-    "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_TYPE" "$SLP_SYSTEM_PLATFORM" "$SLP_SYSTEM_ENVIRONMENT"
+    "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_TYPE" "$SLP_SYSTEM_PLATFORM" "$SLP_SYSTEM_ENVIRONMENT" "$(slp_support_class)"
   for _slp_line in "${SLP_RESULTS[@]}"; do
     IFS=$'\t' read -r _slp_tag _slp_cid _slp_status _slp_value _slp_comp <<< "$_slp_line"
     slp_selected "$_slp_comp" "$_slp_failed_only" || continue
@@ -1993,9 +2001,9 @@ slp_render_pretty() {
   printf '=== SecureLinux Policy — %s ===\n' "$_slp_title"
   printf 'SYSTEM=%s   ARCH=%s\n' "$SLP_SYSTEM_PRETTY_NAME" "$SLP_SYSTEM_ARCH"
   if [[ -n $SLP_SYSTEM_TYPE ]]; then
-    printf 'TYPE=%s   PLATFORM=%s   SUPPORT=SUPPORTED\n\n' "$SLP_SYSTEM_TYPE" "$SLP_SYSTEM_PLATFORM"
+    printf 'TYPE=%s   PLATFORM=%s   SUPPORT=%s\n\n' "$SLP_SYSTEM_TYPE" "$SLP_SYSTEM_PLATFORM" "$(slp_support_class)"
   else
-    printf 'PROFILE=%s   PLATFORM=%s   SUPPORT=SUPPORTED\n\n' "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_PLATFORM"
+    printf 'PROFILE=%s   PLATFORM=%s   SUPPORT=%s\n\n' "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_PLATFORM" "$(slp_support_class)"
   fi
   slp_pretty_layout_init || return 1
   slp_pretty_row 'st' 'source' 'control' 'current' 'required'
@@ -2032,11 +2040,11 @@ slp_render_pretty() {
 slp_render_json() {
   local _slp_failed_only=$1 _slp_line _slp_tag _slp_cid _slp_status _slp_value _slp_comp _slp_first=1 _slp_filter=all
   (( _slp_failed_only == 1 )) && _slp_filter=failed
-  printf '{"schema":"SLP-REPORT-V1","filter":"%s","platform":{"system":"%s","id":"%s","version_id":"%s","arch":"%s","profile":"%s","type":"%s","platform_id":"%s","environment_id":"%s","support":"SUPPORTED"},"policy_status":"%s","summary":{"total":%d,"pass":%d,"fail":%d,"not_found":%d,"error":%d},"results":[' \
+  printf '{"schema":"SLP-REPORT-V1","filter":"%s","platform":{"system":"%s","id":"%s","version_id":"%s","arch":"%s","profile":"%s","type":"%s","platform_id":"%s","environment_id":"%s","support":"%s"},"policy_status":"%s","summary":{"total":%d,"pass":%d,"fail":%d,"not_found":%d,"error":%d},"results":[' \
     "$_slp_filter" "$(slp_json_escape "$SLP_SYSTEM_PRETTY_NAME")" "$(slp_json_escape "$SLP_SYSTEM_ID")" \
     "$(slp_json_escape "$SLP_SYSTEM_VERSION_ID")" "$(slp_json_escape "$SLP_SYSTEM_ARCH")" \
     "$(slp_json_escape "$SLP_SYSTEM_PROFILE")" "$(slp_json_escape "$SLP_SYSTEM_TYPE")" "$(slp_json_escape "$SLP_SYSTEM_PLATFORM")" \
-    "$(slp_json_escape "$SLP_SYSTEM_ENVIRONMENT")" "$SLP_POLICY_STATUS" "$SLP_TOTAL" "$SLP_PASS" "$SLP_FAIL" "$SLP_NF" "$SLP_ERR"
+    "$(slp_json_escape "$SLP_SYSTEM_ENVIRONMENT")" "$(slp_json_escape "$(slp_support_class)")" "$SLP_POLICY_STATUS" "$SLP_TOTAL" "$SLP_PASS" "$SLP_FAIL" "$SLP_NF" "$SLP_ERR"
   for _slp_line in "${SLP_RESULTS[@]}"; do
     IFS=$'\t' read -r _slp_tag _slp_cid _slp_status _slp_value _slp_comp <<< "$_slp_line"
     slp_selected "$_slp_comp" "$_slp_failed_only" || continue
@@ -2064,6 +2072,16 @@ slp_run_check() {
 slp_run_apply() {
   local _slp_mode=$1
   slp_target_preflight || return $?
+  if [[ $_slp_mode == APPLY && $SLP_SYSTEM_TYPE == DESKTOP ]]; then
+    {
+      printf '\n%s\n' '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+      printf '%s\n' '!!! ВНИМАНИЕ: UBUNTU DESKTOP = FIELD_COMPATIBILITY !!!'
+      printf '%s\n' '!!! КОРРЕКТНОСТЬ APPLY НА ИЗМЕНЁННОЙ ПОЛЬЗОВАТЕЛЕМ DESKTOP-СИСТЕМЕ НЕ ГАРАНТИРУЕТСЯ. !!!'
+      printf '%s\n' 'Установленные пакеты, службы и локальные настройки могут изменить поведение CHECK/APPLY.'
+      printf '%s\n' 'Перед APPLY выполните --apply --dry-run и обеспечьте внешний snapshot/backup.'
+      printf '%s\n\n' '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+    } >&2
+  fi
   command /usr/bin/python3 -I -S -B - "$_slp_mode" <<'SLP_PRODUCT_APPLY_EOF'
 @@APPLY_DISPATCHER@@
 SLP_PRODUCT_APPLY_EOF
@@ -2172,7 +2190,7 @@ fi
         "@@DESKTOP_MATRIX_SHA@@": desktop_matrix_sha,
         "@@SUPPORTED_PROFILE_COUNT@@": str(len(platform_rows)),
         "@@SUPPORTED_DESKTOP_COUNT@@": str(len(desktop_rows)),
-        "@@SUPPORTED_COUNT@@": str(len(platform_rows) + len(desktop_rows)),
+        "@@SUPPORTED_COUNT@@": str(len(platform_rows)),
         "@@SUPPORTED_CASES@@": supported_cases,
         "@@CONTROL_COUNT@@": str(len(controls)),
         "@@ADAPTER_COUNT@@": str(len(adapters)),
@@ -2292,8 +2310,8 @@ def main() -> int:
     print("APPLY_IMPLEMENTATION_REGISTRY_SHA256=" + apply_registry_sha)
     print("TARGET_FAMILY_ID=" + TARGET_FAMILY_ID)
     print("SUPPORTED_PROFILE_ENVIRONMENTS=" + str(len(platform_rows)))
-    print("SUPPORTED_DESKTOP_ENVIRONMENTS=" + str(len(desktop_rows)))
-    print("SUPPORTED_ENVIRONMENTS=" + str(len(platform_rows) + len(desktop_rows)))
+    print("FIELD_COMPATIBILITY_ENVIRONMENTS=" + str(len(desktop_rows)))
+    print("SUPPORTED_ENVIRONMENTS=" + str(len(platform_rows)))
     print("PLATFORM_MATRIX_SHA256=" + platform_matrix_sha)
     print("DESKTOP_MATRIX_SHA256=" + desktop_matrix_sha)
     print("CHECK_SHA256=" + script_sha)

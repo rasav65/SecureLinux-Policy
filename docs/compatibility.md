@@ -25,13 +25,15 @@ linux-x86_64-supported-v1
 | Debian 12 | **SERVER** | `debian-12-x86_64` | `SUPPORTED` |
 | Debian 13 | **SERVER** | `debian-13-x86_64` | `SUPPORTED` |
 
-Дополнительная desktop authority — `product/SUPPORTED-DESKTOPS.tsv`:
+Дополнительная desktop authority — `product/FIELD-COMPATIBILITY-DESKTOPS.tsv`:
 
 | Система | Type | Platform | Статус |
 |---|---|---|---|
-| Ubuntu 24.04 | **DESKTOP** | `ubuntu-24.04-x86_64` | `SUPPORTED` |
+| Ubuntu 24.04 | **DESKTOP** | `ubuntu-24.04-x86_64` | `FIELD_COMPATIBILITY` |
 
 `DESKTOP` не является значением `PROFILE`: основной 7/7 контур сохраняет `FULL | MINIMIZED | SERVER` без переименования. Конкретная графическая оболочка не входит в support identity и не влияет на routing CHECK/APPLY. Desktop-классификация Ubuntu 24.04 основана только на DE-независимом package-role fingerprint: `ubuntu-server-minimal` отсутствует, `ubuntu-minimal` и `ubuntu-standard` установлены.
+
+`FIELD_COMPATIBILITY` не входит в clean-reference acceptance и не является гарантией корректной работы на любой Desktop-системе. Пользовательские пакеты, службы и локальные изменения конфигурации могут менять наблюдаемое состояние и поведение CHECK/APPLY. `--check`, `--apply --dry-run` и реальный `--apply` разрешены; перед реальным Desktop APPLY CLI обязан крупно предупредить, что корректность APPLY в таком состоянии не гарантируется. Для фактического APPLY рекомендуется внешний snapshot/backup.
 
 Runtime preflight сам определяет `ID`, `VERSION_ID`, архитектуру и installation
 profile. Для Ubuntu профиль определяется fail-closed по принятому package fingerprint:
@@ -59,8 +61,8 @@ MINIMIZED проверяются и учитываются раздельно; D
 `98a4c67aeb392bff4e2b617f0f6593b8ff8fb149ce6bb156d9adbebd94e86928`
 полный `SRC-0001` commit/noop run подтверждён на Ubuntu 22, Ubuntu 24,
 Ubuntu 26, Debian 12 и Debian 13. Ubuntu 24 Desktop отдельно подтвердил
-`TYPE=DESKTOP` routing и dry-run без изменения `/etc/shadow`. Это не означает,
-что полный commit-path выполнен на каждом из восьми profile/type состояний.
+`TYPE=DESKTOP` routing и dry-run без изменения `/etc/shadow`. Это compatibility evidence,
+а не clean-reference guarantee и не доказательство корректности полного commit-path на произвольно изменённой Desktop-системе.
 
 Локальный CHECK может зависеть от прав чтения наблюдаемого объекта. По semantic
 contract невозможность чтения — `ERROR`, а не `NOT_FOUND`; поэтому ограничение
@@ -75,7 +77,7 @@ Generated CHECK отклоняет с RC=3 до policy checks. Причина р
 - `UNSUPPORTED_PROFILE`: Ubuntu с неоднозначным/mixed package fingerprint FULL/MINIMIZED;
 - `UNSUPPORTED_PLATFORM`: любая архитектура кроме `x86_64`;
 - `UNSUPPORTED_PROFILE`: неизвестный или недоказуемый installation profile внутри основного профилируемого контура;
-- `UNSUPPORTED_TYPE`: Ubuntu с non-server package-role, но без принятого Desktop support contract (например, Ubuntu 22/26 Desktop пока не добавлены как отдельные desktop targets).
+- `UNSUPPORTED_TYPE`: Ubuntu с non-server package-role, но без принятого Desktop FIELD_COMPATIBILITY contract (например, Ubuntu 22/26 Desktop пока не добавлены как отдельные desktop targets).
 
 Добавление новой platform/profile выполняется обновлением матрицы и новой версией
 того же единого script artifact, а не созданием отдельного скрипта под систему.

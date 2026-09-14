@@ -57,7 +57,7 @@
 - `tools/rebuild-apply-contract-bindings.py` — единый `--check`/`--write` verifier всех строк обоих APPLY-реестров; строки взаимно сопоставляются по `apply_kind`, неизвестная authority form, неоднозначный `parameter_kind` или несопоставленная строка дают отказ; счётчик `APPLY_BINDING_ARCHITECTURES` вычисляется по полностью проверенным связкам;
 - `contracts/src0001-apply/*`, `apply-adapters/product-local-account-password-state-apply-v1.*` и `contracts/local-account-password-state-apply-semantic-v1.json` — historical bytes прежней SRC-0001 APPLY-вертикали. Решением DP-3 SRC-0001 выведен из product APPLY; эти файлы не являются active authority и не входят в APPLY registries;
 - `SUPPORTED-PLATFORMS.tsv` — machine-readable authority основной проверенной 7/7 runtime-матрицы (`FULL | MINIMIZED | SERVER`);
-- `SUPPORTED-DESKTOPS.tsv` — отдельная machine-readable authority дополнительного Ubuntu 24.04 x86_64 `TYPE=DESKTOP`; desktop environment/GUI shell не является support discriminator;
+- `FIELD-COMPATIBILITY-DESKTOPS.tsv` — отдельная machine-readable authority Ubuntu 24.04 x86_64 `TYPE=DESKTOP` со статусом `FIELD_COMPATIBILITY`; desktop environment/GUI shell не является compatibility discriminator;
 - `generate-product-check-v2.py` — текущий отслеживаемый детерминированный generator единого CLI с read-only CHECK и mechanism-oriented APPLY; `slp_run_apply` владеет общим циклом по `apply.supported=true` controls, маршрут выбирается по `parameter.kind`; runtime preflight определяет OS/version/arch, затем либо основной FULL/MINIMIZED/SERVER profile, либо дополнительный `TYPE=DESKTOP`;
 - `generate-product-check-v1.py` — сохранённая предыдущая generator identity;
 - `/securelinux-policy.sh` + `/securelinux-policy.sh.sha256` — отслеживаемая byte-exact пользовательская точка входа текущей product population;
@@ -76,7 +76,7 @@ generator. Compliance execution выполняется как executable (`./sec
 импорт environment shell functions до выполнения generated checks. Plain `bash script`
 и `source script` не являются поддерживаемым compliance execution path.
 
-- `--check` — pretty table с обнаруженной ОС, архитектурой и runtime platform; основной 7/7 contour показывает `PROFILE`, Ubuntu 24.04 Desktop — `TYPE=DESKTOP`; один script обслуживает обе support authorities;
+- `--check` — pretty table с обнаруженной ОС, архитектурой и runtime platform; основной 7/7 contour показывает `PROFILE`, Ubuntu 24.04 Desktop — `TYPE=DESKTOP`; один script обслуживает clean-reference authority и отдельную FIELD_COMPATIBILITY authority;
 - `--check --failed` — только `FAIL` и `ERROR`;
 - `--check --format raw` — `SLP-PLATFORM-V1` identity record + стабильные `SLP-CHECK-V1` TSV records;
 - `--check --format json` — `SLP-REPORT-V1` с отдельным `platform` object;
@@ -104,7 +104,7 @@ generator. Compliance execution выполняется как executable (`./sec
 
 CHECK для current population из manifest реализован и покрыт regression tests. Generated
 artifact имеет статус `NON_RELEASE_PRODUCT_CANDIDATE`; один target family
-`linux-x86_64-supported-v1` охватывает основную проверенную матрицу 7/7 из `SUPPORTED-PLATFORMS.tsv` и дополнительный Ubuntu 24.04 x86_64 Desktop из `SUPPORTED-DESKTOPS.tsv`; всего current supported environments — 8.
+`linux-x86_64-supported-v1` охватывает основную clean-reference матрицу 7/7 из `SUPPORTED-PLATFORMS.tsv`; Ubuntu 24.04 x86_64 Desktop из `FIELD-COMPATIBILITY-DESKTOPS.tsv` является отдельным `FIELD_COMPATIBILITY` environment и не увеличивает число supported clean-reference environments.
 
 Действующая APPLY authority — `mechanism-config-line-runtime-v1.json` r17. Реестры связывают `parameter_kind=sysctl` с единственным активным механизмом `config-line-with-runtime-v1`; scope вычисляется из корпуса и сейчас содержит 17 controls. Прежняя SRC-0001 APPLY-цепочка сохранена только как historical bytes и из активных реестров/CLI удалена. Механизм sysctl прошёл отдельный implementation audit; полная продуктовая приёмка интеграции и последующий прогон восьми поддерживаемых состояний выполняются отдельными gates. RESTORE не входит в целевую mutation-архитектуру. Policy noncompliance не равен execution
 failure. Result `NOT_FOUND`/`ERROR` делает итог `UNEVALUATED`; observation `NOT_FOUND`
@@ -373,7 +373,7 @@ GNU find/readlink для обхода и разрешения путей. Пер
 securelinux-policy.sh
 ```
 
-На любом environment из `product/SUPPORTED-PLATFORMS.tsv` или `product/SUPPORTED-DESKTOPS.tsv` полный CHECK запускается
+На clean-reference environment из `product/SUPPORTED-PLATFORMS.tsv` и на отдельном FIELD_COMPATIBILITY Desktop environment из `product/FIELD-COMPATIBILITY-DESKTOPS.tsv` полный CHECK запускается
 одной командой:
 
 ```bash
@@ -442,7 +442,7 @@ sudo ./securelinux-policy.sh --apply
 `--dry-run` без `--apply` и несовместимые комбинации отвергаются с `RC=2` до
 изменения системы. Пользовательского ключа `--restore` нет: operational RESTORE
 исключён из v3.
-Human-readable `--check` и `--report` явно показывают обнаруженную ОС, архитектуру и runtime platform. Для основной 7/7 матрицы выводится `PROFILE=FULL|MINIMIZED|SERVER`; для дополнительного Ubuntu 24.04 Desktop выводится `TYPE=DESKTOP`. Конкретная графическая оболочка не входит в support identity и не влияет на CHECK/APPLY routing.
+Human-readable `--check` и `--report` явно показывают обнаруженную ОС, архитектуру и runtime platform. Для основной 7/7 матрицы выводится `PROFILE=FULL|MINIMIZED|SERVER`; для Ubuntu 24.04 Desktop выводится `TYPE=DESKTOP`, `SUPPORT=FIELD_COMPATIBILITY`. Конкретная графическая оболочка не входит в compatibility identity; реальный APPLY разрешён, но не получает clean-reference guarantee.
 
 Sidecar текущего tracked artifact:
 

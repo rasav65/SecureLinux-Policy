@@ -56,7 +56,7 @@ Regression сравнивает ожидаемые и committed bytes. Изме�
 fail-closed ветви до commit; targeted run подтвердил xattr, stale reread и два
 варианта несовпадения временного файла. Generated CLI дополнительно подтвердил
 dry-run, attested commit, локальную post-check и повторный NOOP на Ubuntu 22,
-Ubuntu 24, Ubuntu 26, Debian 12 и Debian 13; Ubuntu 24 Desktop подтвердил routing
+Ubuntu 24, Ubuntu 26, Debian 12 и Debian 13; Ubuntu 24 Desktop подтвердил FIELD_COMPATIBILITY routing
 `TYPE=DESKTOP` и dry-run без изменения `/etc/shadow`. Эти результаты относятся к
 exact CLI SHA-256 `98a4c67aeb392bff4e2b617f0f6593b8ff8fb149ce6bb156d9adbebd94e86928`.
 Полный commit-path не заявляется проверенным на каждом из восьми profile/type

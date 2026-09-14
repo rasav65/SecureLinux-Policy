@@ -298,16 +298,16 @@ def collect_state(root: Path) -> dict:
     platform_rows = read_tsv(root / "product/SUPPORTED-PLATFORMS.tsv")
     if len(platform_rows) != 7 or any(r.get("status") != "SUPPORTED" for r in platform_rows):
         raise RuntimeError("supported platform matrix mismatch")
-    desktop_rows = read_tsv(root / "product/SUPPORTED-DESKTOPS.tsv")
+    desktop_rows = read_tsv(root / "product/FIELD-COMPATIBILITY-DESKTOPS.tsv")
     if desktop_rows != [{
         "environment_id": "ubuntu-24.04-x86_64-desktop",
         "os_id": "ubuntu",
         "version_id": "24.04",
         "arch": "x86_64",
         "type": "DESKTOP",
-        "status": "SUPPORTED",
+        "status": "FIELD_COMPATIBILITY",
     }]:
-        raise RuntimeError("supported desktop matrix mismatch")
+        raise RuntimeError("field compatibility desktop matrix mismatch")
     for row in adapters:
         contract = json.loads((root / row["semantic_contract_path"]).read_text(encoding="utf-8"))
         if contract.get("target_id") != generator["TARGET_FAMILY_ID"]:
@@ -366,7 +366,8 @@ def render_status_block(state: dict) -> str:
         f"CLOSURE_CONTRACT_ROWS={closure_count}",
         f"ADAPTER_KINDS={adapters}",
         f"CHECK_TARGET_FAMILY={target}",
-        f"SUPPORTED_ENVIRONMENTS={len(state['platform_rows']) + len(state['desktop_rows'])}",
+        f"SUPPORTED_ENVIRONMENTS={len(state['platform_rows'])}",
+        f"FIELD_COMPATIBILITY_ENVIRONMENTS={len(state['desktop_rows'])}",
         f"CHECK_STATUS={product_status}",
         "CHECK=IMPLEMENTED_READ_ONLY",
         "APPLY=IMPLEMENTED",

@@ -114,10 +114,15 @@ sudo /bin/bash -p ./securelinux-policy.sh --apply
 |---|---|
 | Debian 12 и 13 | SERVER |
 | Ubuntu 22.04 | FULL |
-| Ubuntu 24.04 | `FULL`, `MINIMIZED`, Desktop |
+| Ubuntu 24.04 | `FULL`, `MINIMIZED` |
+| Ubuntu 24.04 Desktop | `FIELD_COMPATIBILITY` |
 | Ubuntu 26.04 | FULL, MINIMIZED |
 
-FULL, MINIMIZED, SERVER и Desktop обозначают состояния среды, а не уровни строгости политики. Подробности — в [совместимости](docs/compatibility.md).
+`FULL`, `MINIMIZED` и `SERVER` — clean-reference состояния нормативного acceptance.
+
+> **⚠ Ubuntu 24.04 Desktop — `FIELD_COMPATIBILITY`, а не гарантированно поддерживаемое состояние.** Desktop-система может содержать установленные пользователем пакеты, службы, настройки и другие изменения относительно штатной установки. Проект не гарантирует корректность всех CHECK/APPLY-сценариев на произвольно изменённой Desktop-системе. Реальный `--apply` разрешён, но перед первой мутацией CLI выводит отдельное предупреждение; рекомендуется предварительный `--apply --dry-run` и внешний snapshot/backup.
+
+Подробности — в [совместимости](docs/compatibility.md).
 
 ---
 
@@ -244,7 +249,8 @@ CANONICAL_CONTROLS=51
 CLOSURE_CONTRACT_ROWS=40
 ADAPTER_KINDS=18
 CHECK_TARGET_FAMILY=linux-x86_64-supported-v1
-SUPPORTED_ENVIRONMENTS=8
+SUPPORTED_ENVIRONMENTS=7
+FIELD_COMPATIBILITY_ENVIRONMENTS=1
 CHECK_STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 CHECK=IMPLEMENTED_READ_ONLY
 APPLY=IMPLEMENTED
