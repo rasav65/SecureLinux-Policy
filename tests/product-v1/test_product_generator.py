@@ -3477,6 +3477,7 @@ SLP_TOTAL=4
 SLP_PASS=2
 SLP_FAIL=1
 SLP_NF=0
+SLP_NA=0
 SLP_ERR=1
 SLP_POLICY_STATUS=UNEVALUATED
 SLP_POLICY_RC=1
@@ -3789,7 +3790,7 @@ SLP_POLICY_RC=1
             "SLP_SYSTEM_ID=ubuntu; SLP_SYSTEM_VERSION_ID=24.04; SLP_SYSTEM_ARCH=x86_64; "
             "SLP_SYSTEM_PROFILE=FULL; SLP_SYSTEM_TYPE=''; "
             "SLP_SYSTEM_PLATFORM=ubuntu-24.04-x86_64; SLP_SYSTEM_ENVIRONMENT=ubuntu-24.04-x86_64-full; "
-            "SLP_RESULTS=(); SLP_TOTAL=0; SLP_PASS=0; SLP_FAIL=0; SLP_NF=0; SLP_ERR=0; "
+            "SLP_RESULTS=(); SLP_TOTAL=0; SLP_PASS=0; SLP_FAIL=0; SLP_NF=0; SLP_NA=0; SLP_ERR=0; "
             "SLP_POLICY_STATUS=COMPLIANT; SLP_POLICY_RC=0; "
             "slp_render_raw 0 | /usr/bin/head -n 1"
         )
@@ -3909,7 +3910,7 @@ SLP_POLICY_RC=1
         self.assertEqual(header.index("control"), 36)
         self.assertEqual(header.index("current"), 71)
         self.assertEqual(header.index("required"), 100)
-        total_index = lines.index("TOTAL=4   PASS=2   FAIL=1   NOT_FOUND=0   ERROR=1   POLICY=UNEVALUATED")
+        total_index = lines.index("TOTAL=4   PASS=2   FAIL=1   NOT_FOUND=0   NOT_APPLICABLE=0   ERROR=1   POLICY=UNEVALUATED")
         table_lines = lines[4:total_index]
         self.assertTrue(all(len(x) == 116 for x in table_lines), pretty.stdout)
         psql_current_stream = "".join(
@@ -4015,7 +4016,7 @@ SLP_POLICY_RC=1
         self.assertEqual(obj["platform"]["platform_id"], "ubuntu-24.04-x86_64")
         self.assertEqual(obj["platform"]["support"], "SUPPORTED")
         self.assertEqual(obj["platform"]["type"], "")
-        self.assertEqual(obj["summary"], {"total":4,"pass":2,"fail":1,"not_found":0,"error":1})
+        self.assertEqual(obj["summary"], {"total":4,"pass":2,"fail":1,"not_found":0,"not_applicable":0,"error":1})
         desktop_pre = self.synthetic_prelude() + "\nSLP_SYSTEM_PRETTY_NAME='Ubuntu 24.04.4 LTS'\nSLP_SYSTEM_ID='ubuntu'\nSLP_SYSTEM_VERSION_ID='24.04'\nSLP_SYSTEM_ARCH='x86_64'\nSLP_SYSTEM_PROFILE=''\nSLP_SYSTEM_TYPE='DESKTOP'\nSLP_SYSTEM_PLATFORM='ubuntu-24.04-x86_64'\nSLP_SYSTEM_ENVIRONMENT='ubuntu-24.04-x86_64-desktop'\n"
         desktop_pretty = self.run_sourced(desktop_pre + "\nslp_render_pretty 0 CHECK\n")
         self.assertEqual(desktop_pretty.returncode, 0, desktop_pretty.stderr)
