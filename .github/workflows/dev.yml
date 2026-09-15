@@ -1,0 +1,34 @@
+name: dev
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dev:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: DEV suite
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -I -S -B tests/run-all.py --dev
+
+      - name: Root manifests are up to date
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 python3 -I -S -B tools/rebuild-root-manifests.py
+          git diff --exit-code -- PROJECT-FILES.sha256 SHA256SUMS
+
+      - name: Generated documentation is up to date
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -I -S -B tools/render-current-docs.py --project-root . --check
+
+      - name: Working tree is clean after checks
+        run: git status --porcelain --untracked-files=all
