@@ -7,8 +7,8 @@
 ```text
 TOTAL_INDEX_ROWS=349
 CONTROLLED_CLOSED_WITH_CONTRACT=40
-DISPOSED_CLOSED_ROWS=52
-OPEN_INDEX_ROWS=257
+DISPOSED_CLOSED_ROWS=113
+OPEN_INDEX_ROWS=196
 CANONICAL_CONTROLS=51
 ```
 
@@ -95,7 +95,7 @@ CANONICAL_CONTROLS=51
 | fstec-logging-2025 | 14 | 0 | 0 | 14 | 0 |
 | fstec-perimeter-2026 | 35 | 0 | 0 | 35 | 0 |
 | fstec-security-update-testing-2022 | 70 | 0 | 0 | 70 | 0 |
-| fstec-vulnerability-analysis-2025 | 61 | 0 | 0 | 61 | 0 |
+| fstec-vulnerability-analysis-2025 | 61 | 0 | 61 | 0 | 0 |
 | fstec-vulnerability-criticality-2025 | 28 | 0 | 0 | 28 | 0 |
 | fstec-vulnerability-management-2023 | 52 | 0 | 52 | 0 | 0 |
 
@@ -103,6 +103,6 @@ CANONICAL_CONTROLS=51
 
 ## Открытая часть корпуса
 
-`257` source rows остаются `OPEN`. Полный перечень и их source metadata находятся в `index/source-v4/SOURCE-INDEX.tsv`; этот документ не дублирует 349 строк вручную.
+`196` source rows остаются `OPEN`. Полный перечень и их source metadata находятся в `index/source-v4/SOURCE-INDEX.tsv`; этот документ не дублирует 349 строк вручную.
 
 Наличие adapter или canonical control само по себе не закрывает source row: закрытие определяется source status и `CLOSURE-CONTRACT.tsv` либо explicit disposition.
