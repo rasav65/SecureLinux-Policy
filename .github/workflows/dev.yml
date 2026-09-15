@@ -31,4 +31,6 @@ jobs:
         run: PYTHONDONTWRITEBYTECODE=1 python3 -I -S -B tools/render-current-docs.py --project-root . --check
 
       - name: Working tree is clean after checks
-        run: git status --porcelain --untracked-files=all
+        run: |
+          git status --porcelain --untracked-files=all
+          test -z "$(git status --porcelain --untracked-files=all)"
