@@ -25,6 +25,7 @@ expected = [
     "APPLY_IMPLEMENTATION_ADAPTERS",
     "FINAL_DETERMINISTIC_PACKAGING",
     "SINGLE_DISTRIBUTABLE_ARTIFACT",
+    "SRC0008_CHECK_SEMANTIC_REWORK",
 ]
 assert [r["step_id"] for r in rows] == expected
 assert rows[0]["status"] == "CLOSED"
@@ -44,6 +45,10 @@ assert rows[13]["status"] == "CLOSED"
 assert rows[14]["status"] == "CLOSED"
 assert rows[15]["status"] == "CLOSED"
 assert rows[16]["status"] == "CLOSED"
+assert rows[17]["status"] == "SEMANTIC_REWORK_IN_PROGRESS"
+assert [r["step_id"] for r in rows if r["status"] == "NEXT"] == [
+    "FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"
+]
 with (root / "index/source-v4/SOURCE-INDEX.tsv").open(encoding="utf-8", newline="") as f:
     source_index_rows = list(csv.DictReader(f, delimiter="\t"))
 roadmap_md = (root / "docs/ROADMAP-v3.md").read_text(encoding="utf-8")
