@@ -69,7 +69,8 @@ source_progress_text = (ROOT / "index/source-v4/PROGRESS.txt").read_text(encodin
 source_progress = parse_progress_text(source_progress_text)
 assert source_progress == expected_source_progress, (source_progress, expected_source_progress)
 for label, mutated in (
-    ("disposed_stale", source_progress_text.replace("DISPOSED_CLOSED_ROWS=0", "DISPOSED_CLOSED_ROWS=1", 1)),
+    ("disposed_stale", source_progress_text.replace(
+        f"DISPOSED_CLOSED_ROWS={disposed}", f"DISPOSED_CLOSED_ROWS={disposed + 1}", 1)),
     ("extra_key", source_progress_text + "CURRENT_CHECKPOINT=STEP7B_ACTIVE\n"),
     ("duplicate_key", "OPEN_INDEX_ROWS=999\n" + source_progress_text),
 ):
