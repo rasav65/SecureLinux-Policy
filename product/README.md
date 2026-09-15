@@ -132,6 +132,11 @@ current read-only `product-file-mode-owner-check-v2`; APPLY/RESTORE по-пре�
 exact-eq batch закрыл `SRC-0030`, `SRC-0031`,
 `SRC-0036`–`SRC-0039`; затем `SRC-0040 / 2.6.6` закрыт через
 `fs.suid_dumpable eq 0` после точечного удаления terminal page furniture.
+Число `40/40 CLOSED` описывает машинное состояние индекса источников.
+Семантический контракт `SRC-0008 / 2.3.4` признан недействительным после
+независимого разбора; CHECK этого контроля переделывается, и до принятия
+новой семантики document-level CHECK acceptance для `fstec-linux-2022` не
+считается действующим.
 
 Текущий sysctl adapter v2 добавляет только source-faithful integer lower-bound
 оператор `ge`. Он нужен для `SRC-0033 / 2.5.10`: источник требует

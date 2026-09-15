@@ -57,7 +57,11 @@ Step 5. Нельзя начинать более поздний этап, пок
 текущей вертикали.
 
 Для `fstec-linux-2022` read-only CHECK принят (`40/40 CLOSED`), обязательный
-`DONOR_TO_V3_MAPPING` принят и опубликован. Этап 8
+`DONOR_TO_V3_MAPPING` принят и опубликован. Число `40/40 CLOSED` описывает
+машинное состояние индекса источников: семантический контракт
+`SRC-0008 / 2.3.4` признан недействительным, CHECK этого контроля
+переделывается, и до принятия новой семантики document-level CHECK
+acceptance не считается действующим. Этап 8
 `APPLY_SEMANTIC_CONTRACT` имеет status `PARENT_GATE_CLOSED_SOURCE_INSTANCE_REVISE`:
 parent schema/registry gate остаётся принят и не переоткрывается, а flat
 source-specific contract-кандидат `SRC-0001` сохраняется только как `REVISE` input;
