@@ -128,15 +128,16 @@ current read-only `product-file-mode-owner-check-v2`; APPLY/RESTORE по-пре�
 не реализованы.
 
 После CHECK-11 CHECK-линия продолжила закрытие строк текущего документа и в итоге
-достигла `fstec-linux-2022 CHECK COMPLETE` (`40/40 CLOSED`). В этой истории
+достигла `fstec-linux-2022 CHECK COMPLETE` по контролям. В этой истории
 exact-eq batch закрыл `SRC-0030`, `SRC-0031`,
 `SRC-0036`–`SRC-0039`; затем `SRC-0040 / 2.6.6` закрыт через
 `fs.suid_dumpable eq 0` после точечного удаления terminal page furniture.
-Число `40/40 CLOSED` описывает машинное состояние индекса источников.
-Семантический контракт `SRC-0008 / 2.3.4` признан недействительным после
-независимого разбора; CHECK этого контроля переделывается, и до принятия
-новой семантики document-level CHECK acceptance для `fstec-linux-2022` не
-считается действующим.
+Покрытие индекса источников описывается тремя числами: 40 строк закрыты
+контролями, 211 закрыты аудированной диспозицией, 98 остаются открытыми.
+Это машинное состояние индекса, а не процент готовности к требованиям
+ФСТЭК. Семантический контракт `SRC-0008 / 2.3.4` был признан
+недействительным после независимого разбора и переработан: принят
+контракт v2 с операцией `root-owned-go-w-conditional`.
 
 Текущий sysctl adapter v2 добавляет только source-faithful integer lower-bound
 оператор `ge`. Он нужен для `SRC-0033 / 2.5.10`: источник требует
@@ -246,17 +247,17 @@ CHECK запускает pinned `/usr/sbin/visudo -c -f /etc/sudoers` под `LC
 
 
 ## SRC-0008 / 2.3.4
-`Defaults runas_default`, override `case_insensitive_user` и command `NOTBEFORE/NOTAFTER` не over-approximate: v1 возвращает `ERROR`, если exact effective applicability не доказуема; default case-insensitive spelling `ROOT` сохраняет root semantics.
+`Defaults runas_default`, override `case_insensitive_user` и command `NOTBEFORE/NOTAFTER` не over-approximate: адаптер возвращает `ERROR`, если exact effective applicability не доказуема. Проверки применимости выполняются только при непустой population: `Defaults`, которые не могут повлиять на explicit non-root-only правило, не превращают пустую population в `ERROR`. Структурная проверка формы документа выполняется всегда.
 
 
 Один aggregate control `sudo-root-command-files-protection` проверяет executable command paths из exact reviewed active sudoers tree. Сначала active `visudo` closure exact-byte/pathset сверяется с `/etc/securelinux-policy/sudoers-reviewed-policy-v1`; затем `/usr/bin/cvtsudoers -c /dev/null -e -s aliases -f json` используется как parser authority для alias-expanded policy representation.
 
-В population входят только rules с детерминированными explicit username/userid selector: ordinary invoker + root runas. Root-only invoking-user rules и explicit non-root-only runas не добавляют targets; group/netgroup/non-Unix membership и selector negation дают `ERROR`, а не over-approximation. Positive `ALL`, regex/wildcard/directory executable path, negated command entry, command digest и иная форма, для которой нельзя доказать exact applicable finite path population, дают `ERROR`, а не partial PASS/over-check FAIL. Для `VALUE` поддерживается только exact alias-expanded `Host_List=[hostname: ALL]`; любая host-qualified hostname/network/netgroup/negation форма даёт `ERROR`, потому что v1 не переimplements current-host matching и не может включать чужой host rule без риска false FAIL. Любой enabled `runchroot`/`CHROOT` в Defaults либо Cmnd_Spec даёт `ERROR`, потому что меняет file object, адресуемый absolute command path. Поскольку JSON `cvtsudoers` объединяет pathname и arguments и снимает escaping пробелов, boundary executable path определяется только если существует ровно один executable regular-file prefix; zero/multiple candidates дают `ERROR`.
+В population входят rules, для которых доказуем root runas. Инвокер population не сужает: правило с invoking user `root` проверяется наравне с прочими, потому что source-требование адресует файлы команд, а не состав вызывающих. Explicit non-root-only runas targets не добавляет; если после полного разбора документа population пуста, результат — `NOT_APPLICABLE`, а не `PASS` по нулю объектов. Любой непустой `runasgroups`, group/netgroup/non-Unix membership в runas и selector negation дают `ERROR`, а не over-approximation. Positive `ALL`, regex/wildcard/directory executable path, negated command entry, command digest и иная форма, для которой нельзя доказать exact applicable finite path population, дают `ERROR`, а не partial PASS/over-check FAIL. Для `VALUE` поддерживается только exact alias-expanded `Host_List=[hostname: ALL]`; любая host-qualified hostname/network/netgroup/negation форма даёт `ERROR`, потому что v1 не переimplements current-host matching и не может включать чужой host rule без риска false FAIL. Любой enabled `runchroot`/`CHROOT` в Defaults либо Cmnd_Spec даёт `ERROR`, потому что меняет file object, адресуемый absolute command path. Поскольку JSON `cvtsudoers` объединяет pathname и arguments и снимает escaping пробелов, boundary executable path определяется только если существует ровно один executable regular-file prefix; zero/multiple candidates дают `ERROR`.
 
-Для каждого stable executable regular target требуется `st_uid == 0` и `(mode & 0022) == 0`. Symlink проверяется по final regular target. Known interpreter/execution frontend, multilink target и shebang-script дают `ERROR`: v1 не возвращает PASS для execution chain, которую не может доказательно раскрыть до конечного executable. Missing/nonregular/non-executable target, policy/tool/JSON ambiguity или source/target drift => `ERROR`. CHECK не выполняет `chown`, `chmod`, APPLY или RESTORE.
+Для каждого stable executable regular target проверяются два независимых условия. OWNER: нарушение фиксируется, только если владелец — обычный пользователь по диапазонам `/etc/login.defs` и `/etc/adduser.conf`; `uid 0` нарушением не является, системный не-root владелец тоже. MODE: нарушение — только бит other-write `0002`; `g+w` без `o+w` нарушением не является. Symlink проверяется по final regular target; интерпретатор и shebang-script остаются обычными целями, поскольку source адресует файл команды, а не цепочку исполнения. Multilink target (`st_nlink != 1`) даёт `ERROR`. Missing/nonregular/non-executable target, policy/tool/JSON ambiguity или source/target drift => `ERROR`. CHECK не выполняет `chown`, `chmod`, APPLY или RESTORE.
 
-- `product/contracts/sudo-root-command-files-protection-check-semantic-v1.json` — семантический контракт SRC-0008.
-- `product/adapters/product-sudo-root-command-files-protection-check-v1.py` — read-only adapter для SRC-0008.
+- `product/contracts/sudo-root-command-files-protection-check-semantic-v2.json` — семантический контракт SRC-0008.
+- `product/adapters/product-sudo-root-command-files-protection-check-v2.py` — read-only adapter для SRC-0008. Пара v1 сохранена на диске как историческая и реестром не упоминается.
 
 
 ## SRC-0034 / 2.5.11
