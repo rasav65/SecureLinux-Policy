@@ -25,7 +25,7 @@ CANONICAL_CONTROLS=51
 | SRC-0005 | 2.3.1 | exact-control-set | `FSTEC-LINUX-2022-2.3.1-GROUP-MODE`<br>`FSTEC-LINUX-2022-2.3.1-PASSWD-MODE`<br>`FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX` | `file-mode-owner` | `product-file-mode-owner-check-v2` |
 | SRC-0006 | 2.3.2 | atomic-single | `FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION` | `running-process-paths-write-protection` | `product-running-process-paths-write-protection-check-v1` |
 | SRC-0007 | 2.3.3 | atomic-single | `FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION` | `cron-command-paths-write-protection` | `product-cron-command-paths-write-protection-check-v1` |
-| SRC-0008 | 2.3.4 | atomic-single | `FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION` | `sudo-root-command-files-protection` | `product-sudo-root-command-files-protection-check-v1` |
+| SRC-0008 | 2.3.4 | atomic-single | `FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION` | `sudo-root-command-files-protection` | `product-sudo-root-command-files-protection-check-v2` |
 | SRC-0009 | 2.3.5 | atomic-single | `FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION` | `startup-files-write-protection` | `product-startup-files-write-protection-check-v1` |
 | SRC-0010 | 2.3.6 | exact-control-set | `FSTEC-LINUX-2022-2.3.6-CRONTAB`<br>`FSTEC-LINUX-2022-2.3.6-CRON-D`<br>`FSTEC-LINUX-2022-2.3.6-CRON-HOURLY`<br>`FSTEC-LINUX-2022-2.3.6-CRON-DAILY`<br>`FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY`<br>`FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY` | `optional-file-root-files-mode` | `product-optional-file-root-files-mode-check-v1` |
 | SRC-0011 | 2.3.7 | atomic-single | `FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE` | `user-cron-files-mode` | `product-user-cron-files-mode-check-v2` |
@@ -79,7 +79,7 @@ CANONICAL_CONTROLS=51
 | `sshd-root-login` | `product-sshd-root-login-check-v1` | да | 1 |
 | `standard-system-paths-mode` | `product-standard-system-paths-mode-check-v2` | да | 1 |
 | `startup-files-write-protection` | `product-startup-files-write-protection-check-v1` | да | 1 |
-| `sudo-root-command-files-protection` | `product-sudo-root-command-files-protection-check-v1` | да | 1 |
+| `sudo-root-command-files-protection` | `product-sudo-root-command-files-protection-check-v2` | да | 1 |
 | `sudoers-reviewed-policy` | `product-sudoers-reviewed-policy-check-v1` | да | 1 |
 | `suid-sgid-applications` | `product-suid-sgid-applications-check-v2` | да | 2 |
 | `sysctl` | `product-sysctl-check-v2` | да | 17 |

@@ -263,7 +263,7 @@ assert by_id["SRC0001_METADATA_TRANSACTION_REPORT_DEFINITIONS"] == "CLOSED"
 assert by_id["APPLY_IMPLEMENTATION_ADAPTERS"] == "CLOSED"
 assert by_id["FINAL_DETERMINISTIC_PACKAGING"] == "CLOSED"
 assert by_id["SINGLE_DISTRIBUTABLE_ARTIFACT"] == "CLOSED"
-assert by_id["SRC0008_CHECK_SEMANTIC_REWORK"] == "SEMANTIC_REWORK_IN_PROGRESS"
+assert by_id["SRC0008_CHECK_SEMANTIC_REWORK"] == "CLOSED"
 assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in roadmap
 assert "DOCUMENT COMPLETE" in roadmap
 next_rows = [row["step_id"] for row in rows if row["status"] == "NEXT"]

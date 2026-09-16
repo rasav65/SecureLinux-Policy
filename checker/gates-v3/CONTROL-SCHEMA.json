@@ -1117,7 +1117,7 @@
                     "expected": {
                       "properties": {
                         "op": {
-                          "const": "root-owned-go-w"
+                          "const": "root-owned-go-w-conditional"
                         }
                       },
                       "required": [
@@ -1138,7 +1138,7 @@
                     "expected": {
                       "properties": {
                         "value": {
-                          "const": "uid0;bits-clear-0022"
+                          "const": "owner-if-regular-user;go-w-if-other-write"
                         }
                       },
                       "required": [
@@ -1175,7 +1175,7 @@
           "expected": {
             "properties": {
               "op": {
-                "const": "root-owned-go-w"
+                "const": "root-owned-go-w-conditional"
               },
               "type": {
                 "const": "string"

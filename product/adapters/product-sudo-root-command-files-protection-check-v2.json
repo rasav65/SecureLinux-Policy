@@ -1,0 +1,20 @@
+{
+  "adapter_contract_version": "product-sudo-root-command-files-protection-check-adapter-v2",
+  "adapter_id": "product-sudo-root-command-files-protection-check-v2",
+  "implementation_id": "product-sudo-root-command-files-protection-check-v2.py",
+  "implementation_path": "product/adapters/product-sudo-root-command-files-protection-check-v2.py",
+  "implementation_sha256": "e9c49bc23b8d5964c06a0a2bb94cdf6ed03bdc5adecbf07ab772921e36cd29a3",
+  "input_schema_id": "canonical-control-v3",
+  "input_schema_version": 1,
+  "operation": "check",
+  "output_schema_id": "slp-check-v1",
+  "output_schema_version": 1,
+  "parameter_kind": "sudo-root-command-files-protection",
+  "semantic_contract_id": "sudo-root-command-files-protection-check-semantic-v2",
+  "semantic_contract_path": "product/contracts/sudo-root-command-files-protection-check-semantic-v2.json",
+  "semantic_contract_sha256": "55c50496708029bb03eb1e173482297231b947b3d946a5b9777c6d9b9ae0c522",
+  "supported_ops": [
+    "root-owned-go-w-conditional"
+  ],
+  "target_id": "linux-x86_64-supported-v1"
+}

@@ -45,7 +45,7 @@ assert rows[13]["status"] == "CLOSED"
 assert rows[14]["status"] == "CLOSED"
 assert rows[15]["status"] == "CLOSED"
 assert rows[16]["status"] == "CLOSED"
-assert rows[17]["status"] == "SEMANTIC_REWORK_IN_PROGRESS"
+assert rows[17]["status"] == "CLOSED"
 assert [r["step_id"] for r in rows if r["status"] == "NEXT"] == [
     "FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"
 ]

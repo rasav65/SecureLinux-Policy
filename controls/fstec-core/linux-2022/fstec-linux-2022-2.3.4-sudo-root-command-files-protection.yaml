@@ -19,8 +19,8 @@ parameter:
   locator: "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1"
   key: "root-command-files"
 expected:
-  op: "root-owned-go-w"
-  value: "uid0;bits-clear-0022"
+  op: "root-owned-go-w-conditional"
+  value: "owner-if-regular-user;go-w-if-other-write"
   type: "string"
 apply:
   supported: false

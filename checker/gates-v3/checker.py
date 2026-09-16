@@ -218,13 +218,13 @@ KIND_RULES = {
     "sudo-root-command-files-protection": {
         "locator": {"const": "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1"},
         "key": {"const": "root-command-files"},
-        "op": {"const": "root-owned-go-w"},
+        "op": {"const": "root-owned-go-w-conditional"},
         "type": {"const": "string"},
         "relations": [
             {
-                "if": {"expected.op": {"const": "root-owned-go-w"}},
+                "if": {"expected.op": {"const": "root-owned-go-w-conditional"}},
                 "then": {
-                    "expected.value": {"const": "uid0;bits-clear-0022"},
+                    "expected.value": {"const": "owner-if-regular-user;go-w-if-other-write"},
                     "requirement.derived": {"const": True},
                 },
             },

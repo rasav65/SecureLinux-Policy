@@ -34,7 +34,7 @@ SUDOERS_REVIEWED_POLICY_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-
 TESTED_SETTING_ATTESTATION_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-tested-setting-attestation-check-v1.py"
 RUNNING_PROCESS_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-running-process-paths-write-protection-check-v1.py"
 CRON_COMMAND_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-cron-command-paths-write-protection-check-v1.py"
-SUDO_ROOT_COMMAND_FILES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sudo-root-command-files-protection-check-v1.py"
+SUDO_ROOT_COMMAND_FILES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sudo-root-command-files-protection-check-v2.py"
 STARTUP_FILES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-startup-files-write-protection-check-v1.py"
 BASH = shutil.which("bash")
 
@@ -255,7 +255,7 @@ class GeneratorModel(unittest.TestCase):
         self.assertEqual(len(src0008), 1)
         self.assertEqual(
             (src0008[0]["parameter_kind"], src0008[0]["parameter_locator"], src0008[0]["parameter_key"], src0008[0]["expected_op"], src0008[0]["expected_value"]),
-            ("sudo-root-command-files-protection", "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1", "root-command-files", "root-owned-go-w", "uid0;bits-clear-0022"),
+            ("sudo-root-command-files-protection", "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1", "root-command-files", "root-owned-go-w-conditional", "owner-if-regular-user;go-w-if-other-write"),
         )
         src0009 = [c for c in controls if c["index_id"] == "SRC-0009"]
         self.assertEqual(len(src0009), 1)
@@ -2262,7 +2262,7 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
             spec["Cmnd_Specs"][0]["runasusers"] = [{"username": runas}]
         return spec
 
-    def run_fixture(self, specs, mode=0o755, logical_root_uid=None, policy_drift=False, cvt_rc=0, malformed_json=False, symlink=False, mutate_target_second_cvt=False, target_logical="/bin/tool", extra_executables=(), defaults=None, symlink_real_name=None, hardlink_real_name=None, target_bytes=None):
+    def run_fixture(self, specs, mode=0o755, owner_regular=False, uid_sources=True, policy_drift=False, cvt_rc=0, malformed_json=False, symlink=False, mutate_target_second_cvt=False, target_logical="/bin/tool", extra_executables=(), defaults=None, symlink_real_name=None, hardlink_real_name=None, target_bytes=None):
         if BASH is None:
             self.skipTest("bash not found")
         with tempfile.TemporaryDirectory(dir=ROOT) as td:
@@ -2293,6 +2293,20 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
                 extra_path.parent.mkdir(parents=True, exist_ok=True)
                 extra_path.write_bytes(b"\x7fELF-SLP-FIXTURE\n")
                 extra_path.chmod(extra_mode)
+            # OWNER classification is decided from UID-range sources inside the
+            # fixture root: the fixture owner is the running user, and the range
+            # decides whether that owner counts as a regular user.
+            etc = fsroot / "etc"
+            etc.mkdir(parents=True, exist_ok=True)
+            uid = os.getuid()
+            low = uid if owner_regular else uid + 1
+            high = low
+            if uid_sources:
+                (etc / "login.defs").write_text("UID_MIN\t%d\nUID_MAX\t%d\n" % (low, high), encoding="utf-8")
+                (etc / "adduser.conf").write_text("FIRST_UID=%d\nLAST_UID=%d\n" % (low, high), encoding="utf-8")
+            (etc / "passwd").write_text(
+                "root:x:0:0:root:/root:/bin/sh\nslpfixture:x:%d:%d::/nonexistent:/bin/sh\n" % (uid, uid),
+                encoding="utf-8")
             sudoers = root / "sudoers"
             sudoers.write_text("Defaults env_reset\n", encoding="utf-8")
             authority = root / "authority"
@@ -2322,15 +2336,14 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
                     )
             fake_cvt.write_text("#!/bin/bash\n" + body + "\n", encoding="utf-8")
             fake_cvt.chmod(0o755)
-            if logical_root_uid is None:
-                logical_root_uid = os.getuid()
             src = SUDO_ROOT_COMMAND_FILES.shell_function_for_fixture(
                 "TEST-SUDO-ROOT-FILES",
                 SUDO_ROOT_COMMAND_FILES.CANONICAL_LOCATOR,
                 SUDO_ROOT_COMMAND_FILES.CANONICAL_KEY,
                 SUDO_ROOT_COMMAND_FILES.CANONICAL_OP,
                 SUDO_ROOT_COMMAND_FILES.CANONICAL_EXPECTED,
-                str(fsroot), logical_root_uid, str(sudoers), str(authority), str(fake_visudo), str(fake_cvt),
+                str(fsroot), str(sudoers), str(authority), str(fake_visudo), str(fake_cvt),
+                "/etc/login.defs", "/etc/adduser.conf",
             )
             script = root / "run.sh"
             script.write_text("#!/bin/bash -p\n" + src + "\nslp_check_TEST_SUDO_ROOT_FILES\n", encoding="utf-8")
@@ -2346,53 +2359,85 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
         self.assertEqual(cp.returncode, 0, cp.stderr)
         self.assertIn("ADAPTER_SELFTEST=PASS", cp.stdout)
 
-    def test_exact_root_owned_go_w_passes(self):
+    def test_non_regular_owner_without_other_write_passes(self):
         row = self.run_fixture([self._user_spec()])
         self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
         self.assertIn("files=1;owner_violations=0;mode_violations=0", row[3])
 
-    def test_owner_mismatch_is_fail_without_chown_fixture(self):
-        other_uid = os.getuid() + 1 if os.getuid() != (2**32 - 1) else 1
-        row = self.run_fixture([self._user_spec()], logical_root_uid=other_uid)
+    @unittest.skipIf(os.getuid() == 0, "owner classification needs a non-root fixture owner")
+    def test_regular_user_owner_is_fail(self):
+        row = self.run_fixture([self._user_spec()], owner_regular=True)
         self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
         self.assertIn("owner_violations=1", row[3])
 
-    def test_group_other_write_is_fail(self):
+    def test_group_write_alone_is_not_a_violation(self):
+        # The source requires chmod go-w only where the file is writable by all
+        # users, so the trigger is the other-write bit alone.
         row = self.run_fixture([self._user_spec()], mode=0o775)
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertIn("mode_violations=0", row[3])
+
+    def test_other_write_is_fail(self):
+        row = self.run_fixture([self._user_spec()], mode=0o777)
         self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
         self.assertIn("mode_violations=1", row[3])
 
     def test_symlink_final_target_is_checked(self):
-        row = self.run_fixture([self._user_spec()], mode=0o775, symlink=True)
+        row = self.run_fixture([self._user_spec()], mode=0o777, symlink=True)
         self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
         self.assertIn("mode_violations=1", row[3])
 
-    def test_executable_path_with_space_is_not_truncated_to_first_word(self):
+    @unittest.skipIf(os.getuid() == 0, "owner classification needs a non-root fixture owner")
+    def test_missing_uid_range_sources_are_error(self):
+        row = self.run_fixture([self._user_spec()], owner_regular=True, uid_sources=False)
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "owner-classification:no-source")
+
+    def test_command_with_arguments_is_error(self):
+        row = self.run_fixture([self._user_spec(command="/bin/tool --flag value")])
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:unprovable-command-path")
+
+    def test_pathname_with_whitespace_is_error_without_filesystem_guessing(self):
         row = self.run_fixture(
-            [self._user_spec(command="/bin/my tool --flag value")],
-            mode=0o775,
+            [self._user_spec(command="/bin/my tool")],
             target_logical="/bin/my tool",
         )
-        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
-        self.assertIn("files=1;owner_violations=0;mode_violations=1", row[3])
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:unprovable-command-path")
 
-    def test_executable_path_argument_boundary_ambiguity_is_error(self):
+    def test_root_invoker_does_not_narrow_the_population(self):
+        row = self.run_fixture([self._user_spec(user="root")], mode=0o777)
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+        self.assertIn("files=1", row[3])
+
+    def test_group_invoker_is_admitted_not_rejected(self):
+        spec = self._user_spec()
+        spec["User_List"] = [{"usergroup": "admins"}]
+        row = self.run_fixture([spec], mode=0o777)
+        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+
+    def test_structurally_invalid_user_list_is_error(self):
+        spec = self._user_spec()
+        spec["User_List"] = []
+        row = self.run_fixture([spec])
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:invalid-user-list")
+
+    def test_non_root_runas_gives_not_applicable(self):
+        row = self.run_fixture([self._user_spec(runas="nobody")])
+        self.assertEqual((row[2], row[4]), ("NOT_APPLICABLE", "NOT_APPLICABLE"))
+        self.assertIn("files=0", row[3])
+
+    def test_empty_population_with_unmodelled_defaults_is_error(self):
+        # A determinate empty population may only be reported when the whole
+        # policy document was understood; an unmodelled Defaults entry is not.
         row = self.run_fixture(
-            [self._user_spec(command="/bin/tool arg --flag")],
-            extra_executables=("/bin/tool arg",),
+            [self._user_spec(runas="nobody")],
+            defaults=[{"Options": "not-a-list"}],
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
-        self.assertEqual(row[3], "sudo-policy:ambiguous-command-path")
-
-    def test_root_only_invoker_all_is_outside_population(self):
-        row = self.run_fixture([self._user_spec(user="root", runas="ALL", command="ALL")])
-        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
-        self.assertIn("files=0", row[3])
-
-    def test_non_root_runas_is_outside_population(self):
-        row = self.run_fixture([self._user_spec(runas="nobody")])
-        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
-        self.assertIn("files=0", row[3])
+        self.assertEqual(row[3], "sudo-policy:invalid-options")
 
     def test_unbounded_and_dynamic_command_forms_are_error(self):
         cases = {
@@ -2409,38 +2454,38 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
                 self.assertEqual(row[3], reason)
 
     def test_negated_command_is_error_not_overchecked(self):
-        row = self.run_fixture([self._user_spec(command="/bin/tool", negated=True)], mode=0o775)
+        row = self.run_fixture([self._user_spec(command="/bin/tool", negated=True)], mode=0o777)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
         self.assertEqual(row[3], "sudo-policy:negated-command")
 
     def test_command_digest_is_error_not_overchecked(self):
         spec = self._user_spec(command="/bin/tool")
         spec["Cmnd_Specs"][0]["Commands"][0]["sha256"] = "00" * 32
-        row = self.run_fixture([spec], mode=0o775)
+        row = self.run_fixture([spec], mode=0o777)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
         self.assertEqual(row[3], "sudo-policy:digest-qualified-command")
 
     def test_host_qualified_rule_is_error_not_overchecked(self):
         row = self.run_fixture(
             [self._user_spec(host_list=[{"hostname": "definitely-other-host.invalid"}])],
-            mode=0o775,
+            mode=0o777,
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
         self.assertEqual(row[3], "sudo-policy:unsupported-host-selector")
 
-    def test_ambiguous_invoker_membership_is_error_not_overchecked(self):
-        spec = self._user_spec()
-        spec["User_List"] = [{"usergroup": "admins"}]
-        row = self.run_fixture([spec], mode=0o775)
-        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
-        self.assertEqual(row[3], "sudo-policy:unsupported-user-selector")
-
     def test_ambiguous_runas_membership_is_error_not_overchecked(self):
         spec = self._user_spec()
         spec["Cmnd_Specs"][0]["runasusers"] = [{"usergroup": "admins"}]
-        row = self.run_fixture([spec], mode=0o775)
+        row = self.run_fixture([spec], mode=0o777)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
         self.assertEqual(row[3], "sudo-policy:unsupported-runas-selector")
+
+    def test_runas_group_part_is_error(self):
+        spec = self._user_spec()
+        spec["Cmnd_Specs"][0]["runasgroups"] = [{"usergroup": "operators"}]
+        row = self.run_fixture([spec], mode=0o777)
+        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+        self.assertEqual(row[3], "sudo-policy:unsupported-runas-group")
 
     def test_policy_authority_drift_is_error(self):
         row = self.run_fixture([self._user_spec()], policy_drift=True)
@@ -2460,46 +2505,42 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
         self.assertEqual(row[3], "observation:target-changed")
 
-    def test_case_insensitive_root_identity_is_not_misclassified(self):
-        # sudo user-name matching is case-insensitive by default.  An alternate
-        # spelling of root must therefore retain root semantics.
-        row = self.run_fixture([self._user_spec(user="ROOT", runas="root")], mode=0o775)
-        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
-        self.assertIn("files=0", row[3])
-        row = self.run_fixture([self._user_spec(user="alice", runas="ROOT")], mode=0o775)
-        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
-        self.assertIn("mode_violations=1", row[3])
-
     def test_temporal_command_window_is_error_not_overchecked(self):
         for option in ({"notafter": "20000101000000Z"}, {"notbefore": "29990101000000Z"}):
             with self.subTest(option=option):
                 spec = self._user_spec()
                 spec["Cmnd_Specs"][0]["Options"] = [option]
-                row = self.run_fixture([spec], mode=0o775)
+                row = self.run_fixture([spec], mode=0o777)
                 self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
-        self.assertEqual(row[3], "sudo-policy:time-qualified-command")
+                self.assertEqual(row[3], "sudo-policy:time-qualified-command")
 
     def test_case_insensitive_user_default_override_is_error(self):
         row = self.run_fixture(
             [self._user_spec()],
-            mode=0o775,
+            mode=0o777,
             defaults=[{"Options": [{"case_insensitive_user": False}]}],
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
         self.assertEqual(row[3], "sudo-policy:case-insensitive-user-unsupported")
 
     def test_runas_default_is_error_not_overchecked(self):
-        # Without an explicit Runas_Spec, sudo uses Defaults runas_default.
-        # A non-root runas_default means this command is not root-runnable;
-        # v1 must not over-approximate it into a mode/owner FAIL population.
         spec = self._user_spec(runas=None)
         row = self.run_fixture(
             [spec],
-            mode=0o775,
+            mode=0o777,
             defaults=[{"Options": [{"runas_default": "nobody"}]}],
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
         self.assertEqual(row[3], "sudo-policy:runas-default-unsupported")
+
+    def test_runas_default_does_not_reject_an_empty_population(self):
+        # Defaults that cannot affect an explicit non-root-only rule must not
+        # turn a cleanly empty population into ERROR.
+        row = self.run_fixture(
+            [self._user_spec(runas="nobody")],
+            defaults=[{"Options": [{"runas_default": "nobody"}]}],
+        )
+        self.assertEqual((row[2], row[4]), ("NOT_APPLICABLE", "NOT_APPLICABLE"))
 
     def test_runchroot_option_or_default_is_error(self):
         spec = self._user_spec()
@@ -2514,46 +2555,36 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
         self.assertEqual(row[3], "sudo-policy:runchroot-enabled")
 
-    def test_interpreter_and_execution_frontend_are_error(self):
-        for path in ("/bin/sh", "/usr/bin/env", "/usr/bin/time", "/usr/bin/run-parts"):
+    def test_interpreter_target_is_checked_not_rejected(self):
+        # The Cmnd target itself is checked; no downstream interpreter chain is
+        # inferred, so an interpreter pathname is an ordinary target.
+        for path in ("/bin/sh", "/usr/bin/env"):
             with self.subTest(path=path):
                 row = self.run_fixture(
-                    [self._user_spec(command=path + " /opt/job")],
+                    [self._user_spec(command=path)],
+                    mode=0o777,
                     target_logical=path,
                 )
-                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
-                self.assertEqual(row[3], "target:unsupported-execution-chain")
+                self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+                self.assertIn("files=1", row[3])
 
-    def test_symlink_alias_to_execution_frontend_is_error(self):
+    def test_shebang_target_is_checked_not_rejected(self):
         row = self.run_fixture(
-            [self._user_spec(command="/bin/tool /opt/job")],
-            target_logical="/bin/tool",
-            symlink=True,
-            symlink_real_name="env",
+            [self._user_spec()],
+            target_bytes=b"#!/opt/custominterp\nexit 0\n",
+            extra_executables=(("/opt/custominterp", 0o755),),
         )
-        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
-        self.assertEqual(row[3], "target:unsupported-execution-chain")
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertIn("files=1", row[3])
 
     def test_hardlink_alias_is_error(self):
         row = self.run_fixture(
-            [self._user_spec(command="/bin/tool /opt/job")],
+            [self._user_spec()],
             target_logical="/bin/tool",
-            hardlink_real_name="env",
+            hardlink_real_name="tool-original",
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
-        self.assertEqual(row[3], "target:unsupported-execution-chain")
-
-
-    def test_shebang_execution_chain_is_error(self):
-        for interpreter_mode in (0o755, 0o775):
-            with self.subTest(interpreter_mode=oct(interpreter_mode)):
-                row = self.run_fixture(
-                    [self._user_spec()],
-                    target_bytes=b"#!/opt/custominterp\nexit 0\n",
-                    extra_executables=(("/opt/custominterp", interpreter_mode),),
-                )
-                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
-                self.assertEqual(row[3], "target:unsupported-execution-chain")
+        self.assertEqual(row[3], "target:ambiguous-identity")
 
     def test_generation_rejects_wrong_contract_fields(self):
         bad = (
