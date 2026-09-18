@@ -13,6 +13,14 @@ link files. Carriers in scope:
   relative to the carrier directory.
 
 A carrier line that cannot be parsed fails closed with rc=2.
+
+A git-visible path not yet recorded in any carrier is pinned by the root
+manifests and by every nested SHA256SUMS ancestor whose scope covers it. The
+scope is read from the manifest bytes, with the input paths excluded from the
+coverage check: TREE lists every git-visible file of its subtree and covers
+any descendant; DIR has no entry with '/' and lists every file of its own
+directory and covers only that directory. Any other ancestor has an undefined
+scope, and a new path below it fails closed with rc=2.
 """
 
 from __future__ import annotations
@@ -27,6 +35,7 @@ REVIEW_BASELINE = "tests/documentation-v1/CURRENT-MARKDOWN-REVIEW-BASELINE.tsv"
 CONTROL_MANIFEST = "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 CHECKSUM_LINE = re.compile(r"[0-9a-f]{64}  (.+)")
 SHA256 = re.compile(r"[0-9a-f]{64}")
+ROOT_MANIFESTS = ("PROJECT-FILES.sha256", "SHA256SUMS")
 
 
 class CarrierError(Exception):
@@ -125,12 +134,49 @@ def pinned_by(root: Path, rel: str) -> set[str]:
     return parse_checksums(root, rel)
 
 
+def nested_scope(manifest: str, pinned: set[str], visible: set[str], inputs: set[str]) -> str | None:
+    prefix = PurePosixPath(manifest).parent.as_posix() + "/"
+    others = {
+        rel for rel in visible
+        if rel.startswith(prefix) and rel != manifest and rel not in inputs
+    }
+    if others <= pinned:
+        return "TREE"
+    flat = all("/" not in rel[len(prefix):] for rel in pinned)
+    direct = {rel for rel in others if "/" not in rel[len(prefix):]}
+    if flat and direct <= pinned:
+        return "DIR"
+    return None
+
+
+def unrecorded_pinners(
+    path: str, edges: dict[str, set[str]], visible: set[str], inputs: set[str]
+) -> set[str]:
+    found = {rel for rel in ROOT_MANIFESTS if rel in edges and rel != path}
+    parent = PurePosixPath(path).parent
+    for ancestor in PurePosixPath(path).parents:
+        if ancestor.as_posix() == ".":
+            break
+        manifest = (ancestor / "SHA256SUMS").as_posix()
+        if manifest not in edges or manifest == path:
+            continue
+        scope = nested_scope(manifest, edges[manifest], visible, inputs)
+        if scope is None:
+            raise CarrierError(f"{manifest}: scope undefined over unrecorded path {path}")
+        if scope == "TREE" or ancestor == parent:
+            found.add(manifest)
+    return found
+
+
 def closure(root: Path, inputs: list[str]) -> list[str]:
+    visible = set(selected_paths(root))
     edges = {
         rel: pinned_by(root, rel)
-        for rel in selected_paths(root)
+        for rel in sorted(visible)
         if is_carrier(rel)
     }
+    recorded = set().union(*edges.values())
+    input_set = set(inputs)
     reached = set(inputs)
     frontier = set(inputs)
     while frontier:
@@ -139,9 +185,12 @@ def closure(root: Path, inputs: list[str]) -> list[str]:
             for carrier, pinned in edges.items()
             if carrier not in reached and pinned & frontier
         }
+        for rel in sorted(frontier):
+            if rel in visible and rel not in recorded:
+                found |= unrecorded_pinners(rel, edges, visible, input_set) - reached
         reached |= found
         frontier = found
-    return sorted(reached - set(inputs))
+    return sorted(reached - input_set)
 
 
 def normalize_input(arg: str) -> str:

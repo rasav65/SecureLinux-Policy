@@ -58,11 +58,15 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def closure(root: Path, tool: Path, inputs) -> list[str]:
-    cp = run(
+def run_tool(root: Path, tool: Path, inputs):
+    return run(
         ["/usr/bin/python3", "-I", "-S", "-B", str(tool), "--check", *inputs],
         root,
     )
+
+
+def closure(root: Path, tool: Path, inputs) -> list[str]:
+    cp = run_tool(root, tool, inputs)
     assert cp.returncode == 0, (inputs, cp.returncode, cp.stdout, cp.stderr)
     return cp.stdout.splitlines()
 
@@ -108,4 +112,83 @@ with tempfile.TemporaryDirectory(prefix="slp-pin-closure-") as tmp:
     )
 assert not Path(tmp).exists(), tmp
 
-print(f"PIN_CLOSURE_CASES=PASS_{len(CASES) + 1}")
+# Cases 5-8: a path not yet recorded in any carrier is pinned by every
+# SHA256SUMS ancestor whose scope covers it. The scope is read from bytes:
+# TREE lists every git-visible file of the subtree, DIR has no entries with
+# '/' and lists every file of its own directory; otherwise it is undefined
+# and a new path below it fails closed with rc=2. The root manifests pin any
+# git-visible path.
+NEW_FILE_CASES = (
+    (
+        "tests/project-integrity-v1/case5-new.txt",
+        {
+            "tests/project-integrity-v1/SHA256SUMS",
+            "PROJECT-FILES.sha256",
+            "SHA256SUMS",
+        },
+    ),
+    (
+        "product/contracts/case6-new.json",
+        {
+            "product/SHA256SUMS",
+            "PROJECT-FILES.sha256",
+            "SHA256SUMS",
+        },
+    ),
+    (
+        "archive/engineering-review-20260731/review/case7-new.txt",
+        {
+            "archive/engineering-review-20260731/review/SHA256SUMS",
+            "archive/engineering-review-20260731/SHA256SUMS",
+            "PROJECT-FILES.sha256",
+            "SHA256SUMS",
+        },
+    ),
+)
+UNDEFINED_SCOPE_MANIFEST = "tests/project-integrity-v1/SHA256SUMS"
+UNDEFINED_SCOPE_DROPPED_ENTRY = "README.md"
+UNDEFINED_SCOPE_NEW_FILE = "tests/project-integrity-v1/case8-new.txt"
+
+
+def tree_copy(tmp: str) -> Path:
+    copy = Path(tmp) / "repo"
+    shutil.copytree(ROOT, copy, symlinks=True)
+    return copy
+
+
+def add_new_file(copy: Path, rel: str) -> None:
+    path = copy / rel
+    assert path.parent.is_dir(), ("directory missing", rel)
+    assert not path.exists(), ("new path already exists", rel)
+    path.write_text("new file\n", encoding="utf-8")
+    ignored = run(["git", "check-ignore", "-q", "--", rel], copy)
+    assert ignored.returncode == 1, ("new path is not git-visible", rel)
+
+
+for new_rel, new_expected in NEW_FILE_CASES:
+    with tempfile.TemporaryDirectory(prefix="slp-pin-closure-") as tmp:
+        copy = tree_copy(tmp)
+        add_new_file(copy, new_rel)
+        assert_equal_sets(
+            (new_rel,), closure(copy, copy / "tools/pin-closure.py", (new_rel,)), new_expected
+        )
+    assert not Path(tmp).exists(), tmp
+
+# Case 8: an ancestor SHA256SUMS that no longer lists every file of its
+# directory has an undefined scope; a new path below it is rc=2.
+with tempfile.TemporaryDirectory(prefix="slp-pin-closure-") as tmp:
+    copy = tree_copy(tmp)
+    manifest = copy / UNDEFINED_SCOPE_MANIFEST
+    lines = manifest.read_text(encoding="utf-8").splitlines(keepends=True)
+    kept = [
+        line for line in lines
+        if not line.endswith("  " + UNDEFINED_SCOPE_DROPPED_ENTRY + "\n")
+    ]
+    assert len(kept) == len(lines) - 1, (UNDEFINED_SCOPE_MANIFEST, lines)
+    manifest.write_text("".join(kept), encoding="utf-8")
+    add_new_file(copy, UNDEFINED_SCOPE_NEW_FILE)
+    cp = run_tool(copy, copy / "tools/pin-closure.py", (UNDEFINED_SCOPE_NEW_FILE,))
+    assert cp.returncode == 2, (UNDEFINED_SCOPE_NEW_FILE, cp.returncode, cp.stdout, cp.stderr)
+assert not Path(tmp).exists(), tmp
+
+print(f"PIN_CLOSURE_CASES=PASS_{len(CASES) + 1 + len(NEW_FILE_CASES) + 1}")
