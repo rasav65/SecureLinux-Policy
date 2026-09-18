@@ -42,7 +42,8 @@ Mapping является инженерной трассировкой прои�
 Parent schema `product/contracts/apply-semantic-contract-v1.schema.json` — историческая
 coarse gate: код валидирует ею только flat SRC-0001 semantic-кандидат. Действующие механизмы
 APPLY описаны документами формы `MECHANISM_AUTHORITY_V1` и схемой не валидируются;
-`product/contracts/apply-semantic-contract-v2.schema.json` существует, но код её не читает.
+authority-документ содержит только поля, которые читает код. Схема
+`apply-semantic-contract-v2.schema.json` удалена решением B: код её не читал.
 `product/APPLY-KIND-REGISTRY.tsv` не дублирует low-level
 predicate/transform/path/lock/transaction semantics: каждая строка связывает `apply_kind` +
 `target_class` с authority-документом механизма по SHA-256.

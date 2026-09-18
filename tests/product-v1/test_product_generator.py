@@ -4592,11 +4592,13 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         mechanism = mechanisms["sysctl"]
         self.assertEqual(mechanism["kind_row"]["apply_kind"], "config-line-with-runtime-v1")
         self.assertEqual(mechanism["kind_row"]["authority_form"], "MECHANISM_AUTHORITY_V1")
-        self.assertEqual(mechanism["authority"]["document_id"], "MECHANISM_CONFIG_LINE_RUNTIME_V1_R21")
         self.assertEqual(mechanism["authority"]["mechanism_id"], "config-line-with-runtime-v1")
+        # Runtime writer rules are checked against the adapter that the generator
+        # loaded, not against authority prose. The literal changes only by
+        # explicit decision.
         self.assertEqual(
-            [r["rule_id"] for r in mechanism["authority"]["runtime_writer_conflicts"]["rules"]],
-            ["APPORT-NATIVE-SUID-DUMPABLE-V1", "APPORT-SYSV-SUID-DUMPABLE-V1"],
+            set(mechanism["module"].SERVICE_MANAGED_RUNTIME_WRITERS),
+            {"APPORT-NATIVE-SUID-DUMPABLE-V1", "APPORT-SYSV-SUID-DUMPABLE-V1"},
         )
         # Литералы закреплены явным решением: меняются только осознанной правкой
         # этого теста при изменении APPLY-популяции, а не автоматически под
