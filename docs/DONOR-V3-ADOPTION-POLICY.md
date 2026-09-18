@@ -39,32 +39,38 @@ Mapping является инженерной трассировкой прои�
 
 ## Parent gate для APPLY semantic contracts
 
-Parent schema `product/contracts/apply-semantic-contract-v1.schema.json` остаётся принятой
-coarse gate. После design review `product/APPLY-KIND-REGISTRY.tsv` не дублирует low-level
-predicate/transform/path/lock/transaction semantics: registry является compact identity binding
-`apply_kind` + `target_class` → локальный объект архитектуры источника + SHA-256.
+Parent schema `product/contracts/apply-semantic-contract-v1.schema.json` — историческая
+coarse gate: код валидирует ею только flat SRC-0001 semantic-кандидат. Действующие механизмы
+APPLY описаны документами формы `MECHANISM_AUTHORITY_V1` и схемой не валидируются;
+`product/contracts/apply-semantic-contract-v2.schema.json` существует, но код её не читает.
+`product/APPLY-KIND-REGISTRY.tsv` не дублирует low-level
+predicate/transform/path/lock/transaction semantics: каждая строка связывает `apply_kind` +
+`target_class` с authority-документом механизма по SHA-256.
 
-Для первого kind `local-account-password-lock` registry связывает exact
-`product/contracts/src0001-apply/architecture-v1.json`. Architecture object пинует accepted
-parent schema, flat SRC-0001 `REVISE` candidate, current CHECK population authority и
-Draft 2020-12 composition schema; восемь low-level definition roles остаются локальными для `SRC-0001` до
-второго доказанного случая использования. `target_class` обязан совпадать между registry и architecture;
-устаревшая SHA-привязка является `FAIL`. Predicate и transform теперь отдельно закреплены
+Историческая SRC-0001 APPLY-вертикаль решением DP-3 выведена из product APPLY; её bytes
+сохранены как evidence и в APPLY registries не входят. Ниже описано её состояние на момент
+закрытия. Для kind `local-account-password-lock` registry связывал exact
+`product/contracts/src0001-apply/architecture-v1.json`. Architecture object пинует
+parent schema, flat SRC-0001 `REVISE` candidate, CHECK population authority и
+Draft 2020-12 composition schema; восемь low-level definition roles были локальными для `SRC-0001` до
+второго доказанного случая использования. `target_class` должен был совпадать между registry и architecture;
+устаревшая SHA-привязка давала `FAIL`. Predicate и transform были отдельно закреплены
 как closed SHA-bound definitions: exact empty second shadow field и exact `"" -> "!"`
-с сохранением всех невыбранных bytes. Это закрывает P-03, не перенося donor semantics.
+с сохранением всех невыбранных bytes. Это закрыло P-03, не перенося donor semantics.
 
-P-04 закрыт отдельным `snapshot-precondition-v1.json`: caller-supplied read-only attestation
-обязательна до host mutation, exact связывает host identity и `/etc/shadow` prestate SHA-256
+P-04 был закрыт отдельным `snapshot-precondition-v1.json`: caller-supplied read-only attestation
+требовалась до host mutation и exact связывала host identity и `/etc/shadow` prestate SHA-256
 с external provider/snapshot id и READY rollback-capable full-host/VM snapshot. Missing, malformed,
-mismatched или not-ready evidence → `ABORT_NO_MUTATION`; attestation явно не выдаётся за
-provider-cryptographic proof. P-05 закрыт отдельными `lock-reread-v1.json` и
-`object-identity-v1.json`: exclusive libc `lckpwdf(3)` password-database lock предшествует under-lock reread обеих `/etc/passwd` и `/etc/shadow`,
-bytes/selected-set drift означает stale abort, а `/etc/shadow` обязан оставаться regular,
-non-symlink, single-link object с nofollow fd/fstat identity binding. P-06 закрыт exact metadata-preservation, atomic-transaction и dry-run/report definitions;
+mismatched или not-ready evidence → `ABORT_NO_MUTATION`; attestation явно не выдавалась за
+provider-cryptographic proof. P-05 был закрыт отдельными `lock-reread-v1.json` и
+`object-identity-v1.json`: exclusive libc `lckpwdf(3)` password-database lock предшествовал under-lock reread обеих `/etc/passwd` и `/etc/shadow`,
+bytes/selected-set drift означал stale abort, а `/etc/shadow` должен был оставаться regular,
+non-symlink, single-link object с nofollow fd/fstat identity binding. P-06 был закрыт exact metadata-preservation, atomic-transaction и dry-run/report definitions;
 composition связывает все восемь `CLOSED` roles по SHA-256. Implementation
-`product-local-account-password-state-apply-v1` привязана отдельным
-`APPLY-IMPLEMENTATION-REGISTRY.tsv`, binding и SHA-256, встроена в generated CLI
-и закрывает этап `APPLY_IMPLEMENTATION_ADAPTERS` только в scope `SRC-0001_ONLY`.
+`product-local-account-password-state-apply-v1` была привязана отдельным
+`APPLY-IMPLEMENTATION-REGISTRY.tsv`, binding и SHA-256, была встроена в generated CLI
+и закрыла этап `APPLY_IMPLEMENTATION_ADAPTERS`. Решением DP-3 эта строка из реестра и
+цепочка из generated CLI удалены; действующие механизмы перечислены в APPLY registries.
 Это не закрывает дополнительных строк source index.
 
 ## Семейства возможностей донора, которые нельзя потерять молча

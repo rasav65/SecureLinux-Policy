@@ -66,8 +66,12 @@ Step 5. Нельзя начинать более поздний этап, пок
 `root-owned-go-w-conditional`, шаг `SRC0008_CHECK_SEMANTIC_REWORK` закрыт. Этап 8
 `APPLY_SEMANTIC_CONTRACT` имеет status `PARENT_GATE_CLOSED_SOURCE_INSTANCE_REVISE`:
 parent schema/registry gate остаётся принят и не переоткрывается, а flat
-source-specific contract-кандидат `SRC-0001` сохраняется только как `REVISE` input;
-финальную authority задают модульная архитектура, восемь определений и композиция.
+source-specific contract-кандидат `SRC-0001` сохраняется только как `REVISE` input.
+Решением DP-3 SRC-0001 выведен из product APPLY: его модульная архитектура, восемь
+определений и композиция сохранены как historical bytes и в APPLY registries не входят.
+Действующий APPLY задают механизмы `config-line-with-runtime-v1` и `file-mode-owner-v1`,
+каждый со своим authority-документом формы `MECHANISM_AUTHORITY_V1`; состав и
+количества берутся из APPLY registries и машинного статуса корневого README.
 Этап 9 `AUTHORITY_2026_REFRESH` закрыт после интеграции приказа ФСТЭК
 России № 137 как изменения к приказу № 117; это framework-only обновление и
 оно не переоткрывает `SRC-0001…SRC-0040`.
@@ -98,17 +102,18 @@ regular non-symlink с `st_nlink == 1`; target и parent identities связыв
 `lstat` + nofollow fd/fstat и не могут дрейфовать до собственного atomic commit.
 Этим P-05 закрыт. Этап 14 `SRC0001_METADATA_TRANSACTION_REPORT_DEFINITIONS` также закрыт: точные определения сохранения метаданных, атомарной транзакции и сухого запуска с отчётом привязаны по SHA-256 в архитектуре, а композиция связывает все восемь ролей со статусом `CLOSED`.
 
-Этап 15 `APPLY_IMPLEMENTATION_ADAPTERS` закрыт в scope `SRC-0001_ONLY`: отдельный
-implementation registry, binding и adapter привязаны к композиции; generated CLI
+Этап 15 `APPLY_IMPLEMENTATION_ADAPTERS` был закрыт первой вертикалью `SRC-0001`: отдельный
+implementation registry, binding и adapter были привязаны к композиции; generated CLI
 прошёл dry-run, attested commit, post-check, idempotent NOOP и fail-closed VM cases.
-Общая библиотека APPLY и вторая вертикаль не создавались. Этап 16
+На момент закрытия общая библиотека APPLY и вторая вертикаль не создавались. Позже
+решением DP-3 эта вертикаль выведена из product APPLY, а APPLY перестроен на механизмы
+`config-line-with-runtime-v1` и `file-mode-owner-v1`. Этап 16
 `FINAL_DETERMINISTIC_PACKAGING` закрыт: исправленная APPLY provenance вошла в
 generated CLI, семь случаев воспроизводимости сборки прошли, а права выдаваемых
 CLI/sidecar проверены как `0755/0644`.
 
 Этап 17 `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыт существующим generated
-`securelinux-policy.sh`: его current bytes совпадают с exact SHA предмета
-воспроизводимости этапа 16, свежая генерация даёт byte-exact тот же CLI и sidecar,
+`securelinux-policy.sh`: свежая генерация даёт byte-exact тот же CLI и sidecar,
 а `--provenance` несёт требуемые source/adapter bindings. Sidecar остаётся
 сопутствующим integrity metadata; новый архивный слой не создавался, архивный
 формат не выбирался, имя будущего release/distributable не закреплено.
@@ -116,7 +121,7 @@ CLI/sidecar проверены как `0755/0644`.
 
 Определение критерия. Для `fstec-linux-2022` `DOCUMENT COMPLETE` достигается,
 когда все строки этого документа в `index/source-v4/SOURCE-INDEX.tsv` имеют
-`status=CLOSED`, APPLY завершён в принятом scope `SRC-0001_ONLY`, а этапы
+`status=CLOSED`, APPLY завершён в объёме, зафиксированном действующими APPLY registries, а этапы
 `FINAL_DETERMINISTIC_PACKAGING` и `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыты.
 Настоящим решением APPLY для остальных строк `fstec-linux-2022` в критерий
 `DOCUMENT COMPLETE` не входит. Для следующих документов критерий определяется
@@ -161,15 +166,18 @@ RESTORE после APPLY.
 rollback текущей незавершённой транзакции допустим там, где exact rollback
 доказуем; это внутренний failure-handling APPLY, а не отдельный RESTORE mode.
 
-Exact snapshot precondition определён `product/contracts/src0001-apply/snapshot-precondition-v1.json`.
-Product принимает только explicit caller-supplied attestation, привязанную к host identity и exact
+Историческая SRC-0001 APPLY-вертикаль, решением DP-3 выведенная из product APPLY,
+определяла exact snapshot precondition в `product/contracts/src0001-apply/snapshot-precondition-v1.json`:
+принималась только explicit caller-supplied attestation, привязанная к host identity и exact
 `/etc/shadow` prestate SHA-256; отсутствие, malformed data, mismatch или state не `READY`
-дают `ABORT_NO_MUTATION`. Это не выдаётся за криптографическое доказательство provider snapshot.
+давали `ABORT_NO_MUTATION`. Это не выдавалось за криптографическое доказательство provider snapshot.
 
-Exact lock/reread contract (`lckpwdf(3)` + exact `/etc/passwd`/`/etc/shadow` reread + precommit revalidation) определён `product/contracts/src0001-apply/lock-reread-v1.json`,
+Exact lock/reread contract той же вертикали (`lckpwdf(3)` + exact `/etc/passwd`/`/etc/shadow` reread + precommit revalidation) определён `product/contracts/src0001-apply/lock-reread-v1.json`,
 а object identity boundary — `product/contracts/src0001-apply/object-identity-v1.json`.
-Lock обязателен до reread/mutation; stale bytes/target-set или object/path drift всегда
-останавливают попытку без mutation. Hardlink ambiguity (`st_nlink != 1`) запрещена.
+Lock требовался до reread/mutation; stale bytes/target-set или object/path drift всегда
+останавливали попытку без mutation. Hardlink ambiguity (`st_nlink != 1`) была запрещена.
+Действующие механизмы эти определения не используют; их preconditions задают
+собственные authority-документы.
 
 ## Закрытие Gate 6
 

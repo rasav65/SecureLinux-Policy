@@ -21,9 +21,10 @@ Errata 0.0.13: `test_project_map_v3.py` дополнительно запрещ�
 `APPLY_IMPLEMENTATION_ADAPTERS`, `FINAL_DETERMINISTIC_PACKAGING` и
 `SINGLE_DISTRIBUTABLE_ARTIFACT` имели `CLOSED`; текущая вертикаль достигла
 `DOCUMENT COMPLETE`, а единственный `NEXT` — Step 7B
-`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`. Все восемь ролей определений,
-композиция, implementation registry, binding и adapter должны оставаться точно
-привязанными по SHA-256.
+`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`. Историческая SRC-0001 APPLY-вертикаль,
+решением DP-3 выведенная из product APPLY, сохраняется побайтово: восемь ролей определений
+и композиция остаются точно привязанными по SHA-256, а `local-account-password-lock`
+обязан отсутствовать в обоих APPLY registries.
 
 Дополнительно проверяется framework authority chain
 `fstec-order-117-2025-requirements` + `fstec-order-137-2026-amendments-to-117`,

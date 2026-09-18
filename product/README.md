@@ -1,7 +1,7 @@
 # Продуктовая линия CHECK и mechanism-oriented APPLY
 
-Постоянная read-only CHECK product-line и текущая APPLY-вертикаль механизма
-`config-line-with-runtime-v1` для 17 sysctl-controls SecureLinux-Policy v3.
+Постоянная read-only CHECK product-line и mechanism-oriented APPLY SecureLinux-Policy v3:
+механизмы `config-line-with-runtime-v1` и `file-mode-owner-v1`.
 
 Она отделена от historical `step7b0/`: admitted bytes и historical adapter id
 `sysctl-check-v1` не являются current product authority и здесь не изменяются.
@@ -106,7 +106,7 @@ CHECK для current population из manifest реализован и покры
 artifact имеет статус `NON_RELEASE_PRODUCT_CANDIDATE`; один target family
 `linux-x86_64-supported-v1` охватывает основную clean-reference матрицу 7/7 из `SUPPORTED-PLATFORMS.tsv`; Ubuntu 24.04 x86_64 Desktop из `FIELD-COMPATIBILITY-DESKTOPS.tsv` является отдельным `FIELD_COMPATIBILITY` environment и не увеличивает число supported clean-reference environments.
 
-Действующая APPLY authority — `mechanism-config-line-runtime-v1.json` r17. Реестры связывают `parameter_kind=sysctl` с единственным активным механизмом `config-line-with-runtime-v1`; scope вычисляется из корпуса и сейчас содержит 17 controls. Прежняя SRC-0001 APPLY-цепочка сохранена только как historical bytes и из активных реестров/CLI удалена. Механизм sysctl прошёл отдельный implementation audit; полная продуктовая приёмка интеграции и последующий прогон восьми поддерживаемых состояний выполняются отдельными gates. RESTORE не входит в целевую mutation-архитектуру. Policy noncompliance не равен execution
+Действующая APPLY authority — `mechanism-config-line-runtime-v1.json` r17 и `mechanism-file-mode-owner-v1.json`. Реестры связывают `parameter_kind=sysctl` с механизмом `config-line-with-runtime-v1`, а `parameter_kind=file-mode-owner` — с `file-mode-owner-v1`; scope вычисляется из корпуса. Прежняя SRC-0001 APPLY-цепочка сохранена только как historical bytes и из активных реестров/CLI удалена. Механизм sysctl прошёл отдельный implementation audit; полная продуктовая приёмка интеграции и последующий прогон восьми поддерживаемых состояний выполняются отдельными gates. RESTORE не входит в целевую mutation-архитектуру. Policy noncompliance не равен execution
 failure. Result `NOT_FOUND`/`ERROR` делает итог `UNEVALUATED`; observation `NOT_FOUND`
 может быть definitive `FAIL`, если active semantic contract прямо определяет отсутствие
 обязательного объекта/технологии как noncompliance (в частности SSH/PAM).
@@ -313,12 +313,13 @@ truth и текущие counts для документа берутся из м�
 идентичность объекта, сохранение метаданных, атомарная транзакция и режим
 сухого запуска с отчётом. `composition-v1.json` детерминированно связывает
 архитектуру, текущий источник состава CHECK и все восемь определений.
-Первая вертикаль APPLY для `SRC-0001` реализована, привязана отдельным реестром,
-встроена в tracked CLI и проверена на поддерживаемых Ubuntu/Debian VM. Этап
-`APPLY_IMPLEMENTATION_ADAPTERS` закрыт в scope `SRC-0001_ONLY`; этап
-`FINAL_DETERMINISTIC_PACKAGING` и `SINGLE_DISTRIBUTABLE_ARTIFACT` также закрыты.
+Первая вертикаль APPLY для `SRC-0001` была реализована, привязана отдельным реестром,
+встроена в tracked CLI и проверена на поддерживаемых Ubuntu/Debian VM; ею был закрыт этап
+`APPLY_IMPLEMENTATION_ADAPTERS`. Решением DP-3 эта вертикаль выведена из product APPLY
+и сохранена как historical bytes. Этапы
+`FINAL_DETERMINISTIC_PACKAGING` и `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыты.
 Текущий generated `securelinux-policy.sh` является single distributable artifact
-этой вертикали; sidecar остаётся сопутствующим integrity metadata, а архивный
+продукта; sidecar остаётся сопутствующим integrity metadata, а архивный
 формат не вводился. Пользовательский RESTORE в целевую архитектуру
 не входит; восстановление после успешного APPLY выполняется вне продукта через внешний snapshot.
 
@@ -352,8 +353,8 @@ read-only проверки:
 недостаточно.
 
 CHECK и изменение системы разделены принципиально. CHECK остаётся read-only, а
-APPLY текущей вертикали реализован для 17 sysctl-controls через механизм
-`config-line-with-runtime-v1`; общий цикл и итоговый RC принадлежат product CLI.
+APPLY реализован механизмами `config-line-with-runtime-v1` и `file-mode-owner-v1`;
+общий цикл и итоговый RC принадлежат product CLI.
 Пользовательский RESTORE не планируется; post-APPLY recovery выполняется внешним snapshot/backup-механизмом.
 
 ---
@@ -432,7 +433,7 @@ Metadata и provenance не требуют запуска policy checks.
 ./securelinux-policy.sh --provenance
 ```
 
-APPLY scope вычисляется из корпуса; сейчас применимы 17 sysctl-controls. Сухой запуск не пишет target-объекты:
+APPLY scope вычисляется из корпуса; точный состав показан в машинном статусе корневого README. Сухой запуск не пишет target-объекты:
 
 ```bash
 sudo ./securelinux-policy.sh --apply --dry-run
@@ -483,7 +484,7 @@ generator identity и не является текущей пользовате�
 
 | Гарантия | Статус | Чем проверяется |
 |---|---|---|
-| APPLY текущей вертикали: 17 sysctl-controls через `config-line-with-runtime-v1`; RESTORE исключён | INTEGRATION CANDIDATE | r17 + оба APPLY registry + binding + adapter + generator regressions |
+| APPLY механизмов `config-line-with-runtime-v1` и `file-mode-owner-v1`; RESTORE исключён | INTEGRATION CANDIDATE | authority механизмов + оба APPLY registry + bindings + adapters + generator regressions |
 | Детерминированная генерация CHECK | PASS | `tests/product-v1/test_product_generator.py` |
 | Adapter/contract bytes закреплены SHA-256 | PASS | `ADAPTER-REGISTRY.tsv` + product regressions |
 | CHECK provenance доступен машинно | PASS | generator regression / `--provenance` |
@@ -493,7 +494,7 @@ generator identity и не является текущей пользовате�
 | Реальный Draft 2020-12 валидатор обязателен для RELEASE | PASS | `tests/release-v1/test_real_jsonschema_gate.py` |
 | Current nested `SHA256SUMS` валидны; 2 historical donor runtime entries пинованы как исключения | PASS | `tests/project-integrity-v1/test_root_manifests.py` |
 | Gates-v3 evidence с маркировкой `ACTIVE` совпадает со свежим checker run | PASS | `tests/project-integrity-v1/test_root_manifests.py` |
-| APPLY | 17 sysctl-контролей | `APPLY_KINDS=config-line-with-runtime-v1`; `APPLY_CONTROL_COUNT=17`; dry-run / применение / компенсация |
+| APPLY | механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1` | `APPLY_KINDS` и `APPLY_CONTROL_COUNT` — в машинном статусе корневого README; dry-run / применение |
 | RESTORE | НЕ ПЛАНИРУЕТСЯ / ВНЕ SCOPE | post-APPLY recovery = внешний snapshot |
 
 Гарантии относятся только к текущему scope. Конкретный policy-result CHECK
@@ -695,7 +696,7 @@ Mapping донора сам по себе не создаёт FSTEC controls и 
 - formal Gate 5 `--probe-results` для текущей product population остаётся
   отдельным контрактным артефактом;
 - `SRC-0005 / 2.3.1` закрыт exact-control-set из трёх file-mode controls;
-- APPLY текущей вертикали охватывает 17 sysctl-controls через `config-line-with-runtime-v1`; SRC-0001 выведен из product APPLY; RESTORE исключён, recovery model — external snapshot/backup;
+- APPLY выполняется механизмами `config-line-with-runtime-v1` и `file-mode-owner-v1`; SRC-0001 решением DP-3 выведен из product APPLY; RESTORE исключён, recovery model — external snapshot/backup;
 - historical Step 7B.0 не является current product authority;
 - engineering donor не является нормативным доказательством.
 
@@ -706,7 +707,7 @@ population показана в машинно сформированном ст�
 `fstec-linux-2022` не переоткрывались. Для модульной архитектуры `SRC-0001` закрыты и криптографически привязаны
 точные определения предиката и преобразования, условия внешнего снимка, блокировки и повторного чтения, идентичности объекта, сохранения метаданных, атомарной транзакции и сухого запуска с отчётом.
 Композиция связывает все восемь ролей определений; implementation registry,
-binding и adapter связывают реализацию с этой композицией. Эта SRC-0001 цепочка теперь historical и не подключена к generated CLI. Current CLI маршрутизирует 17 sysctl-controls через r17 authority и `product-config-line-runtime-apply-v1.py`.
+binding и adapter связывают реализацию с этой композицией. Эта SRC-0001 цепочка теперь historical и не подключена к generated CLI. Current CLI маршрутизирует APPLY через механизмы `config-line-with-runtime-v1` и `file-mode-owner-v1`.
 Этапы `APPLY_IMPLEMENTATION_ADAPTERS`, `FINAL_DETERMINISTIC_PACKAGING` и `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыты; текущая вертикаль достигла `DOCUMENT COMPLETE`.
 Оставшиеся строки `OPEN` других документов ФСТЭК возвращены в source-first очередь Step 7B.
 Семантика `chmod go-rwx /etc/shadow` представлена как `mode bits-clear 0077` и

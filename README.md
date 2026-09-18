@@ -150,7 +150,7 @@ sudo /bin/bash -p ./securelinux-policy.sh --apply
 
 ## Применение изменений
 
-Текущий автоматический APPLY обрабатывает 17 controls с `parameter.kind=sysctl` через механизм `config-line-with-runtime-v1`. Остальные controls могут участвовать в CHECK, но не изменяются автоматически без явно поддерживаемой APPLY-семантики.
+Автоматический APPLY выполняется механизмами `config-line-with-runtime-v1` (sysctl) и `file-mode-owner-v1` (режим файлов); состав берётся из APPLY registries, количества — из машинного статуса ниже. Остальные controls могут участвовать в CHECK, но не изменяются автоматически без явно поддерживаемой APPLY-семантики.
 
 Сухой запуск:
 

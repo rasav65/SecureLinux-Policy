@@ -141,7 +141,7 @@ def validate_document_complete_definition(text: str, index_rows: list) -> None:
     for fragment in (
         "Для `fstec-linux-2022` `DOCUMENT COMPLETE` достигается, когда все строки "
         "этого документа в `index/source-v4/SOURCE-INDEX.tsv` имеют `status=CLOSED`, "
-        "APPLY завершён в принятом scope `SRC-0001_ONLY`, а этапы "
+        "APPLY завершён в объёме, зафиксированном действующими APPLY registries, а этапы "
         "`FINAL_DETERMINISTIC_PACKAGING` и `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыты.",
         "Настоящим решением APPLY для остальных строк `fstec-linux-2022` в критерий "
         "`DOCUMENT COMPLETE` не входит.",

@@ -17,8 +17,10 @@ SecureLinux-Policy v3 сохраняет старую реализацию Secur
 ## Что принято сейчас
 
 Следующие свойства приняты как invariants APPLY. Для `SRC-0001` применимая часть
-реализована и привязана к локальной композиции; остальные пункты не объявляются
-реализованными для других будущих classes:
+была реализована и привязана к локальной композиции; решением DP-3 эта вертикаль
+выведена из product APPLY и сохранена как historical bytes. Действующие механизмы
+перечислены в APPLY registries; остальные пункты не объявляются реализованными
+для других будущих classes:
 
 - fail-closed backup до mutation;
 - atomic replacement критических файлов;
@@ -108,9 +110,10 @@ mutation, выбор активных аккаунтов и dry-run плана `
 - меняет `index/source-v4`;
 - меняет семантику Gate 1–5;
 - предоставляет reference-VM evidence;
-- сам по себе реализует APPLY или RESTORE. RESTORE не планируется; текущая
-  `SRC-0001` APPLY-реализация допускается только через отдельные v3 contracts,
-  registry, binding и tests.
+- сам по себе реализует APPLY или RESTORE. RESTORE не планируется; любая
+  APPLY-реализация допускается только через отдельные v3 contracts, registry,
+  binding и tests. Прежняя `SRC-0001` APPLY-реализация решением DP-3 выведена
+  из product APPLY.
 
 Сам donor adoption закрывает 0 FSTEC source rows. Текущим фактическим покрытием управляют
 `SOURCE-INDEX.tsv` и generated `docs/fstec-coverage.md`.
