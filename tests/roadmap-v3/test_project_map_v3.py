@@ -43,6 +43,7 @@ for marker in (
     'product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed',
     'product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding активных механизмов"]:::closed',
     'config-line-with-runtime-v1<br/>17 sysctl controls · dry-run · APPLY"]:::closed',
+    'file-mode-owner-v1 · 3 controls SRC-0005 · APPLY"]:::current',
     'securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed',
 ):
     assert marker in product_line, marker

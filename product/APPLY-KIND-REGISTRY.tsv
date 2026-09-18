@@ -1,2 +1,3 @@
 apply_kind	parameter_kind	target_class	authority_form	architecture_id	architecture_path	architecture_sha256
 config-line-with-runtime-v1	sysctl	sysctl-runtime-persistent	MECHANISM_AUTHORITY_V1	config-line-with-runtime-v1	product/contracts/mechanism-config-line-runtime-v1.json	de6f40c6144f565bce5eb8fdc34ab3926662d462322cf894dc2928876e5c3d8d
+file-mode-owner-v1	file-mode-owner	file-mode-fixed-path	MECHANISM_AUTHORITY_V1	file-mode-owner-v1	product/contracts/mechanism-file-mode-owner-v1.json	6a8b5f37fb593b7e98b1917c2d30ee362e76e79fe31fe9f3f4ae2162a8603e86

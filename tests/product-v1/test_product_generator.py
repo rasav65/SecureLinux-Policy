@@ -1621,9 +1621,19 @@ class GeneratedArtifact(unittest.TestCase):
         rows, _, _, _, _ = load_current()
         self.assertIn(f"CONTROL_COUNT={len(rows)}\n", cp.stdout)
         self.assertIn(f"ADAPTER_COUNT={len(load_current()[2])}\n", cp.stdout)
-        self.assertIn("APPLY_KINDS=config-line-with-runtime-v1\n", cp.stdout)
-        self.assertIn("APPLY_CONTROL_COUNT=17\n", cp.stdout)
-        self.assertIn("APPLY_IMPLEMENTATION_COUNT=1\n", cp.stdout)
+        apply_mechanisms, _, _ = GEN_V2_CURRENT.load_apply_mechanisms(ROOT)
+        expected_apply_kinds = ",".join(sorted(
+            {m["kind_row"]["apply_kind"] for m in apply_mechanisms.values()},
+            key=lambda x: x.encode("utf-8"),
+        ))
+        self.assertIn(f"APPLY_KINDS={expected_apply_kinds}\n", cp.stdout)
+        apply_manifest_rows, _ = GEN_V2_CURRENT.load_manifest(ROOT)
+        expected_apply_control_count = len([
+            c for c in (GEN_V2_CURRENT.load_control(ROOT, row) for row in apply_manifest_rows)
+            if c["apply_supported"]
+        ])
+        self.assertIn(f"APPLY_CONTROL_COUNT={expected_apply_control_count}\n", cp.stdout)
+        self.assertIn(f"APPLY_IMPLEMENTATION_COUNT={len(apply_mechanisms)}\n", cp.stdout)
         self.assertIn("APPLY_KIND_REGISTRY_SHA256=", cp.stdout)
 
     def test_provenance_all_and_one(self):
@@ -3555,9 +3565,19 @@ SLP_POLICY_RC=1
                     self.assertIn("SUPPORTED_PROFILE_ENVIRONMENTS=7\n", cp.stdout)
                     self.assertIn("FIELD_COMPATIBILITY_ENVIRONMENTS=1\n", cp.stdout)
                     self.assertIn("SUPPORTED_ENVIRONMENTS=7\n", cp.stdout)
-                    self.assertIn("APPLY_KINDS=config-line-with-runtime-v1\n", cp.stdout)
-                    self.assertIn("APPLY_CONTROL_COUNT=17\n", cp.stdout)
-                    self.assertIn("APPLY_IMPLEMENTATION_COUNT=1\n", cp.stdout)
+                    apply_mechanisms, _, _ = GEN_V2_CURRENT.load_apply_mechanisms(ROOT)
+                    expected_apply_kinds = ",".join(sorted(
+                        {m["kind_row"]["apply_kind"] for m in apply_mechanisms.values()},
+                        key=lambda x: x.encode("utf-8"),
+                    ))
+                    self.assertIn(f"APPLY_KINDS={expected_apply_kinds}\n", cp.stdout)
+                    apply_manifest_rows, _ = GEN_V2_CURRENT.load_manifest(ROOT)
+                    expected_apply_control_count = len([
+                        c for c in (GEN_V2_CURRENT.load_control(ROOT, row) for row in apply_manifest_rows)
+                        if c["apply_supported"]
+                    ])
+                    self.assertIn(f"APPLY_CONTROL_COUNT={expected_apply_control_count}\n", cp.stdout)
+                    self.assertIn(f"APPLY_IMPLEMENTATION_COUNT={len(apply_mechanisms)}\n", cp.stdout)
                     self.assertEqual(out.stat().st_mode & 0o777, 0o755)
                     self.assertEqual(out.with_name(out.name + ".sha256").stat().st_mode & 0o777, 0o644)
                     self.assertEqual(out.read_bytes(), self.ARTIFACT.read_bytes())
@@ -3849,9 +3869,19 @@ SLP_POLICY_RC=1
         self.assertIn("SUPPORTED_PROFILE_ENVIRONMENTS=7\n", build.stdout)
         self.assertIn("FIELD_COMPATIBILITY_ENVIRONMENTS=1\n", build.stdout)
         self.assertIn("SUPPORTED_ENVIRONMENTS=7\n", build.stdout)
-        self.assertIn("APPLY_KINDS=config-line-with-runtime-v1\n", build.stdout)
-        self.assertIn("APPLY_CONTROL_COUNT=17\n", build.stdout)
-        self.assertIn("APPLY_IMPLEMENTATION_COUNT=1\n", build.stdout)
+        apply_mechanisms, _, _ = GEN_V2_CURRENT.load_apply_mechanisms(ROOT)
+        expected_apply_kinds = ",".join(sorted(
+            {m["kind_row"]["apply_kind"] for m in apply_mechanisms.values()},
+            key=lambda x: x.encode("utf-8"),
+        ))
+        self.assertIn(f"APPLY_KINDS={expected_apply_kinds}\n", build.stdout)
+        apply_manifest_rows, _ = GEN_V2_CURRENT.load_manifest(ROOT)
+        expected_apply_control_count = len([
+            c for c in (GEN_V2_CURRENT.load_control(ROOT, row) for row in apply_manifest_rows)
+            if c["apply_supported"]
+        ])
+        self.assertIn(f"APPLY_CONTROL_COUNT={expected_apply_control_count}\n", build.stdout)
+        self.assertIn(f"APPLY_IMPLEMENTATION_COUNT={len(apply_mechanisms)}\n", build.stdout)
         self.assertNotIn("SRC-0001_ONLY", build.stdout)
         self.assertNotIn("APPLY_SRC0001_ONLY", build.stdout)
         for args in (
@@ -4096,13 +4126,30 @@ SLP_POLICY_RC=1
         current_control_count = len(GEN_V2_CURRENT.load_manifest(ROOT)[0])
         self.assertEqual(len(rows), current_control_count)
         apply_mechanisms, _, _ = GEN_V2_CURRENT.load_apply_mechanisms(ROOT)
-        self.assertEqual(set(apply_mechanisms), {"sysctl"})
+        # Литерал закреплён явным решением: расширяется только осознанной правкой
+        # этого теста при принятии нового APPLY-механизма, а не автоматически под
+        # результат прогона.
+        self.assertEqual(set(apply_mechanisms), {"sysctl", "file-mode-owner"})
         apply_rows = [row for row in rows if "apply" in row]
-        self.assertEqual(len(apply_rows), 17)
+        expected_apply_controls = [
+            c for c in (
+                GEN_V2_CURRENT.load_control(ROOT, row)
+                for row in GEN_V2_CURRENT.load_manifest(ROOT)[0]
+            )
+            if c["apply_supported"]
+        ]
+        self.assertEqual(len(apply_rows), len(expected_apply_controls))
         self.assertEqual({row["apply"]["route_status"] for row in apply_rows}, {"BOUND"})
-        self.assertEqual({row["apply"]["parameter_kind"] for row in apply_rows}, {"sysctl"})
-        self.assertEqual({row["apply"]["apply_kind"] for row in apply_rows}, {"config-line-with-runtime-v1"})
-        self.assertEqual({row["apply"]["mechanism_id"] for row in apply_rows}, {"config-line-with-runtime-v1"})
+        expected_parameter_kinds = {c["parameter_kind"] for c in expected_apply_controls}
+        self.assertEqual({row["apply"]["parameter_kind"] for row in apply_rows}, expected_parameter_kinds)
+        self.assertEqual(
+            {row["apply"]["apply_kind"] for row in apply_rows},
+            {apply_mechanisms[pk]["kind_row"]["apply_kind"] for pk in expected_parameter_kinds},
+        )
+        self.assertEqual(
+            {row["apply"]["mechanism_id"] for row in apply_rows},
+            {apply_mechanisms[pk]["authority"]["mechanism_id"] for pk in expected_parameter_kinds},
+        )
         self.assertNotIn("FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE", {row["control_id"] for row in apply_rows})
         row = apply_rows[0]
         apply_id = row["control_id"]
@@ -4538,7 +4585,10 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
 
     def test_current_sysctl_route_and_population_are_exact(self):
         controls, enabled, mechanisms = self._current_apply()
-        self.assertEqual(set(mechanisms), {"sysctl"})
+        # Литерал закреплён явным решением: расширяется только осознанной правкой
+        # этого теста при принятии нового APPLY-механизма, а не автоматически под
+        # результат прогона.
+        self.assertEqual(set(mechanisms), {"sysctl", "file-mode-owner"})
         mechanism = mechanisms["sysctl"]
         self.assertEqual(mechanism["kind_row"]["apply_kind"], "config-line-with-runtime-v1")
         self.assertEqual(mechanism["kind_row"]["authority_form"], "MECHANISM_AUTHORITY_V1")
@@ -4548,8 +4598,14 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             [r["rule_id"] for r in mechanism["authority"]["runtime_writer_conflicts"]["rules"]],
             ["APPORT-NATIVE-SUID-DUMPABLE-V1", "APPORT-SYSV-SUID-DUMPABLE-V1"],
         )
-        self.assertEqual(len(enabled), 17)
-        self.assertEqual({control["parameter_kind"] for control in enabled}, {"sysctl"})
+        # Литералы закреплены явным решением: меняются только осознанной правкой
+        # этого теста при изменении APPLY-популяции, а не автоматически под
+        # результат прогона. Вычисление здесь дало бы сравнение реестра с собой.
+        self.assertEqual(len(enabled), 20)
+        self.assertEqual(
+            {control["parameter_kind"] for control in enabled},
+            {"sysctl", "file-mode-owner"},
+        )
         self.assertNotIn(
             "FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE",
             {control["control_id"] for control in enabled},

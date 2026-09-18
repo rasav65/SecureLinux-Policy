@@ -212,6 +212,7 @@ flowchart LR
     GEN2["product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed
     IMPLREG["product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding активных механизмов"]:::closed
     APPLY1["config-line-with-runtime-v1<br/>17 sysctl controls · dry-run · APPLY"]:::closed
+    APPLY2["file-mode-owner-v1 · 3 controls SRC-0005 · APPLY"]:::current
     CLI["securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
 
     CTRLNOW --> REG
@@ -221,10 +222,12 @@ flowchart LR
     FILE --> GEN2
     CTRLNOW --> GEN2 --> CLI
     IMPLREG --> APPLY1 --> GEN2
+    IMPLREG --> APPLY2 --> GEN2
     GEN1 -. historical .-> GEN2
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
     classDef component fill:#dcecff,stroke:#3e6ea8,color:#111;
+    classDef current fill:#ffe2a8,stroke:#c77800,color:#111,stroke-width:4px;
     classDef note fill:#fff8d8,stroke:#9d8730,color:#111;
 ```
 
@@ -314,8 +317,10 @@ Git bundle — внешний артефакт для аудита и handoff, �
 
 Историческая SRC-0001 APPLY-вертикаль (P13–P18) остаётся закрытой как доказанная
 история, но решением DP-3 больше не является active product APPLY. Текущая authority
-APPLY — единый `MECHANISM_AUTHORITY_V1` `config-line-with-runtime-v1` r17; 17 sysctl
-controls включены через `apply.supported=true`, а общий цикл выполняет generated CLI.
+APPLY — общая форма `MECHANISM_AUTHORITY_V1`, по одному документу на механизм:
+`config-line-with-runtime-v1` (17 sysctl controls) и `file-mode-owner-v1`
+(3 контроля SRC-0005); итого 20 контролей включены через `apply.supported=true`,
+а общий цикл выполняет generated CLI.
 Старые SRC-0001 contracts/definitions/adapter сохраняются побайтово как historical.
 `SINGLE_DISTRIBUTABLE_ARTIFACT` остаётся generated `securelinux-policy.sh`; полная
 приёмка новой интеграции и восьмисредовый VM-cycle являются следующими gates.

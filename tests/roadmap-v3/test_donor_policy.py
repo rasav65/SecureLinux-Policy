@@ -80,7 +80,10 @@ with apply_registry_path.open(encoding="utf-8", newline="") as stream:
         "architecture_id", "architecture_path", "architecture_sha256",
     )
     apply_kinds = list(reader)
-assert len(apply_kinds) == 1
+# Литерал закреплён явным решением: расширяется только осознанной правкой
+# этого теста при принятии нового APPLY-механизма, а не автоматически под
+# результат прогона.
+assert len(apply_kinds) == 2
 row = apply_kinds[0]
 assert row["apply_kind"] == "config-line-with-runtime-v1"
 assert row["parameter_kind"] == "sysctl"
@@ -105,7 +108,10 @@ with impl_registry_path.open(encoding="utf-8", newline="") as stream:
         "binding_sha256", "implementation_path", "implementation_sha256",
     )
     impl_rows = list(impl_reader)
-assert len(impl_rows) == 1
+# Литерал закреплён явным решением: меняется только осознанной правкой этого
+# теста при принятии нового APPLY-механизма, а не автоматически под результат
+# прогона. Вычисление здесь дало бы сравнение реестра с самим собой.
+assert len(impl_rows) == 2
 impl_row = impl_rows[0]
 assert impl_row["apply_kind"] == row["apply_kind"]
 assert impl_row["composition_contract_id"] == rb["composition_contract_id"]
@@ -125,7 +131,9 @@ check = subprocess.run(
     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
 )
 assert check.returncode == 0, check.stdout + check.stderr
-assert "APPLY_BINDING_ARCHITECTURES=1" in check.stdout
+# Значение равно числу зарегистрированных механизмов APPLY и меняется только
+# явным решением о новом механизме, не как побочный эффект правки реестров.
+assert "APPLY_BINDING_ARCHITECTURES=2" in check.stdout
 
 # Historical SRC-0001 modular authority remains byte-present and semantically
 # inspectable, but is deliberately absent from both active APPLY registries.

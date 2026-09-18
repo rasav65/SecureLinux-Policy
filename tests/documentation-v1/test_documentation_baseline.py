@@ -976,7 +976,10 @@ assert "APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО" 
 assert "финальная детерминированная упаковка<br/>ГОТОВО" in current_map
 assert "единый распространяемый артефакт<br/>ГОТОВО" in current_map
 assert "МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC" in current_map
-assert "`MECHANISM_AUTHORITY_V1` `config-line-with-runtime-v1` r17" in current_map
+assert "`MECHANISM_AUTHORITY_V1`, по одному документу на механизм" in current_map
+assert "`config-line-with-runtime-v1` (17 sysctl controls)" in current_map
+assert "`file-mode-owner-v1`" in current_map
+assert "итого 20 контролей включены" in current_map
 assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in current_map
 assert "восьмисредовый VM-cycle" in current_map
 

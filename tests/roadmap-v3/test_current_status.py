@@ -24,6 +24,10 @@ with (ROOT / "product/APPLY-IMPLEMENTATION-REGISTRY.tsv").open(
     encoding="utf-8", newline=""
 ) as stream:
     apply_implementations = list(csv.DictReader(stream, delimiter="\t"))
+with (ROOT / "product/APPLY-KIND-REGISTRY.tsv").open(
+    encoding="utf-8", newline=""
+) as stream:
+    apply_kind_rows = list(csv.DictReader(stream, delimiter="\t"))
 with (ROOT / "index/source-v4/FRAMEWORK-SOURCES.tsv").open(
     encoding="utf-8", newline=""
 ) as stream:
@@ -93,12 +97,21 @@ for marker in (
     f"CANONICAL_CONTROLS={len(controls)}",
     f"ADAPTER_KINDS={len(adapters)}",
     "APPLY=IMPLEMENTED",
-    "APPLY_KINDS=config-line-with-runtime-v1",
-    "APPLY_CONTROL_COUNT=17",
+    # Литерал закреплён явным решением: меняется только осознанной правкой этого
+    # теста при изменении APPLY-популяции, а не автоматически под результат прогона.
+    "APPLY_CONTROL_COUNT=20",
     f"APPLY_IMPLEMENTATION_COUNT={len(apply_implementations)}",
     "FULL_FSTEC_COMPLIANCE_CLAIM=false",
 ):
     assert marker in readme, marker
+
+# Сравнение строки целиком: подстрока дала бы ложный PASS на любом расширенном
+# списке механизмов.
+expected_apply_kinds = ",".join(sorted(
+    {row["apply_kind"] for row in apply_kind_rows},
+    key=lambda x: x.encode("utf-8"),
+))
+assert f"APPLY_KINDS={expected_apply_kinds}" in readme.splitlines(), expected_apply_kinds
 
 assert pmap.count("<!-- BEGIN GENERATED MAP STATUS -->") == 1
 assert pmap.count("<!-- END GENERATED MAP STATUS -->") == 1
