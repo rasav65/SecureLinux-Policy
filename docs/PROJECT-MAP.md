@@ -405,6 +405,29 @@ normative controls, semantic contracts и implementation adapters. Sidecar
 
 `old shell script → manual edits → new shell script`.
 
+## Карта сегментации контролей fstec-linux-2022
+
+Карта принята 19.09.2026 и служит для планирования APPLY. Классы построены по
+фактам байтов контролей и CHECK-контрактов: вид цели, стабильность популяции и
+направление мутации. Каждый контроль входит ровно в один класс; полноту и
+совпадение колонки «APPLY сейчас» с `apply.supported` проверяет
+`tests/roadmap-v1/test_project_map.py`.
+
+| класс | определение | control_id | APPLY сейчас |
+|---|---|---|---|
+| G1 | sysctl: runtime и persistent-значение параметра ядра | `FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT`, `FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT`, `FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN`, `FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID`, `FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED`, `FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES`, `FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED`, `FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD`, `FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD`, `FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR`, `FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE`, `FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE`, `FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS`, `FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS`, `FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS`, `FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR`, `FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE` | да |
+| G2 | режим файла по фиксированному пути, только снятие битов | `FSTEC-LINUX-2022-2.3.1-GROUP-MODE`, `FSTEC-LINUX-2022-2.3.1-PASSWD-MODE`, `FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX` | да |
+| G3 | режимы и владелец файлов по нестабильной популяции: пользователи, процессы, настроенные команды | `FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION`, `FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION`, `FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION`, `FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE`, `FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE`, `FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE` | нет |
+| G4 | параметры ядра в командной строке загрузки: правка загрузчика и перезагрузка | `FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC`, `FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE`, `FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE`, `FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT`, `FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH`, `FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET`, `FSTEC-LINUX-2022-2.4.7-MITIGATIONS`, `FSTEC-LINUX-2022-2.5.1-VSYSCALL`, `FSTEC-LINUX-2022-2.5.3-DEBUGFS`, `FSTEC-LINUX-2022-2.5.9-TSX` | нет |
+| G5 | политика или allowlist, которые определяет администратор | `FSTEC-LINUX-2022-2.2.1-SU-WHEEL-ACCESS`, `FSTEC-LINUX-2022-2.2.2-SUDOERS-REVIEWED-POLICY`, `FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST`, `FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE` | нет |
+| G6 | режимы файлов по вычисляемой стабильной популяции системных корней, только снятие битов | `FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION`, `FSTEC-LINUX-2022-2.3.6-CRONTAB`, `FSTEC-LINUX-2022-2.3.6-CRON-D`, `FSTEC-LINUX-2022-2.3.6-CRON-HOURLY`, `FSTEC-LINUX-2022-2.3.6-CRON-DAILY`, `FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY`, `FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY`, `FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE`, `FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE` | нет |
+| G7 | содержимое конфигурационных файлов | `FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE`, `FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN` | нет |
+
+Для `suid-dumpable` при обнаруженном Apport APPLY возвращает решение
+администратору. У `SRC-0008` в G3 мутация включает условную смену владельца;
+его APPLY отложен до отработки шаблона механизма. APPLY для `SRC-0001` выведен
+из продукта решением DP-3.
+
 ## Отложено сознательно
 
 Эти направления не входят в горизонт 1; причина указана для каждого.

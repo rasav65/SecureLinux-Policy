@@ -193,6 +193,34 @@ assert "docs/PROJECT-MAP.md" in readme
 deferred = text.split("## Отложено сознательно", 1)[1]
 for marker in ("SRC-0008", "kernel cmdline", "G3", "G5", "инвентарь механизмов"):
     assert marker in deferred, marker
+# Карта сегментации контролей fstec-linux-2022 (принята 19.09.2026): классы
+# G1–G7 покрывают population CONTROL-MANIFEST ровно один раз, колонка
+# «APPLY сейчас» совпадает с apply.supported контролей. Счётчики не пинуются.
+import csv as _csv
+_ctrl_dir = root / "controls/fstec-core/linux-2022"
+with (_ctrl_dir / "CONTROL-MANIFEST.tsv").open(encoding="utf-8", newline="") as _f:
+    _manifest = list(_csv.DictReader(_f, delimiter="\t"))
+_supported = {
+    row["control_id"]: "\napply:\n  supported: true\n" in (_ctrl_dir / row["file"]).read_text(encoding="utf-8")
+    for row in _manifest
+}
+_seg = text.split("## Карта сегментации контролей fstec-linux-2022", 1)[1].split("\n## ", 1)[0]
+_rows = [line for line in _seg.splitlines() if line.startswith("| G")]
+_classes = [line.split("|")[1].strip() for line in _rows]
+assert _classes == ["G1", "G2", "G3", "G4", "G5", "G6", "G7"], _classes
+_seen = []
+for line in _rows:
+    cells = [c.strip() for c in line.split("|")[1:-1]]
+    ids = [x.strip().strip("`") for x in cells[2].split(",")]
+    apply_now = cells[3].split()[0]
+    assert apply_now in ("да", "нет"), line
+    for cid in ids:
+        assert cid in _supported, cid
+        assert _supported[cid] == (apply_now == "да"), (cid, apply_now)
+    _seen.extend(ids)
+assert sorted(_seen) == sorted(_supported), sorted(set(_supported) ^ set(_seen))
+assert len(_seen) == len(set(_seen)), "control in more than one class"
+
 print(
     "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=horizon1-safe-class-apply "
     "src0005_check11_done=1 exact_eq_check17_done=1 src0040_check18_done=1 "
