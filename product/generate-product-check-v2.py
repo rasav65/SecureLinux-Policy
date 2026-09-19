@@ -847,7 +847,7 @@ def _compact_outcome(outcome):
     mapping = {
         "ALREADY_COMPLIANT": "ok",
         "APPLIED": "done",
-        "WOULD_APPLY": "would",
+        "DRY_RUN_WOULD_APPLY": "would",
         "ABORTED_PRECONDITION_CONFLICT": "block",
         "ABORTED_PRECONDITION_OTHER": "abort",
         "FAILED_NOT_COMMITTED": "fail",

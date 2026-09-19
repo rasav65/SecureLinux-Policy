@@ -37,6 +37,24 @@ def load_generator():
     return mod
 
 
+def adapter_outcomes():
+    """Исходы всех APPLY-адаптеров реестра: кортеж OUTCOMES и константы OUTCOME_*."""
+    outcomes = set()
+    for row in read_tsv(IMPL_REGISTRY):
+        spec = importlib.util.spec_from_file_location(
+            "slp_apply_outcomes_" + re.sub(r"[^A-Za-z0-9_]", "_", row["adapter_id"]),
+            ROOT / row["implementation_path"],
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        outcomes.update(getattr(mod, "OUTCOMES", ()))
+        outcomes.update(
+            value for name, value in vars(mod).items()
+            if name.startswith("OUTCOME_") and isinstance(value, str)
+        )
+    return outcomes
+
+
 def read_tsv(path):
     with path.open("r", encoding="utf-8", newline="") as f:
         return list(csv.DictReader(f, delimiter="\t"))
@@ -79,6 +97,9 @@ class ApplyDispatchIntegration(unittest.TestCase):
         cls.state = cls.tmp / "state"
         isolated = dispatcher.replace(STATE_DIR_LINE, "STATE_DIR = " + repr(str(cls.state)), 1)
         cls.raw_keys = set(re.findall(r'raw\["([A-Za-z_]+)"\]', dispatcher))
+        compact = dispatcher[dispatcher.index("def _compact_outcome("):]
+        compact = compact[:compact.index("\ndef ")]
+        cls.compact_mapping = dict(re.findall(r'"([A-Z_]+)": "([a-z]+)"', compact))
         cls.proc = subprocess.run(
             [PYTHON, "-I", "-S", "-B", "-", "DRY_RUN"],
             input=isolated, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -102,6 +123,12 @@ class ApplyDispatchIntegration(unittest.TestCase):
 
     def test_dispatcher_reads_adapter_fields(self):
         self.assertTrue(self.raw_keys, "dispatcher reads no raw[...] fields")
+
+    def test_compact_outcome_keys_are_adapter_outcomes(self):
+        self.assertTrue(self.compact_mapping, "compact mapping not found")
+        unknown = sorted(set(self.compact_mapping) - adapter_outcomes())
+        self.assertEqual(unknown, [], "ключи _compact_outcome вне исходов адаптеров")
+        self.assertEqual(self.compact_mapping.get("DRY_RUN_WOULD_APPLY"), "would")
 
     def test_every_apply_kind_has_controls(self):
         self.assertTrue(self.population)
