@@ -3,7 +3,7 @@
 # STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 # PRODUCT_CLI=product-cli-v1
 # GENERATOR_ID=product-check-generator-v2
-# GENERATOR_SHA256=a9cc6ae247fb35ebcfa6c35404a4658fed04bb96c45aac082b04619ed9405902
+# GENERATOR_SHA256=b4504f4f6450ad13bb1c9e496044465cf4bb7a824c2dada6b724868b36f59c57
 # CONTROL_MANIFEST_SHA256=1fe40be19afe6af9d8b1b777a7fd970e43eb1e48b3111a00d17ee20acd5c56fe
 # ADAPTER_REGISTRY_SHA256=d557404432951e25ca2c4b68a30d4afb6fc0d30308ba1cfbc9371fbf1421241e
 # APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1
@@ -6142,7 +6142,7 @@ slp_build_info() {
     'STATUS=NON_RELEASE_PRODUCT_CANDIDATE' \
     'PRODUCT_CLI=product-cli-v1' \
     'GENERATOR_ID=product-check-generator-v2' \
-    'GENERATOR_SHA256=a9cc6ae247fb35ebcfa6c35404a4658fed04bb96c45aac082b04619ed9405902' \
+    'GENERATOR_SHA256=b4504f4f6450ad13bb1c9e496044465cf4bb7a824c2dada6b724868b36f59c57' \
     'CONTROL_COUNT=51' \
     'CONTROL_MANIFEST_SHA256=1fe40be19afe6af9d8b1b777a7fd970e43eb1e48b3111a00d17ee20acd5c56fe' \
     'ADAPTER_COUNT=18' \
@@ -6368,6 +6368,12 @@ slp_pretty_layout_for_cols() {
   (( _slp_remaining > _slp_req_min )) || return 1
   SLP_PRETTY_WCUR=$((_slp_remaining - _slp_req_min))
   (( SLP_PRETTY_WCUR > 43 )) && SLP_PRETTY_WCUR=43
+  # current отдаёт required 10 символов, но не становится уже 12.
+  if (( SLP_PRETTY_WCUR - 10 > 12 )); then
+    SLP_PRETTY_WCUR=$((SLP_PRETTY_WCUR - 10))
+  elif (( SLP_PRETTY_WCUR > 12 )); then
+    SLP_PRETTY_WCUR=12
+  fi
   SLP_PRETTY_WREQ=$((_slp_remaining - SLP_PRETTY_WCUR))
 }
 
@@ -6572,11 +6578,13 @@ slp_render_pretty() {
   local _slp_failed_only=$1 _slp_title=$2 _slp_line _slp_tag _slp_cid _slp_status _slp_value _slp_comp
   local _slp_current _slp_required _slp_meta _slp_source _slp_control _slp_extra _slp_st
   printf '=== SecureLinux Policy — %s ===\n' "$_slp_title"
-  printf 'SYSTEM=%s   ARCH=%s\n' "$SLP_SYSTEM_PRETTY_NAME" "$SLP_SYSTEM_ARCH"
+  printf 'SUPPORT=%s\n' "$(slp_support_class)"
+  printf 'SYSTEM=%s ARCH=%s\n' "$SLP_SYSTEM_PRETTY_NAME" "$SLP_SYSTEM_ARCH"
+  printf 'PLATFORM=%s\n' "$SLP_SYSTEM_PLATFORM"
   if [[ -n $SLP_SYSTEM_TYPE ]]; then
-    printf 'TYPE=%s   PLATFORM=%s   SUPPORT=%s\n\n' "$SLP_SYSTEM_TYPE" "$SLP_SYSTEM_PLATFORM" "$(slp_support_class)"
+    printf 'TYPE=%s\n\n' "$SLP_SYSTEM_TYPE"
   else
-    printf 'PROFILE=%s   PLATFORM=%s   SUPPORT=%s\n\n' "$SLP_SYSTEM_PROFILE" "$SLP_SYSTEM_PLATFORM" "$(slp_support_class)"
+    printf 'PROFILE=%s\n\n' "$SLP_SYSTEM_PROFILE"
   fi
   slp_pretty_layout_init || return 1
   slp_pretty_row 'st' 'source' 'control' 'current' 'required'
@@ -6840,7 +6848,9 @@ def _terminal_layout(columns=None):
     remaining = available - ws - wsrc - wc
     if remaining <= req_min:
         raise RuntimeError("presentation:terminal-width-invalid")
-    wcur = min(43, remaining - req_min)
+    wcur_base = min(43, remaining - req_min)
+    # current отдаёт required 10 символов, но не становится уже 12.
+    wcur = max(min(12, wcur_base), wcur_base - 10)
     wreq = remaining - wcur
     return ("table", cols, (ws, wsrc, wc, wcur, wreq))
 
@@ -6895,7 +6905,8 @@ def _current_display(record):
     mechanism_result = record.get("mechanism_result")
     if not isinstance(mechanism_result, dict):
         return "not-determined"
-    for field in ("runtime_after", "runtime_before"):
+    # sysctl отдаёт runtime_*, режимы файлов — resulting_mode/current_mode.
+    for field in ("runtime_after", "runtime_before", "resulting_mode", "current_mode"):
         value = mechanism_result.get(field)
         if value is not None:
             return _terminal_scalar(value, "current")
@@ -6910,7 +6921,7 @@ def _block_entry(record, control):
     control_id = _terminal_scalar(control.get("control_id"), "control-id")
     if record_id != control_id:
         raise RuntimeError("presentation:control-id-mismatch")
-    display_control = _terminal_scalar(control.get("display_control"), "display-control")
+    display_control = _block_control_label(control)
     detail = _terminal_scalar(record.get("reason"), "reason")
     notes = []
     mechanism_result = record.get("mechanism_result")
@@ -6931,10 +6942,18 @@ def _block_entry(record, control):
         notes.append("Автоматическое изменение пропущено. Требуется решение администратора.")
     return {"control": display_control, "detail": detail, "notes": notes}
 
+def _block_control_label(control):
+    source = _terminal_scalar(control.get("source"), "source")
+    if "§" not in source:
+        raise RuntimeError("presentation:block-locator-missing")
+    display_control = _terminal_scalar(control.get("display_control"), "display-control")
+    return "§" + source.rsplit("§", 1)[1] + " " + display_control
+
 def _blocks_layout():
     cols = PRETTY_COLUMNS if PRETTY_IS_TTY else 116
     wtype = 6
-    wcontrol = 24 if cols >= 100 else max(12, cols // 4)
+    need = max((len(_block_control_label(c)) for c in APPLY_CONTROLS), default=12)
+    wcontrol = min(max(12, need), max(12, cols // 3))
     wmessage = cols - 9 - wcontrol - wtype
     if wmessage < 12:
         raise RuntimeError("presentation:blocks-terminal-width-invalid")

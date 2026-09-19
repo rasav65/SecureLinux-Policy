@@ -37,6 +37,8 @@ CRON_COMMAND_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-cron-
 SUDO_ROOT_COMMAND_FILES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sudo-root-command-files-protection-check-v2.py"
 STARTUP_FILES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-startup-files-write-protection-check-v1.py"
 BASH = shutil.which("bash")
+# Ширины колонок current/required для pretty-таблиц CHECK и APPLY по ширине терминала.
+CURRENT_REQUIRED_WIDTHS = {90: (12, 16), 100: (12, 18), 116: (16, 24), 139: (33, 26), 160: (33, 47)}
 
 ERROR_REASON_RE = re.compile(r"^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$")
 
@@ -3961,24 +3963,29 @@ SLP_POLICY_RC=1
         pretty = self.run_sourced(pre + "\nslp_render_pretty 0 CHECK\n")
         self.assertEqual(pretty.returncode, 0, pretty.stderr)
         lines = pretty.stdout.splitlines()
-        self.assertEqual(lines[1], "SYSTEM=Ubuntu 24.04.4 LTS   ARCH=x86_64")
-        self.assertEqual(lines[2], "PROFILE=MINIMIZED   PLATFORM=ubuntu-24.04-x86_64   SUPPORT=SUPPORTED")
-        header = lines[4]
-        separator = lines[5]
+        # Шапка CHECK — ровно пять строк, затем пустая строка перед таблицей.
+        self.assertEqual(lines[0], "=== SecureLinux Policy — CHECK ===")
+        self.assertEqual(lines[1], "SUPPORT=SUPPORTED")
+        self.assertEqual(lines[2], "SYSTEM=Ubuntu 24.04.4 LTS ARCH=x86_64")
+        self.assertEqual(lines[3], "PLATFORM=ubuntu-24.04-x86_64")
+        self.assertEqual(lines[4], "PROFILE=MINIMIZED")
+        self.assertEqual(lines[5], "")
+        header = lines[6]
+        separator = lines[7]
         self.assertEqual(header.count("|"), 5)
         self.assertEqual(separator.count("+"), 5)
         self.assertEqual(header.index("source"), 9)
         self.assertEqual(header.index("control"), 36)
         self.assertEqual(header.index("current"), 71)
-        self.assertEqual(header.index("required"), 100)
+        self.assertEqual(header.index("required"), 90)
         total_index = lines.index("TOTAL=4   PASS=2   FAIL=1   NOT_FOUND=0   NOT_APPLICABLE=0   ERROR=1   POLICY=UNEVALUATED")
-        table_lines = lines[4:total_index]
+        table_lines = lines[6:total_index]
         self.assertTrue(all(len(x) == 116 for x in table_lines), pretty.stdout)
         psql_current_stream = "".join(
             x.split("|")[3].strip() for x in table_lines if x.count("|") == 5
         )
         self.assertIn("exec=1236;libraries=999;modules=6474", psql_current_stream)
-        self.assertIn("not-determined; reason: test:synthetic-error", psql_current_stream)
+        self.assertIn("not-determined; reason: test:synthetic-error".replace(" ", ""), psql_current_stream.replace(" ", ""))
         self.assertNotIn("detail: test:synthetic-error", pretty.stdout)
         group_row = next(x for x in lines if "group-mode" in x)
         home_row = next(x for x in lines if "home-directories-mode" in x)
@@ -3995,6 +4002,15 @@ SLP_POLICY_RC=1
         )
         self.assertEqual(fallback_layout.returncode, 0, fallback_layout.stderr)
         self.assertEqual(fallback_layout.stdout.strip(), "mode=table cols=116")
+        # Соотношение current/required закреплено решением 19.09.2026: current отдаёт
+        # required 10 символов, но не становится уже 12. Литерал меняется только явным решением.
+        for width, expected in CURRENT_REQUIRED_WIDTHS.items():
+            widths = self.run_sourced(
+                f"\nslp_pretty_layout_for_cols {width}\n"
+                "printf '%s %s\\n' \"$SLP_PRETTY_WCUR\" \"$SLP_PRETTY_WREQ\"\n"
+            )
+            self.assertEqual(widths.returncode, 0, widths.stderr)
+            self.assertEqual(widths.stdout.strip(), "%d %d" % expected, width)
 
         for width in (80, 116, 139, 160):
             probe = self.run_sourced(
@@ -4023,7 +4039,7 @@ SLP_POLICY_RC=1
                 current_stream = "".join(
                     line.split("|")[3].strip() for line in probe_lines[2:] if line.count("|") == 5
                 )
-                self.assertIn("not-determined; reason: pam:ambiguous-stack", current_stream)
+                self.assertIn("not-determined; reason: pam:ambiguous-stack".replace(" ", ""), current_stream.replace(" ", ""))
         for ambient_locale in ("C", "C.UTF-8"):
             for width in (80, 116, 139, 160):
                 locale_probe = self.run_sourced(
@@ -4081,7 +4097,12 @@ SLP_POLICY_RC=1
         desktop_pre = self.synthetic_prelude() + "\nSLP_SYSTEM_PRETTY_NAME='Ubuntu 24.04.4 LTS'\nSLP_SYSTEM_ID='ubuntu'\nSLP_SYSTEM_VERSION_ID='24.04'\nSLP_SYSTEM_ARCH='x86_64'\nSLP_SYSTEM_PROFILE=''\nSLP_SYSTEM_TYPE='DESKTOP'\nSLP_SYSTEM_PLATFORM='ubuntu-24.04-x86_64'\nSLP_SYSTEM_ENVIRONMENT='ubuntu-24.04-x86_64-desktop'\n"
         desktop_pretty = self.run_sourced(desktop_pre + "\nslp_render_pretty 0 CHECK\n")
         self.assertEqual(desktop_pretty.returncode, 0, desktop_pretty.stderr)
-        self.assertEqual(desktop_pretty.stdout.splitlines()[2], "TYPE=DESKTOP   PLATFORM=ubuntu-24.04-x86_64   SUPPORT=FIELD_COMPATIBILITY")
+        desktop_lines = desktop_pretty.stdout.splitlines()
+        self.assertEqual(desktop_lines[1], "SUPPORT=FIELD_COMPATIBILITY")
+        self.assertEqual(desktop_lines[2], "SYSTEM=Ubuntu 24.04.4 LTS ARCH=x86_64")
+        self.assertEqual(desktop_lines[3], "PLATFORM=ubuntu-24.04-x86_64")
+        self.assertEqual(desktop_lines[4], "TYPE=DESKTOP")
+        self.assertEqual(desktop_lines[5], "")
         desktop_raw = self.run_sourced(desktop_pre + "\nslp_render_raw 0\n")
         self.assertIn("\tPROFILE=\tTYPE=DESKTOP\t", desktop_raw.stdout.splitlines()[0])
         self.assertIn("\tSUPPORT=FIELD_COMPATIBILITY", desktop_raw.stdout.splitlines()[0])
@@ -4676,7 +4697,7 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
                 current_stream = "".join(
                     line.split("|")[3].strip() for line in probe_lines[2:] if line.count("|") == 5
                 )
-                self.assertIn("not-determined; reason: pam:ambiguous-stack", current_stream)
+                self.assertIn("not-determined; reason: pam:ambiguous-stack".replace(" ", ""), current_stream.replace(" ", ""))
 
         with tempfile.TemporaryDirectory(prefix="slp-dispatcher-terminal-", dir=ROOT) as td:
             isolated = dispatcher.replace('STATE_DIR = "/var/log/securelinux-policy"', "STATE_DIR = " + repr(td), 1)
@@ -4710,6 +4731,68 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             self.assertTrue(payload["complete"])
             self.assertTrue(payload["rc_zero"])
             self.assertEqual(len(payload["controls"]), 2)
+
+    def test_apply_presentation_widths_block_locator_and_file_mode_current(self):
+        records = {
+            "FSTEC-LINUX-2099-9.9.4-PASSWD-MODE": {
+                "outcome": "ABORTED_PRECONDITION_CONFLICT", "reason": "mode-relaxation-forbidden",
+                "step_rc": "nonzero", "mutation_performed": False, "transaction_commit": "NOT_STARTED",
+                "current_mode": "0600", "planned_mode": "0644", "resulting_mode": None,
+            },
+            "FSTEC-LINUX-2099-9.9.5-GROUP-MODE": {
+                "outcome": "APPLIED", "reason": None,
+                "step_rc": "0", "mutation_performed": True, "transaction_commit": "COMMITTED",
+                "current_mode": "0664", "planned_mode": "0644", "resulting_mode": "0644",
+            },
+        }
+        implementation = (
+            'import json\n'
+            'MECHANISM_ID = "test-mechanism"\n'
+            'ADAPTER_ID = "test-adapter"\n'
+            f'RECORDS = json.loads({json.dumps(json.dumps(records))})\n'
+            'def execute_control(control_id, key, op, expected, apply_supported, dry_run=False):\n'
+            '    return control_id\n'
+            'def control_result_to_report(result, started_at, finished_at):\n'
+            '    record = dict(RECORDS[result])\n'
+            '    record.update({"control_id": result, "actions_attempted": ["P0_ELIGIBILITY"], "started_at": started_at, "finished_at": finished_at, "target": "/etc/" + result.split("-")[-2].lower()})\n'
+            '    return record\n'
+        ).encode("utf-8")
+        impl_sha = __import__("hashlib").sha256(implementation).hexdigest()
+        controls = [
+            {"control_id": cid, "doc_id": "fstec-linux-2099", "source_locator": cid.split("-")[3],
+             "parameter_kind": "synthetic", "parameter_key": "mode", "expected_op": "eq", "expected_value": "0644"}
+            for cid in records
+        ]
+        mechanisms = {"synthetic": {"kind_row": {"apply_kind": "test-kind"}, "authority": {"mechanism_id": "test-mechanism"}, "implementation_row": {"adapter_id": "test-adapter", "implementation_sha256": impl_sha}, "implementation_source": implementation}}
+        dispatcher = GEN_V2_CURRENT.render_product_apply_dispatcher(controls, mechanisms)
+
+        presentation = dispatcher.split("started_at = now()", 1)[0]
+        for width, expected in CURRENT_REQUIRED_WIDTHS.items():
+            probe = subprocess.run(
+                [os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", "-", "APPLY"],
+                input=presentation + f"\nprint(_terminal_layout({width})[2][3:])\n",
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=ROOT,
+            )
+            self.assertEqual(probe.returncode, 0, probe.stderr)
+            self.assertEqual(probe.stdout.strip(), str(expected), width)
+
+        with tempfile.TemporaryDirectory(prefix="slp-dispatcher-presentation-", dir=ROOT) as td:
+            isolated = dispatcher.replace('STATE_DIR = "/var/log/securelinux-policy"', "STATE_DIR = " + repr(td), 1)
+            cp = subprocess.run([os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", "-", "APPLY"], input=isolated, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=ROOT)
+            self.assertEqual(cp.stderr, "")
+            lines = cp.stdout.splitlines()
+            blocks_index = lines.index("blocks")
+            main = lines[:blocks_index]
+            passwd_row = next(line for line in main if "passwd-mode" in line and "|" in line)
+            group_row = next(line for line in main if "group-mode" in line and "|" in line)
+            # current берётся из current_mode/resulting_mode механизма режимов файлов.
+            self.assertEqual(passwd_row.split("|")[3].strip(), "0600", passwd_row)
+            self.assertEqual(group_row.split("|")[3].strip(), "0644", group_row)
+            self.assertNotIn("not-determined", "\n".join(main))
+            block_lines = lines[blocks_index + 1:]
+            control_stream = [line.split("|")[0].strip() for line in block_lines if line.count("|") == 3]
+            self.assertIn("§9.9.4 passwd-mode", control_stream)
+            self.assertTrue(all(len(line) == 116 for line in block_lines if "|" in line or "+" in line), cp.stdout)
 
     def test_apply_dispatcher_required_column_on_precondition_conflict(self):
         implementation = (
