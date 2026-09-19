@@ -20,8 +20,9 @@ Errata 0.0.13: `test_project_map_v3.py` дополнительно запрещ�
 `SRC0001_LOCK_REREAD_OBJECT_IDENTITY_DEFINITIONS`, `SRC0001_METADATA_TRANSACTION_REPORT_DEFINITIONS`,
 `APPLY_IMPLEMENTATION_ADAPTERS`, `FINAL_DETERMINISTIC_PACKAGING` и
 `SINGLE_DISTRIBUTABLE_ARTIFACT` имели `CLOSED`; текущая вертикаль достигла
-`DOCUMENT COMPLETE`, а единственный `NEXT` — Step 7B
-`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`. Историческая SRC-0001 APPLY-вертикаль,
+`DOCUMENT COMPLETE`, единственный `NEXT` — горизонт 1
+`HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS`, а Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`
+ждёт его закрытия. Историческая SRC-0001 APPLY-вертикаль,
 решением DP-3 выведенная из product APPLY, сохраняется побайтово: восемь ролей определений
 и композиция остаются точно привязанными по SHA-256, а `local-account-password-lock`
 обязан отсутствовать в обоих APPLY registries.

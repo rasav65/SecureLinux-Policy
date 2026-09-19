@@ -26,6 +26,7 @@ expected = [
     "FINAL_DETERMINISTIC_PACKAGING",
     "SINGLE_DISTRIBUTABLE_ARTIFACT",
     "SRC0008_CHECK_SEMANTIC_REWORK",
+    "HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS",
 ]
 assert [r["step_id"] for r in rows] == expected
 assert rows[0]["status"] == "CLOSED"
@@ -34,7 +35,7 @@ assert rows[2]["status"] == "CLOSED"
 assert rows[3]["status"] == "CLOSED"
 assert rows[4]["status"] == "CLOSED"
 assert rows[5]["status"] == "CLOSED"
-assert rows[6]["status"] == "NEXT"
+assert rows[6]["status"] == "WAITING_FOR_HORIZON_1"
 assert rows[7]["status"] == "PARENT_GATE_CLOSED_SOURCE_INSTANCE_REVISE"
 assert rows[8]["status"] == "CLOSED"
 assert rows[9]["status"] == "CLOSED"
@@ -46,8 +47,9 @@ assert rows[14]["status"] == "CLOSED"
 assert rows[15]["status"] == "CLOSED"
 assert rows[16]["status"] == "CLOSED"
 assert rows[17]["status"] == "CLOSED"
+assert rows[18]["status"] == "NEXT"
 assert [r["step_id"] for r in rows if r["status"] == "NEXT"] == [
-    "FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"
+    "HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS"
 ]
 with (root / "index/source-v4/SOURCE-INDEX.tsv").open(encoding="utf-8", newline="") as f:
     source_index_rows = list(csv.DictReader(f, delimiter="\t"))
@@ -72,13 +74,16 @@ def validate_markdown_order(text: str) -> None:
     assert numbered.get(15) == "Адаптеры реализации APPLY", numbered.get(15)
     assert numbered.get(16) == "Детерминированная финальная упаковка", numbered.get(16)
     assert numbered.get(17) == "Единый распространяемый артефакт (имя не закреплено)", numbered.get(17)
+    assert numbered.get(19) == "Горизонт 1: APPLY для безопасных классов `fstec-linux-2022` + VM-прогоны", numbered.get(19)
 
 
 def validate_current_checkpoint(roadmap_text: str, map_text: str, disposition_text: str) -> None:
     assert "DOCUMENT COMPLETE" in roadmap_text
     assert "FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS" in roadmap_text
-    assert "Step 7B" in roadmap_text and "NEXT" in roadmap_text
-    assert "МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC" in map_text
+    assert "HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS" in roadmap_text and "NEXT" in roadmap_text
+    assert "Step 7B" in roadmap_text and "WAITING_FOR_HORIZON_1" in roadmap_text
+    assert "МЫ ЗДЕСЬ<br/>горизонт 1 · APPLY безопасных классов + ВМ" in map_text
+    assert "МЫ ЗДЕСЬ<br/>Step 7B" not in map_text
     assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in roadmap_text
     assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in map_text
     assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in disposition_text

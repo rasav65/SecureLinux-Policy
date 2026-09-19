@@ -255,17 +255,19 @@ assert 'P17["SRC-0001 метаданные/транзакция/отчёт<br/>8
 assert 'P18["APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО"]:::closed' in current
 assert 'P19["финальная детерминированная упаковка<br/>ГОТОВО"]:::closed' in current
 assert 'P20["единый распространяемый артефакт<br/>ГОТОВО"]:::closed' in current
-assert 'P21["МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC"]:::current' in current
+assert 'P21["МЫ ЗДЕСЬ<br/>горизонт 1 · APPLY безопасных классов + ВМ"]:::current' in current
 assert "SRC-0001 flat contract candidate: REVISE" in current
 assert "SRC-0001 current contract<br/>ПРИНЯТО" not in current
 assert "RESTORE исключён" in current
-assert "МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC" in current
+assert "МЫ ЗДЕСЬ<br/>горизонт 1 · APPLY безопасных классов + ВМ" in current
+assert "Step 7B · расширение FSTEC" in current
 
 with (ROOT / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream:
     rows = list(csv.DictReader(stream, delimiter="\t"))
 by_id = {row["step_id"]: row["status"] for row in rows}
 assert by_id["SOURCE_BLOCK_REGENERATION_PARITY"] == "CLOSED"
-assert by_id["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "NEXT"
+assert by_id["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "WAITING_FOR_HORIZON_1"
+assert by_id["HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS"] == "NEXT"
 assert by_id["APPLY_SEMANTIC_CONTRACT"] == "PARENT_GATE_CLOSED_SOURCE_INSTANCE_REVISE"
 assert by_id["AUTHORITY_2026_REFRESH"] == "CLOSED"
 assert by_id["SRC0001_MODULAR_APPLY_CONTRACT_ARCHITECTURE"] == "CLOSED"
@@ -280,7 +282,7 @@ assert by_id["SRC0008_CHECK_SEMANTIC_REWORK"] == "CLOSED"
 assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in roadmap
 assert "DOCUMENT COMPLETE" in roadmap
 next_rows = [row["step_id"] for row in rows if row["status"] == "NEXT"]
-assert next_rows == ["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"], next_rows
+assert next_rows == ["HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS"], next_rows
 assert "SRC0001_MODULAR_APPLY_CONTRACT_ARCHITECTURE" in roadmap
 assert "SRC0001_PREDICATE_TRANSFORM_DEFINITIONS" in roadmap
 assert "SRC0001_SNAPSHOT_PRECONDITION_DEFINITION" in roadmap

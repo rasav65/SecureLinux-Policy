@@ -211,9 +211,10 @@ flowchart LR
     GEN1["product/generate-product-check-v1.py<br/>предыдущая identity generator"]:::note
     GEN2["product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed
     IMPLREG["product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding активных механизмов"]:::closed
-    APPLY1["config-line-with-runtime-v1<br/>17 sysctl controls · dry-run · APPLY"]:::closed
-    APPLY2["file-mode-owner-v1 · 3 controls SRC-0005 · APPLY"]:::current
+    APPLY1["config-line-with-runtime-v1<br/>sysctl · dry-run · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
+    APPLY2["file-mode-owner-v1<br/>режимы файлов SRC-0005 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
     CLI["securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
+    ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note
 
     CTRLNOW --> REG
     REG --> SYS
@@ -223,6 +224,7 @@ flowchart LR
     CTRLNOW --> GEN2 --> CLI
     IMPLREG --> APPLY1 --> GEN2
     IMPLREG --> APPLY2 --> GEN2
+    APPLY1 -. решение администратору .-> ADMIN
     GEN1 -. historical .-> GEN2
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
@@ -235,11 +237,19 @@ flowchart LR
 пинует semantic contract, adapter binding и implementation по SHA-256.
 Tracked `securelinux-policy.sh` и sidecar входят в root manifests и обязаны
 byte-exact совпадать со свежим generator-v2 output. `dist/` остаётся optional
-gitignored rebuild output. APPLY scope вычисляется из `apply.supported=true` controls;
-сейчас активны 17 `sysctl` controls, маршрутизируемые через `APPLY-KIND-REGISTRY.tsv`
-в `config-line-with-runtime-v1`. SRC-0001 выведен из product APPLY, его артефакты historical.
+gitignored rebuild output. APPLY scope вычисляется из `apply.supported=true` controls и
+маршрутизируется через `APPLY-KIND-REGISTRY.tsv` в механизмы `config-line-with-runtime-v1`
+(sysctl) и `file-mode-owner-v1` (режимы файлов). SRC-0001 выведен из product APPLY, его артефакты historical.
 Пользовательский `--restore` отсутствует, потому что operational RESTORE не является future feature.
 Human-readable CHECK/REPORT выводит обнаруженную ОС, архитектуру, profile и runtime platform; target family един для всей поддерживаемой матрицы.
+
+Статус узла механизма задаётся гейтами: `closed` — механизм прошёл `--release` и восьмисредовый VM-цикл;
+`current` — идёт работа. Иного статуса у узла механизма нет.
+Оба механизма пока в статусе `current`: на ВМ пройдена одна среда, приёмка восьми сред впереди.
+
+Узел `ADMIN` — граница продукта: для части контролей APPLY не реализуется по решению,
+и продукт возвращает решение администратору отдельным терминальным исходом.
+Прецедент — `suid-dumpable` при обнаруженном Apport (`ABORTED_PRECONDITION_CONFLICT`).
 
 ## 4. Инженерный донор → принятый mapping → historical SRC-0001 APPLY → упаковка
 
@@ -318,14 +328,15 @@ Git bundle — внешний артефакт для аудита и handoff, �
 Историческая SRC-0001 APPLY-вертикаль (P13–P18) остаётся закрытой как доказанная
 история, но решением DP-3 больше не является active product APPLY. Текущая authority
 APPLY — общая форма `MECHANISM_AUTHORITY_V1`, по одному документу на механизм:
-`config-line-with-runtime-v1` (17 sysctl controls) и `file-mode-owner-v1`
-(3 контроля SRC-0005); итого 20 контролей включены через `apply.supported=true`,
+`config-line-with-runtime-v1` (sysctl) и `file-mode-owner-v1`
+(режимы файлов SRC-0005); контроли включаются через `apply.supported=true`,
 а общий цикл выполняет generated CLI.
 Старые SRC-0001 contracts/definitions/adapter сохраняются побайтово как historical.
 `SINGLE_DISTRIBUTABLE_ARTIFACT` остаётся generated `securelinux-policy.sh`; полная
 приёмка новой интеграции и восьмисредовый VM-cycle являются следующими gates.
-Machine roadmap в этой транзакции не меняется: текущий `NEXT` до отдельного H46-T02 —
-Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`.
+`NEXT` machine roadmap — горизонт 1 `HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS`:
+APPLY для безопасных классов `fstec-linux-2022` и VM-прогоны механизмов. Step 7B
+`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` ждёт закрытия горизонта 1.
 
 ```mermaid
 flowchart LR
@@ -352,10 +363,11 @@ flowchart LR
     P18["APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО"]:::closed
     P19["финальная детерминированная упаковка<br/>ГОТОВО"]:::closed
     P20["единый распространяемый артефакт<br/>ГОТОВО"]:::closed
-    P21["МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC"]:::current
+    P21["МЫ ЗДЕСЬ<br/>горизонт 1 · APPLY безопасных классов + ВМ"]:::current
+    P22["Step 7B · расширение FSTEC<br/>ждёт закрытия горизонта 1"]:::future
     SNAP["восстановление после APPLY<br/>ВНЕШНИЙ СНИМОК<br/>вне продукта"]:::note
 
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P9A --> P9B --> P10 --> P10A --> P11 --> P12 --> P13 --> P14 --> P15 --> P16 --> P17 --> P18 --> P19 --> P20 --> P21
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P9A --> P9B --> P10 --> P10A --> P11 --> P12 --> P13 --> P14 --> P15 --> P16 --> P17 --> P18 --> P19 --> P20 --> P21 --> P22
     P18 -. граница operational recovery .-> SNAP
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
@@ -391,3 +403,12 @@ normative controls, semantic contracts и implementation adapters. Sidecar
 а не:
 
 `old shell script → manual edits → new shell script`.
+
+## Отложено сознательно
+
+Эти направления не входят в горизонт 1; причина указана для каждого.
+
+- APPLY для `SRC-0008` и пакет v7 — до отработки шаблона механизма APPLY.
+- APPLY для kernel cmdline — цена ошибки: незагружающаяся система.
+- Классы G3 и G5 — APPLY, вероятно, не появится: нестабильная популяция и неавтоматизируемость по классу.
+- Генерируемый инвентарь механизмов в блоке карты — решением пользователя 19.09.2026 не делается сейчас; до него механизмы называются в ручной прозе без чисел.

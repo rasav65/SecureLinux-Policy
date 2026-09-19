@@ -42,11 +42,19 @@ for marker in (
     'product-file-mode-owner-check-v1<br/>read-only"]:::closed',
     'product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed',
     'product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding активных механизмов"]:::closed',
-    'config-line-with-runtime-v1<br/>17 sysctl controls · dry-run · APPLY"]:::closed',
-    'file-mode-owner-v1 · 3 controls SRC-0005 · APPLY"]:::current',
+    'config-line-with-runtime-v1<br/>sysctl · dry-run · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current',
+    'file-mode-owner-v1<br/>режимы файлов SRC-0005 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current',
+    'ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note',
     'securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed',
 ):
     assert marker in product_line, marker
+# B4: status of a mechanism node is defined by gates, not by prose.
+assert "`closed` — механизм прошёл `--release` и восьмисредовый VM-цикл" in product_line
+assert "`current` — идёт работа. Иного статуса у узла механизма нет." in product_line
+assert "APPLY1" in product_line and ":::closed" not in product_line.split('APPLY1["', 1)[1].split("\n", 1)[0]
+# B1: mechanism prose names mechanisms, not live control counts.
+for stale_count in ("17 sysctl", "3 controls SRC-0005", "итого 20", "активны 17", "(3 контроля SRC-0005)"):
+    assert stale_count not in text, stale_count
 
 # Accepted mapping must be represented as closed, not as future work.
 donor_runtime = text.split("## 4. Инженерный донор", 1)[1].split(
@@ -67,6 +75,7 @@ assert "AUTHORITY_2026_REFRESH" in current
 assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in current
 assert "восьмисредовый VM-cycle" in current
 assert "Step 7B · расширение FSTEC" in current
+assert "HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS" in current
 assert "Step 7B возвращён в `NEXT`" not in current
 assert 'P4["SRC-0005 / 2.3.1<br/>3 canonical file-mode controls<br/>ГОТОВО"]:::closed' in current
 assert 'P5["CHECK-11<br/>регенерация + read-only запуск<br/>ГОТОВО"]:::closed' in current
@@ -87,7 +96,8 @@ assert 'P17["SRC-0001 метаданные/транзакция/отчёт<br/>8
 assert 'P18["APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО"]:::closed' in current
 assert 'P19["финальная детерминированная упаковка<br/>ГОТОВО"]:::closed' in current
 assert 'P20["единый распространяемый артефакт<br/>ГОТОВО"]:::closed' in current
-assert 'P21["МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC"]:::current' in current
+assert 'P21["МЫ ЗДЕСЬ<br/>горизонт 1 · APPLY безопасных классов + ВМ"]:::current' in current
+assert 'P22["Step 7B · расширение FSTEC<br/>ждёт закрытия горизонта 1"]:::future' in current
 assert 'P18["адаптеры реализации APPLY<br/>заблокировано до semantic chain"]:::future' not in current
 diagram = current.split("```mermaid", 1)[1].split("```", 1)[0]
 for marker in (
@@ -119,6 +129,7 @@ for marker in (
     "APPLY для SRC-0001",
     "финальная детерминированная упаковка",
     "единый распространяемый артефакт",
+    "горизонт 1 · APPLY безопасных классов + ВМ",
     "Step 7B · расширение FSTEC",
     "ВНЕШНИЙ СНИМОК",
 ):
@@ -152,12 +163,14 @@ positions = [diagram.index(marker) for marker in (
     "APPLY для SRC-0001",
     "финальная детерминированная упаковка",
     "единый распространяемый артефакт",
+    "горизонт 1 · APPLY безопасных классов + ВМ",
     "Step 7B · расширение FSTEC",
 )]
 assert positions == sorted(positions)
 
 for stale in (
     "МЫ ЗДЕСЬ<br/>единый распространяемый артефакт",
+    "МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC",
     'implementation<br/>adapters"]:::future',
     'deterministic<br/>build"]:::future',
     "single distributable<br/>securelinux-ng.sh",
@@ -171,8 +184,13 @@ assert "tracked CHECK + mechanism-oriented APPLY CLI" in text
 assert "Gate 0 PASS" in text
 assert "только byte-generation parity" in text
 assert "docs/PROJECT-MAP-v3.md" in readme
+
+# B6: deliberately deferred directions are named with their reason.
+deferred = text.split("## Отложено сознательно", 1)[1]
+for marker in ("SRC-0008", "kernel cmdline", "G3", "G5", "инвентарь механизмов"):
+    assert marker in deferred, marker
 print(
-    "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=step7b-fstec-expansion "
+    "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=horizon1-safe-class-apply "
     "src0005_check11_done=1 exact_eq_check17_done=1 src0040_check18_done=1 "
     "src0033_check19_done=1 kernel_cmdline_check28_done=1 unified_cli_done=1 src0001_apply_done=1 restore_out_of_scope=1"
 )

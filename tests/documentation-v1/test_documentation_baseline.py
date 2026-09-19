@@ -585,8 +585,11 @@ for rel in cp_lines:
 with (ROOT / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream:
     _roadmap_rows = list(csv.DictReader(stream, delimiter="\t"))
 _roadmap_status = {row["step_id"]: row["status"] for row in _roadmap_rows}
+# Step 7B не на паузе: после DOCUMENT COMPLETE он ждёт закрытия горизонта 1,
+# который является единственным NEXT.
 STEP7B_RESUMED = (
-    _roadmap_status["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "NEXT"
+    _roadmap_status["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "WAITING_FOR_HORIZON_1"
+    and _roadmap_status["HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS"] == "NEXT"
     and _roadmap_status["SINGLE_DISTRIBUTABLE_ARTIFACT"] == "CLOSED"
 )
 assert STEP7B_RESUMED
@@ -684,7 +687,7 @@ def validate_global_current_semantics(rel: str, body: str) -> None:
             )
             assert not cancellation, f"APPLY adapter future stage cancelled: {rel}: {segment}"
 
-        # После DOCUMENT COMPLETE machine truth разрешает Step 7B как NEXT.
+        # После DOCUMENT COMPLETE Step 7B не на паузе: он ждёт закрытия горизонта 1.
         # Старые current claims о PAUSED теперь являются противоположным состоянием.
         if "step 7b" in lower and STEP7B_RESUMED:
             stale_pause = re.search(
@@ -975,11 +978,13 @@ assert "SRC-0001 метаданные/транзакция/отчёт<br/>8 оп
 assert "APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО" in current_map
 assert "финальная детерминированная упаковка<br/>ГОТОВО" in current_map
 assert "единый распространяемый артефакт<br/>ГОТОВО" in current_map
-assert "МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC" in current_map
+assert "МЫ ЗДЕСЬ<br/>горизонт 1 · APPLY безопасных классов + ВМ" in current_map
+assert "МЫ ЗДЕСЬ<br/>Step 7B" not in current_map
 assert "`MECHANISM_AUTHORITY_V1`, по одному документу на механизм" in current_map
-assert "`config-line-with-runtime-v1` (17 sysctl controls)" in current_map
+assert "`config-line-with-runtime-v1`" in current_map
 assert "`file-mode-owner-v1`" in current_map
-assert "итого 20 контролей включены" in current_map
+assert "17 sysctl controls" not in current_map
+assert "итого 20 контролей" not in current_map
 assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in current_map
 assert "восьмисредовый VM-cycle" in current_map
 
