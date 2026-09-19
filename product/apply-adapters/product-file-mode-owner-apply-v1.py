@@ -39,6 +39,18 @@ OUTCOMES = (
     "FAILED_NOT_COMMITTED",
 )
 
+COMMIT_COMMITTED = "COMMITTED"
+COMMIT_NOT_COMMITTED = "NOT_COMMITTED"
+COMMIT_NOT_STARTED = "NOT_STARTED"
+
+# Цель каждого контроля. Совпадение с parameter.locator контролей и с
+# mutation.allowed_paths authority проверяет test_file_mode_owner_apply_adapter.py.
+TARGETS = {
+    "FSTEC-LINUX-2022-2.3.1-GROUP-MODE": "/etc/group",
+    "FSTEC-LINUX-2022-2.3.1-PASSWD-MODE": "/etc/passwd",
+    "FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX": "/etc/shadow",
+}
+
 CONTROL_ID_PATTERN = r"^(?!.*[\r\n])[A-Za-z0-9._-]+$"
 MODE4_PATTERN = r"^[0-7]{4}$"
 
@@ -70,7 +82,7 @@ def _default_privilege_check(fd: int) -> bool:
     return euid == 0 or os.fstat(fd).st_uid == euid
 
 
-def _result(control_id, target, outcome, **extra):
+def _result(control_id, target, outcome, *, actions, dry_run, mutation=False, **extra):
     record = {
         "adapter_id": ADAPTER_ID,
         "mechanism_id": MECHANISM_ID,
@@ -81,11 +93,33 @@ def _result(control_id, target, outcome, **extra):
         "current_mode": None,
         "planned_mode": None,
         "resulting_mode": None,
+        "actions_attempted": list(actions),
+        "mutation_performed": bool(mutation),
+        "transaction_commit": _commit_state(outcome, dry_run, mutation),
+        "dry_run": bool(dry_run),
     }
     record.update(extra)
     if record["outcome"] not in OUTCOMES:
         raise ValueError("outcome outside closed vocabulary")
     return record
+
+
+def _commit_state(outcome, dry_run, mutation):
+    """Те же значения, что у config-line: COMMITTED в конце успешного прохода."""
+    if outcome == "APPLIED" or (outcome == "ALREADY_COMPLIANT" and not dry_run):
+        return COMMIT_COMMITTED
+    if mutation:
+        return COMMIT_NOT_COMMITTED
+    return COMMIT_NOT_STARTED
+
+
+def outcome_rc_contribution(outcome, dry_run=False):
+    """Правило step_rc config-line: "0" для успешных исходов, иначе "nonzero"."""
+    if outcome in ("APPLIED", "ALREADY_COMPLIANT", "NOT_ELIGIBLE_APPLY_UNSUPPORTED"):
+        return "0"
+    if dry_run and outcome == "DRY_RUN_WOULD_APPLY":
+        return "0"
+    return "nonzero"
 
 
 def compute_planned_mode(op: str, current: int, expected: str) -> int:
@@ -108,76 +142,89 @@ def execute_control(
     expected,
     apply_supported,
     *,
-    target,
+    target=None,
     dry_run,
     privilege_check=None,
     _pre_syscall_hook=None,
 ):
     """Apply one file-mode control. Never follows a symlink, never relaxes."""
     validate_control_input(control_id, key, op, expected, apply_supported)
+    actions = ["P0_ELIGIBILITY"]
+
+    def done(outcome, **extra):
+        return _result(control_id, target, outcome, actions=actions, dry_run=dry_run, **extra)
 
     if not apply_supported:
-        return _result(control_id, target, "NOT_ELIGIBLE_APPLY_UNSUPPORTED",
-                       reason="apply-unsupported")
+        return done("NOT_ELIGIBLE_APPLY_UNSUPPORTED", reason="apply-unsupported")
+
+    if target is None:
+        target = TARGETS.get(control_id)
+        if target is None:
+            return done("ABORTED_PRECONDITION_OTHER", reason="target:unmapped-control")
+
+    actions.append("P1_TARGET_OPEN")
 
     try:
         fd = os.open(target, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
     except OSError as exc:
         if exc.errno in (errno.ELOOP, errno.EMLINK):
-            return _result(control_id, target, "ABORTED_PRECONDITION_CONFLICT",
-                           reason="symlink")
+            return done("ABORTED_PRECONDITION_CONFLICT",
+                        reason="symlink")
         if exc.errno == errno.ENOENT:
-            return _result(control_id, target, "ABORTED_PRECONDITION_OTHER",
-                           reason="absent")
-        return _result(control_id, target, "ABORTED_PRECONDITION_OTHER",
-                       reason="open:%s" % errno.errorcode.get(exc.errno, exc.errno))
+            return done("ABORTED_PRECONDITION_OTHER",
+                        reason="absent")
+        return done("ABORTED_PRECONDITION_OTHER",
+                    reason="open:%s" % errno.errorcode.get(exc.errno, exc.errno))
 
     try:
         st = os.fstat(fd)
         if not stat.S_ISREG(st.st_mode):
-            return _result(control_id, target, "ABORTED_PRECONDITION_CONFLICT",
-                           reason="not-regular")
+            return done("ABORTED_PRECONDITION_CONFLICT",
+                        reason="not-regular")
         if st.st_nlink != 1:
-            return _result(control_id, target, "ABORTED_PRECONDITION_CONFLICT",
-                           reason="st_nlink")
+            return done("ABORTED_PRECONDITION_CONFLICT",
+                        reason="st_nlink")
 
         current = stat.S_IMODE(st.st_mode)
         if is_compliant(op, current, expected):
-            return _result(control_id, target, "ALREADY_COMPLIANT",
-                           current_mode=_mode_text(current),
-                           resulting_mode=_mode_text(current))
+            return done("ALREADY_COMPLIANT",
+                        current_mode=_mode_text(current),
+                        resulting_mode=_mode_text(current))
 
         planned = compute_planned_mode(op, current, expected)
         if planned & ~current:
-            return _result(control_id, target, "ABORTED_PRECONDITION_CONFLICT",
-                           reason="mode-relaxation-forbidden",
-                           current_mode=_mode_text(current),
-                           planned_mode=_mode_text(planned))
+            return done("ABORTED_PRECONDITION_CONFLICT",
+                        reason="mode-relaxation-forbidden",
+                        current_mode=_mode_text(current),
+                        planned_mode=_mode_text(planned))
 
         if dry_run:
-            return _result(control_id, target, "DRY_RUN_WOULD_APPLY",
-                           current_mode=_mode_text(current),
-                           planned_mode=_mode_text(planned))
+            return done("DRY_RUN_WOULD_APPLY",
+                        current_mode=_mode_text(current),
+                        planned_mode=_mode_text(planned))
 
+        actions.append("P3_PRIVILEGE")
         check = privilege_check if privilege_check is not None else (lambda: _default_privilege_check(fd))
         if not check():
-            return _result(control_id, target, "ABORTED_PRECONDITION_OTHER",
-                           reason="privilege",
-                           current_mode=_mode_text(current),
-                           planned_mode=_mode_text(planned))
+            return done("ABORTED_PRECONDITION_OTHER",
+                        reason="privilege",
+                        current_mode=_mode_text(current),
+                        planned_mode=_mode_text(planned))
 
         if _pre_syscall_hook is not None:
             _pre_syscall_hook()
 
+        actions.append("PHASE1_MODE")
         drift = _revalidate(fd, target, st, op, expected, planned)
         if drift is not None:
-            return _result(control_id, target, "ABORTED_PRECONDITION_CONFLICT",
-                           reason=drift,
-                           current_mode=_mode_text(current),
-                           planned_mode=_mode_text(planned))
+            return done("ABORTED_PRECONDITION_CONFLICT",
+                        reason=drift,
+                        current_mode=_mode_text(current),
+                        planned_mode=_mode_text(planned))
 
         os.fchmod(fd, planned)
 
+        actions.append("FINAL_POSTCHECK")
         post = os.fstat(fd)
         resulting = stat.S_IMODE(post.st_mode)
         if (
@@ -188,16 +235,16 @@ def execute_control(
             or post.st_dev != st.st_dev
             or post.st_size != st.st_size
         ):
-            return _result(control_id, target, "FAILED_NOT_COMMITTED",
-                           reason="post-state-mismatch",
-                           current_mode=_mode_text(current),
-                           planned_mode=_mode_text(planned),
-                           resulting_mode=_mode_text(resulting))
+            return done("FAILED_NOT_COMMITTED",
+                        reason="post-state-mismatch", mutation=True,
+                        current_mode=_mode_text(current),
+                        planned_mode=_mode_text(planned),
+                        resulting_mode=_mode_text(resulting))
 
-        return _result(control_id, target, "APPLIED",
-                       current_mode=_mode_text(current),
-                       planned_mode=_mode_text(planned),
-                       resulting_mode=_mode_text(resulting))
+        return done("APPLIED", mutation=True,
+                    current_mode=_mode_text(current),
+                    planned_mode=_mode_text(planned),
+                    resulting_mode=_mode_text(resulting))
     finally:
         os.close(fd)
 
@@ -239,5 +286,9 @@ def control_result_to_report(result, started_at, finished_at):
         "resulting_mode": result["resulting_mode"],
         "started_at": started_at,
         "finished_at": finished_at,
+        "actions_attempted": list(result["actions_attempted"]),
+        "step_rc": outcome_rc_contribution(result["outcome"], result["dry_run"]),
+        "mutation_performed": result["mutation_performed"],
+        "transaction_commit": result["transaction_commit"],
     }
     return report

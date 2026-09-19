@@ -344,5 +344,81 @@ class T06_Reporting(unittest.TestCase):
         self.assertEqual(set(self.mod.OUTCOMES), allowed)
 
 
+def yaml_apply_locators() -> dict:
+    """control_id -> parameter.locator для file-mode-owner контролей с apply.supported=true."""
+    found = {}
+    for path in sorted(CONTROL_DIR.glob("*.yaml")):
+        text = path.read_text(encoding="utf-8")
+        if f'\nparameter:\n  kind: "{PARAMETER_KIND}"\n' not in text:
+            continue
+        if "\napply:\n  supported: true\n" not in text:
+            continue
+        cid = ("\n" + text).split('\nid: "', 1)[1].split('"', 1)[0]
+        locator = text.split('\nparameter:\n', 1)[1].split('  locator: "', 1)[1].split('"', 1)[0]
+        found[cid] = locator
+    return found
+
+
+class T07_DispatcherIntegration(unittest.TestCase):
+    """Адаптер вызывается единым dispatcher без target и отдаёт поля, которые тот читает."""
+
+    DISPATCHER_FIELDS = ("actions_attempted", "step_rc", "mutation_performed", "transaction_commit")
+
+    def setUp(self):
+        self.mod = load_adapter()
+
+    def test_target_table_equals_yaml_locators_and_allowed_paths(self):
+        locators = yaml_apply_locators()
+        self.assertTrue(locators)
+        self.assertEqual(dict(self.mod.TARGETS), locators)
+        doc = json.loads(CONTRACT.read_text(encoding="utf-8"))
+        self.assertEqual(set(doc["mutation"]["allowed_paths"]), set(locators.values()))
+
+    def test_default_target_comes_from_table(self):
+        cid = "FSTEC-LINUX-2022-2.3.1-GROUP-MODE"
+        result = self.mod.execute_control(cid, "mode", "eq", "0644", True, dry_run=True)
+        self.assertEqual(result["target"], self.mod.TARGETS[cid])
+        self.assertNotIn(result["outcome"], ("APPLIED", "FAILED_NOT_COMMITTED"))
+
+    def test_unknown_control_without_target_aborts(self):
+        result = self.mod.execute_control("CTRL", "mode", "eq", "0644", True, dry_run=False)
+        self.assertEqual(result["outcome"], "ABORTED_PRECONDITION_OTHER")
+        report = self.mod.control_result_to_report(result, "T0", "T1")
+        self.assertIs(report["mutation_performed"], False)
+        self.assertEqual(report["transaction_commit"], "NOT_STARTED")
+        self.assertEqual(report["step_rc"], "nonzero")
+
+    def _report(self, mode, *, dry_run, op="eq", expected="0644"):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = make_target(tmp, "passwd", mode)
+            result = self.mod.execute_control(
+                "CTRL", "mode", op, expected, True, target=target, dry_run=dry_run,
+            )
+            return self.mod.control_result_to_report(result, "T0", "T1")
+
+    def test_report_carries_dispatcher_fields(self):
+        # (mode, dry_run, outcome, step_rc, mutation_performed, transaction_commit)
+        cases = (
+            (0o666, False, "APPLIED", "0", True, "COMMITTED"),
+            (0o644, False, "ALREADY_COMPLIANT", "0", False, "COMMITTED"),
+            (0o666, True, "DRY_RUN_WOULD_APPLY", "0", False, "NOT_STARTED"),
+            (0o644, True, "ALREADY_COMPLIANT", "0", False, "NOT_STARTED"),
+            (0o600, False, "ABORTED_PRECONDITION_CONFLICT", "nonzero", False, "NOT_STARTED"),
+        )
+        for mode, dry_run, outcome, step_rc, mutation, commit in cases:
+            with self.subTest(mode=oct(mode), dry_run=dry_run):
+                report = self._report(mode, dry_run=dry_run)
+                for field in self.DISPATCHER_FIELDS:
+                    self.assertIn(field, report)
+                self.assertEqual(report["outcome"], outcome)
+                self.assertEqual(report["step_rc"], step_rc)
+                self.assertIs(report["mutation_performed"], mutation)
+                self.assertEqual(report["transaction_commit"], commit)
+                self.assertIsInstance(report["actions_attempted"], list)
+                self.assertTrue(report["actions_attempted"])
+                self.assertTrue(all(isinstance(a, str) for a in report["actions_attempted"]))
+                json.dumps(report)
+
+
 if __name__ == "__main__":
     unittest.main()
