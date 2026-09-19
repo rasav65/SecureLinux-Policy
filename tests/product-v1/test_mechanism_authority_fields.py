@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 CONFIG_LINE_AUTHORITY = ROOT / "product/contracts/mechanism-config-line-runtime-v1.json"
 FILE_MODE_AUTHORITY = ROOT / "product/contracts/mechanism-file-mode-owner-v1.json"
+OPTIONAL_ROOT_AUTHORITY = ROOT / "product/contracts/mechanism-optional-file-root-files-mode-v1.json"
 SCHEMA_V2 = ROOT / "product/contracts/apply-semantic-contract-v2.schema.json"
 
 # Expected field sets are literals: they change only by explicit decision,
@@ -28,6 +29,7 @@ FILE_MODE_TOP_LEVEL = {
     "authority_form", "mechanism_id", "apply_kind", "registry_binding", "mutation",
 }
 FILE_MODE_MUTATION = {"allowed_paths"}
+OPTIONAL_ROOT_TOP_LEVEL = {"authority_form", "mechanism_id", "registry_binding"}
 
 
 def load(path: Path) -> dict:
@@ -66,6 +68,12 @@ class MechanismAuthorityFields(unittest.TestCase):
             "mechanism-file-mode-owner-v1.json:mutation",
             doc.get("mutation"),
             FILE_MODE_MUTATION,
+        )
+
+    def test_optional_root_authority_top_level(self):
+        doc = load(OPTIONAL_ROOT_AUTHORITY)
+        self.assert_keys(
+            "mechanism-optional-file-root-files-mode-v1.json", doc, OPTIONAL_ROOT_TOP_LEVEL
         )
 
     def test_schema_v2_absent(self):

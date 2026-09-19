@@ -129,6 +129,7 @@ class ApplyDispatchIntegration(unittest.TestCase):
         unknown = sorted(set(self.compact_mapping) - adapter_outcomes())
         self.assertEqual(unknown, [], "ключи _compact_outcome вне исходов адаптеров")
         self.assertEqual(self.compact_mapping.get("DRY_RUN_WOULD_APPLY"), "would")
+        self.assertEqual(self.compact_mapping.get("APPLIED_PARTIAL"), "part")
 
     def test_every_apply_kind_has_controls(self):
         self.assertTrue(self.population)

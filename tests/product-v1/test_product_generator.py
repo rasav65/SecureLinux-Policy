@@ -4151,7 +4151,7 @@ SLP_POLICY_RC=1
         # Литерал закреплён явным решением: расширяется только осознанной правкой
         # этого теста при принятии нового APPLY-механизма, а не автоматически под
         # результат прогона.
-        self.assertEqual(set(apply_mechanisms), {"sysctl", "file-mode-owner"})
+        self.assertEqual(set(apply_mechanisms), {"sysctl", "file-mode-owner", "optional-file-root-files-mode"})
         apply_rows = [row for row in rows if "apply" in row]
         expected_apply_controls = [
             c for c in (
@@ -4610,7 +4610,7 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         # Литерал закреплён явным решением: расширяется только осознанной правкой
         # этого теста при принятии нового APPLY-механизма, а не автоматически под
         # результат прогона.
-        self.assertEqual(set(mechanisms), {"sysctl", "file-mode-owner"})
+        self.assertEqual(set(mechanisms), {"sysctl", "file-mode-owner", "optional-file-root-files-mode"})
         mechanism = mechanisms["sysctl"]
         self.assertEqual(mechanism["kind_row"]["apply_kind"], "config-line-with-runtime-v1")
         self.assertEqual(mechanism["kind_row"]["authority_form"], "MECHANISM_AUTHORITY_V1")
@@ -4625,10 +4625,10 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         # Литералы закреплены явным решением: меняются только осознанной правкой
         # этого теста при изменении APPLY-популяции, а не автоматически под
         # результат прогона. Вычисление здесь дало бы сравнение реестра с собой.
-        self.assertEqual(len(enabled), 20)
+        self.assertEqual(len(enabled), 26)
         self.assertEqual(
             {control["parameter_kind"] for control in enabled},
-            {"sysctl", "file-mode-owner"},
+            {"sysctl", "file-mode-owner", "optional-file-root-files-mode"},
         )
         self.assertNotIn(
             "FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE",

@@ -1,4 +1,4 @@
-1fe40be19afe6af9d8b1b777a7fd970e43eb1e48b3111a00d17ee20acd5c56fe  CONTROL-MANIFEST.tsv
+06825f69374cdf2f0f1b21c36b6c5670a4423db9b11e857fd5f5367fe3941017  CONTROL-MANIFEST.tsv
 82d8121586664ee803efec1f1b4bb93a248ce1f302bdf90a2561468ead86d802  fstec-linux-2022-2.1.1-local-account-password-state.yaml
 2f965f6e8901380f14088a167c77b07fc3b4c1872ac1f38865ba0a236a80b1de  fstec-linux-2022-2.1.2-ssh-root-login.yaml
 d6771f8b26de807a96b62b7f4cbc84c4527e80798e0e00d5789598af5d36faba  fstec-linux-2022-2.2.1-su-wheel-access.yaml
@@ -12,12 +12,12 @@ e642ca111817660456d8c2a9f205719d4f3274d56d0a3baba18e41788b05aa30  fstec-linux-20
 aaab15a2454a7de6c5560aff10e367170706c6f47e6c5f879e46abe4fe9d6343  fstec-linux-2022-2.3.3-cron-command-paths-write-protection.yaml
 26e09a7a56ef3b4f5586eca1ca45889ccf2634de18e873be8fc1a6e0157e6734  fstec-linux-2022-2.3.4-sudo-root-command-files-protection.yaml
 f06a42e88648b412e21b77a070622324e4d8f57694101263a8f47d2d1fd38194  fstec-linux-2022-2.3.5-startup-files-write-protection.yaml
-a6c928414a1091aa8bf7291eee2e7574c9ad5f204831930d39a8536700f1731a  fstec-linux-2022-2.3.6-cron-daily.yaml
-d1dd9b4af5c49732ec93ac350d82fb138cb1fdc967396dda25062d59ff77527a  fstec-linux-2022-2.3.6-cron-d.yaml
-882eec0779eac5f5942f10e6670b2812f8000bf8f3e7600ba1c264362a8f4dce  fstec-linux-2022-2.3.6-cron-hourly.yaml
-ca59fb02687823c843038099bd5698d42cd7d3cd402a22b4f0126bd89da42433  fstec-linux-2022-2.3.6-cron-monthly.yaml
-043329e8aff8fa44762e5a2a22f6688c03bd30399dc78acb30821748d81d4fda  fstec-linux-2022-2.3.6-crontab.yaml
-62383ceb2d82745bdfeee36b424136c351b12d17ba430bf48b1706338a7c35e5  fstec-linux-2022-2.3.6-cron-weekly.yaml
+94de7ae285f6ec4df63334a5f92f8bd16b91a0513e22d8a95cfe0e2d72068838  fstec-linux-2022-2.3.6-cron-daily.yaml
+42abb75c7ef704214114dee04997f64383de1049569d4b7049577265eed15371  fstec-linux-2022-2.3.6-cron-d.yaml
+40bcf7f54293f77ce0ac0f595d590ff351e40dd2f35bac9d8c2e2e1f794b28a8  fstec-linux-2022-2.3.6-cron-hourly.yaml
+e7fcd7d9de1f2021f17043f302dc7b1422b44c67dcac0c0c23a7465ab21208d3  fstec-linux-2022-2.3.6-cron-monthly.yaml
+d50e07de9a8e1d3feaf89464fe5807c60eb0ce864931c5de0fbeea57cd48a485  fstec-linux-2022-2.3.6-crontab.yaml
+4768263b4db31032e27abc3aef54d131beb5faa605b01acd20c8ad236e11d43e  fstec-linux-2022-2.3.6-cron-weekly.yaml
 b5cb46dc92c854012b0a970a9d3c78febae83b29f28b3dfdc3bd80626ee5ac87  fstec-linux-2022-2.3.7-user-cron-files-mode.yaml
 9f3041f0f9809cedcafb7f7e6b6b82641324902e34a3a84f9d24228af932cb1e  fstec-linux-2022-2.3.8-standard-system-paths-mode.yaml
 0c7c2ff2dbafa54b15440ce8f8d25173c174a28c8b1752804631a829c191a86c  fstec-linux-2022-2.3.9-suid-sgid-allowlist.yaml

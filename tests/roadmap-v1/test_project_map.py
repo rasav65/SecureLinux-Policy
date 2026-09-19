@@ -207,7 +207,10 @@ _supported = {
 _seg = text.split("## Карта сегментации контролей fstec-linux-2022", 1)[1].split("\n## ", 1)[0]
 _rows = [line for line in _seg.splitlines() if line.startswith("| G")]
 _classes = [line.split("|")[1].strip() for line in _rows]
-assert _classes == ["G1", "G2", "G3", "G4", "G5", "G6", "G7"], _classes
+# Класс может занимать несколько соседних строк (например, часть класса уже с
+# APPLY, часть без); вразброс класс не повторяется.
+_class_order = [c for i, c in enumerate(_classes) if i == 0 or _classes[i - 1] != c]
+assert _class_order == ["G1", "G2", "G3", "G4", "G5", "G6", "G7"], _classes
 _seen = []
 for line in _rows:
     cells = [c.strip() for c in line.split("|")[1:-1]]

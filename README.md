@@ -1,6 +1,6 @@
 # SecureLinux-Policy
 
-> Инструмент проверки и безопасного применения настроек Debian и Ubuntu по требованиям, представленным в политике проекта. CHECK работает без изменения системы; автоматический APPLY реализован для параметров `sysctl` и режимов доступа файлов `/etc/passwd`, `/etc/group`, `/etc/shadow`.
+> Инструмент проверки и безопасного применения настроек Debian и Ubuntu по требованиям, представленным в политике проекта. CHECK работает без изменения системы; автоматический APPLY реализован для параметров `sysctl`, режимов доступа файлов `/etc/passwd`, `/etc/group`, `/etc/shadow` и системных файлов заданий cron.
 
 ![Статус](https://img.shields.io/badge/status-product%20candidate-orange) ![ОС](https://img.shields.io/badge/ОС-Debian%2012%2F13%20%7C%20Ubuntu%2022.04%2F24.04%2F26.04-informational) ![CHECK](https://img.shields.io/badge/CHECK-read--only-blue) ![APPLY](https://img.shields.io/badge/APPLY-sysctl%20%7C%20file%20modes-green) ![Лицензия](https://img.shields.io/badge/license-MIT-lightgrey)
 
@@ -20,7 +20,7 @@ SecureLinux-Policy предназначен для проверки конфиг
 - вывод только найденных проблем;
 - JSON-отчёт для автоматизации;
 - dry-run перед изменением системы;
-- автоматический APPLY параметров `sysctl` и режимов доступа файлов учётных записей;
+- автоматический APPLY параметров `sysctl`, режимов доступа файлов учётных записей и системных файлов заданий cron;
 - единый standalone-скрипт `securelinux-policy.sh`;
 - отчёт и журналы результатов применения.
 
@@ -151,7 +151,7 @@ sudo /bin/bash -p ./securelinux-policy.sh --apply
 
 ## Применение изменений
 
-Автоматический APPLY выполняется механизмами `config-line-with-runtime-v1` (sysctl) и `file-mode-owner-v1` (режим файлов); состав берётся из APPLY registries, количества — из машинного статуса ниже. Остальные controls могут участвовать в CHECK, но не изменяются автоматически без явно поддерживаемой APPLY-семантики.
+Автоматический APPLY выполняется механизмами `config-line-with-runtime-v1` (sysctl), `file-mode-owner-v1` (режим файлов) и `optional-file-root-files-mode-v1` (режимы системных файлов cron); состав берётся из APPLY registries, количества — из машинного статуса ниже. Остальные controls могут участвовать в CHECK, но не изменяются автоматически без явно поддерживаемой APPLY-семантики.
 
 Сухой запуск:
 
@@ -255,9 +255,9 @@ FIELD_COMPATIBILITY_ENVIRONMENTS=1
 CHECK_STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 CHECK=IMPLEMENTED_READ_ONLY
 APPLY=IMPLEMENTED
-APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1
-APPLY_CONTROL_COUNT=20
-APPLY_IMPLEMENTATION_COUNT=2
+APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1,optional-file-root-files-mode-v1
+APPLY_CONTROL_COUNT=26
+APPLY_IMPLEMENTATION_COUNT=3
 RESTORE=NOT_PLANNED
 ROLLBACK_MODEL=EXTERNAL_SNAPSHOT
 FULL_FSTEC_COMPLIANCE_CLAIM=false

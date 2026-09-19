@@ -1,7 +1,7 @@
 # Продуктовая линия CHECK и mechanism-oriented APPLY
 
 Постоянная read-only CHECK product-line и mechanism-oriented APPLY SecureLinux-Policy:
-механизмы `config-line-with-runtime-v1` и `file-mode-owner-v1`.
+механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1` и `optional-file-root-files-mode-v1`.
 
 Она отделена от historical `step7b0/`: admitted bytes и historical adapter id
 `sysctl-check-v1` не являются current product authority и здесь не изменяются.
@@ -49,6 +49,8 @@
 - `adapters/product-home-directories-mode-check-v2.py` + JSON binding; локальный passwd + read-only наблюдение mode;
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
   semantic contract / binding / implementation с SHA-256;
+- `contracts/mechanism-file-mode-owner-v1.json` и `contracts/mechanism-optional-file-root-files-mode-v1.json` — `MECHANISM_AUTHORITY_V1` механизмов `file-mode-owner-v1` (SRC-0005) и `optional-file-root-files-mode-v1` (SRC-0010); содержат только поля, которые читает код;
+- `apply-adapters/product-file-mode-owner-apply-v1.{py,json}` и `apply-adapters/product-optional-file-root-files-mode-apply-v1.{py,json}` — реализации и bindings этих механизмов: только снятие битов через `fchmod` на дескрипторе с `O_NOFOLLOW`, без компенсации;
 - `contracts/mechanism-config-line-runtime-v1.json` — действующая `MECHANISM_AUTHORITY_V1` редакции r17 для механизма `config-line-with-runtime-v1`; одна authority содержит семантику механизма, registry identity/routing и product-integration rules; отдельные architecture/composition документы для этой формы не создаются;
 - `APPLY-KIND-REGISTRY.tsv` — маршрут `parameter_kind → apply_kind` и exact authority binding; поля `parameter_kind` уникальны, `authority_form` проверяется fail-closed;
 - `APPLY-IMPLEMENTATION-REGISTRY.tsv` — одна строка на активный APPLY-механизм с exact binding/implementation SHA-256;
@@ -93,7 +95,7 @@ generator. Compliance execution выполняется как executable (`./sec
   промежуточные или повреждённые состояния дают `UNSUPPORTED_PROFILE`;
 - `--build-info`, `--provenance`, `--version`, `--help` — metadata/UI;
 - `--apply --dry-run` — тот же продуктовый обход всех текущих применимых controls без target-мутаций;
-- `--apply` — применяет все текущие `apply.supported=true` controls; сейчас это ровно 17 `sysctl` controls через `config-line-with-runtime-v1`;
+- `--apply` — применяет все текущие `apply.supported=true` controls; состав и количество — в машинном статусе корневого README (`APPLY_CONTROL_COUNT`); маршрут — по `APPLY-KIND-REGISTRY.tsv`;
 - `slp_run_apply` продолжает прогон после отказа отдельного контроля и формирует общий `SLP-APPLY-REPORT-V2` в `/var/log/securelinux-policy/report.json`; mechanism-specific поля вложены в `mechanism_result`;
 - `--dry-run` без `--apply`, legacy `--snapshot-attestation` и лишние аргументы дают `RC=2` до mutation; `--restore` отсутствует, operational recovery остаётся внешним.
 
@@ -106,7 +108,7 @@ CHECK для current population из manifest реализован и покры
 artifact имеет статус `NON_RELEASE_PRODUCT_CANDIDATE`; один target family
 `linux-x86_64-supported-v1` охватывает основную clean-reference матрицу 7/7 из `SUPPORTED-PLATFORMS.tsv`; Ubuntu 24.04 x86_64 Desktop из `FIELD-COMPATIBILITY-DESKTOPS.tsv` является отдельным `FIELD_COMPATIBILITY` environment и не увеличивает число supported clean-reference environments.
 
-Действующая APPLY authority — `mechanism-config-line-runtime-v1.json` r17 и `mechanism-file-mode-owner-v1.json`. Реестры связывают `parameter_kind=sysctl` с механизмом `config-line-with-runtime-v1`, а `parameter_kind=file-mode-owner` — с `file-mode-owner-v1`; scope вычисляется из корпуса. Прежняя SRC-0001 APPLY-цепочка сохранена только как historical bytes и из активных реестров/CLI удалена. Механизм sysctl прошёл отдельный implementation audit; полная продуктовая приёмка интеграции и последующий прогон восьми поддерживаемых состояний выполняются отдельными gates. RESTORE не входит в целевую mutation-архитектуру. Policy noncompliance не равен execution
+Действующая APPLY authority — `mechanism-config-line-runtime-v1.json` r17, `mechanism-file-mode-owner-v1.json` и `mechanism-optional-file-root-files-mode-v1.json`. Реестры связывают `parameter_kind=sysctl` с механизмом `config-line-with-runtime-v1`, `parameter_kind=file-mode-owner` — с `file-mode-owner-v1`, а `parameter_kind=optional-file-root-files-mode` — с `optional-file-root-files-mode-v1`; scope вычисляется из корпуса. Прежняя SRC-0001 APPLY-цепочка сохранена только как historical bytes и из активных реестров/CLI удалена. Механизм sysctl прошёл отдельный implementation audit; полная продуктовая приёмка интеграции и последующий прогон восьми поддерживаемых состояний выполняются отдельными gates. RESTORE не входит в целевую mutation-архитектуру. Policy noncompliance не равен execution
 failure. Result `NOT_FOUND`/`ERROR` делает итог `UNEVALUATED`; observation `NOT_FOUND`
 может быть definitive `FAIL`, если active semantic contract прямо определяет отсутствие
 обязательного объекта/технологии как noncompliance (в частности SSH/PAM).
@@ -124,8 +126,8 @@ failure. Result `NOT_FOUND`/`ERROR` делает итог `UNEVALUATED`; observa
 - `/etc/shadow` → `mode bits-clear 0077`.
 
 `/etc/shadow = 0600` из source anchor не выводится. Все три controls используют
-current read-only `product-file-mode-owner-check-v2`; APPLY/RESTORE по-прежнему
-не реализованы.
+current read-only `product-file-mode-owner-check-v2`; APPLY выполняет механизм
+`file-mode-owner-v1`, RESTORE не реализован.
 
 После CHECK-11 CHECK-линия продолжила закрытие строк текущего документа и в итоге
 достигла `fstec-linux-2022 CHECK COMPLETE` по контролям. В этой истории
@@ -171,6 +173,8 @@ Formal `Gate 5 --probe-results` остаётся отдельным контра
 ## SRC-0010 / 2.3.6
 
 Шесть перечисленных source roots представлены exact-control-set. Проверка использует только source-exact `go-wx` → `bits-clear 0033`; donor `600/700 root:root` не переносится. Для directory root проверяются root + direct regular files. Nested directory, symlink, special entry или incomplete traversal дают `ERROR`; отсутствие перечисленного root разрешено источником и даёт `VALUE/PASS`.
+
+APPLY выполняет механизм `optional-file-root-files-mode-v1` на той же популяции: снимает только биты `0033` через `fchmod` на дескрипторе с `O_NOFOLLOW`, без компенсации. План строится до мутаций: symlink или объект не того типа дают `ABORTED_PRECONDITION_CONFLICT` без мутаций, нарушитель с `st_nlink>1` пропускается с записью. Ошибка одного объекта не останавливает остальные и даёт `APPLIED_PARTIAL`; `EROFS` и отсутствие root останавливают сразу.
 
 ## SRC-0001 / 2.1.1
 
@@ -353,7 +357,7 @@ read-only проверки:
 недостаточно.
 
 CHECK и изменение системы разделены принципиально. CHECK остаётся read-only, а
-APPLY реализован механизмами `config-line-with-runtime-v1` и `file-mode-owner-v1`;
+APPLY реализован механизмами `config-line-with-runtime-v1`, `file-mode-owner-v1` и `optional-file-root-files-mode-v1`;
 общий цикл и итоговый RC принадлежат product CLI.
 Пользовательский RESTORE не планируется; post-APPLY recovery выполняется внешним snapshot/backup-механизмом.
 
@@ -422,9 +426,10 @@ sudo ./securelinux-policy.sh --report
 ```
 
 Metadata и provenance не требуют запуска policy checks.
-`--provenance` сохраняет одну JSON-запись на control. Запись `SRC-0001`
-дополнительно содержит объект `apply`: id и версию адаптера APPLY, SHA-256 его
-реализации, id композиции и привязку к control, locator и цитате источника.
+`--provenance` сохраняет одну JSON-запись на control. Запись каждого control с
+`apply.supported=true` дополнительно содержит объект `apply`: `route_status`,
+`parameter_kind`, `apply_kind`, `mechanism_id`, `authority_form`, SHA-256 authority,
+`adapter_id` и SHA-256 реализации.
 Запрос `--provenance CONTROL_ID` возвращает ту же полную запись:
 
 ```bash
@@ -484,7 +489,7 @@ generator identity и не является текущей пользовате�
 
 | Гарантия | Статус | Чем проверяется |
 |---|---|---|
-| APPLY механизмов `config-line-with-runtime-v1` и `file-mode-owner-v1`; RESTORE исключён | INTEGRATION CANDIDATE | authority механизмов + оба APPLY registry + bindings + adapters + generator regressions |
+| APPLY механизмов `config-line-with-runtime-v1`, `file-mode-owner-v1` и `optional-file-root-files-mode-v1`; RESTORE исключён | INTEGRATION CANDIDATE | authority механизмов + оба APPLY registry + bindings + adapters + generator regressions |
 | Детерминированная генерация CHECK | PASS | `tests/product-v1/test_product_generator.py` |
 | Adapter/contract bytes закреплены SHA-256 | PASS | `ADAPTER-REGISTRY.tsv` + product regressions |
 | CHECK provenance доступен машинно | PASS | generator regression / `--provenance` |
@@ -494,7 +499,7 @@ generator identity и не является текущей пользовате�
 | Реальный Draft 2020-12 валидатор обязателен для RELEASE | PASS | `tests/release-v1/test_real_jsonschema_gate.py` |
 | Current nested `SHA256SUMS` валидны; 2 historical donor runtime entries пинованы как исключения | PASS | `tests/project-integrity-v1/test_root_manifests.py` |
 | Gates-v3 evidence с маркировкой `ACTIVE` совпадает со свежим checker run | PASS | `tests/project-integrity-v1/test_root_manifests.py` |
-| APPLY | механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1` | `APPLY_KINDS` и `APPLY_CONTROL_COUNT` — в машинном статусе корневого README; dry-run / применение |
+| APPLY | механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1` | `APPLY_KINDS` и `APPLY_CONTROL_COUNT` — в машинном статусе корневого README; dry-run / применение |
 | RESTORE | НЕ ПЛАНИРУЕТСЯ / ВНЕ SCOPE | post-APPLY recovery = внешний snapshot |
 
 Гарантии относятся только к текущему scope. Конкретный policy-result CHECK
@@ -696,7 +701,7 @@ Mapping донора сам по себе не создаёт FSTEC controls и 
 - formal Gate 5 `--probe-results` для текущей product population остаётся
   отдельным контрактным артефактом;
 - `SRC-0005 / 2.3.1` закрыт exact-control-set из трёх file-mode controls;
-- APPLY выполняется механизмами `config-line-with-runtime-v1` и `file-mode-owner-v1`; SRC-0001 решением DP-3 выведен из product APPLY; RESTORE исключён, recovery model — external snapshot/backup;
+- APPLY выполняется механизмами `config-line-with-runtime-v1`, `file-mode-owner-v1` и `optional-file-root-files-mode-v1`; SRC-0001 решением DP-3 выведен из product APPLY; RESTORE исключён, recovery model — external snapshot/backup;
 - historical Step 7B.0 не является current product authority;
 - engineering donor не является нормативным доказательством.
 
@@ -707,7 +712,7 @@ population показана в машинно сформированном ст�
 `fstec-linux-2022` не переоткрывались. Для модульной архитектуры `SRC-0001` закрыты и криптографически привязаны
 точные определения предиката и преобразования, условия внешнего снимка, блокировки и повторного чтения, идентичности объекта, сохранения метаданных, атомарной транзакции и сухого запуска с отчётом.
 Композиция связывает все восемь ролей определений; implementation registry,
-binding и adapter связывают реализацию с этой композицией. Эта SRC-0001 цепочка теперь historical и не подключена к generated CLI. Current CLI маршрутизирует APPLY через механизмы `config-line-with-runtime-v1` и `file-mode-owner-v1`.
+binding и adapter связывают реализацию с этой композицией. Эта SRC-0001 цепочка теперь historical и не подключена к generated CLI. Current CLI маршрутизирует APPLY через механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1` и `optional-file-root-files-mode-v1`.
 Этапы `APPLY_IMPLEMENTATION_ADAPTERS`, `FINAL_DETERMINISTIC_PACKAGING` и `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыты; текущая вертикаль достигла `DOCUMENT COMPLETE`.
 Оставшиеся строки `OPEN` других документов ФСТЭК возвращены в source-first очередь Step 7B.
 Семантика `chmod go-rwx /etc/shadow` представлена как `mode bits-clear 0077` и
@@ -729,9 +734,9 @@ binding и adapter связывают реализацию с этой комп�
 | схема параметров | `checker/gates-v3/checker.py` → generated `CONTROL-SCHEMA.json` |
 | mapping адаптеров CHECK | `product/ADAPTER-REGISTRY.tsv` |
 | маршрутизация `parameter.kind → APPLY mechanism` | `product/APPLY-KIND-REGISTRY.tsv` |
-| действующая mechanism authority | `product/contracts/mechanism-config-line-runtime-v1.json` |
+| действующая mechanism authority | `product/contracts/mechanism-*.json` (по одному на механизм) |
 | привязка реализации APPLY | `product/APPLY-IMPLEMENTATION-REGISTRY.tsv` |
-| реализация текущего APPLY | `product/apply-adapters/product-config-line-runtime-apply-v1.py` + binding |
+| реализация текущего APPLY | `product/apply-adapters/*-apply-v1.py` + binding, состав — `APPLY-IMPLEMENTATION-REGISTRY.tsv` |
 | текущий генератор CHECK/CLI | `product/generate-product-check-v2.py` |
 | отслеживаемая пользовательская точка входа | `securelinux-policy.sh` + `.sha256` |
 | макро-roadmap | `docs/ROADMAP.tsv` |

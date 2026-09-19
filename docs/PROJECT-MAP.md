@@ -214,6 +214,7 @@ flowchart LR
     IMPLREG["product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding активных механизмов"]:::closed
     APPLY1["config-line-with-runtime-v1<br/>sysctl · dry-run · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
     APPLY2["file-mode-owner-v1<br/>режимы файлов SRC-0005 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
+    APPLY3["optional-file-root-files-mode-v1<br/>режимы cron SRC-0010 · APPLY<br/>ВМ-прогона ещё нет"]:::current
     CLI["securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
     ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note
 
@@ -225,6 +226,7 @@ flowchart LR
     CTRLNOW --> GEN2 --> CLI
     IMPLREG --> APPLY1 --> GEN2
     IMPLREG --> APPLY2 --> GEN2
+    IMPLREG --> APPLY3 --> GEN2
     APPLY1 -. решение администратору .-> ADMIN
     GEN1 -. historical .-> GEN2
 
@@ -240,13 +242,15 @@ Tracked `securelinux-policy.sh` и sidecar входят в root manifests и о�
 byte-exact совпадать со свежим generator-v2 output. `dist/` остаётся optional
 gitignored rebuild output. APPLY scope вычисляется из `apply.supported=true` controls и
 маршрутизируется через `APPLY-KIND-REGISTRY.tsv` в механизмы `config-line-with-runtime-v1`
-(sysctl) и `file-mode-owner-v1` (режимы файлов). SRC-0001 выведен из product APPLY, его артефакты historical.
+(sysctl), `file-mode-owner-v1` (режимы файлов) и `optional-file-root-files-mode-v1`
+(режимы системных файлов cron). SRC-0001 выведен из product APPLY, его артефакты historical.
 Пользовательский `--restore` отсутствует, потому что operational RESTORE не является future feature.
 Human-readable CHECK/REPORT выводит обнаруженную ОС, архитектуру, profile и runtime platform; target family един для всей поддерживаемой матрицы.
 
 Статус узла механизма задаётся гейтами: `closed` — механизм прошёл `--release` и восьмисредовый VM-цикл;
 `current` — идёт работа. Иного статуса у узла механизма нет.
-Оба механизма пока в статусе `current`: на ВМ пройдена одна среда, приёмка восьми сред впереди.
+Все три механизма в статусе `current`: у config-line и file-mode-owner на ВМ пройдена одна среда,
+у `optional-file-root-files-mode-v1` ВМ-прогона ещё нет; приёмка восьми сред впереди.
 
 Узел `ADMIN` — граница продукта: для части контролей APPLY не реализуется по решению,
 и продукт возвращает решение администратору отдельным терминальным исходом.
@@ -329,8 +333,8 @@ Git bundle — внешний артефакт для аудита и handoff, �
 Историческая SRC-0001 APPLY-вертикаль (P13–P18) остаётся закрытой как доказанная
 история, но решением DP-3 больше не является active product APPLY. Текущая authority
 APPLY — общая форма `MECHANISM_AUTHORITY_V1`, по одному документу на механизм:
-`config-line-with-runtime-v1` (sysctl) и `file-mode-owner-v1`
-(режимы файлов SRC-0005); контроли включаются через `apply.supported=true`,
+`config-line-with-runtime-v1` (sysctl), `file-mode-owner-v1`
+(режимы файлов SRC-0005) и `optional-file-root-files-mode-v1` (режимы cron SRC-0010); контроли включаются через `apply.supported=true`,
 а общий цикл выполняет generated CLI.
 Старые SRC-0001 contracts/definitions/adapter сохраняются побайтово как historical.
 `SINGLE_DISTRIBUTABLE_ARTIFACT` остаётся generated `securelinux-policy.sh`; полная
@@ -378,7 +382,7 @@ flowchart LR
 ```
 
 `fstec-linux-2022` read-only CHECK vertical и donor mapping остаются принятыми.
-Модульная SRC-0001 architecture связывает exact SHA восьми historical definition roles и сохраняется как evidence прошлой вертикали. В active APPLY registries её больше нет. Текущий generated CLI маршрутизирует APPLY через механизмы `config-line-with-runtime-v1` и `file-mode-owner-v1`. Operational recovery после завершённого
+Модульная SRC-0001 architecture связывает exact SHA восьми historical definition roles и сохраняется как evidence прошлой вертикали. В active APPLY registries её больше нет. Текущий generated CLI маршрутизирует APPLY через механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1` и `optional-file-root-files-mode-v1`. Operational recovery после завершённого
 APPLY остаётся внешним snapshot/backup, а пользовательский RESTORE исключён.
 
 ## Что является источником истины
@@ -420,7 +424,8 @@ normative controls, semantic contracts и implementation adapters. Sidecar
 | G3 | режимы и владелец файлов по нестабильной популяции: пользователи, процессы, настроенные команды | `FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION`, `FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION`, `FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION`, `FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE`, `FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE`, `FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE` | нет |
 | G4 | параметры ядра в командной строке загрузки: правка загрузчика и перезагрузка | `FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC`, `FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE`, `FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE`, `FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT`, `FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH`, `FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET`, `FSTEC-LINUX-2022-2.4.7-MITIGATIONS`, `FSTEC-LINUX-2022-2.5.1-VSYSCALL`, `FSTEC-LINUX-2022-2.5.3-DEBUGFS`, `FSTEC-LINUX-2022-2.5.9-TSX` | нет |
 | G5 | политика или allowlist, которые определяет администратор | `FSTEC-LINUX-2022-2.2.1-SU-WHEEL-ACCESS`, `FSTEC-LINUX-2022-2.2.2-SUDOERS-REVIEWED-POLICY`, `FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST`, `FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE` | нет |
-| G6 | режимы файлов по вычисляемой стабильной популяции системных корней, только снятие битов | `FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION`, `FSTEC-LINUX-2022-2.3.6-CRONTAB`, `FSTEC-LINUX-2022-2.3.6-CRON-D`, `FSTEC-LINUX-2022-2.3.6-CRON-HOURLY`, `FSTEC-LINUX-2022-2.3.6-CRON-DAILY`, `FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY`, `FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY`, `FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE`, `FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE` | нет |
+| G6 | режимы файлов по вычисляемой стабильной популяции системных корней, только снятие битов | `FSTEC-LINUX-2022-2.3.6-CRONTAB`, `FSTEC-LINUX-2022-2.3.6-CRON-D`, `FSTEC-LINUX-2022-2.3.6-CRON-HOURLY`, `FSTEC-LINUX-2022-2.3.6-CRON-DAILY`, `FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY`, `FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY` | да |
+| G6 | режимы файлов по вычисляемой стабильной популяции системных корней, только снятие битов | `FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION`, `FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE`, `FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE` | нет |
 | G7 | содержимое конфигурационных файлов | `FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE`, `FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN` | нет |
 
 Для `suid-dumpable` при обнаруженном Apport APPLY возвращает решение
