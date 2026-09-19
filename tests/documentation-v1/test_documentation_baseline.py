@@ -244,6 +244,33 @@ assert "не future target model" in docs_index
 assert "целевая APPLY-only runtime-модель" not in readme
 
 assert "FSTEC core ≠ recommended ≠ corporate standard ≠ firewall" in policy
+
+# FSTEC core делится на framework / technical / process (решение 19.09.2026).
+# Перечни документов вычисляются из реестров: FRAMEWORK-SOURCES.tsv и
+# source_role строк SOURCE-INDEX.tsv.
+with (ROOT / "index/source-v4/FRAMEWORK-SOURCES.tsv").open(encoding="utf-8", newline="") as _s:
+    _framework_ids = {row["source_id"] for row in csv.DictReader(_s, delimiter="\t")}
+with (ROOT / "index/source-v4/SOURCE-INDEX.tsv").open(encoding="utf-8", newline="") as _s:
+    _roles = {}
+    for _row in csv.DictReader(_s, delimiter="\t"):
+        _roles.setdefault(_row["source_id"], set()).add(_row["source_role"])
+_technical_ids = {sid for sid, roles in _roles.items() if all(r.startswith("technical-") for r in roles)}
+_process_ids = {sid for sid, roles in _roles.items() if roles == {"transitive-process"}}
+assert _technical_ids | _process_ids == set(_roles), sorted(set(_roles) - _technical_ids - _process_ids)
+
+def _policy_section(heading: str) -> str:
+    return policy.split(heading, 1)[1].split("\n### ", 1)[0].split("\n## ", 1)[0]
+
+for _heading, _ids in (
+    ("### Framework", _framework_ids),
+    ("### Technical sources", _technical_ids),
+    ("### Process sources", _process_ids),
+):
+    _part = _policy_section(_heading)
+    for _sid in sorted(_ids):
+        assert f"`{_sid}`" in _part, (_heading, _sid)
+assert "закрыты диспозицией, контролей нет" in _policy_section("### Process sources")
+assert "якорь для соответствующих мер слоя firewall" in _policy_section("### Technical sources")
 for marker in ("SUPPORTED", "TESTED", "UNSUPPORTED", "linux-x86_64-supported-v1", "MINIMIZED", "Debian 13"):
 
     assert marker in compat, marker
