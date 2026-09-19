@@ -5,18 +5,18 @@
 
 Этот документ — **historical donor runtime reference**. Он не является current
 project map, не является future target model и не является источником статуса
-реализации v3. Его задача — сохранить проверяемую инженерную историю донора и
-показать границу между historical mechanics и принятыми решениями v3.
+реализации SecureLinux-Policy. Его задача — сохранить проверяемую инженерную историю донора и
+показать границу между historical mechanics и принятыми решениями SecureLinux-Policy.
 
 Исторический donor `SecureLinux-NG` содержал полноценный standalone operational-контур
 RESTORE: отдельный CLI `--restore`, `run_restore_mode()`, выбор manifest/backups,
 модульное восстановление и специализированные regression-тесты. Это был реально
-реализованный механизм донора, а не stub. В v3 этот operational-контур целиком не
+реализованный механизм донора, а не stub. В SecureLinux-Policy этот operational-контур целиком не
 переносится: он сохраняется как historical donor evidence в `archive/**` и
 `DONOR_TO_V3_MAPPING`; отдельные доказанные primitives могут использоваться только
 через `ADAPT` для transaction-local compensation внутри failed/uncommitted APPLY.
 
-Принятые границы v3:
+Принятые границы SecureLinux-Policy:
 
 - `RESTORE_OPERATIONAL_CONTOUR=EXCLUDED`;
 - `POST_APPLY_RECOVERY_MODEL=EXTERNAL_SNAPSHOT`;
@@ -41,7 +41,7 @@ flowchart TB
 ```
 
 Эта схема описывает только фактически существовавший donor runtime. Она не
-предлагает RESTORE как current или future contour v3.
+предлагает RESTORE как current или future contour SecureLinux-Policy.
 
 ## 2. Historical donor → `DONOR_TO_V3_MAPPING`
 
@@ -58,9 +58,9 @@ flowchart LR
 Эти числа относятся к принятому immutable mapping checkpoint и проверяются
 напрямую по `DONOR-TO-V3-MAPPING.tsv`, а не используются как live project counts.
 
-## Граница с v3
+## Граница с SecureLinux-Policy
 
-В v3 standalone/user-invokable/post-APPLY operational RESTORE исключён. После
+В SecureLinux-Policy standalone/user-invokable/post-APPLY operational RESTORE исключён. После
 успешного APPLY SecureLinux-Policy не выполняет встроенное восстановление среды:
 если требуется вернуть окружение к прежнему состоянию, используется внешний
 snapshot/backup-механизм вне продукта. Внутренняя компенсация допустима только

@@ -10,6 +10,6 @@
 
 Эти tests не утверждают, что future APPLY или contracts failed-transaction
 compensation уже реализованы. Они только не дают потерять donor evidence и
-registry в процессе построения v3. Post-APPLY RESTORE остаётся исключённым.
+registry в процессе построения SecureLinux-Policy. Post-APPLY RESTORE остаётся исключённым.
 
 Current `PROGRESS.txt` проверяется как exact machine contract: полный key-set и derived counts должны совпадать с ZIP/inventory/contracts; stale, duplicate и extra keys завершаются fail-closed.

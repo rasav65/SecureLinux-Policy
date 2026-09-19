@@ -91,7 +91,7 @@ def validate_historical_restore_documentation(body: str) -> None:
         "модульное восстановление",
         "специализированные regression-тесты",
         "реализованный механизм донора, а не stub",
-        "В v3 этот operational-контур целиком не",
+        "В SecureLinux-Policy этот operational-контур целиком не",
         "через `ADAPT` для transaction-local compensation",
     ):
         assert marker in body, marker

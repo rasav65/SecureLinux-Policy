@@ -44,11 +44,11 @@ Machine truth порядка и статуса roadmap находится в `RO
 APPLY и его будущего расширения. Они **не являются источником current product
 status**; фактический scope берётся из product registries, roadmap и primary map.
 Historical RESTORE-механика хранится в donor archive/mapping, но не показывается
-как operational/future ветвь целевой архитектуры v3.
+как operational/future ветвь целевой архитектуры SecureLinux-Policy.
 
 | Документ | Роль |
 |---|---|
-| [`ARCHITECTURE-DIAGRAMS.md`](ARCHITECTURE-DIAGRAMS.md) | historical donor runtime reference + границы v3; не primary map и не future target model |
+| [`ARCHITECTURE-DIAGRAMS.md`](ARCHITECTURE-DIAGRAMS.md) | historical donor runtime reference + границы SecureLinux-Policy; не primary map и не future target model |
 | [`DONOR-V3-ADOPTION-POLICY.md`](DONOR-V3-ADOPTION-POLICY.md) | правила REUSE / ADAPT / REJECT / DEFER |
 | [`engineering-donor.md`](engineering-donor.md) | состав и индекс engineering donor |
 | [`testing-strategy.md`](testing-strategy.md) | инварианты tests, полученные из донора, + текущий baseline DEV/RELEASE |

@@ -11,9 +11,9 @@
 
 ## Обязательный путь переноса
 
-Каждый старый механизм, рассматриваемый для v3, обязан пройти цепочку:
+Каждый старый механизм, рассматриваемый для SecureLinux-Policy, обязан пройти цепочку:
 
-`DONOR -> v3 contract mapping -> REUSE | ADAPT | REJECT | DEFER -> APPLY semantic contract -> implementation adapter -> tests -> deterministic build`
+`DONOR -> SecureLinux-Policy contract mapping -> REUSE | ADAPT | REJECT | DEFER -> APPLY semantic contract -> implementation adapter -> tests -> deterministic build`
 
 Ни один механизм донора не копируется в итоговый сгенерированный скрипт только
 потому, что он был зрелым или ранее протестированным.
@@ -30,7 +30,7 @@
 - релевантные regression tests донора, если они существуют;
 - ссылку на существующий инженерный contract, если он существует;
 - решение: `REUSE`, `ADAPT`, `REJECT` или `DEFER`;
-- целевое семейство contract/adapter v3, когда применимо;
+- целевое семейство contract/adapter SecureLinux-Policy, когда применимо;
 - обоснование;
 - наличие нормативного эффекта (`NONE` по умолчанию);
 - явное утверждение, что сам mapping закрывает 0 строк source index.
@@ -99,7 +99,7 @@ SecureLinux-NG. Подписи ниже сохраняются без перев
 16. explicit partial/manual/reboot external-recovery classifications.
 <!-- END MATURE DONOR FAMILIES -->
 
-RESTORE у донора был зрелым и протестированным operational-семейством, но v3
+RESTORE у донора был зрелым и протестированным operational-семейством, но SecureLinux-Policy
 не принимает его как user-invokable или post-APPLY RESTORE. Все механизмы этого
 семейства учитываются явно на уровне functions/tests/contracts: operational
 RESTORE-механизмы получают `REJECT`; только доказанные fragments, необходимые
@@ -127,10 +127,10 @@ Mapping может завершиться решением `REJECT` или `DEFE
 
 ## Правило итогового распространяемого артефакта
 
-Итоговый распространяемый артефакт v3 (имя пока не закреплено) должен быть
+Итоговый распространяемый артефакт SecureLinux-Policy (имя пока не закреплено) должен быть
 детерминированным артефактом сборки, а не вручную поддерживаемым источником истины.
 `securelinux-ng.sh` остаётся именем исторического donor artifact и не закрепляет
-имя будущего distributable v3.
+имя будущего distributable SecureLinux-Policy.
 
 Сборка не должна зависеть от:
 
@@ -162,7 +162,7 @@ APPLY и не mutation host state.
 `RESTORE` не является этапом roadmap и НЕ ДОЛЖЕН появляться вследствие повторного
 использования донора. При этом исторический `SecureLinux-NG` имел полноценный
 standalone operational-контур RESTORE с manifest/backups, модульным восстановлением
-и специализированными regression-тестами. В v3 этот operational-контур целиком не
+и специализированными regression-тестами. В SecureLinux-Policy этот operational-контур целиком не
 переносится: он остаётся historical evidence; отдельные доказанные primitives могут
 быть `ADAPT` исключительно для transaction-local compensation внутри
 failed/uncommitted APPLY.

@@ -7,7 +7,7 @@
 > policy layers, engineering donor, текущую CHECK + mechanism-oriented APPLY product-line и путь к будущему distributable artifact.
 >
 > Старый SecureLinux-NG присутствует только как **engineering donor**. Его
-> runtime-архитектура не является нормативной архитектурой v3 и сама по себе
+> runtime-архитектура не является нормативной архитектурой SecureLinux-Policy и сама по себе
 > не закрывает source-index rows.
 
 <!-- BEGIN GENERATED MAP STATUS -->

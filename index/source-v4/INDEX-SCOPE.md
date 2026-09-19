@@ -1,12 +1,12 @@
 # Индекс источников v1
 
-`SOURCE-INDEX.tsv` является closure population новой модели v3.
+`SOURCE-INDEX.tsv` является closure population новой модели SecureLinux-Policy.
 
 Правила:
 - одна строка соответствует одной независимо учитываемой структурной единице источника;
 - строка начинается со статуса `OPEN`;
 - строка может стать `CLOSED` только после того, как выполнено одно из условий:
-  1. существует как минимум одна принятая v3 record, либо
+  1. существует как минимум одна принятая record SecureLinux-Policy, либо
   2. существует явное disposition с причиной из точного enum Gate 2:
      `not-technical` / `organizational` / `external` / `out-of-scope` / `informational`;
 - `CLOSED_INDEX_ROWS / TOTAL_INDEX_ROWS` является метрикой перехода проекта;

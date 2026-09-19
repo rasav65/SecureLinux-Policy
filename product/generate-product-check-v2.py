@@ -1293,7 +1293,7 @@ def render_script(
     supported_cases = "|".join(sh_single(r["environment_id"]) for r in (platform_rows + desktop_rows)) + ") ;;"
 
     template = r'''#!/bin/bash -p
-# SecureLinux-Policy v3 unified product CLI
+# SecureLinux-Policy unified product CLI
 # STATUS=@@PRODUCT_STATUS@@
 # PRODUCT_CLI=@@PRODUCT_CLI_ID@@
 # GENERATOR_ID=@@GENERATOR_ID@@
@@ -1652,7 +1652,7 @@ slp_build_info() {
 
 slp_help() {
   command /usr/bin/cat <<'SLP_HELP_EOF'
-SecureLinux-Policy v3 — единый product CLI
+SecureLinux-Policy — единый product CLI
 
 Использование:
   ./securelinux-policy.sh --check [--failed] [--format pretty|raw|json]

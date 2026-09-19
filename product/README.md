@@ -1,6 +1,6 @@
 # Продуктовая линия CHECK и mechanism-oriented APPLY
 
-Постоянная read-only CHECK product-line и mechanism-oriented APPLY SecureLinux-Policy v3:
+Постоянная read-only CHECK product-line и mechanism-oriented APPLY SecureLinux-Policy:
 механизмы `config-line-with-runtime-v1` и `file-mode-owner-v1`.
 
 Она отделена от historical `step7b0/`: admitted bytes и historical adapter id
@@ -147,7 +147,7 @@ exact-eq batch закрыл `SRC-0030`, `SRC-0031`,
 
 Текущий read-only kind `kernel-cmdline` принят после сверки с pinned
 engineering donor: donor уже читал `/proc/cmdline`, делил его на whitespace
-tokens и проверял exact boot tokens. В v3 этот механизм ужесточён fail-closed:
+tokens и проверял exact boot tokens. В SecureLinux-Policy этот механизм ужесточён fail-closed:
 для `eq` конфликтующие дубли одного key дают `ERROR`, отсутствие требуемого
 key — наблюдаемое `VALUE/FAIL`; для bare flag `present` отсутствие также
 `VALUE/FAIL`. v2 добавляет ordered `one-of`: expected list кодируется как
@@ -288,7 +288,7 @@ Population состоит из direct file-like entries в `/etc/rc0.d`…`/etc/
 
 Ниже сохранены подробные сведения прежнего корневого README. Команды пересборки и проверки целостности выполняются из корня репозитория. Пользовательская последовательность скачивания и запуска находится в [главном README](../README.md).
 
-## SecureLinux-Policy v3
+## SecureLinux-Policy
 
 > Система нормативной прослеживаемости и машинно-проверяемой политики
 > безопасной настройки Linux, построенная от закреплённых первоисточников.
@@ -448,7 +448,7 @@ sudo ./securelinux-policy.sh --apply
 Оба режима формируют общий `SLP-APPLY-REPORT-V2` в `/var/log/securelinux-policy/report.json`. `--dry-run` без `--apply`,
 `--dry-run` без `--apply` и несовместимые комбинации отвергаются с `RC=2` до
 изменения системы. Пользовательского ключа `--restore` нет: operational RESTORE
-исключён из v3.
+исключён из SecureLinux-Policy.
 Human-readable `--check` и `--report` явно показывают обнаруженную ОС, архитектуру и runtime platform. Для основной 7/7 матрицы выводится `PROFILE=FULL|MINIMIZED|SERVER`; для Ubuntu 24.04 Desktop выводится `TYPE=DESKTOP`, `SUPPORT=FIELD_COMPATIBILITY`. Конкретная графическая оболочка не входит в compatibility identity; реальный APPLY разрешён, но не получает clean-reference guarantee.
 
 Sidecar текущего tracked artifact:
@@ -566,7 +566,7 @@ sources
 [`docs/ARCHITECTURE-DIAGRAMS.md`](../docs/ARCHITECTURE-DIAGRAMS.md) —
 **historical donor runtime reference**, а не current project map и не future target
 model. Он сохраняет проверяемую историю donor mechanics и отдельно фиксирует
-границу v3: operational RESTORE исключён, post-APPLY recovery выполняется внешним
+границу SecureLinux-Policy: operational RESTORE исключён, post-APPLY recovery выполняется внешним
 snapshot/backup-механизмом.
 
 Индекс всей документации и её ролей:
@@ -676,7 +676,7 @@ PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -S -B \
 ### Инженерный донор
 
 SecureLinux-NG v16.2.11 сохранён как **engineering donor**, а не нормативный
-источник. Донорская логика может попасть в v3 только через явное решение
+источник. Донорская логика может попасть в SecureLinux-Policy только через явное решение
 `REUSE | ADAPT | REJECT | DEFER`.
 
 Mapping донора сам по себе не создаёт FSTEC controls и не закрывает ни одной

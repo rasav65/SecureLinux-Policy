@@ -1,9 +1,9 @@
 #!/bin/bash -p
-# SecureLinux-Policy v3 unified product CLI
+# SecureLinux-Policy unified product CLI
 # STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 # PRODUCT_CLI=product-cli-v1
 # GENERATOR_ID=product-check-generator-v2
-# GENERATOR_SHA256=b4504f4f6450ad13bb1c9e496044465cf4bb7a824c2dada6b724868b36f59c57
+# GENERATOR_SHA256=f4b5e05c3db91f17f256d5d532187e3fdc10bb5428f37b1052af46ad8c0862c9
 # CONTROL_MANIFEST_SHA256=1fe40be19afe6af9d8b1b777a7fd970e43eb1e48b3111a00d17ee20acd5c56fe
 # ADAPTER_REGISTRY_SHA256=d557404432951e25ca2c4b68a30d4afb6fc0d30308ba1cfbc9371fbf1421241e
 # APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1
@@ -6142,7 +6142,7 @@ slp_build_info() {
     'STATUS=NON_RELEASE_PRODUCT_CANDIDATE' \
     'PRODUCT_CLI=product-cli-v1' \
     'GENERATOR_ID=product-check-generator-v2' \
-    'GENERATOR_SHA256=b4504f4f6450ad13bb1c9e496044465cf4bb7a824c2dada6b724868b36f59c57' \
+    'GENERATOR_SHA256=f4b5e05c3db91f17f256d5d532187e3fdc10bb5428f37b1052af46ad8c0862c9' \
     'CONTROL_COUNT=51' \
     'CONTROL_MANIFEST_SHA256=1fe40be19afe6af9d8b1b777a7fd970e43eb1e48b3111a00d17ee20acd5c56fe' \
     'ADAPTER_COUNT=18' \
@@ -6162,7 +6162,7 @@ slp_build_info() {
 
 slp_help() {
   command /usr/bin/cat <<'SLP_HELP_EOF'
-SecureLinux-Policy v3 — единый product CLI
+SecureLinux-Policy — единый product CLI
 
 Использование:
   ./securelinux-policy.sh --check [--failed] [--format pretty|raw|json]

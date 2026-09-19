@@ -249,7 +249,7 @@ def validate_artifact_contract(text: str) -> None:
     assert "детерминированным артефактом сборки" in artifact
     assert "не вручную поддерживаемым источником истины" in artifact
     assert "исторического donor artifact" in artifact
-    assert "не закрепляет\nимя будущего distributable v3" in artifact
+    assert "не закрепляет\nимя будущего distributable SecureLinux-Policy" in artifact
     normalized = text.lower().replace("не вручную поддерживаемым", "")
     for forbidden in (
         "недетерминированным артефактом",
@@ -313,7 +313,7 @@ def validate_donor_restore_history_boundary(text: str) -> None:
     # перенос standalone/post-APPLY operational contour в v3.
     for marker in (
         "RESTORE у донора был зрелым и протестированным operational-семейством",
-        "v3\nне принимает его как user-invokable или post-APPLY RESTORE",
+        "SecureLinux-Policy\nне принимает его как user-invokable или post-APPLY RESTORE",
     ):
         assert marker in text, marker
     roadmap_part = section(text, "## Связь с утверждённым roadmap")
@@ -323,7 +323,7 @@ def validate_donor_restore_history_boundary(text: str) -> None:
         "manifest/backups",
         "модульным восстановлением",
         "специализированными regression-тестами",
-        "В v3 этот operational-контур целиком не",
+        "В SecureLinux-Policy этот operational-контур целиком не",
         "`ADAPT` исключительно для transaction-local compensation",
     ):
         assert marker in roadmap_part, marker

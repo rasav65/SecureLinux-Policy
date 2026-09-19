@@ -234,7 +234,7 @@ def run_gate(project_root: Path, evidence_dir: Path) -> dict:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="SecureLinux-Policy v3 Gate 6 evidence binding")
+    ap = argparse.ArgumentParser(description="SecureLinux-Policy Gate 6 evidence binding")
     ap.add_argument("--project-root", default=".")
     ap.add_argument("--evidence-dir", required=True)
     ap.add_argument("--json-out")

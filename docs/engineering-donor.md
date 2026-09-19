@@ -68,7 +68,7 @@ adoption status, 32 generalized engineering contracts и исторически�
 от старого монолитного runtime.
 
 Исторические mapping-тесты остаются `historical-only`; они никогда не используются как
-v3 normative evidence или для закрытия source rows.
+normative evidence SecureLinux-Policy или для закрытия source rows.
 
 См. `docs/testing-strategy.md`.
 
@@ -111,7 +111,7 @@ mutation, выбор активных аккаунтов и dry-run плана `
 - меняет семантику Gate 1–5;
 - предоставляет reference-VM evidence;
 - сам по себе реализует APPLY или RESTORE. RESTORE не планируется; любая
-  APPLY-реализация допускается только через отдельные v3 contracts, registry,
+  APPLY-реализация допускается только через отдельные contracts SecureLinux-Policy, registry,
   binding и tests. Прежняя `SRC-0001` APPLY-реализация решением DP-3 выведена
   из product APPLY.
 
