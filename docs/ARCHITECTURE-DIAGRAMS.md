@@ -1,7 +1,7 @@
 # SecureLinux-Policy — исторический справочник runtime-архитектуры донора
 
 Основная карта текущего состояния проекта:
-[`PROJECT-MAP-v3.md`](PROJECT-MAP-v3.md).
+[`PROJECT-MAP.md`](PROJECT-MAP.md).
 
 Этот документ — **historical donor runtime reference**. Он не является current
 project map, не является future target model и не является источником статуса
@@ -67,5 +67,5 @@ snapshot/backup-механизм вне продукта. Внутренняя �
 для `FAILED_UNCOMMITTED_APPLY` и только в пределах mutation текущей попытки.
 
 Текущий substantive checkpoint, порядок будущих стадий и статус реализации
-определяются только [`PROJECT-MAP-v3.md`](PROJECT-MAP-v3.md) и
-`ROADMAP-v3.tsv`; этот historical reference их не дублирует и не заменяет.
+определяются только [`PROJECT-MAP.md`](PROJECT-MAP.md) и
+`ROADMAP.tsv`; этот historical reference их не дублирует и не заменяет.

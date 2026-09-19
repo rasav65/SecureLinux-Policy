@@ -564,7 +564,7 @@ def replace_block(text: str, begin: str, end: str, block: str, label: str) -> st
 def expected_outputs(root: Path) -> dict[Path, bytes]:
     state = collect_state(root)
     readme = root / "README.md"
-    pmap = root / "docs/PROJECT-MAP-v3.md"
+    pmap = root / "docs/PROJECT-MAP.md"
     readme_text = readme.read_text(encoding="utf-8")
     map_text = pmap.read_text(encoding="utf-8")
     new_readme = replace_block(

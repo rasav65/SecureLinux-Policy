@@ -82,7 +82,7 @@ normative evidence SecureLinux-Policy или для закрытия source rows
 - покрывает 310/310 donor-функций;
 - покрывает 38/38 donor test files;
 - отдельно учитывает все 16 mature families из
-  `docs/DONOR-V3-ADOPTION-POLICY.md`;
+  `docs/DONOR-ADOPTION-POLICY.md`;
 - связывает 20 существующих engineering contracts и 32 обобщённых donor test
   контракта;
 - использует только `REUSE | ADAPT | REJECT | DEFER`;

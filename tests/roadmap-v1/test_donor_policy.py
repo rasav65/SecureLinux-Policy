@@ -9,8 +9,8 @@ import subprocess
 import tempfile
 
 root = Path(__file__).resolve().parents[2]
-policy = (root / "docs/DONOR-V3-ADOPTION-POLICY.md").read_text(encoding="utf-8")
-roadmap = (root / "docs/ROADMAP-v3.md").read_text(encoding="utf-8")
+policy = (root / "docs/DONOR-ADOPTION-POLICY.md").read_text(encoding="utf-8")
+roadmap = (root / "docs/ROADMAP.md").read_text(encoding="utf-8")
 
 for marker in (
     "DONOR_TO_V3_MAPPING",
@@ -39,10 +39,10 @@ for marker in (
 
 # Roadmap must retain the donor precondition, but wording is not pinned.
 assert "DONOR_TO_V3_MAPPING" in roadmap
-assert "docs/DONOR-V3-ADOPTION-POLICY.md" in roadmap
+assert "docs/DONOR-ADOPTION-POLICY.md" in roadmap
 assert "0 строк FSTEC" in roadmap or "закрывает 0 строк" in roadmap
 
-with (root / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream:
+with (root / "docs/ROADMAP.tsv").open(encoding="utf-8", newline="") as stream:
     rows = list(csv.DictReader(stream, delimiter="\t"))
 orders = [int(row["order"]) for row in rows]
 assert orders == list(range(1, len(rows) + 1))
@@ -351,7 +351,7 @@ def validate_donor_restore_history_boundary(text: str) -> None:
 def validate_no_roadmap_status_copy(text: str) -> None:
     roadmap_part = section(text, "## Связь с утверждённым roadmap")
     assert "не дублирует текущие статусы roadmap" in roadmap_part
-    assert "ROADMAP-v3.tsv" in roadmap_part
+    assert "ROADMAP.tsv" in roadmap_part
     # Policy задаёт правила adoption, но не копирует live row statuses из machine truth.
     for status in ("PAUSED_BY_CURRENT_DOCUMENT_APPLY", "BLOCKED_BY_PREVIOUS"):
         assert status not in roadmap_part, status

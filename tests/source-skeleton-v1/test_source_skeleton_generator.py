@@ -377,7 +377,7 @@ with tempfile.TemporaryDirectory(prefix="slp-manifest-tamper-") as td:
 # population. Those values are derived above from current index/generator bytes.
 doc_paths = (
     ROOT / "docs/source-skeleton-generator.md",
-    ROOT / "docs/ROADMAP-v3.md",
+    ROOT / "docs/ROADMAP.md",
     ROOT / "docs/disposition-ledger.md",
 )
 for doc_path in doc_paths:

@@ -16,7 +16,7 @@ with (root / "index/engineering-tests-v1/TEST-INVENTORY.tsv").open(encoding="utf
     test_inventory = list(csv.DictReader(stream, delimiter="\t"))
 
 # Это current-accessible historical donor runtime reference, но не PRIMARY/current/future target map.
-assert "PROJECT-MAP-v3.md" in text
+assert "PROJECT-MAP.md" in text
 assert "historical donor runtime reference" in text
 assert "не является future target model" in text
 assert "RESTORE_OPERATIONAL_CONTOUR=EXCLUDED" in text

@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-with (root / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as f:
+with (root / "docs/ROADMAP.tsv").open(encoding="utf-8", newline="") as f:
     rows = list(csv.DictReader(f, delimiter="\t"))
 
 expected = [
@@ -53,8 +53,8 @@ assert [r["step_id"] for r in rows if r["status"] == "NEXT"] == [
 ]
 with (root / "index/source-v4/SOURCE-INDEX.tsv").open(encoding="utf-8", newline="") as f:
     source_index_rows = list(csv.DictReader(f, delimiter="\t"))
-roadmap_md = (root / "docs/ROADMAP-v3.md").read_text(encoding="utf-8")
-project_map = (root / "docs/PROJECT-MAP-v3.md").read_text(encoding="utf-8")
+roadmap_md = (root / "docs/ROADMAP.md").read_text(encoding="utf-8")
+project_map = (root / "docs/PROJECT-MAP.md").read_text(encoding="utf-8")
 disposition_doc = (root / "docs/disposition-ledger.md").read_text(encoding="utf-8")
 
 

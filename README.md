@@ -207,13 +207,13 @@ SecureLinux-Policy автоматизирует только техническ�
 | Полный указатель | [Документация проекта](docs/README.md) |
 | Покрытие требований | [Карта покрытия](docs/fstec-coverage.md) |
 | Поддерживаемые среды | [Совместимость](docs/compatibility.md) |
-| Основная карта проекта | [Карта проекта](docs/PROJECT-MAP-v3.md) |
+| Основная карта проекта | [Карта проекта](docs/PROJECT-MAP.md) |
 | Инженерные сведения и пересборка | [Продуктовая линия](product/README.md#readme-engineering-reference) |
 | Исторический runtime-reference донора | [Архитектурные схемы](docs/ARCHITECTURE-DIAGRAMS.md) |
 | Источники и уровни политики | [Слои политики](docs/policy-layers.md) |
 | Проверки и испытания | [Стратегия тестирования](docs/testing-strategy.md) |
 | Запуск тестов разработчиком | [Тесты](tests/README.md) |
-| Дальнейшие этапы | [Дорожная карта](docs/ROADMAP-v3.md) |
+| Дальнейшие этапы | [Дорожная карта](docs/ROADMAP.md) |
 | История изменений | [CHANGELOG.md](CHANGELOG.md) |
 
 ---

@@ -5,8 +5,8 @@ import re
 
 ROOT = Path(__file__).resolve().parents[2]
 readme = (ROOT / "README.md").read_text(encoding="utf-8")
-pmap = (ROOT / "docs/PROJECT-MAP-v3.md").read_text(encoding="utf-8")
-roadmap = (ROOT / "docs/ROADMAP-v3.md").read_text(encoding="utf-8")
+pmap = (ROOT / "docs/PROJECT-MAP.md").read_text(encoding="utf-8")
+roadmap = (ROOT / "docs/ROADMAP.md").read_text(encoding="utf-8")
 
 with (ROOT / "index/source-v4/SOURCE-INDEX.tsv").open(
     encoding="utf-8", newline=""
@@ -130,7 +130,7 @@ for name, pattern in status_patterns.items():
     assert re.search(pattern, map_status), (name, map_status)
 
 for path in (
-    "docs/PROJECT-MAP-v3.md",
+    "docs/PROJECT-MAP.md",
     "docs/policy-layers.md",
     "docs/fstec-coverage.md",
     "docs/compatibility.md",
@@ -262,7 +262,7 @@ assert "RESTORE исключён" in current
 assert "МЫ ЗДЕСЬ<br/>горизонт 1 · APPLY безопасных классов + ВМ" in current
 assert "Step 7B · расширение FSTEC" in current
 
-with (ROOT / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream:
+with (ROOT / "docs/ROADMAP.tsv").open(encoding="utf-8", newline="") as stream:
     rows = list(csv.DictReader(stream, delimiter="\t"))
 by_id = {row["step_id"]: row["status"] for row in rows}
 assert by_id["SOURCE_BLOCK_REGENERATION_PARITY"] == "CLOSED"

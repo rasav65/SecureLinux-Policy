@@ -2,7 +2,7 @@
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-text = (root / "docs/PROJECT-MAP-v3.md").read_text(encoding="utf-8")
+text = (root / "docs/PROJECT-MAP.md").read_text(encoding="utf-8")
 readme = (root / "README.md").read_text(encoding="utf-8")
 
 assert "основная архитектурная карта текущего SecureLinux-Policy.**" in text
@@ -187,7 +187,7 @@ assert "итоговый распространяемый артефакт" in t
 assert "tracked CHECK + mechanism-oriented APPLY CLI" in text
 assert "Gate 0 PASS" in text
 assert "только byte-generation parity" in text
-assert "docs/PROJECT-MAP-v3.md" in readme
+assert "docs/PROJECT-MAP.md" in readme
 
 # B6: deliberately deferred directions are named with their reason.
 deferred = text.split("## Отложено сознательно", 1)[1]

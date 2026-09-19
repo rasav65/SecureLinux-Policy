@@ -13,7 +13,7 @@ engineering contracts, roadmap и donor reference, чтобы несколько
 
 | Документ | Роль |
 |---|---|
-| [`PROJECT-MAP-v3.md`](PROJECT-MAP-v3.md) | **PRIMARY** архитектурная карта текущего проекта |
+| [`PROJECT-MAP.md`](PROJECT-MAP.md) | **PRIMARY** архитектурная карта текущего проекта |
 | [`policy-layers.md`](policy-layers.md) | границы FSTEC core / recommended / corporate / firewall |
 | [`fstec-coverage.md`](fstec-coverage.md) | **GENERATED** карта текущего FSTEC coverage из machine truth |
 | [`compatibility.md`](compatibility.md) | SUPPORTED / TESTED / UNSUPPORTED для current product target |
@@ -34,9 +34,9 @@ engineering contracts, roadmap и donor reference, чтобы несколько
 
 | Документ | Роль |
 |---|---|
-| [`ROADMAP-v3.md`](ROADMAP-v3.md) | человекочитаемое объяснение macro-roadmap |
+| [`ROADMAP.md`](ROADMAP.md) | человекочитаемое объяснение macro-roadmap |
 
-Machine truth порядка и статуса roadmap находится в `ROADMAP-v3.tsv`.
+Machine truth порядка и статуса roadmap находится в `ROADMAP.tsv`.
 
 ## DONOR-REFERENCE — справочные материалы донора
 
@@ -49,7 +49,7 @@ Historical RESTORE-механика хранится в donor archive/mapping, �
 | Документ | Роль |
 |---|---|
 | [`ARCHITECTURE-DIAGRAMS.md`](ARCHITECTURE-DIAGRAMS.md) | historical donor runtime reference + границы SecureLinux-Policy; не primary map и не future target model |
-| [`DONOR-V3-ADOPTION-POLICY.md`](DONOR-V3-ADOPTION-POLICY.md) | правила REUSE / ADAPT / REJECT / DEFER |
+| [`DONOR-ADOPTION-POLICY.md`](DONOR-ADOPTION-POLICY.md) | правила REUSE / ADAPT / REJECT / DEFER |
 | [`engineering-donor.md`](engineering-donor.md) | состав и индекс engineering donor |
 | [`testing-strategy.md`](testing-strategy.md) | инварианты tests, полученные из донора, + текущий baseline DEV/RELEASE |
 
@@ -79,7 +79,7 @@ Documentation regression проверяет, что каждый Git-tracked cur
 
 Числа текущего coverage не должны поддерживаться вручную в нескольких местах.
 `tools/render-current-docs.py` формирует machine-owned блоки README,
-`PROJECT-MAP-v3.md` и весь `fstec-coverage.md`.
+`PROJECT-MAP.md` и весь `fstec-coverage.md`.
 
 Проверка:
 

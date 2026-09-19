@@ -29,7 +29,7 @@ docs_index = (ROOT / "docs/README.md").read_text(encoding="utf-8")
 policy = (ROOT / "docs/policy-layers.md").read_text(encoding="utf-8")
 compat = (ROOT / "docs/compatibility.md").read_text(encoding="utf-8")
 coverage = (ROOT / "docs/fstec-coverage.md").read_text(encoding="utf-8")
-pmap = (ROOT / "docs/PROJECT-MAP-v3.md").read_text(encoding="utf-8")
+pmap = (ROOT / "docs/PROJECT-MAP.md").read_text(encoding="utf-8")
 product_readme = (ROOT / "product/README.md").read_text(encoding="utf-8")
 controls_readme = (
     ROOT / "controls/fstec-core/linux-2022/README.md"
@@ -47,6 +47,8 @@ def validate_step7b0_historical_boundary(text: str) -> None:
     assert "STATUS=HISTORICAL_REFERENCE_ONLY" in preamble
     assert "CURRENT_PROJECT_AUTHORITY=false" in preamble
     assert "не должен использоваться для\n> выбора следующего шага" in preamble
+    # Проверяется текст FROZEN-файла step7b0/ARTIFACT-STATUS-RU.md: он ссылается на
+    # прежнее имя roadmap и не переписывается, поэтому здесь остаётся старый путь.
     assert "docs/ROADMAP-v3.tsv" in preamble
     assert "CURRENT_PROJECT_AUTHORITY=true" not in text
     assert not re.search(
@@ -232,7 +234,7 @@ for name in doc_names:
 
 # One primary map; architecture diagrams are historical donor reference, not target/current authority.
 assert docs_index.count("**PRIMARY**") == 1
-assert "PROJECT-MAP-v3.md" in readme
+assert "PROJECT-MAP.md" in readme
 assert "ARCHITECTURE-DIAGRAMS.md" in readme
 assert "historical donor runtime reference" in product_readme
 assert "не future target" in product_readme
@@ -582,7 +584,7 @@ for rel in cp_lines:
     body = (ROOT / rel).read_text(encoding="utf-8")
     assert re.search(r"[А-Яа-яЁё]", body), f"current Markdown has no Russian prose: {rel}"
 
-with (ROOT / "docs/ROADMAP-v3.tsv").open(encoding="utf-8", newline="") as stream:
+with (ROOT / "docs/ROADMAP.tsv").open(encoding="utf-8", newline="") as stream:
     _roadmap_rows = list(csv.DictReader(stream, delimiter="\t"))
 _roadmap_status = {row["step_id"]: row["status"] for row in _roadmap_rows}
 # Step 7B не на паузе: после DOCUMENT COMPLETE он ждёт закрытия горизонта 1,
@@ -916,7 +918,7 @@ for rel in current_markdown:
 # exact Russian sentences/headings. Technical identifiers remain separately checked.
 ru_migrated_docs = (
     "docs/ARCHITECTURE-DIAGRAMS.md",
-    "docs/DONOR-V3-ADOPTION-POLICY.md",
+    "docs/DONOR-ADOPTION-POLICY.md",
     "docs/evidence-binding.md",
     "docs/root-manifest-policy.md",
     "docs/engineering-donor.md",
@@ -942,7 +944,7 @@ for rel in ru_migrated_docs:
     body = (ROOT / rel).read_text(encoding="utf-8")
     assert len(re.findall(r"[А-Яа-яЁё]", body)) >= 20, f"insufficient Russian prose: {rel}"
 
-policy_body = (ROOT / "docs/DONOR-V3-ADOPTION-POLICY.md").read_text(encoding="utf-8")
+policy_body = (ROOT / "docs/DONOR-ADOPTION-POLICY.md").read_text(encoding="utf-8")
 for token in ("DONOR_TO_V3_MAPPING", "REUSE", "ADAPT", "REJECT", "DEFER", "EXTERNAL_SNAPSHOT"):
     assert token in policy_body, token
 

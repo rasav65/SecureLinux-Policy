@@ -144,7 +144,7 @@ CLI/sidecar проверены как `0755/0644`.
 остаётся входным engineering evidence для дальнейшей модульной архитектуры.
 
 Mapping должен явно учитывать зрелые механизмы донора, перечисленные в
-`docs/DONOR-V3-ADOPTION-POLICY.md`. Сам mapping закрывает 0 строк FSTEC или
+`docs/DONOR-ADOPTION-POLICY.md`. Сам mapping закрывает 0 строк FSTEC или
 corporate source index. Ни один implementation adapter не может обходить
 контракт APPLY только потому, что эквивалентный код существовал в
 доноре.

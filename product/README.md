@@ -546,7 +546,7 @@ coverage document не дублирует вручную все строки и�
 ### Архитектура
 
 Главная карта текущего проекта:
-[`docs/PROJECT-MAP-v3.md`](../docs/PROJECT-MAP-v3.md).
+[`docs/PROJECT-MAP.md`](../docs/PROJECT-MAP.md).
 
 Она показывает:
 
@@ -682,7 +682,7 @@ SecureLinux-NG v16.2.11 сохранён как **engineering donor**, а не �
 Mapping донора сам по себе не создаёт FSTEC controls и не закрывает ни одной
 строки source-index.
 
-См. [`docs/DONOR-V3-ADOPTION-POLICY.md`](../docs/DONOR-V3-ADOPTION-POLICY.md) и
+См. [`docs/DONOR-ADOPTION-POLICY.md`](../docs/DONOR-ADOPTION-POLICY.md) и
 [`docs/engineering-donor.md`](../docs/engineering-donor.md).
 
 ---
@@ -734,7 +734,7 @@ binding и adapter связывают реализацию с этой комп�
 | реализация текущего APPLY | `product/apply-adapters/product-config-line-runtime-apply-v1.py` + binding |
 | текущий генератор CHECK/CLI | `product/generate-product-check-v2.py` |
 | отслеживаемая пользовательская точка входа | `securelinux-policy.sh` + `.sha256` |
-| макро-roadmap | `docs/ROADMAP-v3.tsv` |
+| макро-roadmap | `docs/ROADMAP.tsv` |
 | сгенерированные current docs | `tools/render-current-docs.py` |
 
 README является входной точкой для человека, но не заменяет эти машиночитаемые

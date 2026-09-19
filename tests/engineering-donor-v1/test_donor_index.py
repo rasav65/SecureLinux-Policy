@@ -484,8 +484,8 @@ with tempfile.TemporaryDirectory(prefix="slp-donor-progress-") as td:
         else:
             fail("MAPPING_PROGRESS_NEGATIVE_FIXTURE:" + label)
 
-policy = (ROOT / "docs/DONOR-V3-ADOPTION-POLICY.md").read_text(encoding="utf-8")
-roadmap = (ROOT / "docs/ROADMAP-v3.md").read_text(encoding="utf-8")
+policy = (ROOT / "docs/DONOR-ADOPTION-POLICY.md").read_text(encoding="utf-8")
+roadmap = (ROOT / "docs/ROADMAP.md").read_text(encoding="utf-8")
 if "DONOR_TO_V3_MAPPING" not in policy or not all(
     token in policy for token in ("`REUSE`", "`ADAPT`", "`REJECT`", "`DEFER`")
 ):
