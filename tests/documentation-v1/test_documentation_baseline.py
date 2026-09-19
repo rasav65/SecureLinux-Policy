@@ -828,18 +828,76 @@ for label, claim in (
 # from becoming PASS merely because a detector does not know that wording.
 REVIEW_BASELINE = ROOT / "tests/documentation-v1/CURRENT-MARKDOWN-REVIEW-BASELINE.tsv"
 
-def load_review_bound_baseline() -> dict[str, str]:
+# Машинные данные, которые описывают документы текущего состояния. Изменение
+# любого из них требует сверки STATE_DOCS даже при неизменных байтах документов.
+# Литерал меняется только явным решением.
+TRUTH_INPUTS = (
+    "product/APPLY-KIND-REGISTRY.tsv",
+    "product/APPLY-IMPLEMENTATION-REGISTRY.tsv",
+    "product/ADAPTER-REGISTRY.tsv",
+    "product/SUPPORTED-PLATFORMS.tsv",
+    "product/FIELD-COMPATIBILITY-DESKTOPS.tsv",
+    "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv",
+    "index/source-v4/SOURCE-INDEX.tsv",
+    "index/source-v4/DISPOSITION-LEDGER.tsv",
+    "docs/ROADMAP.tsv",
+)
+# Документы текущего состояния: README, product/README и docs/*.md, кроме
+# генерируемого docs/fstec-coverage.md и исторического ARCHITECTURE-DIAGRAMS.md.
+# Литерал меняется только явным решением.
+STATE_DOCS = (
+    "README.md",
+    "product/README.md",
+    "docs/DONOR-ADOPTION-POLICY.md",
+    "docs/PROJECT-MAP.md",
+    "docs/README.md",
+    "docs/ROADMAP.md",
+    "docs/compatibility.md",
+    "docs/disposition-ledger.md",
+    "docs/engineering-donor.md",
+    "docs/evidence-binding.md",
+    "docs/observation-value-contract.md",
+    "docs/policy-layers.md",
+    "docs/release-validation.md",
+    "docs/root-manifest-policy.md",
+    "docs/source-block-regeneration-parity.md",
+    "docs/source-skeleton-generator.md",
+    "docs/testing-strategy.md",
+)
+
+
+def current_truth_sha256(root: Path) -> str:
+    joined = "".join(
+        f"{rel}\t{hashlib.sha256((root / rel).read_bytes()).hexdigest()}\n" for rel in TRUTH_INPUTS
+    )
+    return hashlib.sha256(joined.encode("utf-8")).hexdigest()
+
+
+def load_review_bound_baseline() -> dict[str, tuple[str, str]]:
     with REVIEW_BASELINE.open(encoding="utf-8", newline="") as stream:
         rows = list(csv.DictReader(stream, delimiter="\t"))
-    assert rows and set(rows[0]) == {"path", "sha256"}
-    result: dict[str, str] = {}
+    assert rows and list(rows[0]) == ["path", "sha256", "truth_sha256"], list(rows[0]) if rows else rows
+    result: dict[str, tuple[str, str]] = {}
     for row in rows:
         rel = row["path"]
         digest = row["sha256"]
+        truth = row["truth_sha256"]
         assert rel not in result, f"duplicate review baseline path: {rel}"
         assert re.fullmatch(r"[0-9a-f]{64}", digest), (rel, digest)
-        result[rel] = digest
+        if rel in STATE_DOCS:
+            assert re.fullmatch(r"[0-9a-f]{64}", truth), (rel, truth)
+        else:
+            assert truth == "-", (rel, truth)
+        result[rel] = (digest, truth)
     return result
+
+
+def stale_state_docs(baseline: dict[str, tuple[str, str]], truth: str) -> list[str]:
+    return [
+        f"{doc}: машинные данные изменились после пересмотра — сверить документ"
+        for doc in STATE_DOCS
+        if baseline[doc][1] != truth
+    ]
 
 review_bound_docs = {
     rel for rel in current_markdown
@@ -851,10 +909,14 @@ assert set(review_baseline) == review_bound_docs, (
     sorted(set(review_baseline) - review_bound_docs),
 )
 
+assert set(STATE_DOCS) <= review_bound_docs, sorted(set(STATE_DOCS) - review_bound_docs)
+_stale = stale_state_docs(review_baseline, current_truth_sha256(ROOT))
+assert not _stale, "\n" + "\n".join(_stale)
+
 def validate_review_bound_doc(rel: str, body: str) -> None:
     assert rel in review_baseline, rel
     digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
-    assert digest == review_baseline[rel], f"current Markdown requires semantic re-review: {rel}"
+    assert digest == review_baseline[rel][0], f"current Markdown requires semantic re-review: {rel}"
 
 for rel in sorted(review_bound_docs):
     validate_review_bound_doc(rel, (ROOT / rel).read_text(encoding="utf-8"))

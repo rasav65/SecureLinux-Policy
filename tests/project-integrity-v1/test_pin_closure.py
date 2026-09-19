@@ -98,7 +98,8 @@ with tempfile.TemporaryDirectory(prefix="slp-pin-closure-") as tmp:
     baseline = copy / BASELINE
     text = baseline.read_text(encoding="utf-8")
     row = next(line for line in text.splitlines() if line.startswith("README.md\t"))
-    stale_row = "README.md\t" + "0" * 64
+    fields = row.split("\t")
+    stale_row = "\t".join([fields[0], "0" * 64] + fields[2:])
     assert row != stale_row, row
     baseline.write_text(text.replace(row + "\n", stale_row + "\n", 1), encoding="utf-8")
     pinned = {

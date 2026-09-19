@@ -8,7 +8,7 @@ link files. Carriers in scope:
 - every SHA256SUMS and every *.sha256: lines "<sha256>  <path>", path relative
   to the carrier directory (for the root manifests that is the project root);
 - tests/documentation-v1/CURRENT-MARKDOWN-REVIEW-BASELINE.tsv: header
-  "path<TAB>sha256", path relative to the project root;
+  "path<TAB>sha256<TAB>truth_sha256", path relative to the project root;
 - controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv: column "file", path
   relative to the carrier directory.
 
@@ -127,7 +127,7 @@ def parse_tsv(root: Path, rel: str, header: tuple[str, ...], column: str, base: 
 
 def pinned_by(root: Path, rel: str) -> set[str]:
     if rel == REVIEW_BASELINE:
-        return parse_tsv(root, rel, ("path", "sha256"), "path", PurePosixPath("."))
+        return parse_tsv(root, rel, ("path", "sha256", "truth_sha256"), "path", PurePosixPath("."))
     if rel == CONTROL_MANIFEST:
         header = ("control_id", "index_id", "locator", "key", "expected", "file", "sha256")
         return parse_tsv(root, rel, header, "file", PurePosixPath(rel).parent)
