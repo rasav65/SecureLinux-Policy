@@ -176,6 +176,10 @@ validate_current_checkpoint(roadmap_md, project_map, disposition_doc)
 validate_no_manual_live_population_counts(roadmap_md)
 validate_apply_adapters_roadmap_identity(roadmap_md)
 validate_document_complete_definition(roadmap_md, source_index_rows)
+# Реестр диспозиций заполнен: утверждения о пустом реестре и запрете real disposition устарели.
+assert "real disposition остаётся запрещён" not in roadmap_md
+assert "содержит только заголовок" not in disposition_doc
+assert "SecureLinux-Policy v3" not in roadmap_md
 expect_rejected(
     validate_markdown_order,
     roadmap_md.replace("12. Определение условия внешнего снимка для `SRC-0001`\n", "12. Этап после predicate/transform\n", 1),

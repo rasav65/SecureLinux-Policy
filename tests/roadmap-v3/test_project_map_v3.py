@@ -5,7 +5,11 @@ root = Path(__file__).resolve().parents[2]
 text = (root / "docs/PROJECT-MAP-v3.md").read_text(encoding="utf-8")
 readme = (root / "README.md").read_text(encoding="utf-8")
 
-assert "основная архитектурная карта текущего SecureLinux-Policy v3" in text
+assert "основная архитектурная карта текущего SecureLinux-Policy.**" in text
+assert "SecureLinux-Policy v3" not in text
+# Реестр диспозиций заполнен; число закрытых строк — только в генерируемых блоках.
+assert "0 реальных rows" not in text
+assert "Реальных disposed-строк пока 0" not in text
 assert "engineering donor" in text
 assert "<!-- BEGIN GENERATED MAP STATUS -->" in text
 assert "docs/fstec-coverage.md" in text
@@ -25,7 +29,7 @@ for marker in (
     "REUSE / ADAPT / REJECT / DEFER",
     "product/ADAPTER-REGISTRY.tsv",
     "product-sysctl-check-v2",
-    "product-file-mode-owner-check-v1",
+    "product-file-mode-owner-check-v2",
     "product/generate-product-check-v1.py",
     "product/generate-product-check-v2.py",
     "securelinux-policy.sh",
@@ -39,7 +43,7 @@ product_line = text.split("## 3. Текущая product-line: read-only CHECK + 
 )[0]
 for marker in (
     'product-sysctl-check-v2<br/>read-only `eq` + integer `ge`"]:::closed',
-    'product-file-mode-owner-check-v1<br/>read-only"]:::closed',
+    'product-file-mode-owner-check-v2<br/>read-only"]:::closed',
     'product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed',
     'product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding активных механизмов"]:::closed',
     'config-line-with-runtime-v1<br/>sysctl · dry-run · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current',

@@ -48,7 +48,7 @@ Builder использует:
 7. пересобрать корневые manifests;
 8. выполнить targeted regressions, DEV и применимый RELEASE gate;
 9. после всех renderer/manifest/test операций повторно проверить exact ожидаемый `git status --short` и `git diff --check`;
-10. если substantive checkpoint изменился, обновить внешний current HANDOFF после подтверждённого PASS дерева и до передачи работы в новый чат/аудит.
+10. если substantive checkpoint изменился, обновить описание текущего состояния для следующего рабочего сеанса после подтверждённого PASS дерева.
 
 Старое значение `NEXT`, прежняя текущая точка в PROJECT-MAP или противоречащий
 новому machine truth README считается дефектом commit-кандидата. Обновление

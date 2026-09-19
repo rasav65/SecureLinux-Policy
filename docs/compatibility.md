@@ -57,12 +57,21 @@ MINIMIZED проверяются и учитываются раздельно; D
 поддержанную platform/profile matrix, но не являются утверждением, что исходное
 состояние каждой reference VM уже compliant по всем canonical controls.
 
-Для exact generated CLI SHA-256
+Историческое evidence: для exact generated CLI SHA-256
 `98a4c67aeb392bff4e2b617f0f6593b8ff8fb149ce6bb156d9adbebd94e86928`
 полный `SRC-0001` commit/noop run подтверждён на Ubuntu 22, Ubuntu 24,
 Ubuntu 26, Debian 12 и Debian 13. Ubuntu 24 Desktop отдельно подтвердил
-`TYPE=DESKTOP` routing и dry-run без изменения `/etc/shadow`. Это compatibility evidence,
-а не clean-reference guarantee и не доказательство корректности полного commit-path на произвольно изменённой Desktop-системе.
+`TYPE=DESKTOP` routing и dry-run без изменения `/etc/shadow`. Решением DP-3
+APPLY для `SRC-0001` выведен из продукта; этот результат сохраняется как история и
+не относится к текущим механизмам.
+
+Механизм `file-mode-owner-v1` принят на одной среде: `ubuntu-24.04-x86_64-minimized`,
+`x86_64`, clean-reference VM, 19.09.2026, кандидат SHA-256
+`0095dae6b618fa5aa0319beaa8b83378b889caba79e3aad929ce92065ec1612e`, evidence
+`slp-vm-mech2-u2404min-v1-20260919-123103.tar.gz` с SHA-256
+`79f636ca4ddc8b643728b2e47cfaa76b1a2756796616cb5ecde721f8a4003405`.
+Текущий CLI отличается от этого кандидата только отображением. Приёмка
+механизмов APPLY на остальных средах матрицы впереди.
 
 Локальный CHECK может зависеть от прав чтения наблюдаемого объекта. По semantic
 contract невозможность чтения — `ERROR`, а не `NOT_FOUND`; поэтому ограничение

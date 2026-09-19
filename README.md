@@ -1,8 +1,8 @@
-# SecureLinux-Policy v3
+# SecureLinux-Policy
 
-> Инструмент проверки и безопасного применения настроек Debian и Ubuntu по требованиям, представленным в политике проекта. CHECK работает без изменения системы; автоматический APPLY сейчас реализован для 17 `sysctl`-controls.
+> Инструмент проверки и безопасного применения настроек Debian и Ubuntu по требованиям, представленным в политике проекта. CHECK работает без изменения системы; автоматический APPLY реализован для параметров `sysctl` и режимов доступа файлов `/etc/passwd`, `/etc/group`, `/etc/shadow`.
 
-![Статус](https://img.shields.io/badge/status-product%20candidate-orange) ![ОС](https://img.shields.io/badge/ОС-Debian%2012%2F13%20%7C%20Ubuntu%2022.04%2F24.04%2F26.04-informational) ![CHECK](https://img.shields.io/badge/CHECK-read--only-blue) ![APPLY](https://img.shields.io/badge/APPLY-sysctl-green) ![Лицензия](https://img.shields.io/badge/license-MIT-lightgrey)
+![Статус](https://img.shields.io/badge/status-product%20candidate-orange) ![ОС](https://img.shields.io/badge/ОС-Debian%2012%2F13%20%7C%20Ubuntu%2022.04%2F24.04%2F26.04-informational) ![CHECK](https://img.shields.io/badge/CHECK-read--only-blue) ![APPLY](https://img.shields.io/badge/APPLY-sysctl%20%7C%20file%20modes-green) ![Лицензия](https://img.shields.io/badge/license-MIT-lightgrey)
 
 > **Статус:** проект находится в активной разработке и пока не является выпуском. Полное соответствие требованиям ФСТЭК не заявляется. CHECK и APPLY имеют разный объём реализации.
 
@@ -20,7 +20,7 @@ SecureLinux-Policy предназначен для проверки конфиг
 - вывод только найденных проблем;
 - JSON-отчёт для автоматизации;
 - dry-run перед изменением системы;
-- автоматический APPLY поддерживаемых `sysctl`-controls;
+- автоматический APPLY параметров `sysctl` и режимов доступа файлов учётных записей;
 - единый standalone-скрипт `securelinux-policy.sh`;
 - отчёт и журналы результатов применения.
 
@@ -143,6 +143,7 @@ sudo /bin/bash -p ./securelinux-policy.sh --apply
 | `FAIL` | Проверенное условие не выполнено |
 | `ERROR` | Проверка не смогла дать определённую оценку; изучите причину `domain:reason` |
 | `NOT_FOUND` | Объект наблюдения не найден; оценка зависит от контракта конкретной проверки |
+| `NOT_APPLICABLE` | Проверяемая популяция вычислена полностью и пуста; это определённый результат, а не ошибка |
 
 Ошибка чтения или неполное наблюдение не должны превращаться в ложный PASS. Итог `UNEVALUATED` означает, что полная оценка не получена.
 

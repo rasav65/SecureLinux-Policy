@@ -1,4 +1,4 @@
-# SecureLinux-Policy v3 — исторический справочник runtime-архитектуры донора
+# SecureLinux-Policy — исторический справочник runtime-архитектуры донора
 
 Основная карта текущего состояния проекта:
 [`PROJECT-MAP-v3.md`](PROJECT-MAP-v3.md).

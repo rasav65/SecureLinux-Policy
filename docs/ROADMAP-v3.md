@@ -1,4 +1,4 @@
-# SecureLinux-Policy v3 — основной план дальнейших работ
+# SecureLinux-Policy — основной план дальнейших работ
 
 Это обязательный порядок работ после закрытия evidence на reference VM для
 Step 5. Нельзя начинать более поздний этап, пока предыдущий не закрыт, если
@@ -354,16 +354,16 @@ Step 7B возобновлён после достижения `DOCUMENT COMPLET
 только по source-first пути:
 
 - новые технические controls должны проходить generator/parity/gates;
-- real disposition остаётся запрещён до quote-anchor contract/API;
+- disposition вносится только через `DISPOSITION-LEDGER.tsv` с построчным основанием;
 - corporate multi-index/descriptor остаётся отложен до появления первого
   реального corporate primary source;
 - roadmap/documentation regressions обязаны проверять machine truth и
   семантические инварианты, а не исторические точные фразы.
 
-Quote-anchor остаётся отдельным pre-real-disposition gate:
-`REQUIRE_BEFORE_FIRST_REAL_DISPOSITION`. Будущий generator API должен
-различать `EXACT`, `REFUSED`, `UNSUPPORTED`, а integrity failures должны
-оставаться исключениями.
+Quote-anchor реализован как typed generator API: он различает `EXACT`,
+`REFUSED`, `UNSUPPORTED`, а integrity failures остаются исключениями.
+Диспозиции процессных документов внесены в ledger по альтернативному пути
+Gate 2; их число — в генерируемом машинном статусе.
 
 Carry-forward non-blocking findings R3: NUL, `U+2028/U+2029`, VT/FF и CRLF
 не запрещены текущим physical-TSV контрактом; их возможное ограничение —

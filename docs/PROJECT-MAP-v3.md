@@ -1,6 +1,6 @@
-# SecureLinux-Policy v3 — карта проекта и взаимодействий
+# SecureLinux-Policy — карта проекта и взаимодействий
 
-> **Это основная архитектурная карта текущего SecureLinux-Policy v3.**
+> **Это основная архитектурная карта текущего SecureLinux-Policy.**
 >
 > Карта показывает действующие источники истины, текстовые корпуса, source
 > index, controls, механические gates, reference-VM evidence, audit provenance,
@@ -96,7 +96,7 @@ flowchart LR
         G6["Gate 6 PASS — CURRENT EVIDENCE SCOPE<br/>один каталог evidence sysctl-v1"]:::closed
 
         CLOSURE["index/source-v4/<br/>CLOSURE-CONTRACT.tsv<br/>точный ожидаемый набор controls<br/>для controlled CLOSED rows"]:::component
-        DISP["второй путь закрытия:<br/>disposed CLOSED + disposition + reason<br/>нужен DISPOSITION-LEDGER.tsv · 0 реальных rows"]:::component
+        DISP["второй путь закрытия:<br/>disposed CLOSED + disposition + reason<br/>запись в DISPOSITION-LEDGER.tsv"]:::component
 
         SCHEMA --> G0
         IDX --> G1
@@ -167,7 +167,8 @@ runtime/schema проверяет отдельная differential matrix. Roadma
 
 Gate 2 имеет два допустимых пути закрытия строки: control coverage с точным
 `CLOSURE-CONTRACT.tsv` либо explicit disposition + reason, подтверждённый
-ровно одной записью `DISPOSITION-LEDGER.tsv`. Реальных disposed-строк пока 0.
+ровно одной записью `DISPOSITION-LEDGER.tsv`. Число закрытых диспозицией строк
+показывает генерируемый машинный статус.
 
 ## 2. Слои политики и единый index-конвейер
 
@@ -191,7 +192,7 @@ flowchart TB
     SEM --> CONTROLS["controls/<br/>layer + profile"]:::component
     CONTROLS --> CHECKER["checker / gates<br/>fail-closed"]:::component
 
-    DISP2["explicit dispositions<br/>нужен DISPOSITION-LEDGER.tsv<br/>альтернативный путь закрытия"]:::component
+    DISP2["explicit dispositions<br/>DISPOSITION-LEDGER.tsv<br/>альтернативный путь закрытия"]:::component
     INDEXES --> DISP2
     DISP2 --> CHECKER
 
@@ -207,7 +208,7 @@ flowchart LR
     CTRLNOW["canonical controls<br/>fstec-core population из manifest"]:::component
     REG["product/ADAPTER-REGISTRY.tsv<br/>единый tracked mapping adapters"]:::component
     SYS["product-sysctl-check-v2<br/>read-only `eq` + integer `ge`"]:::closed
-    FILE["product-file-mode-owner-check-v1<br/>read-only"]:::closed
+    FILE["product-file-mode-owner-check-v2<br/>read-only"]:::closed
     GEN1["product/generate-product-check-v1.py<br/>предыдущая identity generator"]:::note
     GEN2["product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed
     IMPLREG["product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding активных механизмов"]:::closed

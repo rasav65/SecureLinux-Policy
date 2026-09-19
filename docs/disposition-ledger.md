@@ -82,12 +82,13 @@ failures обязаны оставаться исключениями и не п
 Повторные независимые R3-аудиты подтвердили исправление `S7A-R2-B01`.
 Статус Step 7A — `CLOSED`; новых блокеров `S7A-R3-Bxx` не выявлено.
 
-`index/source-v4/DISPOSITION-LEDGER.tsv` содержит только заголовок.
+`index/source-v4/DISPOSITION-LEDGER.tsv` содержит записи аудированных диспозиций;
+их число показывает генерируемый машинный статус.
 
 Следовательно, закрытие Step 7A само по себе не закрывает строки FSTEC.
 Текущая live population не дублируется здесь вручную и берётся из
 `SOURCE-INDEX.tsv` / сгенерированный `docs/fstec-coverage.md`.
 
-Step 7B current implementation вводит typed quote-anchor contract/API. Первый
-real disposition по-прежнему заблокирован до успешного закрытия Step 7B block
-boundary; наличие API само по себе не является закрытием boundary.
+Step 7B current implementation вводит typed quote-anchor contract/API; наличие API
+само по себе не является закрытием Step 7B block boundary. Диспозиции процессных
+документов внесены в ledger по альтернативному пути Gate 2 с построчным основанием.
