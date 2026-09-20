@@ -34,3 +34,22 @@ jobs:
         run: |
           git status --porcelain --untracked-files=all
           test -z "$(git status --porcelain --untracked-files=all)"
+
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install release dependencies
+        run: python3 -m pip install -r requirements-release.txt
+
+      - name: RELEASE gate
+        run: |
+          rc=0
+          PYTHONDONTWRITEBYTECODE=1 python3 -I -S -B tests/run-all.py --release >"$RUNNER_TEMP/release.log" 2>&1 || rc=$?
+          grep '^RELEASE_' "$RUNNER_TEMP/release.log" || true
+          exit "$rc"
