@@ -216,7 +216,7 @@ flowchart LR
     APPLY2["file-mode-owner-v1<br/>режимы файлов SRC-0005 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
     APPLY3["optional-file-root-files-mode-v1<br/>режимы cron SRC-0010 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
     APPLY4["suid-sgid-applications-mode-v1<br/>режимы SUID/SGID SRC-0013 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
-    APPLY5["standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ-прогона ещё нет"]:::current
+    APPLY5["standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
     CLI["securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
     ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note
 
@@ -255,9 +255,7 @@ Human-readable CHECK/REPORT выводит обнаруженную ОС, арх
 
 Статус узла механизма задаётся гейтами: `closed` — механизм прошёл `--release` и восьмисредовый VM-цикл;
 `current` — идёт работа. Иного статуса у узла механизма нет.
-Все пять механизмов в статусе `current`: у config-line, file-mode-owner,
-optional-file-root-files-mode и suid-sgid-applications на ВМ пройдена одна среда,
-у `standard-system-paths-mode-v1` ВМ-прогона ещё нет; приёмка восьми сред впереди.
+Все пять механизмов в статусе `current`: на ВМ у каждого пройдена одна среда; приёмка восьми сред впереди.
 
 Узел `ADMIN` — граница продукта: для части контролей APPLY не реализуется по решению,
 и продукт возвращает решение администратору отдельным терминальным исходом.

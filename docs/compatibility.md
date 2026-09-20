@@ -71,9 +71,9 @@ APPLY для `SRC-0001` выведен из продукта; этот резу�
 `slp-vm-mech2-u2404min-v1-20260919-123103.tar.gz` с SHA-256
 `79f636ca4ddc8b643728b2e47cfaa76b1a2756796616cb5ecde721f8a4003405`.
 Текущий CLI отличается от этого кандидата отображением и составом механизмов.
-Механизмы `optional-file-root-files-mode-v1` и `suid-sgid-applications-mode-v1`
-приняты на той же среде 20.09.2026; у `standard-system-paths-mode-v1` ВМ-прогона
-ещё нет. Приёмка механизмов APPLY на остальных средах матрицы впереди.
+Механизмы `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1` и
+`standard-system-paths-mode-v1` приняты на той же среде 20.09.2026. Приёмка
+механизмов APPLY на остальных средах матрицы впереди.
 
 Локальный CHECK может зависеть от прав чтения наблюдаемого объекта. По semantic
 contract невозможность чтения — `ERROR`, а не `NOT_FOUND`; поэтому ограничение
