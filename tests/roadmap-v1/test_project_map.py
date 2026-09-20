@@ -213,6 +213,15 @@ _classes = [line.split("|")[1].strip() for line in _rows]
 # APPLY, часть без); вразброс класс не повторяется.
 _class_order = [c for i, c in enumerate(_classes) if i == 0 or _classes[i - 1] != c]
 assert _class_order == ["G1", "G2", "G3", "G4", "G5", "G6", "G7"], _classes
+# Определение класса G6 закреплено литералом: меняется только явным решением
+# при принятии нового механизма или популяции этого класса; повторяется в каждой
+# строке класса.
+_G6_DEFINITION = (
+    "режимы файлов по вычисляемой стабильной популяции (системные корни cron, "
+    "SUID/SGID-файлы всех непсевдо-точек монтирования), только снятие битов"
+)
+_g6_definitions = [line.split("|")[2].strip() for line in _rows if line.split("|")[1].strip() == "G6"]
+assert _g6_definitions and all(d == _G6_DEFINITION for d in _g6_definitions), _g6_definitions
 _seen = []
 for line in _rows:
     cells = [c.strip() for c in line.split("|")[1:-1]]
