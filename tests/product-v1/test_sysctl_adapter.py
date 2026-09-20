@@ -98,4 +98,53 @@ class Runtime(unittest.TestCase):
     def test_nul_is_rejected_before_read(self): self.assertEqual(self.run_patched(b"1\x00\n",1),("ERROR","sysctl:invalid-bytes","ERROR"))
     def test_read_error_has_no_stderr(self): self.assertEqual(self.run_patched(b"__DIR__",1),("ERROR","sysctl:read-failed","ERROR"))
 
+@unittest.skipIf(BASH is None,"bash not available")
+class UnprovenAbsence(unittest.TestCase):
+    """Недоступность предка не равна отсутствию (решение человека).
+
+    NOT_FOUND допустим только при доказанном отсутствии: родитель существует,
+    является каталогом, доступен для поиска, а lstat имени даёт ENOENT — так уже
+    сделано в `product-file-mode-owner-check-v2`. Иначе — ERROR с причиной
+    контракта, иначе закрытый каталог /proc/sys выглядел бы как отсутствие
+    параметра.
+    """
+    def setUp(self):
+        self.tmp=Path(tempfile.mkdtemp(prefix="slp-sysctl-absence-")); os.chmod(self.tmp,0o755)
+        self.closed=self.tmp/"closed"; self.closed.mkdir()
+        self.visible=self.tmp/"visible"; self.visible.mkdir(); os.chmod(self.visible,0o755)
+    def tearDown(self):
+        try: os.chmod(self.closed,0o700)
+        except OSError: pass
+        shutil.rmtree(self.tmp,ignore_errors=True)
+    def user_kwargs(self):
+        return {"user":65534,"group":65534,"extra_groups":[]} if os.geteuid()==0 else {}
+    def owned(self,path):
+        if os.geteuid()==0: os.chown(path,65534,65534)
+        return path
+    def run_target(self,target):
+        src=ADAPTER.shell_function("CTRL-T","sysctl","slp_test.value","eq",1)
+        src=src.replace(repr("/proc/sys/slp_test/value"),repr(str(target)),1)
+        run=self.visible/"run.sh"; run.write_text("set -u\n"+src+"\nslp_check_CTRL_T\n",encoding="utf-8")
+        self.owned(run)
+        p=subprocess.run([BASH,str(run)],capture_output=True,text=True,**self.user_kwargs())
+        self.assertEqual(p.returncode,0,p.stderr); self.assertEqual(p.stderr,"")
+        fields=p.stdout.rstrip("\n").split("\t"); self.assertEqual(len(fields),5,p.stdout)
+        return tuple(fields[2:])
+    def seal(self,inner):
+        """Закрывает каталог и доказывает, что объект внутри действительно недоступен."""
+        os.chmod(self.closed,0o000)
+        probe=('if [[ -x "$1" ]]; then printf searchable; fi\n'
+               'if [[ -e "$2" || -L "$2" ]]; then printf visible; fi\n'
+               'if cat -- "$2" >/dev/null 2>&1; then printf readable; fi\n'
+               'printf done\n')
+        cp=subprocess.run([BASH,"-c",probe,"probe",str(self.closed),str(inner)],
+                          capture_output=True,text=True,**self.user_kwargs())
+        self.assertEqual(cp.stdout,"done","предок доступен, случай не воспроизведён: "+cp.stdout)
+    def test_unreachable_parameter_is_error(self):
+        target=self.closed/"value"; target.write_text("1\n",encoding="utf-8"); self.owned(target)
+        self.seal(target)
+        self.assertEqual(self.run_target(target),("ERROR","sysctl:read-failed","ERROR"))
+    def test_absent_parameter_in_searchable_parent_stays_not_found(self):
+        self.assertEqual(self.run_target(self.visible/"absent-value"),("NOT_FOUND","-","NOT_FOUND"))
+
 if __name__=="__main__": unittest.main(verbosity=2)

@@ -78,11 +78,15 @@ APPLY для `SRC-0001` выведен из продукта; этот резу�
 Первое принятие `standard-system-paths-mode-v1` относится к кандидату
 `e170aae19cf261f37c1ca0a2f10c72b1dc373bef4eae263c6653bd690e35dd38`. Затем перечислитель
 механизма исправлен (ошибка чтения подкаталога — отказ `scan:find-failed`). Повторный
-прогон на той же среде принят на текущем кандидате
+прогон на той же среде принят на кандидате
 `ba96131bcf5b3a6d9906052a5163e2a5dca784ae3f16982a7a12df6dfb03a55b` (runner SHA-256
 `e6abdf226461353d313eb5fabcb0bd8285bf2881d611924538c11bbbaeaa4a3d`, evidence
 `slp-vm-mech5-u2404min-v1-20260920-175045.tar.gz` SHA-256
 `eddd6bd11da96bf024193db7d005a6cab4932e33621befef94b36d1ab1c231d4`).
+Текущий кандидат `9b886b9d27af9149ba033cf2a8b6848a24ebea672aad75e6842616b17ae108fd`
+отличается от обоих: CHECK-адаптеры `sysctl`, `kernel-cmdline`, `home-directories-mode`,
+`home-sensitive-files-mode`, `pam-wheel-access` и `sshd-root-login` больше не принимают
+недоступность за отсутствие. ВМ-прогон на нём не выполнен.
 
 Локальный CHECK может зависеть от прав чтения наблюдаемого объекта. По semantic
 contract невозможность чтения — `ERROR`, а не `NOT_FOUND`; поэтому ограничение

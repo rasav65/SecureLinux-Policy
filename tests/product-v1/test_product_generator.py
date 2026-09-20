@@ -5177,5 +5177,227 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         self.assertNotEqual(self._run_rebuilder(root3, "--check").returncode, 0)
 
 
+class UnprovenAbsenceIsErrorFixtures(unittest.TestCase):
+    """Недоступность предка не равна отсутствию (решение человека).
+
+    NOT_FOUND допустим только при доказанном отсутствии: родитель существует,
+    является каталогом, доступен для поиска, а lstat имени даёт ENOENT — так уже
+    сделано в `product-file-mode-owner-check-v2`. Во всех прочих случаях контроль
+    обязан вернуть ERROR с причиной из своего контракта, иначе недоступный
+    объект молча выпадает из популяции и контроль может дать PASS.
+    """
+
+    def setUp(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        self.tmp = Path(tempfile.mkdtemp(prefix="slp-unproven-absence-"))
+        os.chmod(self.tmp, 0o755)
+        self.closed = self.tmp / "closed"
+        self.closed.mkdir()
+        self.visible = self.tmp / "visible"
+        self.visible.mkdir()
+        os.chmod(self.visible, 0o755)
+
+    def tearDown(self):
+        with contextlib.suppress(OSError):
+            os.chmod(self.closed, 0o700)
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    # --- фикстура -------------------------------------------------------
+    def owned(self, path):
+        """Под root фикстура передаётся непривилегированному пользователю прогона."""
+        if os.geteuid() == 0:
+            os.chown(path, 65534, 65534)
+        return path
+
+    def user_kwargs(self):
+        if os.geteuid() == 0:
+            return {"user": 65534, "group": 65534, "extra_groups": []}
+        return {}
+
+    def seal(self, inner):
+        """Закрывает каталог и доказывает, что объект внутри действительно недоступен."""
+        os.chmod(self.closed, 0o000)
+        probe = (
+            'if [[ -x %s ]]; then printf searchable; fi\n'
+            'if [[ -e %s || -L %s ]]; then printf visible; fi\n'
+            'if cat -- %s >/dev/null 2>&1; then printf readable; fi\n'
+            'printf done\n'
+        ) % (shlex.quote(str(self.closed)), shlex.quote(str(inner)),
+             shlex.quote(str(inner)), shlex.quote(str(inner)))
+        cp = subprocess.run([BASH, "-c", probe], text=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, **self.user_kwargs())
+        self.assertEqual(cp.stdout, "done", "предок доступен, случай не воспроизведён: " + cp.stdout)
+
+    def run_block(self, block, fn_name):
+        cp = subprocess.run(
+            [BASH, "-c", "set -u\n" + block + "\n" + fn_name + "\n"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **self.user_kwargs()
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        row = cp.stdout.strip().split("\t")
+        self.assertEqual(len(row), 5, cp.stdout)
+        return tuple(row[2:])
+
+    def passwd_with(self, user_home):
+        """/etc/passwd-фикстура: два доступных дома и дом проверяемой учётной записи."""
+        homes = []
+        for name in ("root", "svc"):
+            h = self.visible / name
+            h.mkdir()
+            os.chmod(h, 0o700)
+            self.owned(h)
+            homes.append(h)
+        passwd = self.visible / "passwd"
+        passwd.write_text(
+            "root:x:0:0:root:%s:/bin/bash\n"
+            "svc:x:500:500:service:%s:/usr/sbin/nologin\n"
+            "user:x:1000:1000:user:%s:/bin/bash\n" % (homes[0], homes[1], user_home),
+            encoding="utf-8",
+        )
+        self.owned(passwd)
+        return passwd
+
+    # --- home-directories-mode ------------------------------------------
+    def test_home_directories_unreachable_home_is_error(self):
+        home = self.closed / "home"
+        home.mkdir()
+        os.chmod(home, 0o700)
+        self.owned(home)
+        passwd = self.passwd_with(home)
+        self.seal(home)
+        block = HOME_DIRECTORIES._shell_function_for_fixture("TEST.ABSENCE", str(passwd))
+        self.assertEqual(self.run_block(block, "slp_check_TEST_ABSENCE"),
+                         ("ERROR", "home:identity-failed", "ERROR"))
+
+    def test_home_directories_absent_home_in_searchable_parent_stays_outside_population(self):
+        passwd = self.passwd_with(self.visible / "absent-home")
+        block = HOME_DIRECTORIES._shell_function_for_fixture("TEST.ABSENCE", str(passwd))
+        status, value, compliance = self.run_block(block, "slp_check_TEST_ABSENCE")
+        self.assertEqual((status, compliance), ("VALUE", "PASS"))
+        self.assertEqual(value, "accounts=3;homes=2;violations=0")
+
+    # --- home-sensitive-files-mode --------------------------------------
+    def test_home_sensitive_unreachable_home_is_error(self):
+        home = self.closed / "home"
+        home.mkdir()
+        os.chmod(home, 0o700)
+        self.owned(home)
+        passwd = self.passwd_with(home)
+        inventory = self.visible / "inventory"
+        inventory.write_text("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\n", encoding="utf-8")
+        self.owned(inventory)
+        self.seal(home)
+        block = HOME_SENSITIVE._shell_function_for_fixture("TEST.ABSENCE", str(passwd), str(inventory))
+        self.assertEqual(self.run_block(block, "slp_check_TEST_ABSENCE"),
+                         ("ERROR", "home:identity-failed", "ERROR"))
+
+    # --- pam-wheel-access -----------------------------------------------
+    def pam_fixture(self, pam, group):
+        authority = self.visible / "wheel-users.allowlist-v1"
+        authority.write_text("", encoding="utf-8")
+        self.owned(authority)
+        return PAM_WHEEL_ACCESS._shell_function_for_fixture(
+            "PAM.ABSENCE", str(pam), str(group), str(authority)
+        )
+
+    def test_pam_wheel_unreachable_pam_file_is_error(self):
+        pam = self.closed / "su"
+        pam.write_text("auth required pam_wheel.so use_uid\n", encoding="utf-8")
+        self.owned(pam)
+        group = self.visible / "group"
+        group.write_text("wheel:x:10:root\n", encoding="utf-8")
+        self.owned(group)
+        self.seal(pam)
+        self.assertEqual(self.run_block(self.pam_fixture(pam, group), "slp_check_PAM_ABSENCE"),
+                         ("ERROR", "pam:read-failed", "ERROR"))
+
+    def test_pam_wheel_unreachable_group_file_is_error(self):
+        pam = self.visible / "su"
+        pam.write_text("auth required pam_wheel.so use_uid\n", encoding="utf-8")
+        self.owned(pam)
+        group = self.closed / "group"
+        group.write_text("wheel:x:10:root\n", encoding="utf-8")
+        self.owned(group)
+        self.seal(group)
+        self.assertEqual(self.run_block(self.pam_fixture(pam, group), "slp_check_PAM_ABSENCE"),
+                         ("ERROR", "group:read-failed", "ERROR"))
+
+    def test_pam_wheel_absent_file_in_searchable_parent_stays_not_found(self):
+        group = self.visible / "group"
+        group.write_text("wheel:x:10:root\n", encoding="utf-8")
+        self.owned(group)
+        block = self.pam_fixture(self.visible / "absent-su", group)
+        self.assertEqual(self.run_block(block, "slp_check_PAM_ABSENCE"), ("NOT_FOUND", "-", "FAIL"))
+
+    # --- sshd-root-login -------------------------------------------------
+    def sshd_binary(self, directory):
+        sshd = directory / "sshd"
+        sshd.write_text(
+            "#!/usr/bin/env bash\n"
+            "if [[ ${1:-} == -t ]]; then exit 0; fi\n"
+            "if [[ ${1:-} == -T ]]; then printf '%s\\n' 'permitrootlogin no'; exit 0; fi\n"
+            "exit 2\n",
+            encoding="utf-8",
+        )
+        sshd.chmod(0o755)
+        self.owned(sshd)
+        return sshd
+
+    def test_sshd_unreachable_config_is_error(self):
+        cfg = self.closed / "sshd_config"
+        cfg.write_text("PermitRootLogin no\n", encoding="utf-8")
+        self.owned(cfg)
+        sshd = self.sshd_binary(self.visible)
+        self.seal(cfg)
+        block = SSHD_ROOT_LOGIN._shell_function_for_fixture(
+            "SSH.ABSENCE", str(cfg), str(sshd), "PermitRootLogin", "eq", "no"
+        )
+        self.assertEqual(self.run_block(block, "slp_check_SSH_ABSENCE"),
+                         ("ERROR", "sshd-config:unreadable", "ERROR"))
+
+    def test_sshd_unreachable_binary_is_error(self):
+        cfg = self.visible / "sshd_config"
+        cfg.write_text("PermitRootLogin no\n", encoding="utf-8")
+        self.owned(cfg)
+        sshd = self.sshd_binary(self.closed)
+        self.seal(sshd)
+        block = SSHD_ROOT_LOGIN._shell_function_for_fixture(
+            "SSH.ABSENCE", str(cfg), str(sshd), "PermitRootLogin", "eq", "no"
+        )
+        self.assertEqual(self.run_block(block, "slp_check_SSH_ABSENCE"),
+                         ("ERROR", "sshd-binary:resolve-failed", "ERROR"))
+
+    def test_sshd_absent_config_in_searchable_parent_stays_not_found(self):
+        block = SSHD_ROOT_LOGIN._shell_function_for_fixture(
+            "SSH.ABSENCE", str(self.visible / "absent-config"),
+            str(self.sshd_binary(self.visible)), "PermitRootLogin", "eq", "no"
+        )
+        self.assertEqual(self.run_block(block, "slp_check_SSH_ABSENCE"), ("NOT_FOUND", "-", "FAIL"))
+
+    # --- kernel-cmdline ---------------------------------------------------
+    def cmdline_block(self, target):
+        spec = importlib.util.spec_from_file_location(
+            "slp_kernel_cmdline_absence", ROOT / "product/adapters/product-kernel-cmdline-check-v2.py"
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        block = mod.shell_function("CMD.ABSENCE", "/proc/cmdline", "init_on_alloc", "eq", "1")
+        return block.replace(repr("/proc/cmdline"), repr(str(target)), 1)
+
+    def test_kernel_cmdline_unreachable_source_is_error(self):
+        target = self.closed / "cmdline"
+        target.write_text("init_on_alloc=1\n", encoding="utf-8")
+        self.owned(target)
+        self.seal(target)
+        self.assertEqual(self.run_block(self.cmdline_block(target), "slp_check_CMD_ABSENCE"),
+                         ("ERROR", "cmdline:read-failed", "ERROR"))
+
+    def test_kernel_cmdline_absent_source_in_searchable_parent_stays_not_found(self):
+        block = self.cmdline_block(self.visible / "absent-cmdline")
+        self.assertEqual(self.run_block(block, "slp_check_CMD_ABSENCE"), ("NOT_FOUND", "-", "NOT_FOUND"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

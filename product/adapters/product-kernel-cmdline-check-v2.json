@@ -3,7 +3,7 @@
   "adapter_id": "product-kernel-cmdline-check-v2",
   "implementation_id": "product-kernel-cmdline-check-v2.py",
   "implementation_path": "product/adapters/product-kernel-cmdline-check-v2.py",
-  "implementation_sha256": "91b922fd4a9e1e5d16a5a3387ea14c06e32aabf6f5ed75d174a82a7c658d7160",
+  "implementation_sha256": "ecdbeba701a53768712c3a78612925f77420b87162782f38993c93dffdedefe9",
   "input_schema_id": "canonical-control-v3",
   "input_schema_version": 1,
   "locator": "/proc/cmdline",
