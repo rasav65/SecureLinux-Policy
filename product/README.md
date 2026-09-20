@@ -1,7 +1,7 @@
 # Продуктовая линия CHECK и mechanism-oriented APPLY
 
 Постоянная read-only CHECK product-line и mechanism-oriented APPLY SecureLinux-Policy:
-механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1` и `optional-file-root-files-mode-v1`.
+механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1` и `suid-sgid-applications-mode-v1`.
 
 Она отделена от historical `step7b0/`: admitted bytes и historical adapter id
 `sysctl-check-v1` не являются current product authority и здесь не изменяются.
@@ -49,8 +49,8 @@
 - `adapters/product-home-directories-mode-check-v2.py` + JSON binding; локальный passwd + read-only наблюдение mode;
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
   semantic contract / binding / implementation с SHA-256;
-- `contracts/mechanism-file-mode-owner-v1.json` и `contracts/mechanism-optional-file-root-files-mode-v1.json` — `MECHANISM_AUTHORITY_V1` механизмов `file-mode-owner-v1` (SRC-0005) и `optional-file-root-files-mode-v1` (SRC-0010); содержат только поля, которые читает код;
-- `apply-adapters/product-file-mode-owner-apply-v1.{py,json}` и `apply-adapters/product-optional-file-root-files-mode-apply-v1.{py,json}` — реализации и bindings этих механизмов: только снятие битов через `fchmod` на дескрипторе с `O_NOFOLLOW`, без компенсации;
+- `contracts/mechanism-file-mode-owner-v1.json`, `contracts/mechanism-optional-file-root-files-mode-v1.json` и `contracts/mechanism-suid-sgid-applications-mode-v1.json` — `MECHANISM_AUTHORITY_V1` механизмов `file-mode-owner-v1` (SRC-0005), `optional-file-root-files-mode-v1` (SRC-0010) и `suid-sgid-applications-mode-v1` (SRC-0013); содержат только поля, которые читает код;
+- `apply-adapters/product-file-mode-owner-apply-v1.{py,json}`, `apply-adapters/product-optional-file-root-files-mode-apply-v1.{py,json}` и `apply-adapters/product-suid-sgid-applications-mode-apply-v1.{py,json}` — реализации и bindings этих механизмов: только снятие битов через `fchmod` на дескрипторе с `O_NOFOLLOW`, без компенсации;
 - `contracts/mechanism-config-line-runtime-v1.json` — действующая `MECHANISM_AUTHORITY_V1` редакции r17 для механизма `config-line-with-runtime-v1`; одна authority содержит семантику механизма, registry identity/routing и product-integration rules; отдельные architecture/composition документы для этой формы не создаются;
 - `APPLY-KIND-REGISTRY.tsv` — маршрут `parameter_kind → apply_kind` и exact authority binding; поля `parameter_kind` уникальны, `authority_form` проверяется fail-closed;
 - `APPLY-IMPLEMENTATION-REGISTRY.tsv` — одна строка на активный APPLY-механизм с exact binding/implementation SHA-256;
@@ -108,7 +108,7 @@ CHECK для current population из manifest реализован и покры
 artifact имеет статус `NON_RELEASE_PRODUCT_CANDIDATE`; один target family
 `linux-x86_64-supported-v1` охватывает основную clean-reference матрицу 7/7 из `SUPPORTED-PLATFORMS.tsv`; Ubuntu 24.04 x86_64 Desktop из `FIELD-COMPATIBILITY-DESKTOPS.tsv` является отдельным `FIELD_COMPATIBILITY` environment и не увеличивает число supported clean-reference environments.
 
-Действующая APPLY authority — `mechanism-config-line-runtime-v1.json` r17, `mechanism-file-mode-owner-v1.json` и `mechanism-optional-file-root-files-mode-v1.json`. Реестры связывают `parameter_kind=sysctl` с механизмом `config-line-with-runtime-v1`, `parameter_kind=file-mode-owner` — с `file-mode-owner-v1`, а `parameter_kind=optional-file-root-files-mode` — с `optional-file-root-files-mode-v1`; scope вычисляется из корпуса. Прежняя SRC-0001 APPLY-цепочка сохранена только как historical bytes и из активных реестров/CLI удалена. Механизм sysctl прошёл отдельный implementation audit; полная продуктовая приёмка интеграции и последующий прогон восьми поддерживаемых состояний выполняются отдельными gates. RESTORE не входит в целевую mutation-архитектуру. Policy noncompliance не равен execution
+Действующая APPLY authority — `mechanism-config-line-runtime-v1.json` r17, `mechanism-file-mode-owner-v1.json`, `mechanism-optional-file-root-files-mode-v1.json` и `mechanism-suid-sgid-applications-mode-v1.json`. Реестры связывают `parameter_kind=sysctl` с механизмом `config-line-with-runtime-v1`, `parameter_kind=file-mode-owner` — с `file-mode-owner-v1`, `parameter_kind=optional-file-root-files-mode` — с `optional-file-root-files-mode-v1`, а `parameter_kind=suid-sgid-applications` — с `suid-sgid-applications-mode-v1`; scope вычисляется из корпуса. Прежняя SRC-0001 APPLY-цепочка сохранена только как historical bytes и из активных реестров/CLI удалена. Механизм sysctl прошёл отдельный implementation audit; полная продуктовая приёмка интеграции и последующий прогон восьми поддерживаемых состояний выполняются отдельными gates. RESTORE не входит в целевую mutation-архитектуру. Policy noncompliance не равен execution
 failure. Result `NOT_FOUND`/`ERROR` делает итог `UNEVALUATED`; observation `NOT_FOUND`
 может быть definitive `FAIL`, если active semantic contract прямо определяет отсутствие
 обязательного объекта/технологии как noncompliance (в частности SSH/PAM).
@@ -214,7 +214,7 @@ Pinned donor использован только как precedent для `/proc/
 
 Оба controls v2 используют одну population: все regular SUID/SGID files на всех **non-pseudo mounted filesystems**, включая mounts с `nosuid`. `nosuid` изменяет execution semantics, но не удаляет файл из буквального source-аудита SUID/SGID-приложений. Один underlying file дедуплицируется по `dev:inode`; scan/stat/mountinfo ambiguity => `ERROR`.
 
-`SUID-SGID-MODE` проверяет exact source relation `chmod go-w` → `bits-clear 0022`. `SUID-SGID-ALLOWLIST` отдельно проверяет `population ⊆ approved set` против explicit local `/etc/securelinux-policy/suid-sgid.allowlist-v1`; missing/malformed authority => `ERROR`, unlisted application => `FAIL`. Owner=root не добавляется. APPLY/RESTORE отсутствуют.
+`SUID-SGID-MODE` проверяет exact source relation `chmod go-w` → `bits-clear 0022`. `SUID-SGID-ALLOWLIST` отдельно проверяет `population ⊆ approved set` против explicit local `/etc/securelinux-policy/suid-sgid.allowlist-v1`; missing/malformed authority => `ERROR`, unlisted application => `FAIL`. Owner=root не добавляется. APPLY для `SUID-SGID-MODE` выполняет механизм `suid-sgid-applications-mode-v1`: план строится до мутаций, снимаются только биты `0022` через `fchmod` на дескрипторе с `O_NOFOLLOW`, компенсации нет; нарушитель с `st_nlink>1` пропускается с записью, перед мутацией объект ревалидируется на дескрипторе (`S_ISREG` → `dev/ino` из плана → биты `06000`), иначе пропускается с причиной; ошибка одного объекта не останавливает остальные (`APPLIED_PARTIAL`), `EROFS` и отсутствие root останавливают сразу. Для `SUID-SGID-ALLOWLIST` APPLY отсутствует: адаптер возвращает `NOT_ELIGIBLE_APPLY_UNSUPPORTED`, решение остаётся за администратором. RESTORE отсутствует.
 
 ## SRC-0014 / 2.3.10 — чувствительные файлы домашних каталогов пользователей
 
@@ -357,7 +357,7 @@ read-only проверки:
 недостаточно.
 
 CHECK и изменение системы разделены принципиально. CHECK остаётся read-only, а
-APPLY реализован механизмами `config-line-with-runtime-v1`, `file-mode-owner-v1` и `optional-file-root-files-mode-v1`;
+APPLY реализован механизмами `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1` и `suid-sgid-applications-mode-v1`;
 общий цикл и итоговый RC принадлежат product CLI.
 Пользовательский RESTORE не планируется; post-APPLY recovery выполняется внешним snapshot/backup-механизмом.
 
@@ -489,7 +489,7 @@ generator identity и не является текущей пользовате�
 
 | Гарантия | Статус | Чем проверяется |
 |---|---|---|
-| APPLY механизмов `config-line-with-runtime-v1`, `file-mode-owner-v1` и `optional-file-root-files-mode-v1`; RESTORE исключён | INTEGRATION CANDIDATE | authority механизмов + оба APPLY registry + bindings + adapters + generator regressions |
+| APPLY механизмов `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1` и `suid-sgid-applications-mode-v1`; RESTORE исключён | INTEGRATION CANDIDATE | authority механизмов + оба APPLY registry + bindings + adapters + generator regressions |
 | Детерминированная генерация CHECK | PASS | `tests/product-v1/test_product_generator.py` |
 | Adapter/contract bytes закреплены SHA-256 | PASS | `ADAPTER-REGISTRY.tsv` + product regressions |
 | CHECK provenance доступен машинно | PASS | generator regression / `--provenance` |
@@ -499,7 +499,7 @@ generator identity и не является текущей пользовате�
 | Реальный Draft 2020-12 валидатор обязателен для RELEASE | PASS | `tests/release-v1/test_real_jsonschema_gate.py` |
 | Current nested `SHA256SUMS` валидны; 2 historical donor runtime entries пинованы как исключения | PASS | `tests/project-integrity-v1/test_root_manifests.py` |
 | Gates-v3 evidence с маркировкой `ACTIVE` совпадает со свежим checker run | PASS | `tests/project-integrity-v1/test_root_manifests.py` |
-| APPLY | механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1` | `APPLY_KINDS` и `APPLY_CONTROL_COUNT` — в машинном статусе корневого README; dry-run / применение |
+| APPLY | механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1` | `APPLY_KINDS` и `APPLY_CONTROL_COUNT` — в машинном статусе корневого README; dry-run / применение |
 | RESTORE | НЕ ПЛАНИРУЕТСЯ / ВНЕ SCOPE | post-APPLY recovery = внешний snapshot |
 
 Гарантии относятся только к текущему scope. Конкретный policy-result CHECK
@@ -701,7 +701,7 @@ Mapping донора сам по себе не создаёт FSTEC controls и 
 - formal Gate 5 `--probe-results` для текущей product population остаётся
   отдельным контрактным артефактом;
 - `SRC-0005 / 2.3.1` закрыт exact-control-set из трёх file-mode controls;
-- APPLY выполняется механизмами `config-line-with-runtime-v1`, `file-mode-owner-v1` и `optional-file-root-files-mode-v1`; SRC-0001 решением DP-3 выведен из product APPLY; RESTORE исключён, recovery model — external snapshot/backup;
+- APPLY выполняется механизмами `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1` и `suid-sgid-applications-mode-v1`; SRC-0001 решением DP-3 выведен из product APPLY; RESTORE исключён, recovery model — external snapshot/backup;
 - historical Step 7B.0 не является current product authority;
 - engineering donor не является нормативным доказательством.
 
@@ -712,7 +712,7 @@ population показана в машинно сформированном ст�
 `fstec-linux-2022` не переоткрывались. Для модульной архитектуры `SRC-0001` закрыты и криптографически привязаны
 точные определения предиката и преобразования, условия внешнего снимка, блокировки и повторного чтения, идентичности объекта, сохранения метаданных, атомарной транзакции и сухого запуска с отчётом.
 Композиция связывает все восемь ролей определений; implementation registry,
-binding и adapter связывают реализацию с этой композицией. Эта SRC-0001 цепочка теперь historical и не подключена к generated CLI. Current CLI маршрутизирует APPLY через механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1` и `optional-file-root-files-mode-v1`.
+binding и adapter связывают реализацию с этой композицией. Эта SRC-0001 цепочка теперь historical и не подключена к generated CLI. Current CLI маршрутизирует APPLY через механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1` и `suid-sgid-applications-mode-v1`.
 Этапы `APPLY_IMPLEMENTATION_ADAPTERS`, `FINAL_DETERMINISTIC_PACKAGING` и `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыты; текущая вертикаль достигла `DOCUMENT COMPLETE`.
 Оставшиеся строки `OPEN` других документов ФСТЭК возвращены в source-first очередь Step 7B.
 Семантика `chmod go-rwx /etc/shadow` представлена как `mode bits-clear 0077` и

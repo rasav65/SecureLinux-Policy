@@ -53,17 +53,19 @@ Regression сравнивает ожидаемые и committed bytes. Изме�
 - post-APPLY recovery явно равен `EXTERNAL_SNAPSHOT` и находится вне product mutation code.
 
 Исключение — механизмы, мутация которых только ужесточает состояние:
-`file-mode-owner-v1` и `optional-file-root-files-mode-v1`. Компенсация для них
+`file-mode-owner-v1`, `optional-file-root-files-mode-v1` и
+`suid-sgid-applications-mode-v1`. Компенсация для них
 запрещена, потому что возврат прежнего, более слабого значения ослабил бы защиту.
 Модель — `fchmod` на объект, проверка постусловия и отказ без отката; у
-`optional-file-root-files-mode-v1` ошибка одного объекта не останавливает
-остальные (`APPLIED_PARTIAL`), `EROFS` прерывает прогон сразу. Пункты о
+`optional-file-root-files-mode-v1` и `suid-sgid-applications-mode-v1` ошибка одного
+объекта не останавливает остальные (`APPLIED_PARTIAL`), `EROFS` прерывает прогон сразу. Пункты о
 journal/intent и компенсации к ним не применяются.
 
 Историческое: решением DP-3 APPLY для `SRC-0001` выведен из продукта, текущий
-APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1` и `optional-file-root-files-mode-v1`.
+APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1` и `suid-sgid-applications-mode-v1`.
 Каждый механизм проверяется сквозным тестом встроенного dispatcher
-(`tests/product-v1/test_apply_dispatch_integration.py`) и VM-прогоном.
+(`tests/product-v1/test_apply_dispatch_integration.py`) и VM-прогоном;
+у `suid-sgid-applications-mode-v1` VM-прогон ещё не выполнялся.
 
 Для первой вертикали `SRC-0001` function-level VM run подтвердил happy path и
 fail-closed ветви до commit; targeted run подтвердил xattr, stale reread и два

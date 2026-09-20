@@ -99,7 +99,7 @@ for marker in (
     "APPLY=IMPLEMENTED",
     # Литерал закреплён явным решением: меняется только осознанной правкой этого
     # теста при изменении APPLY-популяции, а не автоматически под результат прогона.
-    "APPLY_CONTROL_COUNT=26",
+    "APPLY_CONTROL_COUNT=27",
     f"APPLY_IMPLEMENTATION_COUNT={len(apply_implementations)}",
     "FULL_FSTEC_COMPLIANCE_CLAIM=false",
 ):

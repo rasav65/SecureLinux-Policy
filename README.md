@@ -151,7 +151,7 @@ sudo /bin/bash -p ./securelinux-policy.sh --apply
 
 ## Применение изменений
 
-Автоматический APPLY выполняется механизмами `config-line-with-runtime-v1` (sysctl), `file-mode-owner-v1` (режим файлов) и `optional-file-root-files-mode-v1` (режимы системных файлов cron); состав берётся из APPLY registries, количества — из машинного статуса ниже. Остальные controls могут участвовать в CHECK, но не изменяются автоматически без явно поддерживаемой APPLY-семантики.
+Автоматический APPLY выполняется механизмами `config-line-with-runtime-v1` (sysctl), `file-mode-owner-v1` (режим файлов), `optional-file-root-files-mode-v1` (режимы системных файлов cron) и `suid-sgid-applications-mode-v1` (режимы SUID/SGID-приложений); состав берётся из APPLY registries, количества — из машинного статуса ниже. Остальные controls могут участвовать в CHECK, но не изменяются автоматически без явно поддерживаемой APPLY-семантики.
 
 Сухой запуск:
 
@@ -255,9 +255,9 @@ FIELD_COMPATIBILITY_ENVIRONMENTS=1
 CHECK_STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 CHECK=IMPLEMENTED_READ_ONLY
 APPLY=IMPLEMENTED
-APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1,optional-file-root-files-mode-v1
-APPLY_CONTROL_COUNT=26
-APPLY_IMPLEMENTATION_COUNT=3
+APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1,optional-file-root-files-mode-v1,suid-sgid-applications-mode-v1
+APPLY_CONTROL_COUNT=27
+APPLY_IMPLEMENTATION_COUNT=4
 RESTORE=NOT_PLANNED
 ROLLBACK_MODEL=EXTERNAL_SNAPSHOT
 FULL_FSTEC_COMPLIANCE_CLAIM=false
