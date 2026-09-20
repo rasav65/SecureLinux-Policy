@@ -75,7 +75,8 @@ APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-
 `scan:find-failed` (у sysctl — `source:unreadable-directory`), `mutation_performed=false`,
 `fchmod` или запись не вызывались, файлы неизменны; для APPLY и dry-run. Для
 `standard-system-paths-mode-v1` тест дополнительно доказывает, что внедрённая ошибка
-действительно доходит до `onerror` у `os.walk`.
+действительно доходит до `onerror` у `os.walk`. VM-прогон этого механизма повторён на
+кандидате после исправления (`ba96131b…a55b`): PASS.
 
 Для первой вертикали `SRC-0001` function-level VM run подтвердил happy path и
 fail-closed ветви до commit; targeted run подтвердил xattr, stale reread и два

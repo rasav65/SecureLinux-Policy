@@ -50,7 +50,7 @@ for marker in (
     'file-mode-owner-v1<br/>режимы файлов SRC-0005 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current',
     'optional-file-root-files-mode-v1<br/>режимы cron SRC-0010 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current',
     'suid-sgid-applications-mode-v1<br/>режимы SUID/SGID SRC-0013 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current',
-    'standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: PASS на прежнем кандидате, повторный прогон и приёмка 8 сред — впереди"]:::current',
+    'standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: 1 среда PASS на текущем кандидате, приёмка 8 сред — впереди"]:::current',
     'ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note',
     'securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed',
 ):
