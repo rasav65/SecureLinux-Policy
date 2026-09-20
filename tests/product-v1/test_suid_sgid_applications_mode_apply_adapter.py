@@ -323,8 +323,13 @@ class T05_Revalidation(_Tree):
         target = made["bin/b-second"]
 
         def mutate():
-            os.unlink(target)
-            make_file(target, 0o4775, content="replaced\n")
+            # Замена через os.replace: инод подменыша выделяется, пока цель ещё
+            # существует, поэтому он заведомо не равен иноду из плана. unlink с
+            # последующим созданием файла дал бы переиспользование инода и
+            # недетерминированный тест.
+            other = target + ".new"
+            make_file(other, 0o4775, content="replaced\n")
+            os.replace(other, target)
 
         fchmod, _seen = self.drift_during_first_fchmod(made["bin/a-first"], mutate)
         result = run(self.adapter, self.mountinfo(), fchmod=fchmod)
