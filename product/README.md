@@ -97,6 +97,7 @@ generator. Compliance execution выполняется как executable (`./sec
 - `--apply --dry-run` — тот же продуктовый обход всех текущих применимых controls без target-мутаций;
 - `--apply` — применяет все текущие `apply.supported=true` controls; состав и количество — в машинном статусе корневого README (`APPLY_CONTROL_COUNT`); маршрут — по `APPLY-KIND-REGISTRY.tsv`;
 - `slp_run_apply` продолжает прогон после отказа отдельного контроля и формирует общий `SLP-APPLY-REPORT-V2` в `/var/log/securelinux-policy/report.json`; mechanism-specific поля вложены в `mechanism_result`;
+- каталог состояния `/var/log/securelinux-policy` dispatcher проверяет до любой записи: не симлинк, каталог, владелец root, биты `022` не установлены; родитель `/var/log` — владелец root, без `o+w`, а группа-владелец при `g+w` — `root` или `syslog` (на Ubuntu `/var/log` — `root:syslog 0775`). Иначе отказ `REFUSED reporting:state-…`, `RC=1`, отчёт и журналы не пишутся. Блокировка — `flock(LOCK_EX|LOCK_NB)` на `.lock` в этом каталоге для `--apply` и `--apply --dry-run`; второй экземпляр получает `REFUSED reporting:already-running` без мутаций и без отчёта;
 - `--dry-run` без `--apply`, legacy `--snapshot-attestation` и лишние аргументы дают `RC=2` до mutation; `--restore` отсутствует, operational recovery остаётся внешним.
 
 `tests/product-v1/test_product_generator.py` содержит `UnifiedCliArtifact`, который

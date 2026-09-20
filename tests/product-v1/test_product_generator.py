@@ -4823,7 +4823,7 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
                 self.assertIn("not-determined; reason: pam:ambiguous-stack".replace(" ", ""), current_stream.replace(" ", ""))
 
         with tempfile.TemporaryDirectory(prefix="slp-dispatcher-terminal-", dir=ROOT) as td:
-            isolated = dispatcher.replace('STATE_DIR = "/var/log/securelinux-policy"', "STATE_DIR = " + repr(td), 1)
+            isolated = dispatcher.replace('STATE_DIR = "/var/log/securelinux-policy"', "STATE_DIR = " + repr(td), 1).replace("TRUSTED_UID = PARENT_TRUSTED_UID = 0", "TRUSTED_UID = PARENT_TRUSTED_UID = %d" % os.getuid(), 1)
             cp = subprocess.run([os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", "-", "APPLY"], input=isolated, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=ROOT)
             self.assertEqual(cp.returncode, 0, cp.stderr)
             self.assertEqual(cp.stderr, "")
@@ -4900,7 +4900,7 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             self.assertEqual(probe.stdout.strip(), str(expected), width)
 
         with tempfile.TemporaryDirectory(prefix="slp-dispatcher-presentation-", dir=ROOT) as td:
-            isolated = dispatcher.replace('STATE_DIR = "/var/log/securelinux-policy"', "STATE_DIR = " + repr(td), 1)
+            isolated = dispatcher.replace('STATE_DIR = "/var/log/securelinux-policy"', "STATE_DIR = " + repr(td), 1).replace("TRUSTED_UID = PARENT_TRUSTED_UID = 0", "TRUSTED_UID = PARENT_TRUSTED_UID = %d" % os.getuid(), 1)
             cp = subprocess.run([os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", "-", "APPLY"], input=isolated, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=ROOT)
             self.assertEqual(cp.stderr, "")
             lines = cp.stdout.splitlines()
@@ -4933,7 +4933,7 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         mechanisms = {"synthetic": {"kind_row": {"apply_kind": "test-kind"}, "authority": {"mechanism_id": "test-mechanism"}, "implementation_row": {"adapter_id": "test-adapter", "implementation_sha256": impl_sha}, "implementation_source": implementation}}
         dispatcher = GEN_V2_CURRENT.render_product_apply_dispatcher(controls, mechanisms)
         with tempfile.TemporaryDirectory(prefix="slp-dispatcher-required-", dir=ROOT) as td:
-            isolated = dispatcher.replace('STATE_DIR = "/var/log/securelinux-policy"', "STATE_DIR = " + repr(td), 1)
+            isolated = dispatcher.replace('STATE_DIR = "/var/log/securelinux-policy"', "STATE_DIR = " + repr(td), 1).replace("TRUSTED_UID = PARENT_TRUSTED_UID = 0", "TRUSTED_UID = PARENT_TRUSTED_UID = %d" % os.getuid(), 1)
             cp = subprocess.run([os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", "-", "APPLY"], input=isolated, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=ROOT)
             self.assertEqual(cp.returncode, 1, cp.stderr)
             self.assertEqual(cp.stderr, "")
@@ -5397,6 +5397,86 @@ class UnprovenAbsenceIsErrorFixtures(unittest.TestCase):
     def test_kernel_cmdline_absent_source_in_searchable_parent_stays_not_found(self):
         block = self.cmdline_block(self.visible / "absent-cmdline")
         self.assertEqual(self.run_block(block, "slp_check_CMD_ABSENCE"), ("NOT_FOUND", "-", "NOT_FOUND"))
+
+
+class PamWheelSingleReadFixtures(unittest.TestCase):
+    """Разбор pam-wheel-access идёт по тем же байтам, что прошли проверку.
+
+    Раньше файл проверялся через `od`, а затем открывался заново в
+    `while read ... < file`: если файл исчезал между двумя обращениями,
+    перенаправление не удавалось, цикл не выполнялся, а контроль выдавал
+    VALUE/FAIL вместо ERROR. Сбой внедряется подменой `/usr/bin/od` обёрткой,
+    которая после чтения удаляет проверяемый файл.
+    """
+
+    PASS_ROW = ("VALUE", "pam_exact=1;wheel=1;gid=10;members=2;approved=1;mismatch=0", "PASS")
+
+    def setUp(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        self.tmp = Path(tempfile.mkdtemp(prefix="slp-pam-single-read-"))
+        self.pam = self.tmp / "su"
+        self.pam.write_text("auth required pam_wheel.so use_uid\n", encoding="utf-8")
+        self.group = self.tmp / "group"
+        self.group.write_text("wheel:x:10:root,alice\n", encoding="utf-8")
+        self.authority = self.tmp / "wheel-users.allowlist-v1"
+        self.authority.write_text("alice\n", encoding="utf-8")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def run_check(self, vanish=None):
+        block = PAM_WHEEL_ACCESS._shell_function_for_fixture(
+            "PAM.SINGLE", str(self.pam), str(self.group), str(self.authority)
+        )
+        if vanish is not None:
+            shim = self.tmp / "od-shim"
+            shim.write_text(
+                "#!/bin/bash\n"
+                '/usr/bin/od "$@"; rc=$?\n'
+                'if [[ ${@: -1} == %s ]]; then rm -f -- %s; fi\n'
+                "exit $rc\n" % (shlex.quote(str(vanish)), shlex.quote(str(vanish))),
+                encoding="utf-8",
+            )
+            self.assertIn("/usr/bin/od", block)
+            # временный каталог может быть смонтирован noexec: обёртка запускается через bash
+            block = block.replace("/usr/bin/od", "%s %s" % (shlex.quote(BASH), shlex.quote(str(shim))))
+        cp = subprocess.run(
+            [BASH, "-c", "set -u\n" + block + "\nslp_check_PAM_SINGLE\n"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        row = cp.stdout.strip().split("\t")
+        self.assertEqual(len(row), 5, cp.stdout)
+        return tuple(row[2:])
+
+    def test_baseline_passes(self):
+        self.assertEqual(self.run_check(), self.PASS_ROW)
+
+    def test_pam_file_vanishing_after_validation_parses_checked_bytes(self):
+        self.assertEqual(self.run_check(vanish=self.pam), self.PASS_ROW)
+        self.assertFalse(self.pam.exists(), "сбой не внедрён")
+
+    def test_group_file_vanishing_after_validation_parses_checked_bytes(self):
+        self.assertEqual(self.run_check(vanish=self.group), self.PASS_ROW)
+        self.assertFalse(self.group.exists(), "сбой не внедрён")
+
+    def test_authority_file_vanishing_after_validation_parses_checked_bytes(self):
+        self.assertEqual(self.run_check(vanish=self.authority), self.PASS_ROW)
+        self.assertFalse(self.authority.exists(), "сбой не внедрён")
+
+    def test_unterminated_and_continuation_edge_cases_keep_semantics(self):
+        # последняя строка без \n; продолжение строки в конце файла остаётся ошибкой стека
+        self.pam.write_text("auth required pam_wheel.so use_uid", encoding="utf-8")
+        self.group.write_text("wheel:x:10:root,alice", encoding="utf-8")
+        self.authority.write_text("alice", encoding="utf-8")
+        self.assertEqual(self.run_check(), self.PASS_ROW)
+        self.pam.write_text("auth required pam_wheel.so use_uid \\\n", encoding="utf-8")
+        self.assertEqual(self.run_check(), ("ERROR", "pam:ambiguous-stack", "ERROR"))
+        # пустая строка завершает продолжение: логическая строка валидна
+        self.pam.write_text("auth required pam_wheel.so use_uid\\\n\n", encoding="utf-8")
+        self.assertEqual(self.run_check(), self.PASS_ROW)
 
 
 if __name__ == "__main__":

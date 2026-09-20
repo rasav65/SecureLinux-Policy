@@ -78,6 +78,13 @@ APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-
 действительно доходит до `onerror` у `os.walk`. VM-прогон этого механизма повторён на
 кандидате после исправления обхода (`ba96131b…a55b`): PASS.
 
+Каталог состояния и блокировка APPLY-dispatcher проверяются на сгенерированных байтах
+(`tests/product-v1/test_apply_dispatch_integration.py::StateDirGuard`): подставляются `STATE_DIR` и
+`TRUSTED_UID`, отказ наступает до исполнения контролей. Второй экземпляр моделируется держателем
+`flock` на `.lock`. Разбор `pam-wheel-access` по проверенным байтам проверяет
+`PamWheelSingleReadFixtures`: обёртка `od` удаляет файл сразу после чтения, результат обязан
+совпасть с результатом для нетронутого файла.
+
 `NOT_FOUND` в CHECK допустим только при доказанном отсутствии: родитель существует, является
 каталогом и доступен для поиска, а имя в нём отсутствует. Для `sysctl`, `kernel-cmdline`,
 `home-directories-mode`, `home-sensitive-files-mode`, `pam-wheel-access` и `sshd-root-login`

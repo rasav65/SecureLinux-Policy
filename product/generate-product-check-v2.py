@@ -712,6 +712,8 @@ def render_product_apply_dispatcher(apply_controls, apply_mechanisms) -> str:
     routes_json = json.dumps(routes_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     source = r'''import base64
 import datetime
+import fcntl
+import grp
 import json
 import os
 import stat
@@ -727,6 +729,11 @@ STATE_DIR = "/var/log/securelinux-policy"
 APPLY_LOG = os.path.join(STATE_DIR, "apply.log")
 DEBUG_LOG = os.path.join(STATE_DIR, "debug.log")
 REPORT_PATH = os.path.join(STATE_DIR, "report.json")
+TRUSTED_UID = PARENT_TRUSTED_UID = 0
+PARENT_WRITABLE_GROUPS = ("root", "syslog")
+LOCK_NAME = ".lock"
+LOCK_PATH = os.path.join(STATE_DIR, LOCK_NAME)
+_LOCK_FD = None
 APPLY_CONTROLS = @@APPLY_CONTROLS_JSON@@
 ROUTES = @@APPLY_ROUTES_JSON@@
 COMMON = {
@@ -737,11 +744,73 @@ COMMON = {
 def now():
     return datetime.datetime.now(datetime.timezone.utc).astimezone().isoformat(timespec="seconds")
 
+class StateRefused(Exception):
+    pass
+
+def _refuse(reason, detail):
+    raise StateRefused(reason, detail)
+
+def _check_parent():
+    parent = os.path.dirname(STATE_DIR)
+    try:
+        st = os.stat(parent)
+    except OSError as exc:
+        _refuse("reporting:state-parent-unavailable", f"{parent}: {exc.strerror}")
+    if st.st_uid != PARENT_TRUSTED_UID:
+        _refuse("reporting:state-parent-owner", f"{parent} owner uid={st.st_uid}, expected {PARENT_TRUSTED_UID}")
+    if st.st_mode & 0o002:
+        _refuse("reporting:state-parent-mode", f"{parent} is world-writable (mode {st.st_mode & 0o7777:04o})")
+    if st.st_mode & 0o020:
+        try:
+            group = grp.getgrgid(st.st_gid).gr_name
+        except KeyError:
+            group = None
+        if st.st_gid != 0 and group not in PARENT_WRITABLE_GROUPS:
+            _refuse("reporting:state-parent-mode", f"{parent} is group-writable by gid={st.st_gid} (mode {st.st_mode & 0o7777:04o})")
+
+def _acquire_lock(dir_st):
+    global _LOCK_FD
+    flags = os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC
+    dfd = os.open(STATE_DIR, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    try:
+        opened = os.fstat(dfd)
+        if (opened.st_dev, opened.st_ino) != (dir_st.st_dev, dir_st.st_ino):
+            _refuse("reporting:state-dir-invalid", f"{STATE_DIR} changed during validation")
+        fd = os.open(LOCK_NAME, flags, 0o600, dir_fd=dfd)
+    finally:
+        os.close(dfd)
+    st = os.fstat(fd)
+    if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1 or st.st_uid != TRUSTED_UID or st.st_mode & 0o022:
+        os.close(fd)
+        _refuse("reporting:state-lock-invalid", f"{LOCK_PATH} is not a regular root-owned single-link file without group/other write")
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(fd)
+        _refuse("reporting:already-running", f"another instance already running (lock {LOCK_PATH})")
+    _LOCK_FD = fd
+
 def ensure_state_dir():
-    os.makedirs(STATE_DIR, mode=0o700, exist_ok=True)
+    _check_parent()
+    try:
+        os.mkdir(STATE_DIR, 0o700)
+    except FileExistsError:
+        pass
+    except OSError as exc:
+        _refuse("reporting:state-dir-unavailable", f"{STATE_DIR}: {exc.strerror}")
     st = os.lstat(STATE_DIR)
-    if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):
-        raise RuntimeError("reporting:state-dir-invalid")
+    if stat.S_ISLNK(st.st_mode):
+        _refuse("reporting:state-dir-symlink", f"{STATE_DIR} is a symlink")
+    if not stat.S_ISDIR(st.st_mode):
+        _refuse("reporting:state-dir-invalid", f"{STATE_DIR} is not a directory")
+    if st.st_uid != TRUSTED_UID:
+        _refuse("reporting:state-dir-owner", f"{STATE_DIR} owner uid={st.st_uid}, expected {TRUSTED_UID}")
+    if st.st_mode & 0o022:
+        _refuse("reporting:state-dir-mode", f"{STATE_DIR} is group/other-writable (mode {st.st_mode & 0o7777:04o})")
+    try:
+        _acquire_lock(st)
+    except OSError as exc:
+        _refuse("reporting:state-lock-unavailable", f"{LOCK_PATH}: {exc.strerror}")
 
 def atomic_report(payload):
     fd, tmp = tempfile.mkstemp(prefix=".report.json.", dir=STATE_DIR)
@@ -1081,7 +1150,11 @@ payload = {
     "run_error": None,
     "controls": [],
 }
-ensure_state_dir()
+try:
+    ensure_state_dir()
+except StateRefused as exc:
+    print(f"REFUSED {exc.args[0]}: {exc.args[1]}", file=sys.stderr)
+    raise SystemExit(1)
 atomic_report(payload)
 try:
     ensure_log_file(APPLY_LOG)

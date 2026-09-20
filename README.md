@@ -165,7 +165,7 @@ sudo /bin/bash -p ./securelinux-policy.sh --apply --dry-run
 sudo /bin/bash -p ./securelinux-policy.sh --apply
 ```
 
-Единый отчёт формируется в `/var/log/securelinux-policy/report.json`; журналы APPLY — `apply.log` и `debug.log` в том же каталоге.
+Единый отчёт формируется в `/var/log/securelinux-policy/report.json`; журналы APPLY — `apply.log` и `debug.log` в том же каталоге. Каталог проверяется до записи (владелец root, без `022`, не симлинк), одновременный второй запуск отклоняется блокировкой `.lock`.
 
 Пользовательского `--restore` в SecureLinux-Policy нет. После завершённого APPLY operational recovery остаётся внешним snapshot/backup-механизмом администратора.
 

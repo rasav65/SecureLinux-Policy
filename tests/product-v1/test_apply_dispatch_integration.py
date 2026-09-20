@@ -3,8 +3,9 @@
 
 Продукт генерируется во временный каталог вне репозитория. Из сгенерированных
 байтов извлекается встроенный Python-dispatcher и исполняется в режиме DRY_RUN
-без root. Единственная замена на стороне теста — STATE_DIR, как в
-test_product_generator.py: отчёт и журналы пишутся во временный каталог.
+без root. Замены на стороне теста — STATE_DIR (отчёт и журналы пишутся во
+временный каталог, как в test_product_generator.py) и TRUSTED_UID/PARENT_TRUSTED_UID (владелец
+каталога состояния и его родителя — пользователь прогона вместо root).
 Ожидаемые множества контролей вычисляются из реестров.
 """
 import csv
@@ -27,6 +28,7 @@ IMPL_REGISTRY = ROOT / "product" / "APPLY-IMPLEMENTATION-REGISTRY.tsv"
 DISPATCH_OPEN = "<<'SLP_PRODUCT_APPLY_EOF'\n"
 DISPATCH_CLOSE = "\nSLP_PRODUCT_APPLY_EOF\n"
 STATE_DIR_LINE = 'STATE_DIR = "/var/log/securelinux-policy"'
+TRUSTED_UID_LINE = "TRUSTED_UID = PARENT_TRUSTED_UID = 0"
 CRASH_REASON = "mechanism:unhandled-exception"
 
 
@@ -96,6 +98,8 @@ class ApplyDispatchIntegration(unittest.TestCase):
             raise RuntimeError("STATE_DIR line not found exactly once in dispatcher")
         cls.state = cls.tmp / "state"
         isolated = dispatcher.replace(STATE_DIR_LINE, "STATE_DIR = " + repr(str(cls.state)), 1)
+        isolated = isolated.replace(TRUSTED_UID_LINE, "TRUSTED_UID = PARENT_TRUSTED_UID = %d" % os.getuid(), 1)
+        cls.dispatcher = dispatcher
         cls.raw_keys = set(re.findall(r'raw\["([A-Za-z_]+)"\]', dispatcher))
         compact = dispatcher[dispatcher.index("def _compact_outcome("):]
         compact = compact[:compact.index("\ndef ")]
@@ -172,6 +176,141 @@ class ApplyDispatchIntegration(unittest.TestCase):
         expected = set().union(*self.population.values())
         actual = [record["control_id"] for record in self.payload["controls"]]
         self.assertEqual(sorted(actual), sorted(expected))
+
+
+class StateDirGuard(unittest.TestCase):
+    """Каталог состояния и блокировка встроенного dispatcher (решение человека).
+
+    Существующий каталог: не симлинк, каталог, владелец root, биты 022 не
+    установлены; родитель — владелец root, без o+w (группа-владелец root или
+    syslog: на Ubuntu /var/log — root:syslog 0775). Иначе отказ до любой
+    мутации, RC ненулевой. Блокировка flock LOCK_EX|LOCK_NB на файле в каталоге
+    состояния: второй экземпляр — сразу отказ «already running» без записи
+    отчёта. Тесты подставляют STATE_DIR и TRUSTED_UID; отказ происходит до
+    исполнения каких-либо контролей, поэтому прогон быстрый.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="slp-state-guard-"))
+        out = cls.tmp / "securelinux-policy.sh"
+        gen = subprocess.run(
+            [PYTHON, "-I", "-S", "-B", str(GEN_PATH), "--repo", str(ROOT), "--out", str(out)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=600,
+        )
+        if gen.returncode != 0:
+            raise RuntimeError("generator failed:\n" + gen.stdout + gen.stderr)
+        product = out.read_text(encoding="utf-8")
+        start = product.index(DISPATCH_OPEN) + len(DISPATCH_OPEN)
+        end = product.index(DISPATCH_CLOSE, start)
+        cls.dispatcher = product[start:end] + "\n"
+        if cls.dispatcher.count(STATE_DIR_LINE) != 1:
+            raise RuntimeError("STATE_DIR line not found exactly once in dispatcher")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def setUp(self):
+        self.base = Path(tempfile.mkdtemp(prefix="case-", dir=self.tmp))
+        os.chmod(self.base, 0o700)
+        self.state = self.base / "state"
+
+    def run_dispatcher(self, dir_uid=None, parent_uid=None, mode="DRY_RUN"):
+        """dir_uid/parent_uid — доверенный владелец каталога состояния/его родителя (по умолчанию — пользователь прогона)."""
+        me = os.getuid()
+        uids = "TRUSTED_UID = %d\nPARENT_TRUSTED_UID = %d" % (
+            me if dir_uid is None else dir_uid, me if parent_uid is None else parent_uid)
+        source = self.dispatcher.replace(STATE_DIR_LINE, "STATE_DIR = " + repr(str(self.state)), 1)
+        source = source.replace(TRUSTED_UID_LINE, uids, 1)
+        return subprocess.run(
+            [PYTHON, "-I", "-S", "-B", "-", mode], input=source,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=self.tmp, timeout=600,
+        )
+
+    def assert_refused(self, cp, reason):
+        self.assertNotEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertIn("REFUSED " + reason, cp.stderr)
+        self.assertNotIn("Traceback", cp.stderr)
+        self.assertEqual(cp.stdout, "")
+        self.assertFalse((self.state / "report.json").exists(), "отчёт записан при отказе")
+        self.assertFalse((self.state / "apply.log").exists(), "журнал записан при отказе")
+
+    def test_dispatcher_declares_trusted_owner_line_once(self):
+        self.assertEqual(self.dispatcher.count(TRUSTED_UID_LINE), 1)
+
+    def test_foreign_owner_dir_is_refused(self):
+        self.state.mkdir(mode=0o700)
+        cp = self.run_dispatcher(dir_uid=os.getuid() + 1)
+        self.assert_refused(cp, "reporting:state-dir-owner")
+
+    def test_group_or_other_writable_dir_is_refused(self):
+        self.state.mkdir(mode=0o700)
+        os.chmod(self.state, 0o775)
+        self.assert_refused(self.run_dispatcher(), "reporting:state-dir-mode")
+
+    def test_other_writable_dir_is_refused(self):
+        self.state.mkdir(mode=0o700)
+        os.chmod(self.state, 0o702)
+        self.assert_refused(self.run_dispatcher(), "reporting:state-dir-mode")
+
+    def test_symlink_state_dir_is_refused(self):
+        real = self.base / "real"
+        real.mkdir(mode=0o700)
+        self.state.symlink_to(real)
+        self.assert_refused(self.run_dispatcher(), "reporting:state-dir-symlink")
+        self.assertEqual(sorted(p.name for p in real.iterdir()), [], "мутация через симлинк")
+
+    def test_regular_file_state_dir_is_refused(self):
+        self.state.write_text("", encoding="utf-8")
+        self.assert_refused(self.run_dispatcher(), "reporting:state-dir-invalid")
+
+    def test_other_writable_parent_is_refused(self):
+        os.chmod(self.base, 0o703)
+        try:
+            cp = self.run_dispatcher()
+        finally:
+            os.chmod(self.base, 0o700)
+        self.assert_refused(cp, "reporting:state-parent-mode")
+        self.assertFalse(self.state.exists(), "каталог создан при отказе по родителю")
+
+    def test_group_writable_parent_with_foreign_group_is_refused(self):
+        os.chmod(self.base, 0o770)
+        try:
+            cp = self.run_dispatcher()
+        finally:
+            os.chmod(self.base, 0o700)
+        self.assert_refused(cp, "reporting:state-parent-mode")
+        self.assertFalse(self.state.exists(), "каталог создан при отказе по родителю")
+
+    def test_foreign_owner_parent_is_refused(self):
+        cp = self.run_dispatcher(parent_uid=os.getuid() + 1)
+        self.assert_refused(cp, "reporting:state-parent-owner")
+        self.assertFalse(self.state.exists(), "каталог создан при отказе по родителю")
+
+    def test_second_instance_is_refused_while_lock_is_held(self):
+        import fcntl
+        self.state.mkdir(mode=0o700)
+        holder = os.open(str(self.state / ".lock"), os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            fcntl.flock(holder, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            for mode in ("DRY_RUN", "APPLY"):
+                with self.subTest(mode=mode):
+                    cp = self.run_dispatcher(mode=mode)
+                    self.assert_refused(cp, "reporting:already-running")
+                    self.assertIn("already running", cp.stderr)
+        finally:
+            os.close(holder)
+
+    def test_lock_is_released_after_holder_exits(self):
+        import fcntl
+        self.state.mkdir(mode=0o700)
+        holder = os.open(str(self.state / ".lock"), os.O_RDWR | os.O_CREAT, 0o600)
+        fcntl.flock(holder, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        os.close(holder)
+        cp = self.run_dispatcher()
+        self.assertNotIn("already running", cp.stderr)
+        self.assertTrue((self.state / "report.json").is_file(), cp.stdout + cp.stderr)
 
 
 if __name__ == "__main__":
