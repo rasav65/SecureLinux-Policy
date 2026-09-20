@@ -216,7 +216,7 @@ flowchart LR
     APPLY2["file-mode-owner-v1<br/>режимы файлов SRC-0005 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
     APPLY3["optional-file-root-files-mode-v1<br/>режимы cron SRC-0010 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
     APPLY4["suid-sgid-applications-mode-v1<br/>режимы SUID/SGID SRC-0013 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
-    APPLY5["standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
+    APPLY5["standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: PASS на прежнем кандидате, повторный прогон и приёмка 8 сред — впереди"]:::current
     CLI["securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
     ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note
 
@@ -389,7 +389,7 @@ flowchart LR
 ```
 
 `fstec-linux-2022` read-only CHECK vertical и donor mapping остаются принятыми.
-Модульная SRC-0001 architecture связывает exact SHA восьми historical definition roles и сохраняется как evidence прошлой вертикали. В active APPLY registries её больше нет. Текущий generated CLI маршрутизирует APPLY через механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1` и `suid-sgid-applications-mode-v1`. Operational recovery после завершённого
+Модульная SRC-0001 architecture связывает exact SHA восьми historical definition roles и сохраняется как evidence прошлой вертикали. В active APPLY registries её больше нет. Текущий generated CLI маршрутизирует APPLY через пять механизмов: `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1` и `standard-system-paths-mode-v1`. ВМ-PASS механизма `standard-system-paths-mode-v1` (20.09.2026) относится к кандидату `e170aae1…dd38`; после исправления обхода подкаталогов кандидат изменился (`ba96131b…a55b`), на новых байтах ВМ-прогон не выполнен. Operational recovery после завершённого
 APPLY остаётся внешним snapshot/backup, а пользовательский RESTORE исключён.
 
 ## Что является источником истины

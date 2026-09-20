@@ -164,7 +164,11 @@ class _ObservationError(Exception):
 def _entries(root):
     """find -P <root> -mindepth 1 -print0 | sort: все объекты ниже корня."""
     found = []
-    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+
+    def fail(_error):
+        raise _ObservationError("scan:find-failed")
+
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False, onerror=fail):
         for name in dirnames + filenames:
             found.append(os.path.join(dirpath, name))
     found.sort(key=os.fsencode)

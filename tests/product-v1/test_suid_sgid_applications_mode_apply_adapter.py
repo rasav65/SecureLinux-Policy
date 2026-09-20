@@ -47,6 +47,7 @@ import stat
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -469,6 +470,42 @@ class T08_Eligibility(_Tree):
         self.assertEqual(result["outcome"], "NOT_ELIGIBLE_APPLY_UNSUPPORTED")
         self.assertIs(result["mutation_performed"], False)
         self.assertEqual(mode_of(made["bin/bad"]), 0o4775)
+
+
+def failing_scandir(bad):
+    """os.scandir, который отказывает (EACCES) только для каталога bad."""
+    real = os.scandir
+    bad = os.path.realpath(bad)
+
+    def scandir(path="."):
+        if os.path.realpath(os.fspath(path)) == bad:
+            raise PermissionError(errno.EACCES, "injected", bad)
+        return real(path)
+
+    return scandir
+
+
+class T09_ScanErrorRefusesTheControl(_Tree):
+    """Ошибка чтения каталога в _scan_mount — отказ до мутации."""
+
+    def test_directory_read_error_refuses_before_mutation(self):
+        made = self.tree({"bin/bad": 0o4775, "top": 0o4775})
+        calls = []
+
+        def fchmod(fd, mode, path):
+            calls.append(path)
+            os.fchmod(fd, mode)
+
+        for dry_run in (False, True):
+            with mock.patch("os.scandir", failing_scandir(os.path.join(self.tmp, "bin"))):
+                result = run(self.adapter, self.mountinfo(), dry_run=dry_run,
+                             privilege=not dry_run, fchmod=fchmod)
+            self.assertEqual(result["outcome"], "ABORTED_PRECONDITION_OTHER")
+            self.assertEqual(result["reason"], "scan:find-failed")
+            self.assertIs(result["mutation_performed"], False)
+        self.assertEqual(calls, [])
+        self.assertEqual(mode_of(made["bin/bad"]), 0o4775)
+        self.assertEqual(mode_of(made["top"]), 0o4775)
 
 
 if __name__ == "__main__":

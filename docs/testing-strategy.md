@@ -67,6 +67,16 @@ APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-
 Каждый механизм проверяется сквозным тестом встроенного dispatcher
 (`tests/product-v1/test_apply_dispatch_integration.py`) и VM-прогоном.
 
+Ошибка обхода каталога обязана давать отказ до мутации, а не мутацию по неполной
+популяции. Для каждого механизма, который перечисляет каталоги
+(`optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`,
+`standard-system-paths-mode-v1`, источники sysctl у `config-line-with-runtime-v1`),
+тест внедряет ошибку `os.scandir` на одном каталоге и проверяет: причина
+`scan:find-failed` (у sysctl — `source:unreadable-directory`), `mutation_performed=false`,
+`fchmod` или запись не вызывались, файлы неизменны; для APPLY и dry-run. Для
+`standard-system-paths-mode-v1` тест дополнительно доказывает, что внедрённая ошибка
+действительно доходит до `onerror` у `os.walk`.
+
 Для первой вертикали `SRC-0001` function-level VM run подтвердил happy path и
 fail-closed ветви до commit; targeted run подтвердил xattr, stale reread и два
 варианта несовпадения временного файла. Generated CLI дополнительно подтвердил

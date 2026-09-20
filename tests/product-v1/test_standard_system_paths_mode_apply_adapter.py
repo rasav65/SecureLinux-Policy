@@ -53,6 +53,7 @@ import stat
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -583,6 +584,66 @@ class T10_Eligibility(_Tree):
                 self.assertEqual(mode_of(exe_tool), 0o775)
         self.assertEqual(self.adapter.control_result_to_report(
             self.not_eligible("mode", "eq", MASK), "t0", "t1")["step_rc"], "0")
+
+
+def failing_scandir(bad):
+    """os.scandir, который отказывает (EACCES) только для каталога bad."""
+    real = os.scandir
+    bad = os.path.realpath(bad)
+
+    def scandir(path="."):
+        if os.path.realpath(os.fspath(path)) == bad:
+            raise PermissionError(errno.EACCES, "injected", bad)
+        return real(path)
+
+    return scandir
+
+
+class T11_WalkErrorRefusesTheControl(_Tree):
+    """Ошибка чтения подкаталога не даёт неполной популяции: отказ scan:find-failed."""
+
+    def setUp(self):
+        super().setUp()
+        self.exe_tool, _lib, _mod = self.baseline(exec_mode=0o775)
+        self.sub = os.path.join(self.exe, "sub")
+        self.hidden = self.make_file(os.path.join(self.sub, "hidden-tool"), 0o775)
+        self.fchmod_calls = []
+
+    def fchmod(self, fd, mode, path):
+        self.fchmod_calls.append(path)
+        os.fchmod(fd, mode)
+
+    def assert_refused(self, result):
+        self.assertEqual(result["outcome"], "ABORTED_PRECONDITION_OTHER")
+        self.assertEqual(result["reason"], "scan:find-failed")
+        self.assertIs(result["mutation_performed"], False)
+        self.assertEqual(self.fchmod_calls, [])
+        self.assertEqual(mode_of(self.exe_tool), 0o775)
+        self.assertEqual(mode_of(self.hidden), 0o775)
+        report = self.adapter.control_result_to_report(result, "t0", "t1")
+        self.assertEqual(report["step_rc"], "nonzero")
+        self.assertIs(report["mutation_performed"], False)
+
+    def test_injected_failure_is_a_real_walk_error(self):
+        seen = []
+        with mock.patch("os.scandir", failing_scandir(self.sub)):
+            list(os.walk(self.exe, onerror=seen.append))
+        self.assertEqual([e.filename for e in seen], [os.path.realpath(self.sub)])
+
+    def test_apply_refuses_on_subdirectory_read_error(self):
+        with mock.patch("os.scandir", failing_scandir(self.sub)):
+            result = self.run_apply(fchmod=self.fchmod)
+        self.assert_refused(result)
+
+    def test_dry_run_refuses_on_subdirectory_read_error(self):
+        with mock.patch("os.scandir", failing_scandir(self.sub)):
+            result = self.run_apply(dry_run=True, privilege=False, fchmod=self.fchmod)
+        self.assert_refused(result)
+
+    def test_check_observation_is_the_same_refusal(self):
+        with mock.patch("os.scandir", failing_scandir(self.sub)):
+            status, data = self.adapter.observe([self.exe], [self.lib], self.mod)
+        self.assertEqual((status, data), ("ERROR", "scan:find-failed"))
 
 
 if __name__ == "__main__":

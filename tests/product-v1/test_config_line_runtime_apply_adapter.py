@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import errno
 import importlib.util
 import os
 import socket
@@ -3725,6 +3726,42 @@ class R21RuntimeWriterFixtureCoverage(unittest.TestCase):
                 case.run(result)
                 self.assertEqual(result.errors, [], (fixture_no, test_name, result.errors))
                 self.assertEqual(result.failures, [], (fixture_no, test_name, result.failures))
+
+
+class SourceDirectoryScanError(unittest.TestCase):
+    """Ошибка os.scandir каталога sysctl-источников — отказ до записи."""
+
+    # Помощники берутся у ContractCompletionAdditional без наследования тестов.
+    KEY = ContractCompletionAdditional.KEY
+    paths = ContractCompletionAdditional.paths
+    execute = ContractCompletionAdditional.execute
+
+    def test_sysctl_directory_scan_error_aborts_before_any_write(self):
+        with tempfile.TemporaryDirectory() as td:
+            sysctl_dir = Path(td) / "etc" / "sysctl.d"
+            sysctl_dir.mkdir(parents=True)
+            bad = os.path.realpath(sysctl_dir)
+            real = os.scandir
+
+            def scandir(path="."):
+                if os.path.realpath(os.fspath(path)) == bad:
+                    raise PermissionError(errno.EACCES, "injected", bad)
+                return real(path)
+
+            writes = []
+            state = {"value": 0}
+            persistent, _runtime = self.paths(td)
+            with mock.patch("os.scandir", scandir):
+                r = self.execute(
+                    td, state, source_files=None, source_root=td,
+                    write_runtime=lambda v: writes.append(v),
+                )
+            self.assertEqual(r.outcome, A.OUTCOME_ABORT_OTHER)
+            self.assertTrue(r.reason.startswith("source:unreadable-directory"), r.reason)
+            self.assertFalse(r.mutation_performed)
+            self.assertEqual(writes, [])
+            self.assertEqual(state["value"], 0)
+            self.assertFalse(Path(persistent).exists())
 
 
 if __name__ == "__main__":

@@ -25,6 +25,7 @@ import stat
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -302,6 +303,41 @@ class T05_Repeat(_Tree):
         result = run(self.adapter, os.path.join(self.tmp, "absent"))
         self.assertEqual(result["outcome"], "ALREADY_COMPLIANT")
         self.assertIs(result["mutation_performed"], False)
+
+
+def failing_scandir(bad):
+    """os.scandir, который отказывает (EACCES) только для каталога bad."""
+    real = os.scandir
+    bad = os.path.realpath(bad)
+
+    def scandir(path="."):
+        if os.path.realpath(os.fspath(path)) == bad:
+            raise PermissionError(errno.EACCES, "injected", bad)
+        return real(path)
+
+    return scandir
+
+
+class T06_ScanErrorRefusesTheControl(_Tree):
+    """Ошибка os.scandir корня — отказ до мутации."""
+
+    def test_root_scan_error_refuses_before_mutation(self):
+        root = self.cron_dir({"a": 0o666})
+        calls = []
+
+        def fchmod(fd, mode, path):
+            calls.append(path)
+            os.fchmod(fd, mode)
+
+        for dry_run in (False, True):
+            with mock.patch("os.scandir", failing_scandir(root)):
+                result = run(self.adapter, root, dry_run=dry_run, privilege=not dry_run, fchmod=fchmod)
+            self.assertEqual(result["outcome"], "ABORTED_PRECONDITION_OTHER")
+            self.assertEqual(result["reason"], "scan:find-failed")
+            self.assertIs(result["mutation_performed"], False)
+        self.assertEqual(calls, [])
+        self.assertEqual(mode_of(root), 0o755)
+        self.assertEqual(mode_of(os.path.join(root, "a")), 0o666)
 
 
 if __name__ == "__main__":
