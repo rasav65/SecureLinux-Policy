@@ -893,6 +893,37 @@ class StandardSystemPathsModeFixtures(unittest.TestCase):
             self.assertEqual(cp.stderr, "")
             self.assertIn("roots_present=5;roots_absent=0;aliases=2;exec=1;libraries=1;modules=1;checked=3;violations=0\tPASS", cp.stdout)
 
+    def test_hardlinked_file_is_counted_once(self):
+        # Дедупликация популяции по dev:ino: две ссылки на один инод дают один
+        # объект. Значение сравнивается целиком, литералом.
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            exe, lib, mod, *_ = self.make_layout(base)
+            linked = exe / "a-tool"; linked.write_text("x\n", encoding="utf-8"); os.chmod(linked, 0o755)
+            os.link(linked, exe / "b-tool")
+            cp = self.run_standard([exe], [lib], mod)
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            self.assertEqual(cp.stderr, "")
+            self.assertIn(
+                "roots_present=3;roots_absent=0;aliases=0;exec=2;libraries=1;modules=1;checked=4;violations=0\tPASS",
+                cp.stdout,
+            )
+            os.chmod(linked, 0o775)
+            cp = self.run_standard([exe], [lib], mod)
+            self.assertEqual(cp.stderr, "")
+            self.assertIn(
+                "roots_present=3;roots_absent=0;aliases=0;exec=2;libraries=1;modules=1;checked=4;violations=1\tFAIL",
+                cp.stdout,
+            )
+            # Тот же инод, видимый из другого корня, тоже считается один раз.
+            os.link(linked, lib / "zz-hard.so")
+            cp = self.run_standard([exe], [lib], mod)
+            self.assertEqual(cp.stderr, "")
+            self.assertIn(
+                "roots_present=3;roots_absent=0;aliases=0;exec=2;libraries=1;modules=1;checked=4;violations=1\tFAIL",
+                cp.stdout,
+            )
+
     def test_each_role_violation_is_fail(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
@@ -4242,7 +4273,7 @@ SLP_POLICY_RC=1
         # Литерал закреплён явным решением: расширяется только осознанной правкой
         # этого теста при принятии нового APPLY-механизма, а не автоматически под
         # результат прогона.
-        self.assertEqual(set(apply_mechanisms), {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications"})
+        self.assertEqual(set(apply_mechanisms), {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode"})
         apply_rows = [row for row in rows if "apply" in row]
         expected_apply_controls = [
             c for c in (
@@ -4701,7 +4732,7 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         # Литерал закреплён явным решением: расширяется только осознанной правкой
         # этого теста при принятии нового APPLY-механизма, а не автоматически под
         # результат прогона.
-        self.assertEqual(set(mechanisms), {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications"})
+        self.assertEqual(set(mechanisms), {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode"})
         mechanism = mechanisms["sysctl"]
         self.assertEqual(mechanism["kind_row"]["apply_kind"], "config-line-with-runtime-v1")
         self.assertEqual(mechanism["kind_row"]["authority_form"], "MECHANISM_AUTHORITY_V1")
@@ -4716,10 +4747,10 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         # Литералы закреплены явным решением: меняются только осознанной правкой
         # этого теста при изменении APPLY-популяции, а не автоматически под
         # результат прогона. Вычисление здесь дало бы сравнение реестра с собой.
-        self.assertEqual(len(enabled), 27)
+        self.assertEqual(len(enabled), 28)
         self.assertEqual(
             {control["parameter_kind"] for control in enabled},
-            {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications"},
+            {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode"},
         )
         self.assertNotIn(
             "FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE",

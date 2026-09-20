@@ -21,6 +21,7 @@ CONFIG_LINE_AUTHORITY = ROOT / "product/contracts/mechanism-config-line-runtime-
 FILE_MODE_AUTHORITY = ROOT / "product/contracts/mechanism-file-mode-owner-v1.json"
 OPTIONAL_ROOT_AUTHORITY = ROOT / "product/contracts/mechanism-optional-file-root-files-mode-v1.json"
 SUID_SGID_AUTHORITY = ROOT / "product/contracts/mechanism-suid-sgid-applications-mode-v1.json"
+STANDARD_PATHS_AUTHORITY = ROOT / "product/contracts/mechanism-standard-system-paths-mode-v1.json"
 SCHEMA_V2 = ROOT / "product/contracts/apply-semantic-contract-v2.schema.json"
 
 # Expected field sets are literals: they change only by explicit decision,
@@ -32,6 +33,7 @@ FILE_MODE_TOP_LEVEL = {
 FILE_MODE_MUTATION = {"allowed_paths"}
 OPTIONAL_ROOT_TOP_LEVEL = {"authority_form", "mechanism_id", "registry_binding"}
 SUID_SGID_TOP_LEVEL = {"authority_form", "mechanism_id", "registry_binding"}
+STANDARD_PATHS_TOP_LEVEL = {"authority_form", "mechanism_id", "registry_binding"}
 
 
 def load(path: Path) -> dict:
@@ -82,6 +84,12 @@ class MechanismAuthorityFields(unittest.TestCase):
         doc = load(SUID_SGID_AUTHORITY)
         self.assert_keys(
             "mechanism-suid-sgid-applications-mode-v1.json", doc, SUID_SGID_TOP_LEVEL
+        )
+
+    def test_standard_paths_authority_top_level(self):
+        doc = load(STANDARD_PATHS_AUTHORITY)
+        self.assert_keys(
+            "mechanism-standard-system-paths-mode-v1.json", doc, STANDARD_PATHS_TOP_LEVEL
         )
 
     def test_schema_v2_absent(self):

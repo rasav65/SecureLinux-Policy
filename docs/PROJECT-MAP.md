@@ -245,14 +245,17 @@ byte-exact совпадать со свежим generator-v2 output. `dist/` о�
 gitignored rebuild output. APPLY scope вычисляется из `apply.supported=true` controls и
 маршрутизируется через `APPLY-KIND-REGISTRY.tsv` в механизмы `config-line-with-runtime-v1`
 (sysctl), `file-mode-owner-v1` (режимы файлов), `optional-file-root-files-mode-v1`
-(режимы системных файлов cron) и `suid-sgid-applications-mode-v1`
-(режимы SUID/SGID-приложений). SRC-0001 выведен из product APPLY, его артефакты historical.
+(режимы системных файлов cron), `suid-sgid-applications-mode-v1`
+(режимы SUID/SGID-приложений) и `standard-system-paths-mode-v1`
+(режимы стандартных системных путей). SRC-0001 выведен из product APPLY, его артефакты historical.
 Пользовательский `--restore` отсутствует, потому что operational RESTORE не является future feature.
 Human-readable CHECK/REPORT выводит обнаруженную ОС, архитектуру, profile и runtime platform; target family един для всей поддерживаемой матрицы.
 
 Статус узла механизма задаётся гейтами: `closed` — механизм прошёл `--release` и восьмисредовый VM-цикл;
 `current` — идёт работа. Иного статуса у узла механизма нет.
-Все четыре механизма в статусе `current`: на ВМ у каждого пройдена одна среда; приёмка восьми сред впереди.
+Все пять механизмов в статусе `current`: у config-line, file-mode-owner,
+optional-file-root-files-mode и suid-sgid-applications на ВМ пройдена одна среда,
+у `standard-system-paths-mode-v1` ВМ-прогона ещё нет; приёмка восьми сред впереди.
 
 Узел `ADMIN` — граница продукта: для части контролей APPLY не реализуется по решению,
 и продукт возвращает решение администратору отдельным терминальным исходом.
@@ -336,8 +339,9 @@ Git bundle — внешний артефакт для аудита и handoff, �
 история, но решением DP-3 больше не является active product APPLY. Текущая authority
 APPLY — общая форма `MECHANISM_AUTHORITY_V1`, по одному документу на механизм:
 `config-line-with-runtime-v1` (sysctl), `file-mode-owner-v1`
-(режимы файлов SRC-0005), `optional-file-root-files-mode-v1` (режимы cron SRC-0010) и
-`suid-sgid-applications-mode-v1` (режимы SUID/SGID-приложений SRC-0013); контроли включаются через `apply.supported=true`,
+(режимы файлов SRC-0005), `optional-file-root-files-mode-v1` (режимы cron SRC-0010),
+`suid-sgid-applications-mode-v1` (режимы SUID/SGID-приложений SRC-0013) и
+`standard-system-paths-mode-v1` (стандартные системные пути SRC-0012); контроли включаются через `apply.supported=true`,
 а общий цикл выполняет generated CLI.
 Старые SRC-0001 contracts/definitions/adapter сохраняются побайтово как historical.
 `SINGLE_DISTRIBUTABLE_ARTIFACT` остаётся generated `securelinux-policy.sh`; полная
@@ -427,8 +431,8 @@ normative controls, semantic contracts и implementation adapters. Sidecar
 | G3 | режимы и владелец файлов по нестабильной популяции: пользователи, процессы, настроенные команды | `FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION`, `FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION`, `FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION`, `FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE`, `FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE`, `FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE` | нет |
 | G4 | параметры ядра в командной строке загрузки: правка загрузчика и перезагрузка | `FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC`, `FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE`, `FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE`, `FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT`, `FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH`, `FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET`, `FSTEC-LINUX-2022-2.4.7-MITIGATIONS`, `FSTEC-LINUX-2022-2.5.1-VSYSCALL`, `FSTEC-LINUX-2022-2.5.3-DEBUGFS`, `FSTEC-LINUX-2022-2.5.9-TSX` | нет |
 | G5 | политика или allowlist, которые определяет администратор | `FSTEC-LINUX-2022-2.2.1-SU-WHEEL-ACCESS`, `FSTEC-LINUX-2022-2.2.2-SUDOERS-REVIEWED-POLICY`, `FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST`, `FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE` | нет |
-| G6 | режимы файлов по вычисляемой стабильной популяции системных объектов (корни cron, файлы запуска, стандартные системные пути, SUID/SGID-файлы непсевдо-точек монтирования), только снятие битов | `FSTEC-LINUX-2022-2.3.6-CRONTAB`, `FSTEC-LINUX-2022-2.3.6-CRON-D`, `FSTEC-LINUX-2022-2.3.6-CRON-HOURLY`, `FSTEC-LINUX-2022-2.3.6-CRON-DAILY`, `FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY`, `FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY`, `FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE` | да |
-| G6 | режимы файлов по вычисляемой стабильной популяции системных объектов (корни cron, файлы запуска, стандартные системные пути, SUID/SGID-файлы непсевдо-точек монтирования), только снятие битов | `FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION`, `FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE` | нет |
+| G6 | режимы файлов по вычисляемой стабильной популяции системных объектов (корни cron, файлы запуска, стандартные системные пути, SUID/SGID-файлы непсевдо-точек монтирования), только снятие битов | `FSTEC-LINUX-2022-2.3.6-CRONTAB`, `FSTEC-LINUX-2022-2.3.6-CRON-D`, `FSTEC-LINUX-2022-2.3.6-CRON-HOURLY`, `FSTEC-LINUX-2022-2.3.6-CRON-DAILY`, `FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY`, `FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY`, `FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE`, `FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE` | да |
+| G6 | режимы файлов по вычисляемой стабильной популяции системных объектов (корни cron, файлы запуска, стандартные системные пути, SUID/SGID-файлы непсевдо-точек монтирования), только снятие битов | `FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION` | нет |
 | G7 | содержимое конфигурационных файлов | `FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE`, `FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN` | нет |
 
 Для `suid-dumpable` при обнаруженном Apport APPLY возвращает решение

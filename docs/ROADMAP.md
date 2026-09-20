@@ -71,7 +71,7 @@ parent schema/registry gate остаётся принят и не переотк
 source-specific contract-кандидат `SRC-0001` сохраняется только как `REVISE` input.
 Решением DP-3 SRC-0001 выведен из product APPLY: его модульная архитектура, восемь
 определений и композиция сохранены как historical bytes и в APPLY registries не входят.
-Действующий APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1` и `suid-sgid-applications-mode-v1`,
+Действующий APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1` и `standard-system-paths-mode-v1`,
 каждый со своим authority-документом формы `MECHANISM_AUTHORITY_V1`; состав и
 количества берутся из APPLY registries и машинного статуса корневого README.
 Этап 9 `AUTHORITY_2026_REFRESH` закрыт после интеграции приказа ФСТЭК
