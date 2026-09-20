@@ -1192,6 +1192,97 @@ class SuidSgidApplicationsFixtures(unittest.TestCase):
             self.assertEqual(cp.stderr, "")
             self.assertIn("mounts=1;checked=1;violations=1\tFAIL", cp.stdout)
 
+    # Популяция SUID/SGID: ожидаемые значения-литералы на фикстурах (не паритет с
+    # адаптером APPLY). Строка записи сравнивается целиком.
+    def run_lines(self, base: Path, *mounts: str):
+        """CHECK mode/bits-clear/0022 по mountinfo из строк вида (mountpoint, fstype)."""
+        mountinfo = base / "mountinfo"
+        mountinfo.write_text(
+            "".join(f"{i} 0 0:{i} / {mp} rw,relatime - {fs} /dev/test rw\n"
+                    for i, (mp, fs) in enumerate(mounts, start=1)),
+            encoding="utf-8",
+        )
+        source = SUID_SGID._shell_function_for_fixture(
+            "TEST-SUID-SGID", "mode", "bits-clear", "0022", str(mountinfo)
+        )
+        return subprocess.run(
+            [BASH, "-c", "set -u\n" + source + "\nslp_check_TEST_SUID_SGID"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+
+    def assert_record(self, cp, value: str, status: str):
+        self.assertEqual(cp.stderr, "")
+        self.assertEqual(cp.stdout, f"SLP-CHECK-V1\tTEST-SUID-SGID\tVALUE\t{value}\t{status}\n")
+
+    def suid(self, path: Path, mode: int):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("x\n", encoding="utf-8")
+        os.chmod(path, mode)
+        return path
+
+    def test_hardlinked_file_is_counted_once(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            app = self.suid(base / "app", 0o4755)
+            os.link(app, base / "app-second-name")
+            self.assert_record(self.run_lines(base, (str(base), "ext4")),
+                               "mounts=1;checked=1;violations=0", "PASS")
+            os.chmod(app, 0o4775)
+            self.assert_record(self.run_lines(base, (str(base), "ext4")),
+                               "mounts=1;checked=1;violations=1", "FAIL")
+
+    def test_symlink_to_suid_file_is_not_in_population(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            app = self.suid(base / "app", 0o4755)
+            os.symlink(app, base / "app-link")
+            self.assert_record(self.run_lines(base, (str(base), "ext4")),
+                               "mounts=1;checked=1;violations=0", "PASS")
+            os.chmod(app, 0o4775)
+            self.assert_record(self.run_lines(base, (str(base), "ext4")),
+                               "mounts=1;checked=1;violations=1", "FAIL")
+
+    def test_nested_directories_are_scanned(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            self.suid(base / "top", 0o4755)
+            self.suid(base / "a" / "b" / "deep", 0o2775)
+            self.assert_record(self.run_lines(base, (str(base), "ext4")),
+                               "mounts=1;checked=2;violations=1", "FAIL")
+
+    def test_pseudo_filesystem_is_excluded(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            self.suid(base / "real" / "app", 0o4755)
+            self.suid(base / "pseudo" / "app", 0o4777)
+            self.assert_record(
+                self.run_lines(base, (str(base / "real"), "ext4"), (str(base / "pseudo"), "proc")),
+                "mounts=1;checked=1;violations=0", "PASS")
+
+    def test_pseudo_filesystem_only_is_an_error(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            self.suid(base / "app", 0o4777)
+            cp = self.run_lines(base, (str(base), "proc"))
+            assert_stable_error_record(self, cp.stdout, "TEST-SUID-SGID", "mountinfo:empty-population")
+
+    def test_duplicate_mount_point_is_counted_once(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            self.suid(base / "app", 0o4775)
+            self.assert_record(self.run_lines(base, (str(base), "ext4"), (str(base), "ext4")),
+                               "mounts=1;checked=1;violations=1", "FAIL")
+
+    def test_several_mount_points_are_all_scanned(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            self.suid(base / "m1" / "app", 0o4755)
+            self.suid(base / "m2" / "app", 0o4775)
+            self.suid(base / "outside", 0o4777)
+            self.assert_record(
+                self.run_lines(base, (str(base / "m1"), "ext4"), (str(base / "m2"), "xfs")),
+                "mounts=2;checked=2;violations=1", "FAIL")
+
     def test_nul_in_allowlist_is_error(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
