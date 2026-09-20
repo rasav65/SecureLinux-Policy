@@ -216,6 +216,7 @@ flowchart LR
     APPLY2["file-mode-owner-v1<br/>режимы файлов SRC-0005 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
     APPLY3["optional-file-root-files-mode-v1<br/>режимы cron SRC-0010 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
     APPLY4["suid-sgid-applications-mode-v1<br/>режимы SUID/SGID SRC-0013 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current
+    APPLY5["standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ-прогона ещё нет"]:::current
     CLI["securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
     ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note
 
@@ -229,6 +230,7 @@ flowchart LR
     IMPLREG --> APPLY2 --> GEN2
     IMPLREG --> APPLY3 --> GEN2
     IMPLREG --> APPLY4 --> GEN2
+    IMPLREG --> APPLY5 --> GEN2
     APPLY1 -. решение администратору .-> ADMIN
     GEN1 -. historical .-> GEN2
 
