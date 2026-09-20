@@ -334,6 +334,7 @@ class T06_ScanErrorRefusesTheControl(_Tree):
                 result = run(self.adapter, root, dry_run=dry_run, privilege=not dry_run, fchmod=fchmod)
             self.assertEqual(result["outcome"], "ABORTED_PRECONDITION_OTHER")
             self.assertEqual(result["reason"], "scan:find-failed")
+            self.assertNotIn("P2_PLAN", result["actions_attempted"])
             self.assertIs(result["mutation_performed"], False)
         self.assertEqual(calls, [])
         self.assertEqual(mode_of(root), 0o755)

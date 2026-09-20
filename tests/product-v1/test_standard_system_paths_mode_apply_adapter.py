@@ -616,6 +616,7 @@ class T11_WalkErrorRefusesTheControl(_Tree):
     def assert_refused(self, result):
         self.assertEqual(result["outcome"], "ABORTED_PRECONDITION_OTHER")
         self.assertEqual(result["reason"], "scan:find-failed")
+        self.assertNotIn("P2_PLAN", result["actions_attempted"])
         self.assertIs(result["mutation_performed"], False)
         self.assertEqual(self.fchmod_calls, [])
         self.assertEqual(mode_of(self.exe_tool), 0o775)
