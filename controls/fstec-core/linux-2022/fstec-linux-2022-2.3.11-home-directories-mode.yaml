@@ -16,7 +16,7 @@ requirement:
   applicability: "technical"
 parameter:
   kind: "home-directories-mode"
-  locator: "/etc/passwd"
+  locator: "/home"
   key: "mode"
 expected:
   op: "eq"

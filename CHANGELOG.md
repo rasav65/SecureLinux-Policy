@@ -10,6 +10,52 @@
 
 ## [Unreleased]
 
+- `home-directories-mode-check-v2` (2.3.11, SRC-0015): популяция переведена с
+  обхода `/etc/passwd` на непосредственные (`mindepth=1,maxdepth=1`) элементы
+  `/home` (решение человека 22.09.2026, по прецеденту
+  `archive/securelinux-ng.sh`, `home_targets_scan`); `/etc/passwd` адаптер
+  больше не читает, `home=` учётной записи на результат не влияет. Прямой
+  элемент `/home`, который является симлинком или не каталогом, не
+  разрешается для классификации типа и даёт `ERROR` с путём и (для симлинка)
+  целью `readlink` прямо в поле `reason`: `home:symlink:<путь>-><цель>` /
+  `home:not-directory:<путь>`; имя элемента или цель симлинка с байтом
+  табуляции/CR/LF ломали бы TSV-строку вывода — такой объект получает
+  `home:invalid-name` вместо внедрения сырых байт. Раздела «blocks» у CHECK
+  нет (он существует только у встроенного APPLY-dispatcher и только для
+  `ABORTED_PRECONDITION_CONFLICT` — проверено чтением `_block_entry()` в
+  `product/generate-product-check-v2.py`; решение человека 22.09.2026: не
+  заводить для CHECK новую общую сущность, пояснение «вне модели продукта» —
+  одной строкой в `docs/compatibility.md`, не в `reason`). Отсутствующий или
+  пустой `/home` (с доступным для поиска предком) — вне популяции,
+  `VALUE/PASS`, `checked=0;violations=0`; ошибка обхода — `scan:find-failed`/
+  `scan:sort-failed`, не мутация по неполной популяции. `parameter.locator`
+  контроля сменён с `/etc/passwd` на `/home`
+  (`controls/fstec-core/linux-2022/fstec-linux-2022-2.3.11-home-directories-mode.yaml`);
+  `checker/gates-v3/checker.py` (`KIND_RULES["home-directories-mode"]["locator"]`)
+  и перегенерированный `CONTROL-SCHEMA.json` (`--emit-schema`) — тоже; тестовая
+  матрица `tests/gates-v3/test_schema_runtime_parity.py` обновлена (accepted-кейс
+  home-directories-mode использовал устаревший `/etc/passwd`, оставался
+  единственным для этого kind — без правки `--release` падал на
+  `one_sided_kinds`). Тесты добавлены/переписаны первыми: 26 в новом
+  `HomeDirectoriesModeAdapterFixtures` + 2 адаптированных метода
+  `UnprovenAbsenceIsErrorFixtures` (все 15 новых до правки падали на старом
+  адаптере — подтверждено временным откатом на git HEAD). Устаревший класс
+  `HomeDirectoriesSingleReadFixtures` (REREAD_UNCHECKED конкретно для
+  passwd-парсинга) удалён — адаптер больше не читает файловый контент вообще,
+  только `find`/`readlink`/`stat`. Semantic contract переписан
+  (`product/contracts/home-directories-mode-check-semantic-v2.json`); прежние
+  7 VM-замеров population сохранены как historical evidence прежней,
+  passwd-based модели и не используются как доказательство полноты текущей
+  популяции. Диагностика (Н-1, suid-dumpable C2/unassigned-primary; Н-3,
+  pam-wheel ambiguous-stack на `pam_rootok.so sufficient`) дефектов не нашла:
+  оба поведения — by design, уже протестированы (`test_d17_aux_profiles_exact_changed_missing_extra_and_raw_targets`,
+  `test_prior_include_or_success_short_circuit_fails_closed`); GID 10 в 2.2.1 —
+  прямая цитата источника, PASS 2.2.1 на стоковой Ubuntu 24.04 недостижим без
+  ручного администрирования PAM/group (вне продукта). Новый `CHECK_SHA256`
+  `5e0dacf619b1d9134458cf9fca752949c37efae336ba114668234b6854c9b85a`. Адаптеры
+  APPLY не менялись, ВМ-прогон на новых байтах не выполнен (перекроет приёмка
+  8 сред).
+
 - Исправления по аудиту Codex коммита `6780086`. **REREAD_UNCHECKED** (тот же
   класс дефекта, что у `pam-wheel-access-v2`) устранён по тому же образцу ещё
   в семи CHECK-адаптерах: `home-directories-mode-check-v2` (passwd),

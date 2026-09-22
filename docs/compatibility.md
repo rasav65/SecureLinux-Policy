@@ -186,9 +186,24 @@ Open-ended `и т. п.` больше не доверяется одному inve
 
 ## SRC-0015 / 2.3.11 — режим доступа домашнего каталога
 
-Current v2 использует все syntactically valid local `/etc/passwd` accounts с absolute home path, включая service/system accounts; прежние `UID_MIN`/interactive-shell exclusions удалены. Для каждого существующего real home требуется exact `0700`; absent path не создаётся, а symlink/non-directory/stat ambiguity => `ERROR`.
+Решением от 22.09.2026 популяция переведена с обхода `/etc/passwd` на прямые
+элементы `/home` (по прецеденту `archive/securelinux-ng.sh`,
+`home_targets_scan`): `/etc/passwd` больше не читается, `home=` учётной записи
+на результат не влияет. Непосредственный элемент `/home`, который является
+симлинком или не каталогом, — `ERROR` (`home:symlink:<путь>-><цель readlink>`
+/ `home:not-directory:<путь>`), симлинк не разрешается для классификации типа.
+Для каждого каталога-элемента требуется exact `0700`. Отсутствующий или
+пустой `/home` — вне популяции, `VALUE/PASS` с `checked=0;violations=0`.
+Раздела «blocks» (control | detail | note) у CHECK нет — он существует только
+у встроенного APPLY-dispatcher и только для `ABORTED_PRECONDITION_CONFLICT`;
+для ERROR по 2.3.11 путь и цель readlink передаются прямо в поле `reason`.
+Такое состояние (симлинк/не каталог на месте домашнего каталога) — вне модели
+продукта: 2.3.11 не выполняется, решение остаётся за администратором.
 
-Семь ранее собранных VM runs остаются historical layout evidence: они проверяли более узкий selector и потому не используются как доказательство полноты current v2 population.
+Семь ранее собранных VM runs остаются historical evidence прежнего,
+passwd-based selector (см. `product/contracts/home-directories-mode-check-semantic-v2.json`,
+`vm_evidence`) и не используются как доказательство полноты текущей,
+/home-based популяции.
 
 ## SRC-0002 / SSH root login — матрица привилегированного evidence
 

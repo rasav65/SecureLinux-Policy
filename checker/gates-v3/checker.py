@@ -270,7 +270,7 @@ KIND_RULES = {
         ],
     },
     "home-directories-mode": {
-        "locator": {"const": "/etc/passwd"},
+        "locator": {"const": "/home"},
         "key": {"const": "mode"},
         "op": {"const": "eq"},
         "type": {"const": "string"},
