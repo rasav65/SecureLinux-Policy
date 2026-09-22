@@ -3,7 +3,7 @@
   "adapter_id": "product-sudoers-reviewed-policy-check-v1",
   "implementation_id": "product-sudoers-reviewed-policy-check-v1.py",
   "implementation_path": "product/adapters/product-sudoers-reviewed-policy-check-v1.py",
-  "implementation_sha256": "a7f8dae0cce8b28440652b5c4c50bc067b8c62ed742413afbdfedce85ab27eb8",
+  "implementation_sha256": "f476ce0af4f2bee7a252ff68d49c6c950579ccc102f4b7f0344048c0e3824d8d",
   "input_schema_id": "canonical-control-v3",
   "input_schema_version": 1,
   "operation": "check",

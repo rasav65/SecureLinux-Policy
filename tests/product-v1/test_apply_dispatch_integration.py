@@ -313,5 +313,58 @@ class StateDirGuard(unittest.TestCase):
         self.assertTrue((self.state / "report.json").is_file(), cp.stdout + cp.stderr)
 
 
+class StateDirDescriptorPinning(StateDirGuard):
+    """После проверки каталога состояния и взятия flock все записи (отчёт,
+    журналы) идут относительно удерживаемого дескриптора проверенного
+    каталога, а не по строке пути STATE_DIR (аудит Codex, коммит 6780086,
+    п. B-01). Атака: сразу после `ensure_state_dir()` (дескриптор уже открыт,
+    flock уже удерживается) каталог состояния переименовывается, а на его
+    месте создаётся новый пустой каталог — как если бы внешний процесс подменил
+    каталог между проверкой и записью. Запись обязана остаться в исходном
+    (переименованном) inode; новый каталог должен остаться пустым.
+    """
+
+    ENSURE_CALL = "    ensure_state_dir()\n"
+
+    def run_dispatcher_with_rename_attack(self, mode="DRY_RUN"):
+        self.assertEqual(self.dispatcher.count(self.ENSURE_CALL), 1)
+        attack = (
+            self.ENSURE_CALL
+            + "    _slp_test_attacker_dir = STATE_DIR + '.attacker'\n"
+            + "    os.rename(STATE_DIR, _slp_test_attacker_dir)\n"
+            + "    os.mkdir(STATE_DIR, 0o700)\n"
+        )
+        me = os.getuid()
+        source = self.dispatcher.replace(self.ENSURE_CALL, attack, 1)
+        source = source.replace(STATE_DIR_LINE, "STATE_DIR = " + repr(str(self.state)), 1)
+        source = source.replace(TRUSTED_UID_LINE, "TRUSTED_UID = %d\nPARENT_TRUSTED_UID = %d" % (me, me), 1)
+        return subprocess.run(
+            [PYTHON, "-I", "-S", "-B", "-", mode], input=source,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=self.tmp, timeout=600,
+        )
+
+    def test_report_and_logs_stay_in_originally_validated_directory(self):
+        self.state.mkdir(mode=0o700)
+        cp = self.run_dispatcher_with_rename_attack()
+        attacker_dir = self.state.parent / (self.state.name + ".attacker")
+        self.assertTrue(attacker_dir.is_dir(), "переименование в сценарии атаки не произошло")
+        self.assertFalse(
+            (self.state / "report.json").exists(),
+            "отчёт записан в подменённый каталог, а не в тот, что был проверен: " + cp.stdout + cp.stderr,
+        )
+        self.assertFalse(
+            (self.state / "apply.log").exists(),
+            "журнал записан в подменённый каталог, а не в тот, что был проверен: " + cp.stdout + cp.stderr,
+        )
+        self.assertTrue(
+            (attacker_dir / "report.json").is_file(),
+            "отчёт не найден в исходном (переименованном) каталоге: " + cp.stdout + cp.stderr,
+        )
+        self.assertTrue(
+            (attacker_dir / "apply.log").is_file(),
+            "журнал не найден в исходном (переименованном) каталоге: " + cp.stdout + cp.stderr,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

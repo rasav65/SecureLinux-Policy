@@ -78,6 +78,17 @@ APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-
 действительно доходит до `onerror` у `os.walk`. VM-прогон этого механизма повторён на
 кандидате после исправления обхода (`ba96131b…a55b`): PASS.
 
+Негативный ВМ-прогон 2.3.8 (реальный `EACCES` от ядра, не внедрённая ошибка `os.scandir`)
+на кандидате `securelinux-policy.sh` `be828dae…5128`, среда
+`ubuntu-24.04-x86_64-minimized`, UID 0 без `CAP_DAC_OVERRIDE`/`CAP_DAC_READ_SEARCH` — v2,
+`RESULT=PASS`: runner v2 SHA256 `534b1f8c92a7f85796e2e0d0879462bd4af80fe7ad80f766c2ad318b8407ff12`,
+evidence `slp-vm-mech5-read-error-u2404min-v2-20260921-160548-271767478.tar.gz` SHA256
+`9411259053657b87a30585d9ae697d6491fd88cf38d32b4dcf61d5fc174ae7c6`. CHECK — `ERROR scan:find-failed`;
+DRY_RUN/APPLY — `ABORTED_PRECONDITION_OTHER scan:find-failed`, `NOT_STARTED`, без мутаций.
+Раздельные статусы этого evidence-набора: negative v1 (кандидат `ce1292ae…5114`) — `UNPROVEN`;
+negative v2 (выше) — `PASS`; positive (кандидат `83c89147…89ae`) — `PASS`. Одна среда;
+приёмку 8 сред не закрывает.
+
 Каталог состояния и блокировка APPLY-dispatcher проверяются на сгенерированных байтах
 (`tests/product-v1/test_apply_dispatch_integration.py::StateDirGuard`): подставляются `STATE_DIR` и
 `TRUSTED_UID`, отказ наступает до исполнения контролей. Второй экземпляр моделируется держателем

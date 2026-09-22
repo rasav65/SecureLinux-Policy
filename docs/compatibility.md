@@ -83,12 +83,19 @@ APPLY для `SRC-0001` выведен из продукта; этот резу�
 `e6abdf226461353d313eb5fabcb0bd8285bf2881d611924538c11bbbaeaa4a3d`, evidence
 `slp-vm-mech5-u2404min-v1-20260920-175045.tar.gz` SHA-256
 `eddd6bd11da96bf024193db7d005a6cab4932e33621befef94b36d1ab1c231d4`).
-Текущий кандидат `be828daef92615bfce44ac3a5ccdc894f9cfa0f276fcb656add1abc6eeb05128`
-отличается от обоих: CHECK-адаптеры `sysctl`, `kernel-cmdline`, `home-directories-mode`,
+Кандидат `be828daef92615bfce44ac3a5ccdc894f9cfa0f276fcb656add1abc6eeb05128`
+отличался от обоих: CHECK-адаптеры `sysctl`, `kernel-cmdline`, `home-directories-mode`,
 `home-sensitive-files-mode`, `pam-wheel-access` и `sshd-root-login` больше не принимают
 недоступность за отсутствие; `pam-wheel-access` разбирает те же байты, что проверил, без
 повторного открытия файла; APPLY-dispatcher проверяет каталог состояния и берёт блокировку.
 Адаптеры APPLY не менялись. ВМ-прогон на нём не выполнен.
+Текущий кандидат `a64e662a5cea05e53f6e158182188fcfac76f3dbc29b0ffd27af4f30f887c4b9`
+устраняет то же повторное открытие файла после проверки через `od` ещё в семи
+CHECK-адаптерах (`home-directories-mode`, `home-sensitive-files-mode`,
+`local-account-password-state`, `sshd-root-login`, `sudoers-reviewed-policy`,
+`suid-sgid-applications`, `tested-setting-attestation`) и переводит записи
+APPLY-dispatcher (отчёт, журналы) на дескриптор проверенного каталога состояния
+вместо строки пути. Адаптеры APPLY не менялись. ВМ-прогон на нём не выполнен.
 
 Локальный CHECK может зависеть от прав чтения наблюдаемого объекта. По semantic
 contract невозможность чтения — `ERROR`, а не `NOT_FOUND`; поэтому ограничение

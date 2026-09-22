@@ -40,6 +40,7 @@ def _shell_function_for_paths(control_id, passwd_path, shadow_path, key, op, exp
         "  local _slp_passwd=" + passwd,
         "  local _slp_shadow=" + shadow,
         "  local _slp_line _slp_user _slp_rest _slp_pwd _slp_colons _slp_vrc",
+        "  local _slp_passwd_text _slp_shadow_text",
         "  local _slp_accounts=0 _slp_empty=0",
         "  local -a _slp_passwd_lines=() _slp_shadow_lines=()",
         "  local -A _slp_shadow_seen=() _slp_shadow_pwd=() _slp_passwd_seen=()",
@@ -75,33 +76,44 @@ def _shell_function_for_paths(control_id, passwd_path, shadow_path, key, op, exp
         emit + ' "ERROR" "shadow:unreadable" "ERROR"',
         "    return 0",
         "  fi",
-        "  _slp_validate_text_bytes() {",
-        "    local _slp_v_path=$1 _slp_v_hex _slp_v_byte",
+        # Файл читается один раз: проверенные `od` байты декодируются в текст
+        # (_slp_load_text), который затем разбирается; повторного открытия
+        # файла нет.
+        "  _slp_load_text() {",
+        "    local _slp_v_path=$1 _slp_v_out=$2 _slp_v_hex _slp_v_byte _slp_v_esc",
         '    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi',
         "    for _slp_v_byte in $_slp_v_hex; do",
         '      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1',
         '      [[ "$_slp_v_byte" != 00 && "$_slp_v_byte" != 0d ]] || return 1',
         "    done",
+        "    if [[ -z $_slp_v_hex ]]; then",
+        '      printf -v "$_slp_v_out" %s ""',
+        "      return 0",
+        "    fi",
+        r"    _slp_v_esc=$(printf '\\x%s' $_slp_v_hex)",
+        '    printf -v "$_slp_v_out" %b "$_slp_v_esc"',
         "    return 0",
         "  }",
-        '  _slp_validate_text_bytes "$_slp_passwd"; _slp_vrc=$?',
+        '  _slp_load_text "$_slp_passwd" _slp_passwd_text; _slp_vrc=$?',
         '  if (( _slp_vrc != 0 )); then',
         '    if (( _slp_vrc == 2 )); then ' + emit.strip() + ' "ERROR" "passwd:read-failed" "ERROR"; else ' + emit.strip() + ' "ERROR" "passwd:invalid-bytes" "ERROR"; fi',
         "    return 0",
         "  fi",
-        '  _slp_validate_text_bytes "$_slp_shadow"; _slp_vrc=$?',
+        '  _slp_load_text "$_slp_shadow" _slp_shadow_text; _slp_vrc=$?',
         '  if (( _slp_vrc != 0 )); then',
         '    if (( _slp_vrc == 2 )); then ' + emit.strip() + ' "ERROR" "shadow:read-failed" "ERROR"; else ' + emit.strip() + ' "ERROR" "shadow:invalid-bytes" "ERROR"; fi',
         "    return 0",
         "  fi",
-        '  if ! mapfile -t _slp_shadow_lines < "$_slp_shadow"; then',
-        emit + ' "ERROR" "shadow:read-failed" "ERROR"',
-        "    return 0",
-        "  fi",
-        '  if ! mapfile -t _slp_passwd_lines < "$_slp_passwd"; then',
-        emit + ' "ERROR" "passwd:read-failed" "ERROR"',
-        "    return 0",
-        "  fi",
+        '  _slp_rest=$_slp_shadow_text',
+        '  while [[ -n $_slp_rest ]]; do',
+        '    if [[ $_slp_rest == *$\'\\n\'* ]]; then _slp_line=${_slp_rest%%$\'\\n\'*}; _slp_rest=${_slp_rest#*$\'\\n\'}; else _slp_line=$_slp_rest; _slp_rest=""; fi',
+        '    _slp_shadow_lines+=("$_slp_line")',
+        "  done",
+        '  _slp_rest=$_slp_passwd_text',
+        '  while [[ -n $_slp_rest ]]; do',
+        '    if [[ $_slp_rest == *$\'\\n\'* ]]; then _slp_line=${_slp_rest%%$\'\\n\'*}; _slp_rest=${_slp_rest#*$\'\\n\'}; else _slp_line=$_slp_rest; _slp_rest=""; fi',
+        '    _slp_passwd_lines+=("$_slp_line")',
+        "  done",
         '  if (( ${#_slp_passwd_lines[@]} == 0 )); then',
         emit + ' "ERROR" "passwd:empty-file" "ERROR"',
         "    return 0",
@@ -160,7 +172,8 @@ MUTATING_TOKENS = (
 def _selftest():
     src = shell_function("CTRL", "/etc/shadow", "password-field", "all-nonempty", True)
     assert "/etc/passwd" in src and "/etc/shadow" in src
-    assert "mapfile -t" in src and "/usr/bin/od" in src and "accounts=" in src and "empty=" in src
+    assert "_slp_load_text" in src and "/usr/bin/od" in src and "accounts=" in src and "empty=" in src
+    assert "mapfile" not in src, "повторное открытие через mapfile — байты должны разбираться один раз"
     for token in MUTATING_TOKENS:
         assert token not in src, token
     bad = (

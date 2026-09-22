@@ -3,7 +3,7 @@
   "adapter_id": "product-tested-setting-attestation-check-v1",
   "implementation_id": "product-tested-setting-attestation-check-v1.py",
   "implementation_path": "product/adapters/product-tested-setting-attestation-check-v1.py",
-  "implementation_sha256": "5f4a7345ef3863aacaef0c42780fbbbed1ce726c21773ce04760f462724231f3",
+  "implementation_sha256": "e58ef2784b69befbaba79f365eee28aa0a2b761b72457fdc0f888ec914b51d7a",
   "input_schema_id": "canonical-control-v3",
   "input_schema_version": 1,
   "operation": "check",

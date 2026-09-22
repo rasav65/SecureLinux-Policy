@@ -59,6 +59,40 @@ def assert_stable_error_record(testcase, text, expected_control=None, expected_r
         testcase.assertTrue(any(fields[3] == expected_reason for fields in matches), text)
 
 
+def _od_vanish_shim_text(target):
+    """Обёртка /usr/bin/od: выполняет настоящий od, затем удаляет `target`, если
+    это последний позиционный аргумент вызова. Имитирует исчезновение файла
+    между проверкой через `od` и повторным открытием для разбора (аудит Codex,
+    коммит 6780086: партия REREAD_UNCHECKED)."""
+    return (
+        "#!/bin/bash\n"
+        '/usr/bin/od "$@"; rc=$?\n'
+        'if [[ ${@: -1} == %s ]]; then rm -f -- %s; fi\n'
+        "exit $rc\n" % (shlex.quote(str(target)), shlex.quote(str(target)))
+    )
+
+
+def _od_fail_after_prefix_shim_text():
+    """Обёртка /usr/bin/od: печатает часть корректных байт настоящего od, затем
+    завершается ненулевым кодом — имитирует сбой чтения посреди файла (не
+    чистый EOF)."""
+    return (
+        "#!/bin/bash\n"
+        '/usr/bin/od "$@" | head -c 32\n'
+        "exit 7\n"
+    )
+
+
+def install_od_shim(block, tmp, shim_text):
+    """Подменяет все вызовы /usr/bin/od в блоке обёрткой `shim_text`. Обёртка
+    запускается через bash явным путём — временный каталог может быть
+    смонтирован noexec."""
+    shim = Path(tmp) / "od-shim"
+    shim.write_text(shim_text, encoding="utf-8")
+    assert "/usr/bin/od" in block
+    return block.replace("/usr/bin/od", "%s %s" % (shlex.quote(BASH), shlex.quote(str(shim))))
+
+
 def load_generator():
     spec = importlib.util.spec_from_file_location("slp_product_generator", GEN_PATH)
     mod = importlib.util.module_from_spec(spec)
@@ -5477,6 +5511,394 @@ class PamWheelSingleReadFixtures(unittest.TestCase):
         # пустая строка завершает продолжение: логическая строка валидна
         self.pam.write_text("auth required pam_wheel.so use_uid\\\n\n", encoding="utf-8")
         self.assertEqual(self.run_check(), self.PASS_ROW)
+
+
+class HomeDirectoriesSingleReadFixtures(unittest.TestCase):
+    """passwd для home-directories-mode читается один раз: проверенные `od`
+    байты декодируются в текст и разбираются без повторного открытия файла
+    (аудит Codex, коммит 6780086)."""
+
+    PASS_ROW = ("VALUE", "accounts=1;homes=1;violations=0", "PASS")
+
+    def setUp(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        self.tmp = Path(tempfile.mkdtemp(prefix="slp-home-dirs-single-read-"))
+        self.home = self.tmp / "home"
+        self.home.mkdir()
+        os.chmod(self.home, 0o700)
+        self.passwd = self.tmp / "passwd"
+        self.passwd.write_text("user:x:1000:1000:user:%s:/bin/bash\n" % self.home, encoding="utf-8")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def run_check(self, shim=None):
+        block = HOME_DIRECTORIES._shell_function_for_fixture("HOME.SINGLE", str(self.passwd))
+        if shim is not None:
+            block = install_od_shim(block, self.tmp, shim)
+        cp = subprocess.run(
+            [BASH, "-c", "set -u\n" + block + "\nslp_check_HOME_SINGLE\n"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        row = cp.stdout.strip().split("\t")
+        self.assertEqual(len(row), 5, cp.stdout)
+        return tuple(row[2:])
+
+    def test_baseline_passes(self):
+        self.assertEqual(self.run_check(), self.PASS_ROW)
+
+    def test_passwd_vanishing_after_validation_parses_checked_bytes(self):
+        self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.passwd)), self.PASS_ROW)
+        self.assertFalse(self.passwd.exists(), "сбой не внедрён")
+
+    def test_od_failure_after_partial_prefix_is_error(self):
+        self.assertEqual(
+            self.run_check(shim=_od_fail_after_prefix_shim_text()),
+            ("ERROR", "passwd:read-failed", "ERROR"),
+        )
+
+
+class HomeSensitiveSingleReadFixtures(unittest.TestCase):
+    """inventory и passwd для home-sensitive-files-mode читаются по одному разу
+    каждый: два отдельных while-цикла раньше заново открывали уже проверенные
+    через `od` файлы (аудит Codex, коммит 6780086)."""
+
+    PASS_ROW = ("VALUE", "accounts=1;homes=1;names=8;discovered=0;checked=0;violations=0", "PASS")
+
+    def setUp(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        self.tmp = Path(tempfile.mkdtemp(prefix="slp-home-sensitive-single-read-"))
+        self.home = self.tmp / "home"
+        self.home.mkdir()
+        self.passwd = self.tmp / "passwd"
+        self.passwd.write_text("user:x:1000:1000:user:%s:/bin/bash\n" % self.home, encoding="utf-8")
+        self.inventory = self.tmp / "inventory"
+        self.inventory.write_text("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\n", encoding="utf-8")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def run_check(self, shim=None):
+        block = HOME_SENSITIVE._shell_function_for_fixture("HS.SINGLE", str(self.passwd), str(self.inventory))
+        if shim is not None:
+            block = install_od_shim(block, self.tmp, shim)
+        cp = subprocess.run(
+            [BASH, "-c", "set -u\n" + block + "\nslp_check_HS_SINGLE\n"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        row = cp.stdout.strip().split("\t")
+        self.assertEqual(len(row), 5, cp.stdout)
+        return tuple(row[2:])
+
+    def test_baseline_passes(self):
+        self.assertEqual(self.run_check(), self.PASS_ROW)
+
+    def test_inventory_vanishing_after_validation_parses_checked_bytes(self):
+        self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.inventory)), self.PASS_ROW)
+        self.assertFalse(self.inventory.exists(), "сбой не внедрён")
+
+    def test_passwd_vanishing_after_validation_parses_checked_bytes(self):
+        self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.passwd)), self.PASS_ROW)
+        self.assertFalse(self.passwd.exists(), "сбой не внедрён")
+
+    def test_od_failure_after_partial_prefix_is_error(self):
+        self.assertEqual(
+            self.run_check(shim=_od_fail_after_prefix_shim_text()),
+            ("ERROR", "passwd:read-failed", "ERROR"),
+        )
+
+
+class LocalAccountSingleReadFixtures(unittest.TestCase):
+    """shadow и passwd для local-account-password-state читаются по одному разу
+    каждый: `mapfile` не сигнализирует ошибкой `read()` после уже принятого
+    префикса строк (`man bash`), поэтому повторное открытие небезопасно так же,
+    как `while read`. Разбор идёт по проверенным через `od` байтам (аудит
+    Codex, коммит 6780086)."""
+
+    PASS_ROW = ("VALUE", "accounts=1;empty=0", "PASS")
+
+    def setUp(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        self.tmp = Path(tempfile.mkdtemp(prefix="slp-local-account-single-read-"))
+        self.passwd = self.tmp / "passwd"
+        self.passwd.write_text("root:x:0:0:root:/root:/bin/bash\n", encoding="utf-8")
+        self.shadow = self.tmp / "shadow"
+        self.shadow.write_text("root:$6$abc:1:0:99999:7:::\n", encoding="utf-8")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def run_check(self, shim=None):
+        block = SHADOW._shell_function_for_paths(
+            "LA.SINGLE", str(self.passwd), str(self.shadow),
+            "password-field", "all-nonempty", True,
+        )
+        if shim is not None:
+            block = install_od_shim(block, self.tmp, shim)
+        cp = subprocess.run(
+            [BASH, "-c", "set -u\n" + block + "\nslp_check_LA_SINGLE\n"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        row = cp.stdout.strip().split("\t")
+        self.assertEqual(len(row), 5, cp.stdout)
+        return tuple(row[2:])
+
+    def test_baseline_passes(self):
+        self.assertEqual(self.run_check(), self.PASS_ROW)
+
+    def test_shadow_vanishing_after_validation_parses_checked_bytes(self):
+        self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.shadow)), self.PASS_ROW)
+        self.assertFalse(self.shadow.exists(), "сбой не внедрён")
+
+    def test_passwd_vanishing_after_validation_parses_checked_bytes(self):
+        self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.passwd)), self.PASS_ROW)
+        self.assertFalse(self.passwd.exists(), "сбой не внедрён")
+
+    def test_od_failure_after_partial_prefix_is_error(self):
+        self.assertEqual(
+            self.run_check(shim=_od_fail_after_prefix_shim_text()),
+            ("ERROR", "passwd:read-failed", "ERROR"),
+        )
+
+
+class SshdRootLoginSingleReadFixtures(unittest.TestCase):
+    """sshd_config читается один раз: рекурсивный разбор include-файлов
+    использует ту же процедуру. Раньше `done < "$_slp_pf" || {...}` не ловил
+    ошибку чтения после уже принятого префикса строк — компаунд `while`
+    отдаёт код последней команды тела, а не терминирующего `read` (аудит
+    Codex, коммит 6780086)."""
+
+    PASS_ROW = ("VALUE", "main_global_no=1;effective=no", "PASS")
+
+    def setUp(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        # dir=ROOT: временный /tmp может быть смонтирован noexec, а sshd-заглушка
+        # исполняется адаптером напрямую (`command "$_slp_sshd" ...`).
+        self.tmp = Path(tempfile.mkdtemp(prefix="slp-sshd-single-read-", dir=str(ROOT)))
+        self.cfg = self.tmp / "sshd_config"
+        self.cfg.write_text("PermitRootLogin no\n", encoding="utf-8")
+        self.sshd = self.tmp / "sshd"
+        self.sshd.write_text(
+            "#!/usr/bin/env bash\n"
+            "if [[ ${1:-} == -t ]]; then exit 0; fi\n"
+            "if [[ ${1:-} == -T ]]; then printf '%s\\n' 'permitrootlogin no'; exit 0; fi\n"
+            "exit 2\n",
+            encoding="utf-8",
+        )
+        self.sshd.chmod(0o755)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def run_check(self, shim=None):
+        block = SSHD_ROOT_LOGIN._shell_function_for_fixture(
+            "SSH.SINGLE", str(self.cfg), str(self.sshd), "PermitRootLogin", "eq", "no"
+        )
+        if shim is not None:
+            block = install_od_shim(block, self.tmp, shim)
+        cp = subprocess.run(
+            [BASH, "-c", "set -u\n" + block + "\nslp_check_SSH_SINGLE\n"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        row = cp.stdout.strip().split("\t")
+        self.assertEqual(len(row), 5, cp.stdout)
+        return tuple(row[2:])
+
+    def test_baseline_passes(self):
+        self.assertEqual(self.run_check(), self.PASS_ROW)
+
+    def test_config_vanishing_after_validation_parses_checked_bytes(self):
+        self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.cfg)), self.PASS_ROW)
+        self.assertFalse(self.cfg.exists(), "сбой не внедрён")
+
+    def test_od_failure_after_partial_prefix_is_error(self):
+        self.assertEqual(
+            self.run_check(shim=_od_fail_after_prefix_shim_text()),
+            ("ERROR", "sshd-config:read-failed", "ERROR"),
+        )
+
+
+class SudoersReviewedPolicySingleReadFixtures(unittest.TestCase):
+    """authority для sudoers-reviewed-policy читается один раз: while-цикл
+    раньше заново открывал файл, уже проверенный через `od` (аудит Codex,
+    коммит 6780086)."""
+
+    def setUp(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        # dir=ROOT: временный /tmp может быть смонтирован noexec, а visudo-заглушка
+        # исполняется адаптером напрямую.
+        self.tmp = Path(tempfile.mkdtemp(prefix="slp-sudoers-single-read-", dir=str(ROOT)))
+        self.sudoers = self.tmp / "sudoers"
+        self.sudoers.write_text("Defaults env_reset\n", encoding="utf-8")
+        self.authority = self.tmp / "authority"
+        self.authority.write_text(
+            "SLP-SUDOERS-REVIEWED-POLICY-V1\n"
+            + hashlib.sha256(self.sudoers.read_bytes()).hexdigest() + "\t" + str(self.sudoers) + "\n",
+            encoding="utf-8",
+        )
+        self.visudo = self.tmp / "visudo"
+        self.visudo.write_text(
+            "#!/bin/bash\nprintf '%s\\n' " + shlex.quote(str(self.sudoers) + ": parsed OK") + "\n",
+            encoding="utf-8",
+        )
+        self.visudo.chmod(0o755)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def run_check(self, shim=None):
+        block = SUDOERS_REVIEWED_POLICY._render(
+            "SUD.SINGLE", str(self.sudoers), str(self.authority), str(self.visudo)
+        )
+        if shim is not None:
+            block = install_od_shim(block, self.tmp, shim)
+        cp = subprocess.run(
+            [BASH, "-c", "set -u\n" + block + "\nslp_check_SUD_SINGLE\n"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        row = cp.stdout.strip().split("\t")
+        self.assertEqual(len(row), 5, cp.stdout)
+        return tuple(row[2:])
+
+    def assert_pass(self, row):
+        status, value, compliance = row
+        self.assertEqual((status, compliance), ("VALUE", "PASS"))
+        self.assertIn("mismatch=0", value)
+
+    def test_baseline_passes(self):
+        self.assert_pass(self.run_check())
+
+    def test_authority_vanishing_after_validation_parses_checked_bytes(self):
+        self.assert_pass(self.run_check(shim=_od_vanish_shim_text(self.authority)))
+        self.assertFalse(self.authority.exists(), "сбой не внедрён")
+
+    def test_od_failure_after_partial_prefix_is_error(self):
+        self.assertEqual(
+            self.run_check(shim=_od_fail_after_prefix_shim_text()),
+            ("ERROR", "authority:read-failed", "ERROR"),
+        )
+
+
+class SuidSgidSingleReadFixtures(unittest.TestCase):
+    """allowlist и mountinfo для suid-sgid-applications читаются по одному разу
+    каждый: два отдельных while-цикла раньше заново открывали уже проверенные
+    через `od` файлы (аудит Codex, коммит 6780086)."""
+
+    PASS_ROW = ("VALUE", "mounts=1;checked=1;extras=0", "PASS")
+
+    def setUp(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        self.tmp = Path(tempfile.mkdtemp(prefix="slp-suid-sgid-single-read-"))
+        self.app = self.tmp / "app"
+        self.app.write_text("x\n", encoding="utf-8")
+        os.chmod(self.app, 0o4755)
+        self.mountinfo = self.tmp / "mountinfo"
+        self.mountinfo.write_text(
+            f"1 0 0:1 / {self.tmp} rw,relatime - ext4 /dev/test rw\n", encoding="utf-8"
+        )
+        self.allow = self.tmp / "allowlist"
+        self.allow.write_text(str(self.app) + "\n", encoding="utf-8")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def run_check(self, shim=None):
+        block = SUID_SGID._shell_function_for_fixture(
+            "SUID.SINGLE", "approved-set", "subset-of-file", str(self.allow), str(self.mountinfo)
+        )
+        if shim is not None:
+            block = install_od_shim(block, self.tmp, shim)
+        cp = subprocess.run(
+            [BASH, "-c", "set -u\n" + block + "\nslp_check_SUID_SINGLE\n"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        row = cp.stdout.strip().split("\t")
+        self.assertEqual(len(row), 5, cp.stdout)
+        return tuple(row[2:])
+
+    def test_baseline_passes(self):
+        self.assertEqual(self.run_check(), self.PASS_ROW)
+
+    def test_allowlist_vanishing_after_validation_parses_checked_bytes(self):
+        self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.allow)), self.PASS_ROW)
+        self.assertFalse(self.allow.exists(), "сбой не внедрён")
+
+    def test_mountinfo_vanishing_after_validation_parses_checked_bytes(self):
+        self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.mountinfo)), self.PASS_ROW)
+        self.assertFalse(self.mountinfo.exists(), "сбой не внедрён")
+
+    def test_od_failure_after_partial_prefix_is_error(self):
+        self.assertEqual(
+            self.run_check(shim=_od_fail_after_prefix_shim_text()),
+            ("ERROR", "mountinfo:read-failed", "ERROR"),
+        )
+
+
+class TestedSettingAttestationSingleReadFixtures(unittest.TestCase):
+    """authority для tested-setting-attestation читается один раз: while-цикл
+    раньше заново открывал файл, уже проверенный через `od` (аудит Codex,
+    коммит 6780086)."""
+
+    PASS_ROW = ("VALUE", "authority_rows=1;target_rows=1;setting_match=1;tested_before_use=1", "PASS")
+
+    def setUp(self):
+        if BASH is None:
+            self.skipTest("bash not found")
+        self.tmp = Path(tempfile.mkdtemp(prefix="slp-attestation-single-read-"))
+        self.authority = self.tmp / "tested-setting-attestations-v1"
+        self.authority.write_text(
+            "SLP-TESTED-SETTING-ATTESTATIONS-V1\n"
+            "SRC-0034\tkernel.randomize_va_space=2\tTESTED-BEFORE-USE\n",
+            encoding="utf-8",
+        )
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def run_check(self, shim=None):
+        block = TESTED_SETTING_ATTESTATION._shell_function_for_fixture("ATT.SINGLE", str(self.authority))
+        if shim is not None:
+            block = install_od_shim(block, self.tmp, shim)
+        cp = subprocess.run(
+            [BASH, "-c", "set -u\n" + block + "\nslp_check_ATT_SINGLE\n"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        row = cp.stdout.strip().split("\t")
+        self.assertEqual(len(row), 5, cp.stdout)
+        return tuple(row[2:])
+
+    def test_baseline_passes(self):
+        self.assertEqual(self.run_check(), self.PASS_ROW)
+
+    def test_authority_vanishing_after_validation_parses_checked_bytes(self):
+        self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.authority)), self.PASS_ROW)
+        self.assertFalse(self.authority.exists(), "сбой не внедрён")
+
+    def test_od_failure_after_partial_prefix_is_error(self):
+        self.assertEqual(
+            self.run_check(shim=_od_fail_after_prefix_shim_text()),
+            ("ERROR", "authority:read-failed", "ERROR"),
+        )
 
 
 if __name__ == "__main__":

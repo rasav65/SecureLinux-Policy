@@ -40,6 +40,7 @@ def _render(control_id, key, op, expected, mountinfo_path=CANONICAL_LOCATOR):
         "  local _slp_key=" + _sh_single(key) + " _slp_op=" + _sh_single(op) + " _slp_expected=" + _sh_single(expected),
         "  local _slp_mountinfo=" + mountinfo + " _slp_line _slp_id _slp_parent _slp_majmin _slp_root _slp_mp_raw _slp_opts _slp_tail",
         "  local _slp_mp _slp_after _slp_fstype _slp_root_id _slp_entry _slp_ident _slp_mode _slp_marker _slp_find_rc _slp_sort_rc _slp_i _slp_hex",
+        "  local _slp_mountinfo_text _slp_allowlist_text _slp_rest _slp_v_esc",
         "  local _slp_mounts=0 _slp_checked=0 _slp_violations=0 _slp_extras=0 _slp_lineno=0",
         "  local -a _slp_entries=()",
         "  local -A _slp_seen_mounts=() _slp_seen_files=() _slp_allowed=()",
@@ -68,6 +69,14 @@ def _render(control_id, key, op, expected, mountinfo_path=CANONICAL_LOCATOR):
         emit + ' "ERROR" "mountinfo:invalid-bytes" "ERROR"',
         "    return 0",
         "  fi",
+        # Файл читается один раз: проверенные `od` байты декодируются в текст,
+        # который затем разбирается; повторного открытия файла нет.
+        '  if [[ -z $_slp_hex ]]; then',
+        '    _slp_mountinfo_text=""',
+        '  else',
+        r"    _slp_v_esc=$(printf '\\x%s' $_slp_hex)",
+        '    printf -v _slp_mountinfo_text %b "$_slp_v_esc"',
+        '  fi',
     ]
 
     if op == "subset-of-file":
@@ -101,8 +110,18 @@ def _render(control_id, key, op, expected, mountinfo_path=CANONICAL_LOCATOR):
             emit + ' "ERROR" "allowlist:invalid-bytes" "ERROR"',
             "    return 0",
             "  fi",
-            '  while IFS= read -r _slp_allow_line || [[ -n "$_slp_allow_line" ]]; do',
-            '    if [[ "$_slp_allow_line" == *$\'\\r\'* || "$_slp_allow_line" == *$\'\\t\'* || "$_slp_allow_line" == *$\'\\n\'* ]]; then',
+            # Файл читается один раз: проверенные `od` байты декодируются в
+            # текст, который затем разбирается; повторного открытия нет.
+            '  if [[ -z $_slp_hex ]]; then',
+            '    _slp_allowlist_text=""',
+            '  else',
+            r"    _slp_v_esc=$(printf '\\x%s' $_slp_hex)",
+            '    printf -v _slp_allowlist_text %b "$_slp_v_esc"',
+            '  fi',
+            '  _slp_rest=$_slp_allowlist_text',
+            '  while [[ -n $_slp_rest ]]; do',
+            '    if [[ $_slp_rest == *$\'\\n\'* ]]; then _slp_allow_line=${_slp_rest%%$\'\\n\'*}; _slp_rest=${_slp_rest#*$\'\\n\'}; else _slp_allow_line=$_slp_rest; _slp_rest=""; fi',
+            '    if [[ "$_slp_allow_line" == *$\'\\r\'* || "$_slp_allow_line" == *$\'\\t\'* ]]; then',
             emit + ' "ERROR" "allowlist:invalid-record" "ERROR"',
             "      return 0",
             "    fi",
@@ -116,11 +135,15 @@ def _render(control_id, key, op, expected, mountinfo_path=CANONICAL_LOCATOR):
             "      return 0",
             "    fi",
             '    _slp_allowed["$_slp_allow_line"]=1',
-            '  done < "$_slp_allowlist"',
+            '  done',
         ]
 
     lines += [
-        '  while IFS= read -r _slp_line || [[ -n "$_slp_line" ]]; do',
+        # Файл читается один раз: разбор идёт по уже декодированному тексту
+        # (_slp_mountinfo_text); повторного открытия нет.
+        '  _slp_rest=$_slp_mountinfo_text',
+        '  while [[ -n $_slp_rest ]]; do',
+        '    if [[ $_slp_rest == *$\'\\n\'* ]]; then _slp_line=${_slp_rest%%$\'\\n\'*}; _slp_rest=${_slp_rest#*$\'\\n\'}; else _slp_line=$_slp_rest; _slp_rest=""; fi',
         '    ((_slp_lineno+=1))',
         '    [[ -n "$_slp_line" ]] || continue',
         '    IFS=" " read -r _slp_id _slp_parent _slp_majmin _slp_root _slp_mp_raw _slp_opts _slp_tail <<< "$_slp_line"',
@@ -217,7 +240,7 @@ def _render(control_id, key, op, expected, mountinfo_path=CANONICAL_LOCATOR):
 
     lines += [
         "    done",
-        '  done < "$_slp_mountinfo"',
+        '  done',
         '  if (( _slp_mounts == 0 )); then',
         emit + ' "ERROR" "mountinfo:empty-population" "ERROR"',
         "    return 0",

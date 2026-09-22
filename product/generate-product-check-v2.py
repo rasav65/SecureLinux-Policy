@@ -726,14 +726,15 @@ if MODE not in {"APPLY", "DRY_RUN"}:
     raise SystemExit(2)
 DRY_RUN = MODE == "DRY_RUN"
 STATE_DIR = "/var/log/securelinux-policy"
-APPLY_LOG = os.path.join(STATE_DIR, "apply.log")
-DEBUG_LOG = os.path.join(STATE_DIR, "debug.log")
-REPORT_PATH = os.path.join(STATE_DIR, "report.json")
+APPLY_LOG = "apply.log"
+DEBUG_LOG = "debug.log"
+REPORT_PATH = "report.json"
 TRUSTED_UID = PARENT_TRUSTED_UID = 0
 PARENT_WRITABLE_GROUPS = ("root", "syslog")
 LOCK_NAME = ".lock"
 LOCK_PATH = os.path.join(STATE_DIR, LOCK_NAME)
 _LOCK_FD = None
+_STATE_DFD = None
 APPLY_CONTROLS = @@APPLY_CONTROLS_JSON@@
 ROUTES = @@APPLY_ROUTES_JSON@@
 COMMON = {
@@ -769,26 +770,33 @@ def _check_parent():
             _refuse("reporting:state-parent-mode", f"{parent} is group-writable by gid={st.st_gid} (mode {st.st_mode & 0o7777:04o})")
 
 def _acquire_lock(dir_st):
-    global _LOCK_FD
+    # dfd остаётся открытым до конца работы (см. _STATE_DFD): все последующие
+    # записи (отчёт, журналы) идут относительно него, а не по строке STATE_DIR,
+    # иначе подмена каталога после проверки уходит мимо проверенного inode.
+    global _LOCK_FD, _STATE_DFD
     flags = os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC
     dfd = os.open(STATE_DIR, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    ok = False
     try:
         opened = os.fstat(dfd)
         if (opened.st_dev, opened.st_ino) != (dir_st.st_dev, dir_st.st_ino):
             _refuse("reporting:state-dir-invalid", f"{STATE_DIR} changed during validation")
         fd = os.open(LOCK_NAME, flags, 0o600, dir_fd=dfd)
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1 or st.st_uid != TRUSTED_UID or st.st_mode & 0o022:
+            os.close(fd)
+            _refuse("reporting:state-lock-invalid", f"{LOCK_PATH} is not a regular root-owned single-link file without group/other write")
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            os.close(fd)
+            _refuse("reporting:already-running", f"another instance already running (lock {LOCK_PATH})")
+        _LOCK_FD = fd
+        _STATE_DFD = dfd
+        ok = True
     finally:
-        os.close(dfd)
-    st = os.fstat(fd)
-    if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1 or st.st_uid != TRUSTED_UID or st.st_mode & 0o022:
-        os.close(fd)
-        _refuse("reporting:state-lock-invalid", f"{LOCK_PATH} is not a regular root-owned single-link file without group/other write")
-    try:
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        os.close(fd)
-        _refuse("reporting:already-running", f"another instance already running (lock {LOCK_PATH})")
-    _LOCK_FD = fd
+        if not ok:
+            os.close(dfd)
 
 def ensure_state_dir():
     _check_parent()
@@ -812,33 +820,41 @@ def ensure_state_dir():
     except OSError as exc:
         _refuse("reporting:state-lock-unavailable", f"{LOCK_PATH}: {exc.strerror}")
 
+def _mkstemp_at(dfd, prefix):
+    # Аналог tempfile.mkstemp, но относительно удерживаемого дескриптора
+    # каталога (dir_fd), а не по строке пути.
+    for _ in range(100):
+        name = prefix + os.urandom(8).hex()
+        try:
+            fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=dfd)
+        except FileExistsError:
+            continue
+        return fd, name
+    raise OSError("reporting:tmp-name-exhausted")
+
 def atomic_report(payload):
-    fd, tmp = tempfile.mkstemp(prefix=".report.json.", dir=STATE_DIR)
+    fd, tmp = _mkstemp_at(_STATE_DFD, ".report.json.")
     try:
         data = (json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+        os.fchmod(fd, 0o600)
         with os.fdopen(fd, "wb") as stream:
             stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
-            os.fchmod(stream.fileno(), 0o600)
-        os.replace(tmp, REPORT_PATH)
-        dfd = os.open(STATE_DIR, os.O_RDONLY | os.O_DIRECTORY)
-        try:
-            os.fsync(dfd)
-        finally:
-            os.close(dfd)
+        os.replace(tmp, REPORT_PATH, src_dir_fd=_STATE_DFD, dst_dir_fd=_STATE_DFD)
+        os.fsync(_STATE_DFD)
     except Exception:
         try:
-            os.unlink(tmp)
+            os.unlink(tmp, dir_fd=_STATE_DFD)
         except FileNotFoundError:
             pass
         raise
 
-def append_log(path, message):
+def append_log(name, message):
     flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
-    fd = os.open(path, flags, 0o600)
+    fd = os.open(name, flags, 0o600, dir_fd=_STATE_DFD)
     try:
         st = os.fstat(fd)
         if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
@@ -848,11 +864,11 @@ def append_log(path, message):
     finally:
         os.close(fd)
 
-def ensure_log_file(path):
+def ensure_log_file(name):
     flags = os.O_WRONLY | os.O_CREAT
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
-    fd = os.open(path, flags, 0o600)
+    fd = os.open(name, flags, 0o600, dir_fd=_STATE_DFD)
     try:
         st = os.fstat(fd)
         if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
