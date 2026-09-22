@@ -2017,6 +2017,12 @@ slp_pretty_row() {
 }
 
 slp_collect_policy() {
+  # reason допускает необязательный третий сегмент-payload (путь, цель
+  # readlink и т. п.): <domain>:<reason>[:<payload>]. Payload может содержать
+  # любые байты, кроме control-байт (0x00-0x1F, 0x7F) — они ломают
+  # табличный/TSV вывод. Локаль фиксируется явно: классификация [:cntrl:]
+  # обязана быть побайтовой, не зависеть от окружения вызова.
+  local LC_ALL=C
   local _slp_fn _slp_expected_cid _slp_line _slp_tag _slp_cid _slp_status _slp_value _slp_comp _slp_extra
   local _slp_i
   local -a _slp_fns=(@@FN_WORDS@@)
@@ -2046,7 +2052,7 @@ slp_collect_policy() {
         ;;
     esac
     if [[ $_slp_comp == ERROR ]]; then
-      if [[ ! $_slp_value =~ ^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$ ]]; then
+      if [[ ! $_slp_value =~ ^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*(:[^[:cntrl:]]*)?$ ]]; then
         printf '%s\n' 'CHECK_INTERNAL_ERROR' >&2
         return 1
       fi

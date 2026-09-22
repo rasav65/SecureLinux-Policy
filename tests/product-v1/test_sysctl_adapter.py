@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # product-v1 tests for product-sysctl-check-v1 and ADAPTER-REGISTRY.tsv.
-import csv, hashlib, importlib.util, json, os, shutil, subprocess, tempfile, unittest
+import csv, hashlib, importlib.util, json, os, shlex, shutil, subprocess, tempfile, unittest
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sysctl-check-v2.py"
@@ -30,10 +30,16 @@ class Static(unittest.TestCase):
             with self.assertRaises(ValueError, msg=repr(args)): ADAPTER.shell_function(*args)
     def test_read_only_and_p01_guard(self):
         src=ADAPTER.shell_function("C","sysctl","kernel.x","eq",1)
-        self.assertIn('} 2>/dev/null',src)
+        # B-04 (репарация, аудит Codex 6780086..3215d1c): файл читается один раз —
+        # проверенные `od` байты декодируются в текст в памяти (_slp_load_text),
+        # повторного открытия файла нет. Подстановок теперь две: сам `od` и
+        # decode-once printf; других быть не должно.
         od_read='$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null)'
+        decode=r"$(printf '\\x%s' $_slp_v_hex)"
+        self.assertIn('od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null',src)
         self.assertEqual(src.count(od_read),1)
-        self.assertNotIn("$(",src.replace(od_read,""))
+        self.assertEqual(src.count(decode),1)
+        self.assertNotIn("$(",src.replace(od_read,"").replace(decode,""))
         for token in ADAPTER.MUTATING_TOKENS: self.assertNotIn(token,src,token)
     def test_binding(self):
         contract=json.loads(CONTRACT_PATH.read_text(encoding="utf-8")); meta=json.loads(ADAPTER_JSON.read_text(encoding="utf-8"))
@@ -97,6 +103,55 @@ class Runtime(unittest.TestCase):
     def test_non_integer_is_error(self): self.assertEqual(self.run_patched(b"1 2\n",1),("ERROR","sysctl:invalid-value","ERROR"))
     def test_nul_is_rejected_before_read(self): self.assertEqual(self.run_patched(b"1\x00\n",1),("ERROR","sysctl:invalid-bytes","ERROR"))
     def test_read_error_has_no_stderr(self): self.assertEqual(self.run_patched(b"__DIR__",1),("ERROR","sysctl:read-failed","ERROR"))
+
+@unittest.skipIf(BASH is None,"bash not available")
+class SingleReadFixtures(unittest.TestCase):
+    """Разбор идёт по тем же байтам, что прошли проверку через `od` (аудит
+    Codex, диапазон 6780086..3215d1c, B-04): раньше файл после `od`
+    открывался заново `read -r _slp_raw < file`. Сбой внедряется подменой
+    `/usr/bin/od` обёрткой."""
+    def setUp(self):
+        self.tmp=Path(tempfile.mkdtemp(prefix="slp-sysctl-single-read-"))
+        self.target=Path(self.tmp)/"target"; self.target.write_bytes(b"1\n")
+    def tearDown(self): shutil.rmtree(self.tmp,ignore_errors=True)
+    def run_check(self,shim_text=None):
+        src=ADAPTER.shell_function("CTRL-T","sysctl","slp_test.value","eq",1)
+        src=src.replace(repr("/proc/sys/slp_test/value"),repr(str(self.target)),1)
+        if shim_text is not None:
+            shim=Path(self.tmp)/"od-shim"; shim.write_text(shim_text,encoding="utf-8")
+            self.assertIn("/usr/bin/od",src)
+            src=src.replace("/usr/bin/od","%s %s"%(BASH,shim))
+        run=Path(self.tmp)/"run.sh"; run.write_text("set -u\n"+src+"\nslp_check_CTRL_T\n",encoding="utf-8")
+        p=subprocess.run([BASH,str(run)],capture_output=True,text=True)
+        self.assertEqual(p.returncode,0,p.stderr); self.assertEqual(p.stderr,"")
+        fields=p.stdout.rstrip("\n").split("\t"); self.assertEqual(len(fields),5,p.stdout)
+        return tuple(fields[2:])
+    def test_baseline_passes(self): self.assertEqual(self.run_check(),("VALUE","1","PASS"))
+    def test_vanishing_after_validation_parses_checked_bytes(self):
+        shim=("#!/bin/bash\n"
+              '/usr/bin/od "$@"; rc=$?\n'
+              'if [[ ${@: -1} == %s ]]; then rm -f -- %s; fi\n'
+              "exit $rc\n"%(shlex.quote(str(self.target)),shlex.quote(str(self.target))))
+        self.assertEqual(self.run_check(shim_text=shim),("VALUE","1","PASS"))
+        self.assertFalse(self.target.exists(),"сбой не внедрён")
+    def test_content_substitution_after_validation_parses_checked_bytes_not_new_content(self):
+        # od проверяет "1\n"; сразу после этого файл подменяется на "2\n" —
+        # вердикт обязан остаться по проверенным байтам ("1"), а не по новым.
+        shim=("#!/bin/bash\n"
+              '/usr/bin/od "$@"; rc=$?\n'
+              'if [[ ${@: -1} == %s ]]; then printf %%s %s > %s; fi\n'
+              "exit $rc\n"%(shlex.quote(str(self.target)),shlex.quote("2\n"),shlex.quote(str(self.target))))
+        self.assertEqual(self.run_check(shim_text=shim),("VALUE","1","PASS"))
+        self.assertEqual(self.target.read_bytes(),b"2\n","сбой не внедрён")
+    def test_od_failure_after_partial_prefix_is_error(self):
+        # od печатает часть корректных байт, затем завершается ненулевым
+        # кодом (не чистый EOF) — командная подстановка всё равно вернёт
+        # ненулевой код целиком, поэтому исход read-failed, как и при полном
+        # отказе od (тот же код ветвления rc==2).
+        shim=("#!/bin/bash\n"
+              '/usr/bin/od "$@" | head -c 1\n'
+              "exit 7\n")
+        self.assertEqual(self.run_check(shim_text=shim),("ERROR","sysctl:read-failed","ERROR"))
 
 @unittest.skipIf(BASH is None,"bash not available")
 class UnprovenAbsence(unittest.TestCase):

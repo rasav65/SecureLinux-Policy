@@ -10,6 +10,76 @@
 
 ## [Unreleased]
 
+- Repair-step по аудиту Codex диапазона `6780086..3215d1c` (`RESULT=REVISE`,
+  4 блокера). **B-01**: `home:symlink:<путь>-><цель>`/`home:not-directory:<путь>`
+  (адаптер 2.3.11) отвергались regex `slp_collect_policy`
+  (`^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$`) → `CHECK_INTERNAL_ERROR` на
+  сгенерированном CLI. Regex теперь допускает необязательный третий сегмент
+  полезной нагрузки (`<seg>:<seg>[:payload]`), payload без control-байт
+  (`[:cntrl:]`, локаль фиксируется `local LC_ALL=C`); payload с control-байтом
+  даёт `home:invalid-name`, как и раньше. Тест — сквозной через сгенерированный
+  CLI (`SlpCollectPolicyReasonFormat`, 5 методов: raw/JSON/pretty с путём и
+  пробелом в цели, control-байт по-прежнему отвергается, plain two-segment
+  reason не регрессировал); до правки 3 из 5 падали. **B-02**: отсутствие
+  `/home` и тип каждого элемента определялись `[[ ! -e ]]`/`[[ -L ]]`/
+  `[[ ! -d ]]`, которые не отличают доказанный `ENOENT` от прочих ошибок
+  `stat`/`lstat` (например `EIO`) — любая такая ошибка трактовалась как
+  «объекта нет», уходя в `PASS`/`home:not-directory` по недоказанной
+  популяции. Правка: `stat -c %F` (без `-L`) плюс буквальный разбор текста
+  ошибки (`: No such file or directory` — единственное доказательство
+  `ENOENT`); недоказанная ошибка — `ERROR` (`home-base:stat-failed:<path>` /
+  `home-base:ancestor-stat-failed:<path>` для корня, `home:stat-failed:<path>`
+  для элемента, включая TOCTOU-исчезновение между `find` и классификацией).
+  Тесты — обёртка `/usr/bin/stat`, подменяющая ответ только для целевого
+  пути (`install_command_shim`, `_stat_fail_shim_text`, `_stat_vanish_shim_text`),
+  4 новых метода в `HomeDirectoriesModeAdapterFixtures`, до правки красные.
+  Один существующий тест (`test_home_directories_unreachable_home_base_is_error`)
+  осознанно обновлён: `home-base:ancestor-unsearchable` →
+  `home-base:stat-failed:<path>` — прежнее поведение шло в обход предков даже
+  при недоказанном `ENOENT` на самом `/home`, это и есть чинимая небезопасность.
+  Список прочих адаптеров с тем же приёмом («доступный предок +
+  `[[ -e ]]`/`[[ -L ]]`» вместо доказанного `ENOENT`) для доказательства
+  отсутствия, без правки (см. отчёт задачи): `product-kernel-cmdline-check-v2.py:82`
+  (10 контролей 2.4.x/2.5.x), `product-sysctl-check-v2.py:96` (16 контролей
+  2.4.x–2.6.x), `product-file-mode-owner-check-v2.py:98` (SRC-0005, 3
+  контроля), `product-sshd-root-login-check-v1.py:62,87` (SRC-0002),
+  `product-home-sensitive-files-mode-check-v2.py:168` (SRC-0014),
+  `product-pam-wheel-access-check-v2.py:58,65` (SRC-0003). **B-03**: `$(readlink …)`
+  срезал завершающий LF цели символической ссылки до проверки байт-опасности
+  (`$(...)` вырезает ВСЕ завершающие переводы строк, а не только терминатор
+  команды). Правка — захват через sentinel (`&& printf x`), снимается ровно
+  один служебный символ, затем ровно один служебный `\n`. Тесты (цель с TAB,
+  внутренним LF, завершающим LF — все дают `home:invalid-name`/сохраняют
+  завершающий LF в raw target) добавлены в ту же правку, что и B-02.
+  **B-04**: единичный `read -r var < file` после `od`-валидации в
+  `kernel-cmdline-check-v2.py` (91→107) и `sysctl-check-v2.py` (105→117) не
+  ловил подмену содержимого файла между проверкой и разбором (TOCTOU
+  content-substitution) — только полную потерю ошибки чтения, не подмену
+  байт. Правка — decode-once по образцу остальных 7 адаптеров (`759b041`):
+  `od`-байты декодируются в текст (`_slp_load_text`) и разбираются без
+  повторного открытия; воспроизведена точная семантика прежнего `read -r`
+  (успех, только если в тексте есть хотя бы один `\n`; иначе, включая пустой
+  текст, — `read-failed`). Тесты — обёртка `/usr/bin/od`, которая после
+  настоящего вызова удаляет файл или подменяет его содержимое
+  (`_od_vanish_shim_text`, новый `_od_swap_shim_text`) — 6 новых методов
+  (`KernelCmdlineSingleReadFixtures`), до правки 3 из 3 «vanish»/«swap»/
+  «od-failure» красные (`test_sysctl_adapter.py::SingleReadFixtures` — тот же
+  набор, тот же результат). Встроенный `_selftest()` обоих адаптеров и
+  `test_read_only_and_p01_guard` обновлены под две `$(...)`-подстановки (`od`
+  + decode) вместо одной. Пробелы тестов из прошлой диагностики закрыты:
+  partial-prefix для ВТОРОГО из двух `od`-вызовов (сбой ограничен только
+  вторым файлом — первый проходит штатно) в `home-sensitive-files-mode`
+  (inventory), `local-account-password-state` (shadow),
+  `suid-sgid-applications` (allowlist) — новый
+  `_od_fail_after_prefix_for_target_shim_text(target)`, 3 новых теста;
+  state-dir тест дополнен: `debug.log` и `.lock` тоже остаются в исходном
+  (переименованном при атаке подменой) каталоге, а не в новом по старому
+  пути (`StateDirDescriptorPinning`, 2 новых теста), плюс явная проверка, что
+  `.lock` после атаки — другой inode, чем каталог по прежнему пути. Новый
+  `CHECK_SHA256` `e683fe2bc0823eb795a8436b86c16621f46277a2dbc8bd2f73105add5b872cfc`.
+  Адаптеры APPLY и dispatcher-маршрутизация APPLY не менялись, ВМ-прогон на
+  новых байтах не выполнен (перекроет приёмка 8 сред).
+
 - `home-directories-mode-check-v2` (2.3.11, SRC-0015): популяция переведена с
   обхода `/etc/passwd` на непосредственные (`mindepth=1,maxdepth=1`) элементы
   `/home` (решение человека 22.09.2026, по прецеденту

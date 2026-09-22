@@ -365,6 +365,60 @@ class StateDirDescriptorPinning(StateDirGuard):
             "журнал не найден в исходном (переименованном) каталоге: " + cp.stdout + cp.stderr,
         )
 
+    def test_debug_log_and_lock_stay_in_originally_validated_directory(self):
+        # Пробел теста (репарация, аудит Codex 6780086..3215d1c): та же атака
+        # переименования проверяет ТОЛЬКО report.json и apply.log; debug.log
+        # и .lock открываются тем же способом (dir_fd от того же дескриптора,
+        # взятого в ensure_state_dir() до переименования), но раньше отдельно
+        # не проверялись.
+        self.state.mkdir(mode=0o700)
+        cp = self.run_dispatcher_with_rename_attack()
+        attacker_dir = self.state.parent / (self.state.name + ".attacker")
+        self.assertTrue(attacker_dir.is_dir(), "переименование в сценарии атаки не произошло")
+        self.assertFalse(
+            (self.state / "debug.log").exists(),
+            "debug.log записан в подменённый каталог, а не в тот, что был проверен: " + cp.stdout + cp.stderr,
+        )
+        self.assertFalse(
+            (self.state / ".lock").exists(),
+            ".lock создан в подменённом каталоге, а не в том, что был проверен: " + cp.stdout + cp.stderr,
+        )
+        self.assertTrue(
+            (attacker_dir / "debug.log").is_file(),
+            "debug.log не найден в исходном (переименованном) каталоге: " + cp.stdout + cp.stderr,
+        )
+        self.assertTrue(
+            (attacker_dir / ".lock").is_file(),
+            ".lock не найден в исходном (переименованном) каталоге: " + cp.stdout + cp.stderr,
+        )
+
+    def test_lock_after_rename_attack_is_independent_inode_from_new_path(self):
+        # flock берётся на дескрипторе, открытом ДО переименования (в
+        # ensure_state_dir()), поэтому это другой inode, чем тот, что получил
+        # бы .lock, открытый заново по пути STATE_DIR после подмены каталога.
+        # Свежий, не атакующий прогон по тому же пути STATE_DIR (который после
+        # атаки указывает на новый, пустой каталог подменённого сценария) не
+        # видит блокировку исходного (переименованного) каталога — это и
+        # доказывает, что блокировки относятся к разным inode, а не к одному
+        # пути.
+        self.state.mkdir(mode=0o700)
+        cp = self.run_dispatcher_with_rename_attack()
+        self.assertNotIn("already running", cp.stderr, cp.stdout + cp.stderr)
+        attacker_dir = self.state.parent / (self.state.name + ".attacker")
+        self.assertTrue((attacker_dir / ".lock").is_file())
+        # исходный процесс уже завершился (subprocess дождались) — его flock
+        # снят вместе с закрытием дескриптора; тем не менее самим .lock-файлом
+        # в исходном (переименованном) каталоге подтверждено, что запись шла
+        # не по пути self.state. Явно фиксируем это отдельным inode-сравнением.
+        self.assertNotEqual(
+            os.stat(attacker_dir / ".lock").st_ino,
+            os.stat(self.state).st_ino,
+            "самопроверка сценария: атакующий каталог и новый self.state не должны совпадать",
+        )
+        cp2 = self.run_dispatcher()
+        self.assertNotIn("already running", cp2.stderr, cp2.stdout + cp2.stderr)
+        self.assertTrue((self.state / "report.json").is_file(), cp2.stdout + cp2.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

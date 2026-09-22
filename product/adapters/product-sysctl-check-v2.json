@@ -4,7 +4,7 @@
   "expected_type": "integer",
   "implementation_id": "product-sysctl-check-v2.py",
   "implementation_path": "product/adapters/product-sysctl-check-v2.py",
-  "implementation_sha256": "a47b9472390211106fb60791b35e5fa04b98389a69627819bc737143736cfb26",
+  "implementation_sha256": "ed7b8068472faad131abf96372b371213cf65face0ecdb90089d5e737f5848f8",
   "input_schema_id": "canonical-control-v3",
   "input_schema_version": 1,
   "locator": "sysctl",

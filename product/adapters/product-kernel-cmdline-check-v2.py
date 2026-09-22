@@ -73,7 +73,7 @@ def shell_function(control_id, locator, key, op, expected):
         "  local _slp_path=" + path_lit,
         "  local _slp_key=" + key_lit,
         "  local _slp_expected=" + exp_lit,
-        "  local _slp_raw _slp_token _slp_value _slp_first _slp_choice _slp_comp _slp_vrc=0",
+        "  local _slp_raw _slp_text _slp_token _slp_value _slp_first _slp_choice _slp_comp _slp_vrc=0",
         "  local _slp_bare=0 _slp_values=0 _slp_conflict=0 _slp_parent=",
         "  local -a _slp_tokens=() _slp_choices=()",
         '  if [[ ! -e "$_slp_path" ]]; then',
@@ -86,16 +86,26 @@ def shell_function(control_id, locator, key, op, expected):
         "    fi",
         "    return 0",
         "  fi",
-        "  _slp_validate_source_bytes() {",
-        "    local _slp_v_path=$1 _slp_v_hex _slp_v_byte",
+        # Файл читается один раз: проверенные `od` байты декодируются в текст,
+        # который затем разбирается; повторного открытия файла (и потери
+        # ошибки перенаправления или подмены содержимого между проверкой и
+        # разбором) нет.
+        "  _slp_load_text() {",
+        "    local _slp_v_path=$1 _slp_v_out=$2 _slp_v_hex _slp_v_byte _slp_v_esc",
         '    if ! _slp_v_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null); then return 2; fi',
         "    for _slp_v_byte in $_slp_v_hex; do",
         '      [[ "$_slp_v_byte" =~ ^[0-9a-f][0-9a-f]$ ]] || return 1',
         '      [[ "$_slp_v_byte" != 00 ]] || return 1',
         "    done",
+        "    if [[ -z $_slp_v_hex ]]; then",
+        '      printf -v "$_slp_v_out" %s ""',
+        "      return 0",
+        "    fi",
+        r"    _slp_v_esc=$(printf '\\x%s' $_slp_v_hex)",
+        '    printf -v "$_slp_v_out" %b "$_slp_v_esc"',
         "    return 0",
         "  }",
-        '  _slp_validate_source_bytes "$_slp_path"; _slp_vrc=$?',
+        '  _slp_load_text "$_slp_path" _slp_text; _slp_vrc=$?',
         "  if (( _slp_vrc != 0 )); then",
         "    if (( _slp_vrc == 2 )); then",
         emit + ' "ERROR" "cmdline:read-failed" "ERROR"',
@@ -104,7 +114,12 @@ def shell_function(control_id, locator, key, op, expected):
         "    fi",
         "    return 0",
         "  fi",
-        '  if ! { IFS= read -r _slp_raw < "$_slp_path"; } 2>/dev/null; then',
+        # Воспроизводит семантику прежнего `read -r var < file`: успех, только
+        # если в тексте встречается `\n` (иначе, включая пустой текст, —
+        # read-failed); значение — префикс до первого `\n`.
+        '  if [[ $_slp_text == *$\'\\n\'* ]]; then',
+        '    _slp_raw=${_slp_text%%$\'\\n\'*}',
+        "  else",
         emit + ' "ERROR" "cmdline:read-failed" "ERROR"',
         "    return 0",
         "  fi",
@@ -207,8 +222,10 @@ def _selftest():
         assert "command /usr/bin/od -An -v -tx1" in src
         assert "cmdline:invalid-bytes" in src
         od_read = '$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null)'
+        decode = r"$(printf '\\x%s' $_slp_v_hex)"
         assert src.count(od_read) == 1
-        assert "$(" not in src.replace(od_read, "")
+        assert src.count(decode) == 1
+        assert "$(" not in src.replace(od_read, "").replace(decode, "")
         for token in MUTATING_TOKENS:
             assert token not in src, token
     assert "IFS='|' read -r -a _slp_choices" in one

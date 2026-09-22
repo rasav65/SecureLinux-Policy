@@ -72,6 +72,40 @@ def _od_vanish_shim_text(target):
     )
 
 
+def _od_swap_shim_text(target, new_content):
+    """Обёртка /usr/bin/od: выполняет настоящий od над реально проверяемыми
+    байтами, затем подменяет содержимое `target` на `new_content`, если это
+    последний позиционный аргумент вызова. Имитирует подмену содержимого
+    файла между проверкой через `od` и повторным открытием для разбора
+    (аудит Codex, коммит 6780086: партия REREAD_UNCHECKED, содержательная
+    подмена, не только исчезновение)."""
+    return (
+        "#!/bin/bash\n"
+        '/usr/bin/od "$@"; rc=$?\n'
+        'if [[ ${@: -1} == %s ]]; then printf %%s %s > %s; fi\n'
+        "exit $rc\n"
+    ) % (shlex.quote(str(target)), shlex.quote(new_content), shlex.quote(str(target)))
+
+
+def _od_fail_after_prefix_for_target_shim_text(target):
+    """Обёртка /usr/bin/od: для последнего позиционного аргумента, равного
+    `target`, печатает часть корректных байт настоящего od, затем завершается
+    ненулевым кодом (сбой ПОСЛЕ части префикса, не чистый EOF); для остальных
+    целей выполняет настоящий od без изменений. В отличие от
+    `_od_fail_after_prefix_shim_text()`, который ломает КАЖДЫЙ вызов od в
+    блоке, эта версия воспроизводит сбой только у ВТОРОГО из двух файлов,
+    проверяемых адаптером, — первый файл должен пройти проверку штатно
+    (пробел теста: партия REREAD_UNCHECKED, аудит Codex 6780086..3215d1c)."""
+    return (
+        "#!/bin/bash\n"
+        'if [[ ${@: -1} == %s ]]; then\n'
+        '  /usr/bin/od "$@" | head -c 32\n'
+        "  exit 7\n"
+        "fi\n"
+        'exec /usr/bin/od "$@"\n'
+    ) % shlex.quote(str(target))
+
+
 def _od_fail_after_prefix_shim_text():
     """Обёртка /usr/bin/od: печатает часть корректных байт настоящего od, затем
     завершается ненулевым кодом — имитирует сбой чтения посреди файла (не
@@ -91,6 +125,44 @@ def install_od_shim(block, tmp, shim_text):
     shim.write_text(shim_text, encoding="utf-8")
     assert "/usr/bin/od" in block
     return block.replace("/usr/bin/od", "%s %s" % (shlex.quote(BASH), shlex.quote(str(shim))))
+
+
+def install_command_shim(block, tmp, command_path, shim_text, name="shim"):
+    """Обобщение install_od_shim на произвольную команду (по её абсолютному
+    пути, как она встречается в блоке, например /usr/bin/stat)."""
+    shim = Path(tmp) / name
+    shim.write_text(shim_text, encoding="utf-8")
+    assert command_path in block
+    return block.replace(command_path, "%s %s" % (shlex.quote(BASH), shlex.quote(str(shim))))
+
+
+def _stat_fail_shim_text(target, message):
+    """Обёртка /usr/bin/stat: для последнего позиционного аргумента, равного
+    `target`, печатает сообщение об ошибке в формате GNU stat (LC_ALL=C) и
+    завершается ненулевым кодом; для остальных целей выполняет настоящий stat."""
+    return (
+        "#!/bin/bash\n"
+        'if [[ ${@: -1} == %s ]]; then\n'
+        "  printf '%%s\\n' %s >&2\n"
+        "  exit 1\n"
+        "fi\n"
+        'exec /usr/bin/stat "$@"\n'
+    ) % (
+        shlex.quote(str(target)),
+        shlex.quote("/usr/bin/stat: cannot statx '%s': %s" % (target, message)),
+    )
+
+
+def _stat_vanish_shim_text(target):
+    """Обёртка /usr/bin/stat: удаляет `target`, если это последний позиционный
+    аргумент вызова, затем выполняет настоящий stat (который теперь получит
+    подлинный ENOENT) — имитирует объект, обнаруженный `find`, но исчезнувший
+    до классификации (TOCTOU)."""
+    return (
+        "#!/bin/bash\n"
+        'if [[ ${@: -1} == %s ]]; then rm -f -- %s; fi\n'
+        'exec /usr/bin/stat "$@"\n'
+    ) % (shlex.quote(str(target)), shlex.quote(str(target)))
 
 
 def load_generator():
@@ -631,12 +703,19 @@ class GeneratorModel(unittest.TestCase):
     def test_error_reason_object_state_and_stage_pairs_are_distinct(self):
         expected = {
             "product-home-directories-mode-check-v2.py": (
-                ('[[ -L "$_slp_home" ]]', '"home-base:symlink"'),
-                ('[[ -L "$_slp_probe" ]]', '"home-base:ancestor-symlink"'),
-                ('[[ ! -d "$_slp_probe" ]]', '"home-base:ancestor-invalid-type"'),
+                # B-02/B-03 (репарация, аудит Codex 6780086..3215d1c): тип
+                # объекта — по `case "$_slp_stat_out" in` (вывод `stat -c %F`),
+                # не по `[[ -L ]]`/`[[ ! -d ]]`, которые не отличают
+                # доказанный тип от ошибки lstat.
+                ("'symbolic link')", '"home-base:symlink"'),
+                ("'symbolic link')", '"home-base:ancestor-symlink"'),
+                ("directory) ;;", '"home-base:ancestor-invalid-type"'),
                 ('[[ ! -x "$_slp_probe" ]]', '"home-base:ancestor-unsearchable"'),
-                ('[[ ! -d "$_slp_home" ]]', '"home-base:invalid-type"'),
+                ("directory) ;;", '"home-base:invalid-type"'),
+                ("printf -v _slp_reason 'home-base:stat-failed:%s'", "home-base:stat-failed"),
+                ("printf -v _slp_reason 'home-base:ancestor-stat-failed:%s'", "home-base:ancestor-stat-failed"),
                 ("printf -v _slp_reason 'home:not-directory:%s'", "home:invalid-name"),
+                ("printf -v _slp_reason 'home:vanished:%s'", "home:stat-failed"),
             ),
             "product-home-sensitive-files-mode-check-v2.py": (
                 ('[[ ! -r "$_slp_home" ]]', '"home:unreadable"'),
@@ -1683,14 +1762,16 @@ class HomeDirectoriesModeAdapterFixtures(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_check(self):
+    def run_check(self, shim_command=None, shim_text=None):
         block = HOME_DIRECTORIES._shell_function_for_fixture("TEST.HOME.DIR", str(self.home))
+        if shim_command is not None:
+            block = install_command_shim(block, self.base, shim_command, shim_text)
         script = self.base / "check-home-dir.sh"
         script.write_text(block + "\nslp_check_TEST_HOME_DIR\n", encoding="utf-8")
         return subprocess.run([BASH, str(script)], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    def row(self):
-        cp = self.run_check()
+    def row(self, shim_command=None, shim_text=None):
+        cp = self.run_check(shim_command, shim_text)
         self.assertEqual(cp.returncode, 0, cp.stderr)
         self.assertEqual(cp.stderr, "")
         fields = cp.stdout.strip().split("\t")
@@ -1791,6 +1872,60 @@ class HomeDirectoriesModeAdapterFixtures(unittest.TestCase):
             with self.subTest(args=args):
                 with self.assertRaises(ValueError):
                     HOME_DIRECTORIES.shell_function(*args)
+
+    # --- B-02 (repair-step, аудит Codex диапазона 6780086..3215d1c) ---------
+    # [[ ! -e ]]/[[ -L ]]/[[ ! -d ]] не отличают ENOENT от иных ошибок lstat
+    # (EIO, ENAMETOOLONG, EACCES-не-на-предке и т. п.): не сумев доказать
+    # существование, старый код трактовал ЛЮБУЮ такую ошибку как «объекта
+    # нет» и либо уходил в PASS по пустой популяции (корень), либо в
+    # home:not-directory (элемент). Обёртка /usr/bin/stat детерминированно
+    # эмулирует конкретный отказ без реальной гонки/длины пути.
+
+    def test_home_base_stat_failure_other_than_enoent_is_error_not_pass(self):
+        # /home физически присутствует и полон, но сам stat(/home) не может
+        # подтвердить это (не ENOENT) — молчаливый PASS был бы гонкой с
+        # неполной популяцией.
+        (self.home / "user").mkdir(mode=0o700)
+        shim = _stat_fail_shim_text(self.home, "Permission denied")
+        status, value, compliance = self.row("/usr/bin/stat", shim)
+        self.assertEqual((status, compliance), ("ERROR", "ERROR"))
+        self.assertTrue(value.startswith("home-base:stat-failed:"), value)
+        self.assertIn(str(self.home), value)
+
+    def test_element_stat_failure_other_than_enoent_is_error_not_not_directory(self):
+        entry = self.home / "user"
+        entry.write_text("x\n", encoding="utf-8")  # был бы home:not-directory без правки
+        shim = _stat_fail_shim_text(entry, "Permission denied")
+        status, value, compliance = self.row("/usr/bin/stat", shim)
+        self.assertEqual((status, compliance), ("ERROR", "ERROR"))
+        self.assertNotIn("not-directory", value)
+        self.assertTrue(value.startswith("home:stat-failed:"), value)
+        self.assertIn(str(entry), value)
+
+    def test_element_vanishing_before_classification_is_error_not_not_directory(self):
+        # find уже увидел объект; TOCTOU-исчезновение перед классификацией —
+        # не «не каталог», а отдельная, честная причина.
+        entry = self.home / "user"
+        entry.write_text("x\n", encoding="utf-8")
+        shim = _stat_vanish_shim_text(entry)
+        status, value, compliance = self.row("/usr/bin/stat", shim)
+        self.assertEqual((status, compliance), ("ERROR", "ERROR"))
+        self.assertNotIn("not-directory", value)
+        self.assertFalse(entry.exists(), "сбой не внедрён")
+
+    def test_element_stat_enoent_is_error_not_silently_dropped(self):
+        # Убеждаемся, что вариант ENOENT для уже найденного элемента тоже не
+        # приводит к тихому исключению объекта из популяции.
+        entry = self.home / "user"
+        entry.write_text("x\n", encoding="utf-8")
+        shim = _stat_vanish_shim_text(entry)
+        cp = self.run_check("/usr/bin/stat", shim)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        fields = cp.stdout.strip().split("\t")
+        self.assertEqual(fields[2], "ERROR", cp.stdout)
+        self.assertNotIn("checked=0", cp.stdout)
+        self.assertNotIn("checked=1;violations=0", cp.stdout)
 
 class GeneratedArtifact(unittest.TestCase):
     @classmethod
@@ -5376,14 +5511,19 @@ class UnprovenAbsenceIsErrorFixtures(unittest.TestCase):
 
     # --- home-directories-mode ------------------------------------------
     def test_home_directories_unreachable_home_base_is_error(self):
+        # B-02 (repair-step): stat(/home) сам получает EACCES (родитель
+        # запечатан) — это не доказанный ENOENT, поэтому адаптер больше не
+        # идёт в обход предков (это стало бы тем же небезопасным приёмом,
+        # который чинит B-02) и отдаёт общий, но честный ERROR немедленно.
         home = self.closed / "home"
         home.mkdir()
         os.chmod(home, 0o700)
         self.owned(home)
         self.seal(home)
         block = HOME_DIRECTORIES._shell_function_for_fixture("TEST.ABSENCE", str(home))
-        self.assertEqual(self.run_block(block, "slp_check_TEST_ABSENCE"),
-                         ("ERROR", "home-base:ancestor-unsearchable", "ERROR"))
+        status, value, compliance = self.run_block(block, "slp_check_TEST_ABSENCE")
+        self.assertEqual((status, compliance), ("ERROR", "ERROR"))
+        self.assertEqual(value, "home-base:stat-failed:%s" % home)
 
     def test_home_directories_absent_home_base_in_searchable_parent_stays_outside_population(self):
         block = HOME_DIRECTORIES._shell_function_for_fixture(
@@ -5511,6 +5651,63 @@ class UnprovenAbsenceIsErrorFixtures(unittest.TestCase):
     def test_kernel_cmdline_absent_source_in_searchable_parent_stays_not_found(self):
         block = self.cmdline_block(self.visible / "absent-cmdline")
         self.assertEqual(self.run_block(block, "slp_check_CMD_ABSENCE"), ("NOT_FOUND", "-", "NOT_FOUND"))
+
+
+@unittest.skipIf(BASH is None, "bash not available")
+class KernelCmdlineSingleReadFixtures(unittest.TestCase):
+    """Разбор /proc/cmdline идёт по тем же байтам, что прошли проверку через
+    `od` (аудит Codex, диапазон 6780086..3215d1c, B-04): раньше файл после
+    `od` открывался заново `read -r _slp_raw < file`. Сбой внедряется
+    подменой `/usr/bin/od` обёрткой."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="slp-cmdline-single-read-"))
+        self.target = self.tmp / "cmdline"
+        self.target.write_text("init_on_alloc=1 quiet\n", encoding="utf-8")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def run_check(self, shim_text=None):
+        spec = importlib.util.spec_from_file_location(
+            "slp_kernel_cmdline_single_read", ROOT / "product/adapters/product-kernel-cmdline-check-v2.py"
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        block = mod.shell_function("CMD.SINGLE", "/proc/cmdline", "init_on_alloc", "eq", "1")
+        block = block.replace(repr("/proc/cmdline"), repr(str(self.target)), 1)
+        if shim_text is not None:
+            block = install_od_shim(block, self.tmp, shim_text)
+        cp = subprocess.run(
+            [BASH, "-c", "set -u\n" + block + "\nslp_check_CMD_SINGLE\n"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        row = cp.stdout.strip().split("\t")
+        self.assertEqual(len(row), 5, cp.stdout)
+        return tuple(row[2:])
+
+    def test_baseline_passes(self):
+        self.assertEqual(self.run_check(), ("VALUE", "1", "PASS"))
+
+    def test_vanishing_after_validation_parses_checked_bytes(self):
+        self.assertEqual(self.run_check(shim_text=_od_vanish_shim_text(self.target)), ("VALUE", "1", "PASS"))
+        self.assertFalse(self.target.exists(), "сбой не внедрён")
+
+    def test_content_substitution_after_validation_parses_checked_bytes_not_new_content(self):
+        # od проверяет "init_on_alloc=1 quiet\n"; сразу после этого файл
+        # подменяется на другое значение — вердикт обязан остаться по
+        # проверенным байтам, а не по новым.
+        shim = _od_swap_shim_text(self.target, "init_on_alloc=0 quiet\n")
+        self.assertEqual(self.run_check(shim_text=shim), ("VALUE", "1", "PASS"))
+        self.assertEqual(self.target.read_text(encoding="utf-8"), "init_on_alloc=0 quiet\n", "сбой не внедрён")
+
+    def test_od_failure_after_partial_prefix_is_error(self):
+        self.assertEqual(
+            self.run_check(shim_text=_od_fail_after_prefix_shim_text()),
+            ("ERROR", "cmdline:read-failed", "ERROR"),
+        )
 
 
 class PamWheelSingleReadFixtures(unittest.TestCase):
@@ -5645,6 +5842,15 @@ class HomeSensitiveSingleReadFixtures(unittest.TestCase):
             ("ERROR", "passwd:read-failed", "ERROR"),
         )
 
+    def test_second_od_call_failure_after_partial_prefix_is_error(self):
+        # Пробел теста (репарация, аудит Codex 6780086..3215d1c): сбой,
+        # ограниченный ВТОРЫМ файлом (inventory) — passwd должен пройти
+        # проверку штатно, а не только оба файла разом.
+        self.assertEqual(
+            self.run_check(shim=_od_fail_after_prefix_for_target_shim_text(self.inventory)),
+            ("ERROR", "inventory:read-failed", "ERROR"),
+        )
+
 
 class LocalAccountSingleReadFixtures(unittest.TestCase):
     """shadow и passwd для local-account-password-state читаются по одному разу
@@ -5699,6 +5905,15 @@ class LocalAccountSingleReadFixtures(unittest.TestCase):
         self.assertEqual(
             self.run_check(shim=_od_fail_after_prefix_shim_text()),
             ("ERROR", "passwd:read-failed", "ERROR"),
+        )
+
+    def test_second_od_call_failure_after_partial_prefix_is_error(self):
+        # Пробел теста (репарация, аудит Codex 6780086..3215d1c): сбой,
+        # ограниченный ВТОРЫМ файлом (shadow) — passwd должен пройти проверку
+        # штатно, а не только оба файла разом.
+        self.assertEqual(
+            self.run_check(shim=_od_fail_after_prefix_for_target_shim_text(self.shadow)),
+            ("ERROR", "shadow:read-failed", "ERROR"),
         )
 
 
@@ -5883,6 +6098,15 @@ class SuidSgidSingleReadFixtures(unittest.TestCase):
             ("ERROR", "mountinfo:read-failed", "ERROR"),
         )
 
+    def test_second_od_call_failure_after_partial_prefix_is_error(self):
+        # Пробел теста (репарация, аудит Codex 6780086..3215d1c): сбой,
+        # ограниченный ВТОРЫМ файлом (allowlist) — mountinfo должен пройти
+        # проверку штатно, а не только оба файла разом.
+        self.assertEqual(
+            self.run_check(shim=_od_fail_after_prefix_for_target_shim_text(self.allow)),
+            ("ERROR", "allowlist:read-failed", "ERROR"),
+        )
+
 
 class TestedSettingAttestationSingleReadFixtures(unittest.TestCase):
     """authority для tested-setting-attestation читается один раз: while-цикл
@@ -5931,6 +6155,124 @@ class TestedSettingAttestationSingleReadFixtures(unittest.TestCase):
             self.run_check(shim=_od_fail_after_prefix_shim_text()),
             ("ERROR", "authority:read-failed", "ERROR"),
         )
+
+
+@unittest.skipIf(BASH is None, "bash not available")
+class SlpCollectPolicyReasonFormat(unittest.TestCase):
+    """B-01 (repair-step по аудиту Codex диапазона 6780086..3215d1c):
+    `slp_collect_policy` отвергал ERROR-reason вида `<domain>:<reason>:<payload>`
+    (путь и цель readlink для 2.3.11) как `CHECK_INTERNAL_ERROR`, хотя такой
+    reason реально печатают CHECK-функции. Проверяется на реальном
+    `slp_collect_policy` из трекнутого артефакта (единственная подмена — список
+    из одной синтетической CHECK-функции вместо 51 реальной), сквозь три
+    формата рендера.
+    """
+
+    ARTIFACT = ROOT / "securelinux-policy.sh"
+    FNS_RE = re.compile(r"  local -a _slp_fns=\([^\n]*\)\n")
+    IDS_RE = re.compile(r"  local -a _slp_ids=\([^\n]*\)\n")
+    SYSTEM_PRELUDE = (
+        "SLP_SYSTEM_PRETTY_NAME='Test' SLP_SYSTEM_ID='test' SLP_SYSTEM_VERSION_ID='1'\n"
+        "SLP_SYSTEM_ARCH='x86_64' SLP_SYSTEM_PROFILE='' SLP_SYSTEM_TYPE='' SLP_SYSTEM_PLATFORM='test'\n"
+        "SLP_SYSTEM_ENVIRONMENT='test'\n"
+    )
+
+    TAIL_GUARD = 'if [[ ${BASH_SOURCE[0]} == "$0" ]]; then\n'
+
+    def isolated_source(self, reason):
+        text = self.ARTIFACT.read_text(encoding="utf-8")
+        # Хвостовой guard `slp_main "$@"` рассчитан на `source`/прямой запуск
+        # файла; при подаче текста через stdin BASH_SOURCE не тот же — guard
+        # не нужен для этого теста (вызываем функции напрямую), отрезаем его.
+        text = text.split(self.TAIL_GUARD, 1)[0]
+        self.assertEqual(len(self.FNS_RE.findall(text)), 1)
+        self.assertEqual(len(self.IDS_RE.findall(text)), 1)
+        text = self.FNS_RE.sub("  local -a _slp_fns=('slp_check_TEST_B01')\n", text, count=1)
+        text = self.IDS_RE.sub("  local -a _slp_ids=('TEST-B01')\n", text, count=1)
+        stub = (
+            "slp_check_TEST_B01() {\n"
+            "  printf 'SLP-CHECK-V1\\tTEST-B01\\tERROR\\t%s\\tERROR\\n' " + shlex.quote(reason) + "\n"
+            "}\n"
+            "slp_presentation_for_control() {\n"
+            "  printf '%s\\t%s\\t%s\\t%s\\n' 'fstec-linux-2022 §9.9.9' 'test-control' 'n/a' ''\n"
+            "}\n"
+        )
+        return text + "\n" + stub + self.SYSTEM_PRELUDE
+
+    def run_variant(self, reason, driver):
+        source = self.isolated_source(reason)
+        cp = subprocess.run(
+            [BASH, "-s"], input="set -u\n" + source + "\n" + driver,
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        return cp
+
+    def test_path_target_and_space_reason_accepted_via_collect_policy(self):
+        reason = "home:symlink:/home/my link->/home/my target"
+        cp = self.run_variant(
+            reason,
+            "slp_collect_policy; printf 'RC=%s\\n' \"$?\"; printf '%s\\n' \"${SLP_RESULTS[@]}\"",
+        )
+        self.assertEqual(cp.stderr, "", cp.stderr)
+        lines = cp.stdout.splitlines()
+        self.assertEqual(lines[0], "RC=0", cp.stdout)
+        self.assertEqual(
+            lines[1],
+            "SLP-CHECK-V1\tTEST-B01\tERROR\t" + reason + "\tERROR",
+        )
+
+    def test_raw_and_json_carry_the_same_reason_with_path_and_space(self):
+        reason = "home:symlink:/home/my link->/home/my target"
+        cp = self.run_variant(
+            reason,
+            "slp_collect_policy >/dev/null\n"
+            "echo '===RAW==='\n"
+            "slp_render_raw 0\n"
+            "echo '===JSON==='\n"
+            "slp_render_json 0\n",
+        )
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertEqual(cp.stderr, "", cp.stderr)
+        raw_part, json_part = cp.stdout.split("===JSON===\n", 1)
+        raw_part = raw_part.split("===RAW===\n", 1)[1]
+        self.assertIn("SLP-CHECK-V1\tTEST-B01\tERROR\t" + reason + "\tERROR\n", raw_part)
+        payload = json.loads(json_part)
+        rows = [r for r in payload["results"] if r["control_id"] == "TEST-B01"]
+        self.assertEqual(len(rows), 1, json_part)
+        self.assertEqual(rows[0]["value"], reason)
+        self.assertEqual(rows[0]["result"], "ERROR")
+
+    def test_pretty_does_not_crash_on_dynamic_reason(self):
+        reason = "home:not-directory:/home/my dir"
+        cp = self.run_variant(
+            reason,
+            "slp_collect_policy >/dev/null\nslp_render_pretty 0 TEST\n",
+        )
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertEqual(cp.stderr, "", cp.stderr)
+        self.assertNotIn("CHECK_INTERNAL_ERROR", cp.stdout + cp.stderr)
+        # pretty переносит длинные значения по ширине колонки — сплошная
+        # подстрока не гарантирована (слово "not-directory:/home/my" может
+        # разорваться переносом), важен только сам факт отсутствия краша и
+        # что строка ERROR с усечённой причиной попала в таблицу.
+        self.assertIn("not-determined;", cp.stdout)
+        self.assertIn("reason: home:not", cp.stdout)
+
+    def test_reason_with_control_byte_in_payload_is_still_rejected(self):
+        reason = "home:symlink:/home/bad\x01name"
+        cp = self.run_variant(
+            reason,
+            "slp_collect_policy; printf 'RC=%s\\n' \"$?\"",
+        )
+        self.assertIn("RC=1", cp.stdout)
+        self.assertIn("CHECK_INTERNAL_ERROR", cp.stderr)
+
+    def test_plain_two_segment_reason_still_accepted(self):
+        cp = self.run_variant(
+            "home-base:symlink",
+            "slp_collect_policy; printf 'RC=%s\\n' \"$?\"",
+        )
+        self.assertEqual(cp.stdout.strip(), "RC=0", cp.stderr)
 
 
 if __name__ == "__main__":
