@@ -336,7 +336,7 @@ class GeneratorModel(unittest.TestCase):
         self.assertEqual(len(src0003), 1)
         self.assertEqual(
             (src0003[0]["parameter_kind"], src0003[0]["parameter_locator"], src0003[0]["parameter_key"], src0003[0]["expected_op"], src0003[0]["expected_value"]),
-            ("pam-wheel-access", "/etc/pam.d/su|/etc/group", "policy", "eq-authority-file", "/etc/securelinux-policy/wheel-users.allowlist-v1"),
+            ("pam-wheel-access", "/etc/pam.d/su|/etc/group", "policy", "pam-wheel-root-member", "auth required pam_wheel.so use_uid;wheel:root"),
         )
         src0004 = [c for c in controls if c["index_id"] == "SRC-0004"]
         self.assertEqual(len(src0004), 1)
@@ -2047,22 +2047,93 @@ class GeneratedArtifact(unittest.TestCase):
         self.assertEqual(self.run_check("--provenance", "NO-SUCH-CONTROL").returncode, 2)
 
 
+# Штатный /etc/pam.d/su Ubuntu 24.04 (util-linux 2.39.3, пакет login
+# 1:4.13+dfsg1-4ubuntu3.2), побайтово; sha256 fda16622…7904.
+UBUNTU_2404_STOCK_PAM_SU = (
+    '#\n'
+    "# The PAM configuration file for the Shadow `su' service\n"
+    '#\n'
+    '\n'
+    '# This allows root to su without passwords (normal operation)\n'
+    'auth       sufficient pam_rootok.so\n'
+    '\n'
+    '# Uncomment this to force users to be a member of group wheel\n'
+    '# before they can use `su\'. You can also add "group=foo"\n'
+    '# to the end of this line if you want to use a group other\n'
+    '# than the default "wheel" (but this may have side effect of\n'
+    '# denying "root" user, unless she\'s a member of "foo" or explicitly\n'
+    '# permitted earlier by e.g. "sufficient pam_rootok.so").\n'
+    "# (Replaces the `SU_WHEEL_ONLY' option from login.defs)\n"
+    '# auth       required   pam_wheel.so\n'
+    '\n'
+    '# Uncomment this if you want wheel members to be able to\n'
+    '# su without a password.\n'
+    '# auth       sufficient pam_wheel.so trust\n'
+    '\n'
+    '# Uncomment this if you want members of a specific group to not\n'
+    '# be allowed to use su at all.\n'
+    '# auth       required   pam_wheel.so deny group=nosu\n'
+    '\n'
+    '# Uncomment and edit /etc/security/time.conf if you need to set\n'
+    '# time restrainst on su usage.\n'
+    "# (Replaces the `PORTTIME_CHECKS_ENAB' option from login.defs\n"
+    '# as well as /etc/porttime)\n'
+    '# account    requisite  pam_time.so\n'
+    '\n'
+    '# This module parses environment configuration file(s)\n'
+    '# and also allows you to use an extended config\n'
+    '# file /etc/security/pam_env.conf.\n'
+    '# \n'
+    '# parsing /etc/environment needs "readenv=1"\n'
+    'session       required   pam_env.so readenv=1\n'
+    '# locale variables are also kept into /etc/default/locale in etch\n'
+    '# reading this file *in addition to /etc/environment* does not hurt\n'
+    'session       required   pam_env.so readenv=1 envfile=/etc/default/locale\n'
+    '\n'
+    '# Defines the MAIL environment variable\n'
+    '# However, userdel also needs MAIL_DIR and MAIL_FILE variables\n'
+    '# in /etc/login.defs to make sure that removing a user \n'
+    "# also removes the user's mail spool file.\n"
+    '# See comments in /etc/login.defs\n'
+    '#\n'
+    '# "nopen" stands to avoid reporting new mail when su\'ing to another user\n'
+    'session    optional   pam_mail.so nopen\n'
+    '\n'
+    '# Sets up user limits according to /etc/security/limits.conf\n'
+    '# (Replaces the use of /etc/limits in old login)\n'
+    'session    required   pam_limits.so\n'
+    '\n'
+    '# The standard Unix authentication modules, used with\n'
+    '# NIS (man nsswitch) as well as normal /etc/passwd and\n'
+    '# /etc/shadow entries.\n'
+    '@include common-auth\n'
+    '@include common-account\n'
+    '@include common-session\n'
+    '\n'
+    '\n'
+)
+
+
 @unittest.skipIf(BASH is None, "bash not available")
 class PamWheelAccessAdapterFixtures(unittest.TestCase):
-    def run_fixture(self, pam_text=None, group_text=None, authority_text=None, symlink=None, prelude="", env=None):
+    # Правило 2.2.1 (решение 23.09.2026): активная auth required pam_wheel.so
+    # use_uid; auth sufficient pam_rootok.so перед ней не опасна; группа wheel
+    # ищется по имени, gid любой; root в wheel, прочие участники не
+    # оцениваются; authority-файл не читается.
+    CONFIGURED_PAM = "auth sufficient pam_rootok.so\nauth required pam_wheel.so use_uid\n@include common-auth\n"
+    PASS_1001 = ("VALUE", "pam_wheel=present;wheel=gid 1001;root=member", "PASS")
+
+    def run_fixture(self, pam_text=None, group_text=None, symlink=None, prelude="", env=None):
         if BASH is None:
             self.skipTest("bash not found")
         with tempfile.TemporaryDirectory(dir=ROOT) as td:
             root = Path(td)
             pam = root / "su"
             group = root / "group"
-            authority = root / "wheel-users.allowlist-v1"
             if pam_text is not None:
                 pam.write_bytes(pam_text if isinstance(pam_text, bytes) else pam_text.encode("utf-8"))
             if group_text is not None:
                 group.write_bytes(group_text if isinstance(group_text, bytes) else group_text.encode("utf-8"))
-            if authority_text is not None:
-                authority.write_bytes(authority_text if isinstance(authority_text, bytes) else authority_text.encode("utf-8"))
             if symlink == "pam":
                 target = root / "pam-real"
                 target.write_text(pam_text or "", encoding="utf-8")
@@ -2075,84 +2146,189 @@ class PamWheelAccessAdapterFixtures(unittest.TestCase):
                 if group.exists():
                     group.unlink()
                 group.symlink_to(target)
-            elif symlink == "authority":
-                target = root / "authority-real"
-                target.write_text(authority_text or "", encoding="utf-8")
-                if authority.exists():
-                    authority.unlink()
-                authority.symlink_to(target)
-            block = PAM_WHEEL_ACCESS._shell_function_for_fixture(
-                "PAM.WHEEL.TEST", str(pam), str(group), str(authority)
-            )
+            block = PAM_WHEEL_ACCESS._shell_function_for_fixture("PAM.WHEEL.TEST", str(pam), str(group))
             cp = subprocess.run(
                 [BASH, "-c", "set -u\n" + prelude + "\n" + block + "\nslp_check_PAM_WHEEL_TEST\n"],
                 text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, env=env,
             )
             self.assertEqual(cp.returncode, 0, cp.stderr)
+            self.assertEqual(cp.stderr, "")
             row = cp.stdout.strip().split("\t")
             self.assertEqual(len(row), 5, cp.stdout)
             return row
 
-    def test_positive_root_only_empty_authority_and_include_after_wheel(self):
-        row = self.run_fixture(
-            "# comment\nauth required pam_wheel.so use_uid # exact\n@include common-auth\n",
-            "root:x:0:\nwheel:x:10:root\n",
-            "# no additional users\n",
-        )
-        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
-        self.assertIn("approved=0", row[3])
+    def verdict(self, *args, **kwargs):
+        row = self.run_fixture(*args, **kwargs)
+        return (row[2], row[3], row[4])
 
-    def test_positive_explicit_users_literal_gid10_and_crlf(self):
-        row = self.run_fixture(
-            "auth required pam_wheel.so use_uid\r\n",
-            "wheel:x:10:root,alice,bob\r\n",
-            "alice\r\nbob\r\n",
+    # --- обязательные случаи задания 2.2.1 -------------------------------
+
+    def test_stock_ubuntu_2404_su_without_wheel_is_fail(self):
+        # gid 10 штатно занят uucp; payload не упоминает gid 10.
+        self.assertEqual(
+            self.verdict(UBUNTU_2404_STOCK_PAM_SU, "root:x:0:\nuucp:x:10:\n"),
+            ("VALUE", "pam_wheel=absent;wheel=absent;root=missing", "FAIL"),
         )
-        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
-        self.assertIn("gid=10", row[3])
+
+    def test_rootok_then_wheel_use_uid_and_wheel_gid_1001_with_root_passes(self):
+        self.assertEqual(
+            self.verdict(self.CONFIGURED_PAM, "root:x:0:\nuucp:x:10:\nwheel:x:1001:root\n"),
+            self.PASS_1001,
+        )
+
+    def test_stock_ubuntu_2404_su_with_uncommented_wheel_use_uid_passes(self):
+        # Штатный файл, где администратор добавил строку ФСТЭК после pam_rootok.
+        pam_text = UBUNTU_2404_STOCK_PAM_SU.replace(
+            "auth       sufficient pam_rootok.so\n",
+            "auth       sufficient pam_rootok.so\nauth       required   pam_wheel.so use_uid\n",
+        )
+        self.assertNotEqual(pam_text, UBUNTU_2404_STOCK_PAM_SU)
+        self.assertEqual(self.verdict(pam_text, "uucp:x:10:\nwheel:x:1001:root,alice\n"), self.PASS_1001)
+
+    def test_wheel_without_root_is_fail(self):
+        self.assertEqual(
+            self.verdict(self.CONFIGURED_PAM, "wheel:x:1001:alice\n"),
+            ("VALUE", "pam_wheel=present;wheel=gid 1001;root=missing", "FAIL"),
+        )
+        self.assertEqual(
+            self.verdict(self.CONFIGURED_PAM, "wheel:x:1001:\n"),
+            ("VALUE", "pam_wheel=present;wheel=gid 1001;root=missing", "FAIL"),
+        )
+
+    def test_pam_wheel_without_use_uid_is_fail(self):
+        for rule in ("auth required pam_wheel.so\n", "auth required pam_wheel.so trust\n", "auth required pam_wheel.so deny group=nosu\n"):
+            with self.subTest(rule=rule):
+                self.assertEqual(
+                    self.verdict("auth sufficient pam_rootok.so\n" + rule, "wheel:x:1001:root\n"),
+                    ("VALUE", "pam_wheel=no-use_uid;wheel=gid 1001;root=member", "FAIL"),
+                )
+
+    def test_pam_wheel_after_other_sufficient_module_is_error(self):
+        for pam_text in (
+            "auth sufficient pam_rootok.so\nauth sufficient pam_permit.so\nauth required pam_wheel.so use_uid\n",
+            "auth sufficient pam_permit.so\nauth sufficient pam_rootok.so\nauth required pam_wheel.so use_uid\n",
+        ):
+            with self.subTest(pam_text=pam_text):
+                self.assertEqual(
+                    self.verdict(pam_text, "wheel:x:1001:root\n"),
+                    ("ERROR", "pam:ambiguous-stack", "ERROR"),
+                )
+
+    def test_only_exact_rootok_line_is_exempt(self):
+        for first in (
+            "-auth sufficient pam_rootok.so\n",
+            "auth sufficient /lib/security/pam_rootok.so\n",
+            "auth sufficient pam_rootok.so debug\n",
+            "auth [success=done default=ignore] pam_rootok.so\n",
+        ):
+            with self.subTest(first=first):
+                self.assertEqual(
+                    self.verdict(first + "auth required pam_wheel.so use_uid\n", "wheel:x:1001:root\n"),
+                    ("ERROR", "pam:ambiguous-stack", "ERROR"),
+                )
+
+    def test_without_securelinux_policy_dir_is_not_error(self):
+        block = PAM_WHEEL_ACCESS.shell_function(
+            "CTRL", PAM_WHEEL_ACCESS.CANONICAL_LOCATOR, PAM_WHEEL_ACCESS.CANONICAL_KEY,
+            PAM_WHEEL_ACCESS.CANONICAL_OP, PAM_WHEEL_ACCESS.CANONICAL_EXPECTED,
+        )
+        self.assertNotIn("/etc/securelinux-policy", block)
+        self.assertNotIn("wheel-users", block)
+        self.assertNotIn("authority", block)
+        self.assertFalse(hasattr(PAM_WHEEL_ACCESS, "CANONICAL_AUTHORITY"))
+        self.assertEqual(self.verdict(self.CONFIGURED_PAM, "wheel:x:1001:root\n"), self.PASS_1001)
+
+    # --- прочие допустимые формы ------------------------------------------
+
+    def test_positive_root_only_and_include_after_wheel(self):
+        self.assertEqual(
+            self.verdict(
+                "# comment\nauth required pam_wheel.so use_uid # exact\n@include common-auth\n",
+                "root:x:0:\nwheel:x:10:root\n",
+            ),
+            ("VALUE", "pam_wheel=present;wheel=gid 10;root=member", "PASS"),
+        )
+
+    def test_other_members_are_not_evaluated_and_crlf(self):
+        self.assertEqual(
+            self.verdict("auth required pam_wheel.so use_uid\r\n", "wheel:x:1001:alice,root,bob\r\n"),
+            self.PASS_1001,
+        )
+
+    def test_any_wheel_gid_passes(self):
+        for gid in ("10", "1234", "0"):
+            with self.subTest(gid=gid):
+                self.assertEqual(
+                    self.verdict("auth required pam_wheel.so use_uid\n", "wheel:x:%s:root\n" % gid),
+                    ("VALUE", "pam_wheel=present;wheel=gid %s;root=member" % gid, "PASS"),
+                )
 
     def test_empty_group_password_field_is_not_a_source_predicate(self):
-        row = self.run_fixture(
-            "auth required pam_wheel.so use_uid\n",
-            "wheel::10:root\n",
-            "",
-        )
-        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertEqual(self.verdict("auth required pam_wheel.so use_uid\n", "wheel::1001:root\n"), self.PASS_1001)
 
     def test_duplicate_exact_pam_rule_is_redundant_but_compliant(self):
-        row = self.run_fixture(
-            "auth required pam_wheel.so use_uid\nauth required pam_wheel.so use_uid\n",
-            "wheel:x:10:root\n", "",
+        self.assertEqual(
+            self.verdict("auth required pam_wheel.so use_uid\nauth required pam_wheel.so use_uid\n", "wheel:x:1001:root\n"),
+            self.PASS_1001,
         )
-        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
-        self.assertIn("pam_exact=2", row[3])
 
     def test_escaped_line_continuation_preserves_exact_rule(self):
-        row = self.run_fixture(
-            "auth required pam_wheel.so \\\nuse_uid\n", "wheel:x:10:root\n", "",
-        )
-        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
-
-    def test_missing_exact_pam_is_definitive_fail_without_authority(self):
-        # Н-3 (репарация, аудит Codex): payload разобранного-но-без-активной-
-        # pam_wheel.so стека унифицирован под `pam_wheel=absent;wheel=<..>;
-        # gid10=<..>` для всех таких случаев, а не только для тех, что раньше
-        # шли в ambiguous-stack. wheel:x:10:root совпадает и под "wheel", и
-        # под generic-сканом gid10 (тот же gid 10) — оба поля ссылаются на
-        # группу wheel.
-        row = self.run_fixture("auth required pam_unix.so\n", "wheel:x:10:root\n", None)
-        self.assertEqual(
-            (row[2], row[3], row[4]),
-            ("VALUE", "pam_wheel=absent;wheel=gid 10;gid10=wheel", "FAIL"),
-        )
+        self.assertEqual(self.verdict("auth required pam_wheel.so \\\nuse_uid\n", "wheel:x:1001:root\n"), self.PASS_1001)
 
     def test_comment_backslash_does_not_continue_comment_text(self):
-        row = self.run_fixture(
-            "# disabled pam_wheel \\\n"
-            "auth required pam_wheel.so use_uid\n",
-            "wheel:x:10:root\n", "",
+        self.assertEqual(
+            self.verdict("# disabled pam_wheel \\\nauth required pam_wheel.so use_uid\n", "wheel:x:1001:root\n"),
+            self.PASS_1001,
         )
-        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+
+    # --- FAIL: чего не хватает --------------------------------------------
+
+    def test_missing_pam_rule_with_wheel_and_root_is_fail(self):
+        self.assertEqual(
+            self.verdict("auth required pam_unix.so\n", "wheel:x:10:root\n"),
+            ("VALUE", "pam_wheel=absent;wheel=gid 10;root=member", "FAIL"),
+        )
+
+    def test_missing_wheel_is_fail(self):
+        self.assertEqual(
+            self.verdict("auth required pam_wheel.so use_uid\n", "root:x:0:\n"),
+            ("VALUE", "pam_wheel=present;wheel=absent;root=missing", "FAIL"),
+        )
+
+    def test_gid10_owner_is_not_reported(self):
+        for group_text in ("custom:x:10:\n", "root:x:0:\n", "cus\ttom:x:10:\n", "cus\x7ftom:x:10:\n"):
+            with self.subTest(group_text=group_text):
+                self.assertEqual(
+                    self.verdict("auth required pam_unix.so\n", group_text),
+                    ("VALUE", "pam_wheel=absent;wheel=absent;root=missing", "FAIL"),
+                )
+
+    def test_wheel_with_non_default_gid_without_pam_rule_is_fail(self):
+        self.assertEqual(
+            self.verdict("auth required pam_unix.so\n", "wheel:x:999:root\n"),
+            ("VALUE", "pam_wheel=absent;wheel=gid 999;root=member", "FAIL"),
+        )
+
+    def test_commented_out_pam_wheel_line_is_not_active(self):
+        self.assertEqual(
+            self.verdict("# auth required pam_wheel.so use_uid\nauth required pam_unix.so\n", "root:x:0:\n"),
+            ("VALUE", "pam_wheel=absent;wheel=absent;root=missing", "FAIL"),
+        )
+
+    def test_stack_hazard_without_any_pam_wheel_is_fail(self):
+        # Н-3: разобранный стек без pam_wheel.so — FAIL, не ERROR.
+        for pam_text in (
+            "auth sufficient pam_permit.so\n@include common-auth\n",
+            "@include common-auth\n",
+            "auth [success=done default=ignore] pam_permit.so\n",
+        ):
+            with self.subTest(pam_text=pam_text):
+                self.assertEqual(
+                    self.verdict(pam_text, "wheel:x:1001:root\n"),
+                    ("VALUE", "pam_wheel=absent;wheel=gid 1001;root=member", "FAIL"),
+                )
+
+    # --- ERROR ------------------------------------------------------------
 
     def test_non_source_pam_wheel_variants_are_error(self):
         variants = (
@@ -2161,20 +2337,11 @@ class PamWheelAccessAdapterFixtures(unittest.TestCase):
             "auth required /lib/security/pam_wheel.so use_uid\n",
             "auth [success=ok default=bad] pam_wheel.so use_uid\n",
             "-auth required pam_wheel.so use_uid\n",
+            "auth required pam_wheel.so use_uid\nauth required pam_wheel.so\n",
         )
         for pam_text in variants:
             with self.subTest(pam_text=pam_text):
-                row = self.run_fixture(pam_text, "wheel:x:10:root\n", "")
-                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
-
-    def test_non_source_gid_is_definitive_fail(self):
-        row = self.run_fixture(
-            "auth required pam_wheel.so use_uid\n",
-            "wheel:x:1234:root\n",
-            None,
-        )
-        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
-        self.assertIn("expected_gid=10", row[3])
+                self.assertEqual(self.verdict(pam_text, "wheel:x:10:root\n"), ("ERROR", "pam:ambiguous-stack", "ERROR"))
 
     def test_prior_include_or_success_short_circuit_fails_closed(self):
         variants = (
@@ -2188,185 +2355,65 @@ class PamWheelAccessAdapterFixtures(unittest.TestCase):
         )
         for pam_text in variants:
             with self.subTest(pam_text=pam_text):
-                row = self.run_fixture(pam_text, "wheel:x:10:root\n", "")
-                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
-
-    # --- Н-3 (репарация, аудит Codex): разобранный и разрешённый стек без
-    # активной pam_wheel.so — FAIL, не ERROR ambiguous-stack. Ранее гейт
-    # "sufficient/include/substack/[...] как первая auth-строка" (и отдельно
-    # — @include при ещё не найденном exact-правиле) обрывал разбор через
-    # `break`, не давая убедиться, что pam_wheel.so в файле попросту нет;
-    # теперь такие строки только помечают `_slp_hazard` и разбор продолжается
-    # до конца файла. ERROR остаётся, если pam_wheel.so всё-таки найдена (в
-    # любой форме) после такой строки — реальный PAM-движок мог бы её не
-    # достичь (регрессия выше, не менялась).
-
-    def test_stock_ubuntu_2404_stack_without_wheel_rule_is_fail(self):
-        # Опорный факт: auth sufficient pam_rootok.so — первая auth-строка,
-        # затем session pam_env x2/pam_mail/pam_limits, затем
-        # @include common-auth/common-account/common-session; ни в su, ни в
-        # перечисленных полях нет pam_wheel.so; local wheel-группы нет; gid 10
-        # занят uucp (штатно на Ubuntu 24.04).
-        pam_text = (
-            "auth       sufficient   pam_rootok.so\n"
-            "session    required     pam_env.so\n"
-            "session    required     pam_env.so readenv=1 user_readenv=0\n"
-            "session    required     pam_mail.so\n"
-            "session    required     pam_limits.so\n"
-            "@include common-auth\n"
-            "@include common-account\n"
-            "@include common-session\n"
-        )
-        row = self.run_fixture(pam_text, "root:x:0:\nuucp:x:10:\n", None)
-        self.assertEqual(
-            (row[2], row[3], row[4]),
-            ("VALUE", "pam_wheel=absent;wheel=absent;gid10=uucp", "FAIL"),
-        )
-
-    def test_wheel_with_non_default_gid_and_free_gid10_absent_payload(self):
-        row = self.run_fixture("auth required pam_unix.so\n", "wheel:x:999:root\n", None)
-        self.assertEqual(
-            (row[2], row[3], row[4]),
-            ("VALUE", "pam_wheel=absent;wheel=gid 999;gid10=free", "FAIL"),
-        )
-
-    def test_gid10_owned_by_other_name_without_wheel_absent_payload(self):
-        row = self.run_fixture("auth required pam_unix.so\n", "custom:x:10:\n", None)
-        self.assertEqual(
-            (row[2], row[3], row[4]),
-            ("VALUE", "pam_wheel=absent;wheel=absent;gid10=custom", "FAIL"),
-        )
-
-    def test_fully_clean_stack_wheel_absent_and_gid10_free(self):
-        row = self.run_fixture("auth required pam_unix.so\n", "root:x:0:\n", None)
-        self.assertEqual(
-            (row[2], row[3], row[4]),
-            ("VALUE", "pam_wheel=absent;wheel=absent;gid10=free", "FAIL"),
-        )
-
-    def test_commented_out_pam_wheel_line_is_not_active(self):
-        row = self.run_fixture(
-            "# auth required pam_wheel.so use_uid\nauth required pam_unix.so\n",
-            "root:x:0:\n",
-            None,
-        )
-        self.assertEqual(
-            (row[2], row[3], row[4]),
-            ("VALUE", "pam_wheel=absent;wheel=absent;gid10=free", "FAIL"),
-        )
-
-    def test_gid10_owner_with_forbidden_byte_in_name_is_error(self):
-        # \r не сюда: embedded CR посреди строки ловится более ранней
-        # CRLF-проверкой того же цикла (group:invalid-record по другой
-        # причине), а не сканом gid10.
-        for byte in ("\t", "\x7f"):
-            with self.subTest(byte=repr(byte)):
-                row = self.run_fixture(
-                    "auth required pam_unix.so\n",
-                    "cus" + byte + "tom:x:10:\n",
-                    None,
-                )
-                self.assertEqual((row[2], row[3], row[4]), ("ERROR", "group:invalid-record", "ERROR"))
-
-    def test_missing_wheel_is_definitive_fail_without_authority(self):
-        row = self.run_fixture("auth required pam_wheel.so use_uid\n", "root:x:0:\n", None)
-        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
-
-    def test_missing_root_member_is_definitive_fail_without_authority(self):
-        row = self.run_fixture("auth required pam_wheel.so use_uid\n", "wheel:x:10:alice\n", None)
-        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
-        self.assertIn("root=missing", row[3])
-
-    def test_membership_must_equal_root_plus_authority(self):
-        for group_text, authority_text in (
-            ("wheel:x:10:root,extra\n", ""),
-            ("wheel:x:10:root\n", "alice\n"),
-            ("wheel:x:10:root,alice,extra\n", "alice\n"),
-        ):
-            with self.subTest(group_text=group_text, authority_text=authority_text):
-                row = self.run_fixture("auth required pam_wheel.so use_uid\n", group_text, authority_text)
-                self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
-
-    def test_missing_authority_is_error_only_after_structural_requirements(self):
-        row = self.run_fixture("auth required pam_wheel.so use_uid\n", "wheel:x:10:root\n", None)
-        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "authority:not-found", "ERROR"))
-
-    def test_malformed_authority_is_error(self):
-        for authority_text in ("root\n", "alice\nalice\n", "alice,bob\n", "alice bob\n", "ali#ce\n"):
-            with self.subTest(authority_text=authority_text):
-                row = self.run_fixture("auth required pam_wheel.so use_uid\n", "wheel:x:10:root,alice\n", authority_text)
-                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+                self.assertEqual(self.verdict(pam_text, "wheel:x:10:root\n"), ("ERROR", "pam:ambiguous-stack", "ERROR"))
 
     def test_duplicate_or_malformed_wheel_is_error(self):
-        for group_text in (
-            "wheel:x:10:root\nwheel:x:11:root\n",
-            "wheel:x:not-a-gid:root\n",
-            "wheel:x:10:root,\n",
-            "wheel:x:10:root,root\n",
+        for group_text, reason in (
+            ("wheel:x:10:root\nwheel:x:11:root\n", "group:invalid-record"),
+            ("wheel:x:not-a-gid:root\n", "group:invalid-record"),
+            ("wheel:x:10:root,\n", "group:invalid-members"),
+            ("wheel:x:10:root,root\n", "group:invalid-members"),
         ):
             with self.subTest(group_text=group_text):
-                row = self.run_fixture("auth required pam_wheel.so use_uid\n", group_text, "")
-                self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+                self.assertEqual(self.verdict("auth required pam_wheel.so use_uid\n", group_text), ("ERROR", reason, "ERROR"))
 
     def test_unicode_whitespace_in_names_is_locale_independent_error(self):
         locales = subprocess.run(["/usr/bin/locale", "-a"], capture_output=True, text=True, check=True).stdout.splitlines()
         utf8_locale = next((name for name in locales if name.lower() in {"c.utf8", "c.utf-8"}), None)
         self.assertIsNotNone(utf8_locale, locales)
-        cases = (
-            ("wheel:x:10:root,user\u2003name\n", "user\u2003name\n", "group:invalid-members"),
-            ("wheel:x:10:root,user\u3000name\n", "user\u3000name\n", "group:invalid-members"),
-            ("wheel:x:10:root,alice\n", "ali\u2003ce\n", "authority:invalid-record"),
-            ("wheel:x:10:root,alice\n", "ali\u3000ce\n", "authority:invalid-record"),
-        )
-        for group_text, authority_text, reason in cases:
+        for group_text in ("wheel:x:10:root,user\u2003name\n", "wheel:x:10:root,user\u3000name\n"):
             observed = []
             for lc_all in ("C", utf8_locale):
                 env = os.environ.copy()
                 env["LC_ALL"] = lc_all
-                row = self.run_fixture(
-                    "auth required pam_wheel.so use_uid\n", group_text, authority_text, env=env
-                )
+                row = self.run_fixture("auth required pam_wheel.so use_uid\n", group_text, env=env)
                 observed.append(row)
-                self.assertEqual((row[2], row[3], row[4]), ("ERROR", reason, "ERROR"))
+                self.assertEqual((row[2], row[3], row[4]), ("ERROR", "group:invalid-members", "ERROR"))
             self.assertEqual(observed[0], observed[1])
 
     def test_symlink_inputs_fail_closed(self):
-        expected = {"pam": "pam:symlink", "group": "group:symlink", "authority": "authority:symlink"}
-        for which, reason in expected.items():
+        for which, reason in {"pam": "pam:symlink", "group": "group:symlink"}.items():
             with self.subTest(which=which):
-                row = self.run_fixture("auth required pam_wheel.so use_uid\n", "wheel:x:10:root\n", "", symlink=which)
-                self.assertEqual((row[2], row[3], row[4]), ("ERROR", reason, "ERROR"))
+                self.assertEqual(
+                    self.verdict("auth required pam_wheel.so use_uid\n", "wheel:x:10:root\n", symlink=which),
+                    ("ERROR", reason, "ERROR"),
+                )
 
     def test_nul_and_internal_cr_fail_closed(self):
         cases = (
-            (b"auth required pam_wheel.so\x00 use_uid\n", b"wheel:x:10:root\n", b"", "pam:invalid-bytes"),
-            (b"auth required pam_wheel.so use_uid\nfoo\rbar\n", b"wheel:x:10:root\n", b"", "pam:invalid-bytes"),
-            (b"auth required pam_wheel.so use_uid\n", b"wheel:x:10:root\x00\n", b"", "group:invalid-bytes"),
-            (b"auth required pam_wheel.so use_uid\n", b"wheel:x:10:root\n", b"alice\x00\n", "authority:invalid-bytes"),
+            (b"auth required pam_wheel.so\x00 use_uid\n", b"wheel:x:10:root\n", "pam:invalid-bytes"),
+            (b"auth required pam_wheel.so use_uid\nfoo\rbar\n", b"wheel:x:10:root\n", "pam:invalid-bytes"),
+            (b"auth required pam_wheel.so use_uid\n", b"wheel:x:10:root\x00\n", "group:invalid-bytes"),
         )
-        for pam_text, group_text, authority_text, reason in cases:
-            with self.subTest(pam_text=pam_text, group_text=group_text, authority_text=authority_text):
-                row = self.run_fixture(pam_text, group_text, authority_text)
-                self.assertEqual((row[2], row[3], row[4]), ("ERROR", reason, "ERROR"))
+        for pam_text, group_text, reason in cases:
+            with self.subTest(pam_text=pam_text, group_text=group_text):
+                self.assertEqual(self.verdict(pam_text, group_text), ("ERROR", reason, "ERROR"))
 
     def test_slash_named_od_function_cannot_override_nul_validation(self):
         row = self.run_fixture(
             b"auth required pam_wheel.so\x00 use_uid\n",
             b"wheel:x:10:root\n",
-            b"",
             prelude='function /usr/bin/od(){ printf "61 62 63\n"; }',
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
 
     def test_bare_cr_at_eof_is_error_for_all_pam_inputs(self):
-        cases = (
-            (b"auth required pam_wheel.so use_uid\r", b"wheel:x:10:root\n", b""),
-            (b"auth required pam_wheel.so use_uid\n", b"wheel:x:10:root\r", b""),
-            (b"auth required pam_wheel.so use_uid\n", b"wheel:x:10:root,alice\n", b"alice\r"),
-        )
-        for pam_text, group_text, authority_text in cases:
-            with self.subTest(pam_text=pam_text, group_text=group_text, authority_text=authority_text):
-                row = self.run_fixture(pam_text, group_text, authority_text)
+        for pam_text, group_text in (
+            (b"auth required pam_wheel.so use_uid\r", b"wheel:x:10:root\n"),
+            (b"auth required pam_wheel.so use_uid\n", b"wheel:x:10:root\r"),
+        ):
+            with self.subTest(pam_text=pam_text, group_text=group_text):
+                row = self.run_fixture(pam_text, group_text)
                 self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
 
     def test_generated_cli_has_no_direct_external_tool_invocations(self):
@@ -2380,20 +2427,20 @@ class PamWheelAccessAdapterFixtures(unittest.TestCase):
             self.assertNotIn(token, rendered, token)
 
     def test_missing_required_config_is_not_found_fail(self):
-        row = self.run_fixture(None, "wheel:x:10:root\n", "")
+        row = self.run_fixture(None, "wheel:x:10:root\n")
         self.assertEqual((row[2], row[4]), ("NOT_FOUND", "FAIL"))
 
     def test_generation_rejects_wrong_contract_fields(self):
+        m = PAM_WHEEL_ACCESS
         cases = (
-            ("/etc/pam.d/su", PAM_WHEEL_ACCESS.CANONICAL_KEY, PAM_WHEEL_ACCESS.CANONICAL_OP, PAM_WHEEL_ACCESS.CANONICAL_AUTHORITY),
-            (PAM_WHEEL_ACCESS.CANONICAL_LOCATOR, "members", PAM_WHEEL_ACCESS.CANONICAL_OP, PAM_WHEEL_ACCESS.CANONICAL_AUTHORITY),
-            (PAM_WHEEL_ACCESS.CANONICAL_LOCATOR, PAM_WHEEL_ACCESS.CANONICAL_KEY, "eq", PAM_WHEEL_ACCESS.CANONICAL_AUTHORITY),
-            (PAM_WHEEL_ACCESS.CANONICAL_LOCATOR, PAM_WHEEL_ACCESS.CANONICAL_KEY, PAM_WHEEL_ACCESS.CANONICAL_OP, "/tmp/wheel"),
+            ("/etc/pam.d/su", m.CANONICAL_KEY, m.CANONICAL_OP, m.CANONICAL_EXPECTED),
+            (m.CANONICAL_LOCATOR, "members", m.CANONICAL_OP, m.CANONICAL_EXPECTED),
+            (m.CANONICAL_LOCATOR, m.CANONICAL_KEY, "eq-authority-file", m.CANONICAL_EXPECTED),
+            (m.CANONICAL_LOCATOR, m.CANONICAL_KEY, m.CANONICAL_OP, "/etc/securelinux-policy/wheel-users.allowlist-v1"),
         )
         for args in cases:
-            with self.subTest(args=args):
-                with self.assertRaises(ValueError):
-                    PAM_WHEEL_ACCESS.shell_function("TEST", *args)
+            with self.subTest(args=args), self.assertRaises(ValueError):
+                m.shell_function("TEST", *args)
 
 
 class SudoersReviewedPolicyAdapterFixtures(unittest.TestCase):
@@ -5709,12 +5756,7 @@ class UnprovenAbsenceIsErrorFixtures(unittest.TestCase):
 
     # --- pam-wheel-access -----------------------------------------------
     def pam_fixture(self, pam, group):
-        authority = self.visible / "wheel-users.allowlist-v1"
-        authority.write_text("", encoding="utf-8")
-        self.owned(authority)
-        return PAM_WHEEL_ACCESS._shell_function_for_fixture(
-            "PAM.ABSENCE", str(pam), str(group), str(authority)
-        )
+        return PAM_WHEEL_ACCESS._shell_function_for_fixture("PAM.ABSENCE", str(pam), str(group))
 
     def test_pam_wheel_unreachable_pam_file_is_error(self):
         pam = self.closed / "su"
@@ -5880,7 +5922,7 @@ class PamWheelSingleReadFixtures(unittest.TestCase):
     которая после чтения удаляет проверяемый файл.
     """
 
-    PASS_ROW = ("VALUE", "pam_exact=1;wheel=1;gid=10;members=2;approved=1;mismatch=0", "PASS")
+    PASS_ROW = ("VALUE", "pam_wheel=present;wheel=gid 10;root=member", "PASS")
 
     def setUp(self):
         if BASH is None:
@@ -5890,16 +5932,12 @@ class PamWheelSingleReadFixtures(unittest.TestCase):
         self.pam.write_text("auth required pam_wheel.so use_uid\n", encoding="utf-8")
         self.group = self.tmp / "group"
         self.group.write_text("wheel:x:10:root,alice\n", encoding="utf-8")
-        self.authority = self.tmp / "wheel-users.allowlist-v1"
-        self.authority.write_text("alice\n", encoding="utf-8")
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def run_check(self, vanish=None):
-        block = PAM_WHEEL_ACCESS._shell_function_for_fixture(
-            "PAM.SINGLE", str(self.pam), str(self.group), str(self.authority)
-        )
+        block = PAM_WHEEL_ACCESS._shell_function_for_fixture("PAM.SINGLE", str(self.pam), str(self.group))
         if vanish is not None:
             shim = self.tmp / "od-shim"
             shim.write_text(
@@ -5933,15 +5971,10 @@ class PamWheelSingleReadFixtures(unittest.TestCase):
         self.assertEqual(self.run_check(vanish=self.group), self.PASS_ROW)
         self.assertFalse(self.group.exists(), "сбой не внедрён")
 
-    def test_authority_file_vanishing_after_validation_parses_checked_bytes(self):
-        self.assertEqual(self.run_check(vanish=self.authority), self.PASS_ROW)
-        self.assertFalse(self.authority.exists(), "сбой не внедрён")
-
     def test_unterminated_and_continuation_edge_cases_keep_semantics(self):
         # последняя строка без \n; продолжение строки в конце файла остаётся ошибкой стека
         self.pam.write_text("auth required pam_wheel.so use_uid", encoding="utf-8")
         self.group.write_text("wheel:x:10:root,alice", encoding="utf-8")
-        self.authority.write_text("alice", encoding="utf-8")
         self.assertEqual(self.run_check(), self.PASS_ROW)
         self.pam.write_text("auth required pam_wheel.so use_uid \\\n", encoding="utf-8")
         self.assertEqual(self.run_check(), ("ERROR", "pam:ambiguous-stack", "ERROR"))
@@ -6289,7 +6322,7 @@ class SlpCollectPolicyReasonFormat(unittest.TestCase):
 @unittest.skipIf(BASH is None, "bash not available")
 class PamWheelAbsentReasonRenderFormat(unittest.TestCase):
     """Н-3 (репарация, аудит Codex): VALUE/FAIL payload
-    `pam_wheel=absent;wheel=<..>;gid10=<..>` (2.2.1, разобранный стек без
+    `pam_wheel=absent;wheel=<..>;root=<..>` (2.2.1, разобранный стек без
     активной pam_wheel.so) проходит raw/JSON/pretty без искажений. В отличие
     от ERROR-reason, `slp_collect_policy` не применяет к VALUE-строкам regex
     control-байт (`generate-product-check-v2.py` строит строгую проверку
@@ -6303,7 +6336,7 @@ class PamWheelAbsentReasonRenderFormat(unittest.TestCase):
     SYSTEM_PRELUDE = SlpCollectPolicyReasonFormat.SYSTEM_PRELUDE
     TAIL_GUARD = SlpCollectPolicyReasonFormat.TAIL_GUARD
 
-    REASON = "pam_wheel=absent;wheel=absent;gid10=uucp"
+    REASON = "pam_wheel=absent;wheel=absent;root=missing"
 
     def isolated_source(self):
         text = self.ARTIFACT.read_text(encoding="utf-8")

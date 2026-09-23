@@ -644,8 +644,8 @@ def required_display(op, value) -> str:
         return "one of: " + rendered
     if op == "all-nonempty":
         return "all non-empty"
-    if op == "eq-authority-file":
-        return "authority: " + rendered
+    if op == "pam-wheel-root-member":
+        return "rule and root in wheel: " + rendered
     if op == "standard-rules-only":
         return "stock rules only: " + rendered
     if op == "runtime-paths-safe":

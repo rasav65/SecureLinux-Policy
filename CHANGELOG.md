@@ -10,6 +10,62 @@
 
 ## [Unreleased]
 
+- 2.2.1 (SRC-0003) — решение человека 23.09.2026: CHECK-адаптер
+  `product-pam-wheel-access-check-v2` не читает authority-файл
+  `/etc/securelinux-policy/wheel-users.allowlist-v1`. Текст ФСТЭК 2.2.1:
+  добавить в `/etc/pam.d/su` строку `auth required pam_wheel.so use_uid`,
+  задать список пользователей группы wheel в `/etc/group`
+  (`wheel:x:10:root,<user list>`). Правило: активная `auth required
+  pam_wheel.so use_uid`; группа `wheel` ищется по имени, номер GID не
+  оценивается (на всех семи средах gid 10 занят группой `uucp`); `root` в
+  участниках `wheel`, прочие участники не оцениваются.
+
+  Штатная `auth sufficient pam_rootok.so` (ровно три токена, без `-`, module
+  без пути) перед правилом больше не считается hazard: раньше любая
+  `sufficient` до правила давала на правильно настроенной Ubuntu 24.04
+  `ERROR pam:ambiguous-stack`. Прочие `sufficient`/`include`/`substack`/`[...]`
+  и `@include` перед правилом — по-прежнему `ERROR`, если правило после них
+  найдено, и `FAIL`, если `pam_wheel.so` в стеке нет (Н-3). `auth required
+  pam_wheel.so` без аргумента `use_uid` — `FAIL` (`pam_wheel=no-use_uid`), рядом
+  с эталонной строкой — `ERROR`; прочие формы `pam_wheel.so` — `ERROR`, как
+  раньше. VALUE всегда перечисляет три условия:
+  `pam_wheel=<present|absent|no-use_uid>;wheel=<absent|gid N>;root=<member|missing>`;
+  часть `gid10=` и скан владельца gid 10 удалены. Список участников `wheel`
+  теперь разбирается и без правила PAM (нужен для `root=`): синтаксически
+  неверный список — `ERROR group:invalid-members`.
+
+  Параметры контроля: op `eq-authority-file` → `pam-wheel-root-member`,
+  expected `/etc/securelinux-policy/wheel-users.allowlist-v1` →
+  `auth required pam_wheel.so use_uid;wheel:root`; локатор и key `policy` без
+  изменений. Синхронно: control-yaml 2.2.1 (и `justification`), строка
+  `CONTROL-MANIFEST.tsv`, контракт `pam-wheel-access-check-semantic-v2` (блок
+  `authority` удалён, `supported_ops`, `compliance`, `source_interpretation`),
+  binding, строка `ADAPTER-REGISTRY.tsv`, `checker/gates-v3/checker.py`
+  (`KIND_RULES`), `CONTROL-SCHEMA.json`, note SRC-0003 в `SOURCE-INDEX.tsv` и
+  basis в `CLOSURE-CONTRACT.tsv`; `required_display` генератора
+  (`eq-authority-file` → `pam-wheel-root-member`);
+  `test_schema_runtime_parity.py`; `pam-wheel-access` убран из
+  `OPS_DECLARATION_GAPS`. Документы: секция SRC-0003 и две строки перечня в
+  `product/README.md`, абзац о штатном стеке в `docs/compatibility.md`, два
+  места в `tests/product-v1/README.md`. В `docs/PROJECT-MAP.md` 2.2.1 оставлен
+  в G5: состав wheel по-прежнему определяет администратор.
+
+  Тесты: класс `PamWheelAccessAdapterFixtures` переписан (30 → 32 метода),
+  в `PamWheelSingleReadFixtures` удалён метод об authority-файле (5 → 4),
+  фикстура адаптера больше не принимает путь authority. Новые: штатный
+  `/etc/pam.d/su` Ubuntu 24.04 (побайтово, пакет login
+  1:4.13+dfsg1-4ubuntu3.2) без wheel → FAIL; `pam_rootok` sufficient, затем
+  `pam_wheel use_uid`, wheel gid 1001 с root → PASS; то же в штатном файле →
+  PASS; wheel без root → FAIL; `pam_wheel` без `use_uid` → FAIL; `pam_wheel`
+  после другого sufficient → ERROR; неэталонная `pam_rootok` → ERROR; без
+  `/etc/securelinux-policy` → не ERROR; любой GID → PASS. До правки новые
+  тесты падали на сигнатуре фикстуры; по существу старый адаптер давал
+  неверный вердикт в пяти из шести обязательных случаев (PASS, два FAIL и
+  «не ERROR» — `ERROR pam:ambiguous-stack`; штатный стек — FAIL с `gid10=`).
+  Новый `CHECK_SHA256`
+  `750a2003aa02ee0c2d886da925a0b9742a567041f063372fa125e78fe25bec11`.
+  Закрыто строк source index: 0 (SRC-0003 уже CLOSED).
+
 - 2.2.2 (SRC-0004) — решение человека 23.09.2026: CHECK-адаптер
   `product-sudoers-reviewed-policy-check-v1` не читает authority-файл
   `/etc/securelinux-policy/sudoers-reviewed-policy-v1`; правило задано внутри

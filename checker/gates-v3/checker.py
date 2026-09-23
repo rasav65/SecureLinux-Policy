@@ -323,13 +323,13 @@ KIND_RULES = {
     "pam-wheel-access": {
         "locator": {"const": "/etc/pam.d/su|/etc/group"},
         "key": {"const": "policy"},
-        "op": {"const": "eq-authority-file"},
+        "op": {"const": "pam-wheel-root-member"},
         "type": {"const": "string"},
         "relations": [
             {
-                "if": {"expected.op": {"const": "eq-authority-file"}},
+                "if": {"expected.op": {"const": "pam-wheel-root-member"}},
                 "then": {
-                    "expected.value": {"const": "/etc/securelinux-policy/wheel-users.allowlist-v1"},
+                    "expected.value": {"const": "auth required pam_wheel.so use_uid;wheel:root"},
                     "requirement.derived": {"const": True},
                 },
             },

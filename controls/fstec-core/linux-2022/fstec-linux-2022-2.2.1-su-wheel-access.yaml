@@ -12,15 +12,15 @@ source:
 requirement:
   stated: "2.2.1. Обеспечить ограничение доступа к команде su путём добавления в файл /etc/pam.d/su следующей строки: auth required pam_wheel.so use_uid. Задать список пользователей в записи для группы wheel в файле /etc/group: wheel:x:10:root,<user list>."
   derived: true
-  justification: "Источник задаёт обязательные PAM/wheel условия и placeholder <user list>, но exact additional-user set и путь local authority являются product mechanism для представления локального решения, а не отдельным требованием ФСТЭК."
+  justification: "Источник задаёт строку auth required pam_wheel.so use_uid в /etc/pam.d/su и запись wheel с root в /etc/group; <user list> — решение администратора и не оценивается, номер 10 не требуется (на всех семи средах gid 10 занят группой uucp), authority-файл не читается (решение 23.09.2026)."
   applicability: "technical"
 parameter:
   kind: "pam-wheel-access"
   locator: "/etc/pam.d/su|/etc/group"
   key: "policy"
 expected:
-  op: "eq-authority-file"
-  value: "/etc/securelinux-policy/wheel-users.allowlist-v1"
+  op: "pam-wheel-root-member"
+  value: "auth required pam_wheel.so use_uid;wheel:root"
   type: "string"
 apply:
   supported: false

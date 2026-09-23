@@ -253,7 +253,7 @@ Read-only evidence helper `slp-vm-batch-src0002-src0004-evidence-v1` выпол�
 
 ## SRC-0003 / pam_wheel — матрица привилегированного evidence
 
-Тот же read-only batch имеет integrity-verified evidence `7/7` для 2.2.1. На всех семи installations `/etc/pam.d/su` и `/etc/group` были regular root-owned files mode `0644`; active `pam_wheel` lines и exact required line count равнялись `0`, local `wheel` group count равнялся `0`, при этом `pam_wheel.so` module был обнаружен в standard security-module paths. Поэтому baseline однозначно `FAIL` ещё до необходимости локальной `<user list>` authority. Наличие module file само по себе compliance не доказывает. Evidence подтверждает assumptions CHECK внутри принятой поддерживаемой матрицы.
+Тот же read-only batch имеет integrity-verified evidence `7/7` для 2.2.1. На всех семи installations `/etc/pam.d/su` и `/etc/group` были regular root-owned files mode `0644`; active `pam_wheel` lines и exact required line count равнялись `0`, local `wheel` group count равнялся `0`, при этом `pam_wheel.so` module был обнаружен в standard security-module paths. Поэтому baseline однозначно `FAIL`; `<user list>` продукт не оценивает, authority-файл не читается. Наличие module file само по себе compliance не доказывает. Evidence подтверждает assumptions CHECK внутри принятой поддерживаемой матрицы.
 
 Штатный `/etc/pam.d/su` Ubuntu 24.04 (`auth sufficient pam_rootok.so` первой
 auth-строкой, `@include common-auth`/`common-account`/`common-session`, без
@@ -263,14 +263,19 @@ auth-строкой, `@include common-auth`/`common-account`/`common-session`, �
 раньше, чем адаптер успевал убедиться, что `pam_wheel.so` в файле попросту
 нет. Правка заменила `break` на пометку `_slp_hazard`: разбор доходит до
 конца файла, и если `pam_wheel.so` ни в какой форме не встретилась —
-вердикт `VALUE/FAIL` с payload `pam_wheel=absent;wheel=<absent|gid N>;
-gid10=<имя|free>` (на этой конкретной конфигурации —
-`pam_wheel=absent;wheel=absent;gid10=uucp`, gid 10 занят `uucp`). `ERROR
+вердикт `VALUE/FAIL`. С 23.09.2026 payload —
+`pam_wheel=<present|absent|no-use_uid>;wheel=<absent|gid N>;root=<member|missing>`
+(на этой конфигурации — `pam_wheel=absent;wheel=absent;root=missing`; номер
+gid 10 больше не требуется и не выводится: на всех семи средах он занят
+`uucp`), а строка `auth sufficient pam_rootok.so` перед
+`auth required pam_wheel.so use_uid` больше не считается hazard — такой стек
+с `root` в `wheel` даёт `PASS`. `ERROR
 pam:ambiguous-stack` остаётся при любом реальном парсинг-сбое, а также если
 `pam_wheel.so` найдена в неэталонной форме (независимо от порядка
 относительно hazard-строки) или найдена в эталонной форме именно после
 hazard-строки: в обоих случаях реальная достижимость PAM-движком не
-доказана.
+доказана. Исключение — `auth required pam_wheel.so` без аргумента `use_uid`
+при отсутствии эталонной строки: это `FAIL` `pam_wheel=no-use_uid`.
 
 ## SRC-0004 / sudoers reviewed policy — матрица привилегированного evidence
 

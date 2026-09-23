@@ -14,7 +14,6 @@ CONTROLS_DIR = ROOT / "controls" / "fstec-core" / "linux-2022"
 OPS_DECLARATION_GAPS = frozenset({
     "home-directories-mode",
     "home-sensitive-files-mode",
-    "pam-wheel-access",
     "running-process-paths-write-protection",
     "standard-system-paths-mode",
     "suid-sgid-applications",

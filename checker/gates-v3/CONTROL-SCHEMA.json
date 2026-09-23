@@ -1854,7 +1854,7 @@
                     "expected": {
                       "properties": {
                         "op": {
-                          "const": "eq-authority-file"
+                          "const": "pam-wheel-root-member"
                         }
                       },
                       "required": [
@@ -1875,7 +1875,7 @@
                     "expected": {
                       "properties": {
                         "value": {
-                          "const": "/etc/securelinux-policy/wheel-users.allowlist-v1"
+                          "const": "auth required pam_wheel.so use_uid;wheel:root"
                         }
                       },
                       "required": [
@@ -1912,7 +1912,7 @@
           "expected": {
             "properties": {
               "op": {
-                "const": "eq-authority-file"
+                "const": "pam-wheel-root-member"
               },
               "type": {
                 "const": "string"

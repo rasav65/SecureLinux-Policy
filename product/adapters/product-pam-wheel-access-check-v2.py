@@ -10,8 +10,8 @@ PARAMETER_KIND = "pam-wheel-access"
 TARGET_ID = "linux-x86_64-supported-v1"
 CANONICAL_LOCATOR = "/etc/pam.d/su|/etc/group"
 CANONICAL_KEY = "policy"
-CANONICAL_OP = "eq-authority-file"
-CANONICAL_AUTHORITY = "/etc/securelinux-policy/wheel-users.allowlist-v1"
+CANONICAL_OP = "pam-wheel-root-member"
+CANONICAL_EXPECTED = "auth required pam_wheel.so use_uid;wheel:root"
 
 
 def _sh_single(value: str) -> str:
@@ -22,19 +22,18 @@ def _fn_name(control_id: str) -> str:
     return "slp_check_" + re.sub(r"[^A-Za-z0-9_]", "_", control_id)
 
 
-def _render(control_id: str, pam_path: str, group_path: str, authority_path: str) -> str:
+def _render(control_id: str, pam_path: str, group_path: str) -> str:
     fn = _fn_name(control_id)
     return "\n".join([
         f"{fn}() {{",
         f"  local _slp_cid={_sh_single(control_id)}",
         f"  local _slp_pam={_sh_single(pam_path)}",
         f"  local _slp_group={_sh_single(group_path)}",
-        f"  local _slp_authority={_sh_single(authority_path)}",
-        "  local _slp_line _slp_logical='' _slp_trim _slp_module _slp_control _slp_type _slp_gid='' _slp_members='' _slp_name _slp_hex _slp_byte _slp_prev _slp_pam_text _slp_group_text _slp_authority_text _slp_rest",
-        "  local _slp_parent= _slp_gid10_name='' _slp_wheel_field _slp_gid10_field",
+        "  local _slp_line _slp_logical='' _slp_trim _slp_module _slp_control _slp_type _slp_gid='' _slp_members='' _slp_name _slp_pam_text _slp_group_text _slp_rest",
+        "  local _slp_parent= _slp_pam_field _slp_wheel_field _slp_root_field _slp_comp",
         "  local -a _slp_tok=() _slp_members_arr=()",
-        "  local -A _slp_actual=() _slp_approved=()",
-        "  local _slp_exact=0 _slp_other=0 _slp_wheel=0 _slp_error=0 _slp_mismatch=0 _slp_midx=0 _slp_i=0 _slp_vrc=0 _slp_hazard=0 _slp_gid10_found=0",
+        "  local -A _slp_actual=()",
+        "  local _slp_exact=0 _slp_nouid=0 _slp_other=0 _slp_wheel=0 _slp_error=0 _slp_midx=0 _slp_i=0 _slp_vrc=0 _slp_hazard=0",
         "",
         "  _slp_name_has_forbidden_separator() {",
         "    local _slp_n=$1",
@@ -145,8 +144,14 @@ def _render(control_id: str, pam_path: str, group_path: str, authority_path: str
         "    _slp_type=${_slp_tok[0],,}",
         "    _slp_type=${_slp_type#-}",
         "    _slp_control=${_slp_tok[1],,}",
+        # Штатная `auth sufficient pam_rootok.so` (ровно три токена, без `-`)
+        # пропускает только root и перед pam_wheel опасной не считается.
         "    if (( _slp_exact == 0 )) && [[ \"$_slp_type\" == auth ]]; then",
-        "      if [[ \"$_slp_control\" == sufficient || \"$_slp_control\" == include || \"$_slp_control\" == substack || \"$_slp_control\" == \\[* ]]; then _slp_hazard=1; fi",
+        "      if [[ \"${_slp_tok[0],,}\" == auth && \"$_slp_control\" == sufficient && ${#_slp_tok[@]} -eq 3 && \"${_slp_tok[2]}\" == pam_rootok.so ]]; then",
+        "        :",
+        "      elif [[ \"$_slp_control\" == sufficient || \"$_slp_control\" == include || \"$_slp_control\" == substack || \"$_slp_control\" == \\[* ]]; then",
+        "        _slp_hazard=1",
+        "      fi",
         "    fi",
         "    _slp_midx=2",
         "    if [[ \"$_slp_control\" == \\[* ]]; then",
@@ -158,15 +163,24 @@ def _render(control_id: str, pam_path: str, group_path: str, authority_path: str
         "    fi",
         "    _slp_module=${_slp_tok[_slp_midx]}",
         "    if [[ \"${_slp_module##*/}\" == pam_wheel.so ]]; then",
-        "      if [[ \"${_slp_tok[0],,}\" == auth && \"${_slp_tok[1],,}\" == required && \"$_slp_module\" == pam_wheel.so && ${#_slp_tok[@]} -eq 4 && \"${_slp_tok[3]}\" == use_uid ]]; then",
-        "        ((_slp_exact+=1))",
+        # auth required pam_wheel.so: ровно `use_uid` — эталон; без `use_uid`
+        # среди аргументов — FAIL no-use_uid; прочие формы — неоднозначность.
+        "      if [[ \"${_slp_tok[0],,}\" == auth && \"${_slp_tok[1],,}\" == required && \"$_slp_module\" == pam_wheel.so ]]; then",
+        "        if (( ${#_slp_tok[@]} == 4 )) && [[ \"${_slp_tok[3]}\" == use_uid ]]; then",
+        "          ((_slp_exact+=1))",
+        "        else",
+        "          ((_slp_nouid+=1))",
+        "          for ((_slp_i=3; _slp_i<${#_slp_tok[@]}; _slp_i++)); do",
+        "            if [[ \"${_slp_tok[_slp_i]}\" == use_uid ]]; then ((_slp_nouid-=1)); ((_slp_other+=1)); break; fi",
+        "          done",
+        "        fi",
         "      else",
         "        ((_slp_other+=1))",
         "      fi",
         "    fi",
         "  done",
         "  [[ -z \"$_slp_logical\" ]] || _slp_error=1",
-        "  if (( _slp_error || _slp_other > 0 || (_slp_hazard && _slp_exact > 0) )); then",
+        "  if (( _slp_error || _slp_other > 0 || (_slp_hazard && _slp_exact > 0) || (_slp_nouid > 0 && _slp_exact > 0) )); then",
         "    printf 'SLP-CHECK-V1\\t%s\\tERROR\\tpam:ambiguous-stack\\tERROR\\n' \"$_slp_cid\"",
         "    return 0",
         "  fi",
@@ -178,14 +192,7 @@ def _render(control_id: str, pam_path: str, group_path: str, authority_path: str
         "      if [[ \"$_slp_line\" != *$'\\r' || \"${_slp_line%$'\\r'}\" == *$'\\r'* ]]; then _slp_error=1; break; fi",
         "      _slp_line=${_slp_line%$'\\r'}",
         "    fi",
-        # Имя владельца gid 10 нужно только для payload "pam_wheel=absent"
-        # (exact==0); для нормального PASS/FAIL-пути (pam_wheel.so exact
-        # найдена) скан не выполняется — ноль риска новых ERROR в уже
-        # протестированных ветках.
-        "    if (( _slp_exact == 0 )) && (( ! _slp_gid10_found )) && [[ \"$_slp_line\" =~ ^([^:]*):[^:]*:10:.*$ ]]; then",
-        "      if _slp_name_has_forbidden_separator \"${BASH_REMATCH[1]}\"; then _slp_error=1; break; fi",
-        "      _slp_gid10_name=${BASH_REMATCH[1]}; _slp_gid10_found=1",
-        "    fi",
+        # Группа wheel ищется по имени; номер gid не оценивается.
         "    [[ \"$_slp_line\" == wheel:* ]] || continue",
         "    ((_slp_wheel+=1))",
         "    if [[ \"$_slp_line\" =~ ^wheel:([^:]*):([0-9]+):([^:]*)$ ]]; then",
@@ -197,16 +204,6 @@ def _render(control_id: str, pam_path: str, group_path: str, authority_path: str
         "  done",
         "  if (( _slp_error || _slp_wheel > 1 )); then",
         "    printf 'SLP-CHECK-V1\\t%s\\tERROR\\tgroup:invalid-record\\tERROR\\n' \"$_slp_cid\"",
-        "    return 0",
-        "  fi",
-        # Н-3 (репарация, аудит Codex): стек разобран и разрешён (нет
-        # _slp_error/hazard-блокировки), но активной pam_wheel.so в нём нет —
-        # FAIL с описательным payload, а не ERROR ambiguous-stack. wheel/gid10
-        # берутся из уже пройденного разбора /etc/group.
-        "  if (( _slp_exact == 0 )); then",
-        "    if (( _slp_wheel == 1 )); then printf -v _slp_wheel_field 'gid %s' \"$_slp_gid\"; else _slp_wheel_field=absent; fi",
-        "    if (( _slp_gid10_found )); then _slp_gid10_field=$_slp_gid10_name; else _slp_gid10_field=free; fi",
-        "    printf 'SLP-CHECK-V1\\t%s\\tVALUE\\tpam_wheel=absent;wheel=%s;gid10=%s\\tFAIL\\n' \"$_slp_cid\" \"$_slp_wheel_field\" \"$_slp_gid10_field\"",
         "    return 0",
         "  fi",
         "  if (( _slp_wheel == 1 )) && [[ -n \"$_slp_members\" ]]; then",
@@ -222,81 +219,27 @@ def _render(control_id: str, pam_path: str, group_path: str, authority_path: str
         "    return 0",
         "  fi",
         "",
-        "  if (( _slp_wheel == 0 )); then",
-        "    printf 'SLP-CHECK-V1\\t%s\\tVALUE\\tpam_exact=%d;wheel=%d;members=%d;authority=not-needed\\tFAIL\\n' \"$_slp_cid\" \"$_slp_exact\" \"$_slp_wheel\" \"${#_slp_actual[@]}\"",
-        "    return 0",
-        "  fi",
-        "  if [[ -z \"${_slp_actual[root]+x}\" ]]; then",
-        "    printf 'SLP-CHECK-V1\\t%s\\tVALUE\\tpam_exact=%d;wheel=1;members=%d;root=missing;authority=not-needed\\tFAIL\\n' \"$_slp_cid\" \"$_slp_exact\" \"${#_slp_actual[@]}\"",
-        "    return 0",
-        "  fi",
-        "",
-        "  if [[ \"$_slp_gid\" != 10 ]]; then",
-        "    printf 'SLP-CHECK-V1\\t%s\\tVALUE\\tpam_exact=%d;wheel=1;gid=%s;expected_gid=10;authority=not-needed\\tFAIL\\n' \"$_slp_cid\" \"$_slp_exact\" \"$_slp_gid\"",
-        "    return 0",
-        "  fi",
-        "  if [[ -L \"$_slp_authority\" ]]; then",
-        "    printf 'SLP-CHECK-V1\\t%s\\tERROR\\tauthority:symlink\\tERROR\\n' \"$_slp_cid\"",
-        "    return 0",
-        "  fi",
-        "  if [[ ! -e \"$_slp_authority\" ]]; then",
-        "    printf 'SLP-CHECK-V1\\t%s\\tERROR\\tauthority:not-found\\tERROR\\n' \"$_slp_cid\"",
-        "    return 0",
-        "  fi",
-        "  if [[ ! -f \"$_slp_authority\" ]]; then",
-        "    printf 'SLP-CHECK-V1\\t%s\\tERROR\\tauthority:invalid-type\\tERROR\\n' \"$_slp_cid\"",
-        "    return 0",
-        "  fi",
-        "  if [[ ! -r \"$_slp_authority\" ]]; then",
-        "    printf 'SLP-CHECK-V1\\t%s\\tERROR\\tauthority:unreadable\\tERROR\\n' \"$_slp_cid\"",
-        "    return 0",
-        "  fi",
-        '  _slp_load_text "$_slp_authority" _slp_authority_text; _slp_vrc=$?',
-        '  if (( _slp_vrc != 0 )); then',
-        "    if (( _slp_vrc == 2 )); then printf 'SLP-CHECK-V1\\t%s\\tERROR\\tauthority:read-failed\\tERROR\\n' \"$_slp_cid\"; else printf 'SLP-CHECK-V1\\t%s\\tERROR\\tauthority:invalid-bytes\\tERROR\\n' \"$_slp_cid\"; fi",
-        "    return 0",
-        "  fi",
-        "  _slp_rest=$_slp_authority_text",
-        "  while [[ -n $_slp_rest ]]; do",
-        "    if [[ $_slp_rest == *$'\\n'* ]]; then _slp_line=${_slp_rest%%$'\\n'*}; _slp_rest=${_slp_rest#*$'\\n'}; else _slp_line=$_slp_rest; _slp_rest=''; fi",
-        "    if [[ \"$_slp_line\" == *$'\\r'* ]]; then",
-        "      if [[ \"$_slp_line\" != *$'\\r' || \"${_slp_line%$'\\r'}\" == *$'\\r'* ]]; then _slp_error=1; break; fi",
-        "      _slp_line=${_slp_line%$'\\r'}",
-        "    fi",
-        "    [[ -n \"$_slp_line\" ]] || continue",
-        "    [[ \"${_slp_line:0:1}\" != \\# ]] || continue",
-        "    if [[ \"$_slp_line\" == root ]] || _slp_name_has_forbidden_separator \"$_slp_line\" || [[ -n \"${_slp_approved[$_slp_line]+x}\" ]]; then _slp_error=1; break; fi",
-        "    _slp_approved[\"$_slp_line\"]=1",
-        "  done",
-        "  if (( _slp_error )); then",
-        "    printf 'SLP-CHECK-V1\\t%s\\tERROR\\tauthority:invalid-record\\tERROR\\n' \"$_slp_cid\"",
-        "    return 0",
-        "  fi",
-        "",
-        "  for _slp_name in \"${!_slp_approved[@]}\"; do",
-        "    [[ -n \"${_slp_actual[$_slp_name]+x}\" ]] || ((_slp_mismatch+=1))",
-        "  done",
-        "  for _slp_name in \"${!_slp_actual[@]}\"; do",
-        "    if [[ \"$_slp_name\" != root && -z \"${_slp_approved[$_slp_name]+x}\" ]]; then ((_slp_mismatch+=1)); fi",
-        "  done",
-        "  if (( _slp_mismatch == 0 )); then",
-        "    printf 'SLP-CHECK-V1\\t%s\\tVALUE\\tpam_exact=%d;wheel=1;gid=%s;members=%d;approved=%d;mismatch=0\\tPASS\\n' \"$_slp_cid\" \"$_slp_exact\" \"$_slp_gid\" \"${#_slp_actual[@]}\" \"${#_slp_approved[@]}\"",
-        "  else",
-        "    printf 'SLP-CHECK-V1\\t%s\\tVALUE\\tpam_exact=%d;wheel=1;gid=%s;members=%d;approved=%d;mismatch=%d\\tFAIL\\n' \"$_slp_cid\" \"$_slp_exact\" \"$_slp_gid\" \"${#_slp_actual[@]}\" \"${#_slp_approved[@]}\" \"$_slp_mismatch\"",
-        "  fi",
+        # Стек и /etc/group разобраны: payload перечисляет все три условия,
+        # чтобы при FAIL было видно, чего не хватает. Прочие участники wheel
+        # не оцениваются.
+        "  if (( _slp_exact > 0 )); then _slp_pam_field=present; elif (( _slp_nouid > 0 )); then _slp_pam_field=no-use_uid; else _slp_pam_field=absent; fi",
+        "  if (( _slp_wheel == 1 )); then printf -v _slp_wheel_field 'gid %s' \"$_slp_gid\"; else _slp_wheel_field=absent; fi",
+        "  if [[ -n \"${_slp_actual[root]+x}\" ]]; then _slp_root_field=member; else _slp_root_field=missing; fi",
+        "  if [[ $_slp_pam_field == present && $_slp_wheel_field != absent && $_slp_root_field == member ]]; then _slp_comp=PASS; else _slp_comp=FAIL; fi",
+        "  printf 'SLP-CHECK-V1\\t%s\\tVALUE\\tpam_wheel=%s;wheel=%s;root=%s\\t%s\\n' \"$_slp_cid\" \"$_slp_pam_field\" \"$_slp_wheel_field\" \"$_slp_root_field\" \"$_slp_comp\"",
         "  return 0",
         "}",
     ]) + "\n"
 
 
 def shell_function(control_id, locator, key, op, expected):
-    if (locator, key, op, expected) != (CANONICAL_LOCATOR, CANONICAL_KEY, CANONICAL_OP, CANONICAL_AUTHORITY):
+    if (locator, key, op, expected) != (CANONICAL_LOCATOR, CANONICAL_KEY, CANONICAL_OP, CANONICAL_EXPECTED):
         raise ValueError("unsupported SRC-0003 pam-wheel-access contract")
-    return _render(control_id, "/etc/pam.d/su", "/etc/group", expected)
+    return _render(control_id, "/etc/pam.d/su", "/etc/group")
 
 
-def _shell_function_for_fixture(control_id, pam_path, group_path, authority_path):
-    return _render(control_id, pam_path, group_path, authority_path)
+def _shell_function_for_fixture(control_id, pam_path, group_path):
+    return _render(control_id, pam_path, group_path)
 
 
 def main() -> int:
@@ -305,7 +248,7 @@ def main() -> int:
         CANONICAL_LOCATOR,
         CANONICAL_KEY,
         CANONICAL_OP,
-        CANONICAL_AUTHORITY,
+        CANONICAL_EXPECTED,
     )
     for token in ("chmod ", "chown ", "groupadd ", "groupdel ", "gpasswd ", "usermod ", ">>"):
         assert token not in block
