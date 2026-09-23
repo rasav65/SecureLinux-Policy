@@ -1536,11 +1536,21 @@ class HomeSensitiveFilesAdapterFixtures(unittest.TestCase):
 
     def tearDown(self): self.tmp.cleanup()
 
-    def run_check(self):
+    def run_check(self, shim_command=None, shim_text=None):
         block = HOME_SENSITIVE._shell_function_for_fixture("TEST.HOME", str(self.home_base))
+        if shim_command is not None:
+            block = install_command_shim(block, self.base, shim_command, shim_text)
         script = self.base / "check.sh"
         script.write_text(block + "\nslp_check_TEST_HOME\n", encoding="utf-8")
         return subprocess.run([BASH, str(script)], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    def row(self, shim_command=None, shim_text=None):
+        cp = self.run_check(shim_command, shim_text)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        fields = cp.stdout.strip().split("\t")
+        self.assertEqual(len(fields), 5, cp.stdout)
+        return tuple(fields[2:])
 
     def test_check_runs_without_authority_file(self):
         self.assertFalse(hasattr(HOME_SENSITIVE, "CANONICAL_INVENTORY"))
@@ -1667,6 +1677,116 @@ class HomeSensitiveFilesAdapterFixtures(unittest.TestCase):
         ):
             with self.subTest(args=args):
                 with self.assertRaises(ValueError): HOME_SENSITIVE.shell_function(*args)
+
+    # --- Внедрённые ошибки stat (матрица 2.3.11, B-02 аудита Codex
+    # диапазона 6780086..3215d1c; пробел аудита a71f386..2c641bd) ----------
+    # Обёртка /usr/bin/stat детерминированно эмулирует отказ, не являющийся
+    # доказанным ENOENT, на самом /home, на элементе и на предке.
+
+    def test_home_base_stat_failure_other_than_enoent_is_error_not_pass(self):
+        shim = _stat_fail_shim_text(self.home_base, "Permission denied")
+        self.assertEqual(self.row("/usr/bin/stat", shim),
+                         ("ERROR", "home-base:stat-failed:%s" % self.home_base, "ERROR"))
+
+    def test_element_stat_failure_other_than_enoent_is_error_not_not_directory(self):
+        self.user_home.rmdir()
+        self.user_home.write_text("x\n", encoding="utf-8")  # без сбоя — home:not-directory
+        shim = _stat_fail_shim_text(self.user_home, "Permission denied")
+        self.assertEqual(self.row("/usr/bin/stat", shim),
+                         ("ERROR", "home:stat-failed:%s" % self.user_home, "ERROR"))
+
+    def test_element_stat_failure_on_directory_is_error_not_dropped(self):
+        # Сбой stat на совместимом каталоге: элемент не выпадает из
+        # популяции молча (PASS с homes=2 был бы потерей объекта).
+        p = self.user_home / ".bashrc"; p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o644)
+        shim = _stat_fail_shim_text(self.user_home, "Permission denied")
+        self.assertEqual(self.row("/usr/bin/stat", shim),
+                         ("ERROR", "home:stat-failed:%s" % self.user_home, "ERROR"))
+
+    def test_element_vanishing_before_classification_is_error_not_not_directory(self):
+        self.user_home.rmdir()
+        self.user_home.write_text("x\n", encoding="utf-8")
+        shim = _stat_vanish_shim_text(self.user_home)
+        self.assertEqual(self.row("/usr/bin/stat", shim),
+                         ("ERROR", "home:vanished:%s" % self.user_home, "ERROR"))
+        self.assertFalse(self.user_home.exists(), "сбой не внедрён")
+
+    def test_home_ancestor_stat_failure_other_than_enoent_is_error(self):
+        shutil.rmtree(self.home_base)
+        shim = _stat_fail_shim_text(self.base, "Permission denied")
+        self.assertEqual(self.row("/usr/bin/stat", shim),
+                         ("ERROR", "home-base:ancestor-stat-failed:%s" % self.base, "ERROR"))
+
+    # --- Байт-опасные имена и цели (матрица 2.3.11, B-01 аудита Codex
+    # диапазона 3215d1c..cc90fd6; пробел аудита a71f386..2c641bd) ----------
+    # Ожидание — строка 145 адаптера и ветки home:invalid-name: TAB/LF/CR/DEL
+    # в имени элемента /home на любой ветке классификации и в цели readlink
+    # дают `home:invalid-name` без payload.
+
+    BAD_NAME_BYTES = (("tab", "\t"), ("lf", "\n"), ("cr", "\r"), ("del", "\x7f"))
+
+    def _clear_home(self):
+        for child in sorted(self.home_base.iterdir(), reverse=True):
+            if child.is_symlink() or not child.is_dir():
+                child.unlink()
+            else:
+                shutil.rmtree(child)
+
+    def test_control_byte_in_entry_name_is_invalid_name_on_directory_branch(self):
+        for label, byte in self.BAD_NAME_BYTES:
+            with self.subTest(byte=label):
+                self._clear_home()
+                (self.home_base / ("user" + byte + "x")).mkdir(mode=0o700)
+                self.assertEqual(self.row(), ("ERROR", "home:invalid-name", "ERROR"))
+
+    def test_control_byte_in_entry_name_is_invalid_name_on_symlink_branch(self):
+        for label, byte in self.BAD_NAME_BYTES:
+            with self.subTest(byte=label):
+                self._clear_home()
+                target = self.base / "real"
+                target.mkdir(mode=0o700, exist_ok=True)
+                (self.home_base / ("user" + byte + "x")).symlink_to(target)
+                self.assertEqual(self.row(), ("ERROR", "home:invalid-name", "ERROR"))
+
+    def test_control_byte_in_entry_name_is_invalid_name_on_not_directory_branch(self):
+        for label, byte in self.BAD_NAME_BYTES:
+            with self.subTest(byte=label):
+                self._clear_home()
+                (self.home_base / ("user" + byte + "x")).write_text("x\n", encoding="utf-8")
+                self.assertEqual(self.row(), ("ERROR", "home:invalid-name", "ERROR"))
+
+    def test_control_byte_in_entry_name_is_invalid_name_on_error_branch(self):
+        for label, byte in self.BAD_NAME_BYTES:
+            with self.subTest(byte=label):
+                self._clear_home()
+                entry = self.home_base / ("user" + byte + "x")
+                entry.write_text("x\n", encoding="utf-8")
+                shim = _stat_fail_shim_text(entry, "Permission denied")
+                self.assertEqual(self.row("/usr/bin/stat", shim), ("ERROR", "home:invalid-name", "ERROR"))
+
+    def test_control_byte_in_symlink_target_is_invalid_name(self):
+        # Цель — вне /home: вердикт даёт проверка цели readlink, а не
+        # байт-опасное имя самой цели как элемента популяции.
+        for label, byte in self.BAD_NAME_BYTES:
+            with self.subTest(byte=label):
+                self._clear_home()
+                target = self.base / ("real" + byte + "x")
+                target.mkdir(mode=0o700, exist_ok=True)
+                (self.home_base / "user").symlink_to(target)
+                self.assertEqual(self.row(), ("ERROR", "home:invalid-name", "ERROR"))
+
+    def test_trailing_lf_in_symlink_target_is_invalid_name(self):
+        # readlink печатает цель и свой LF; адаптер снимает ровно один LF,
+        # значащий завершающий LF цели остаётся и даёт home:invalid-name, а
+        # не урезанный home:symlink:<путь>-><цель без LF>.
+        for label, exists in (("dangling", False), ("existing", True)):
+            with self.subTest(target=label):
+                self._clear_home()
+                target = str(self.base / "real") + "\n"
+                if exists:
+                    os.makedirs(target, mode=0o700, exist_ok=True)
+                (self.home_base / "user").symlink_to(target)
+                self.assertEqual(self.row(), ("ERROR", "home:invalid-name", "ERROR"))
 
 @unittest.skipIf(BASH is None, "bash not available")
 class HomeDirectoriesModeAdapterFixtures(unittest.TestCase):
@@ -6364,6 +6484,166 @@ class PamWheelAbsentReasonRenderFormat(unittest.TestCase):
         self.assertTrue(matches and all(matches), body)
         reconstructed = "".join(m.group(4) for m in matches).rstrip(" ")
         self.assertEqual(reconstructed, self.REASON)
+
+
+@unittest.skipIf(BASH is None, "bash not available")
+class HomeSensitiveReasonRenderFormat(unittest.TestCase):
+    """Сверка raw/JSON/pretty для 2.3.10 (пробел аудита a71f386..2c641bd).
+    В отличие от `SlpCollectPolicyReasonFormat` (синтетическая строка), здесь
+    через реальные `slp_collect_policy` и рендеры трекнутого артефакта идёт
+    вывод реальной функции адаптера `home-sensitive-files-mode` на фикстуре;
+    единственная подмена — списки `_slp_fns`/`_slp_ids` из одной функции.
+    """
+
+    ARTIFACT = SlpCollectPolicyReasonFormat.ARTIFACT
+    FNS_RE = SlpCollectPolicyReasonFormat.FNS_RE
+    IDS_RE = SlpCollectPolicyReasonFormat.IDS_RE
+    SYSTEM_PRELUDE = SlpCollectPolicyReasonFormat.SYSTEM_PRELUDE
+    TAIL_GUARD = SlpCollectPolicyReasonFormat.TAIL_GUARD
+    BAD_NAME_BYTES = HomeSensitiveFilesAdapterFixtures.BAD_NAME_BYTES
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.base = Path(self.tmp.name)
+        self.home = self.base / "home"
+        self.home.mkdir()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_driver(self, driver, shim_text=None):
+        block = HOME_SENSITIVE._shell_function_for_fixture("TEST.HOME", str(self.home))
+        if shim_text is not None:
+            block = install_command_shim(block, self.base, "/usr/bin/stat", shim_text)
+        text = self.ARTIFACT.read_text(encoding="utf-8")
+        text = text.split(self.TAIL_GUARD, 1)[0]
+        self.assertEqual(len(self.FNS_RE.findall(text)), 1)
+        self.assertEqual(len(self.IDS_RE.findall(text)), 1)
+        text = self.FNS_RE.sub("  local -a _slp_fns=('slp_check_TEST_HOME')\n", text, count=1)
+        text = self.IDS_RE.sub("  local -a _slp_ids=('TEST.HOME')\n", text, count=1)
+        stub = (
+            "slp_presentation_for_control() {\n"
+            "  printf '%s\\t%s\\t%s\\t%s\\n' 'fstec-linux-2022 §2.3.10' 'home-sensitive-files-mode' 'n/a' ''\n"
+            "}\n"
+        )
+        source = text + "\n" + block + stub + self.SYSTEM_PRELUDE
+        return subprocess.run(
+            [BASH, "-s"], input="set -u\n" + source + "\n" + driver,
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+
+    def raw_and_json(self, shim_text=None):
+        cp = self.run_driver(
+            "slp_collect_policy >/dev/null\n"
+            "echo '===RAW==='\n"
+            "slp_render_raw 0\n"
+            "echo '===JSON==='\n"
+            "slp_render_json 0\n",
+            shim_text,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertEqual(cp.stderr, "", cp.stderr)
+        raw_part, json_part = cp.stdout.split("===JSON===\n", 1)
+        raw_part = raw_part.split("===RAW===\n", 1)[1]
+        check_lines = [l + "\n" for l in raw_part.splitlines() if l.startswith("SLP-CHECK-V1\t")]
+        self.assertEqual(len(check_lines), 1, raw_part)
+        rows = [r for r in json.loads(json_part)["results"] if r["control_id"] == "TEST.HOME"]
+        self.assertEqual(len(rows), 1, json_part)
+        return check_lines[0], rows[0]
+
+    def assert_error_reason_everywhere(self, reason, shim_text=None):
+        raw_part, row = self.raw_and_json(shim_text)
+        self.assertEqual(raw_part, "SLP-CHECK-V1\tTEST.HOME\tERROR\t" + reason + "\tERROR\n")
+        self.assertEqual((row["value"], row["result"]), (reason, "ERROR"))
+
+    def _clear_home(self):
+        for child in sorted(self.home.iterdir(), reverse=True):
+            if child.is_symlink() or not child.is_dir():
+                child.unlink()
+            else:
+                shutil.rmtree(child)
+
+    def test_symlink_reason_with_path_target_and_space(self):
+        target = self.base / "my target"; target.mkdir()
+        link = self.home / "my link"; link.symlink_to(target)
+        self.assert_error_reason_everywhere("home:symlink:%s->%s" % (link, target))
+
+    def test_not_directory_reason(self):
+        f = self.home / "user"; f.write_text("x\n", encoding="utf-8")
+        self.assert_error_reason_everywhere("home:not-directory:%s" % f)
+
+    def test_injected_stat_failures(self):
+        entry = self.home / "user"
+        entry.write_text("x\n", encoding="utf-8")
+        with self.subTest(where="element"):
+            self.assert_error_reason_everywhere(
+                "home:stat-failed:%s" % entry, _stat_fail_shim_text(entry, "Permission denied"))
+        with self.subTest(where="home-base"):
+            self.assert_error_reason_everywhere(
+                "home-base:stat-failed:%s" % self.home, _stat_fail_shim_text(self.home, "Permission denied"))
+        with self.subTest(where="ancestor"):
+            shutil.rmtree(self.home)
+            self.assert_error_reason_everywhere(
+                "home-base:ancestor-stat-failed:%s" % self.base, _stat_fail_shim_text(self.base, "Permission denied"))
+
+    def test_control_byte_in_name_or_target_reaches_renderers_as_invalid_name(self):
+        # Адаптер сам превращает байт-опасное имя/цель в home:invalid-name —
+        # коллектор принимает строку (нет CHECK_INTERNAL_ERROR), raw и JSON
+        # несут ровно эту причину.
+        for label, byte in self.BAD_NAME_BYTES:
+            for where in ("name", "target"):
+                with self.subTest(byte=label, where=where):
+                    self._clear_home()
+                    if where == "name":
+                        (self.home / ("user" + byte + "x")).mkdir(mode=0o700)
+                    else:
+                        target = self.base / ("real" + byte + "x")
+                        target.mkdir(mode=0o700, exist_ok=True)
+                        (self.home / "user").symlink_to(target)
+                    self.assert_error_reason_everywhere("home:invalid-name")
+        with self.subTest(byte="trailing-lf", where="target"):
+            self._clear_home()
+            (self.home / "user").symlink_to(str(self.base / "real") + "\n")
+            self.assert_error_reason_everywhere("home:invalid-name")
+
+    def test_value_payload_raw_and_json(self):
+        d = self.home / "user"; d.mkdir()
+        p = d / ".bashrc"; p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o644)
+        raw_part, row = self.raw_and_json()
+        payload = "homes=1;discovered=1;checked=1;violations=1"
+        self.assertEqual(raw_part, "SLP-CHECK-V1\tTEST.HOME\tVALUE\t" + payload + "\tFAIL\n")
+        self.assertEqual((row["value"], row["result"]), (payload, "FAIL"))
+
+    def test_pretty_does_not_lose_bytes_of_wrapped_reason(self):
+        # reason заведомо длиннее колонки: реконструкция по всем строкам
+        # переноса побайтово совпадает с причиной адаптера.
+        f = self.home / ("user" + "x" * 80); f.write_text("x\n", encoding="utf-8")
+        reason = "home:not-directory:%s" % f
+        cp = self.run_driver(
+            "slp_collect_policy >/dev/null\n"
+            "slp_render_pretty 0 TEST\n"
+            "printf 'WIDTHS=%s,%s,%s,%s,%s\\n' \"$SLP_PRETTY_WS\" \"$SLP_PRETTY_WSRC\" \"$SLP_PRETTY_WC\" \"$SLP_PRETTY_WCUR\" \"$SLP_PRETTY_WREQ\"\n",
+        )
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertEqual(cp.stderr, "", cp.stderr)
+        self.assertNotIn("CHECK_INTERNAL_ERROR", cp.stdout)
+        body, widths_line = cp.stdout.rsplit("WIDTHS=", 1)
+        ws, wsrc, wc, wcur, wreq = (int(n) for n in widths_line.strip().split(","))
+        row_re = re.compile(
+            r"^ (.{%d}) \| (.{%d}) \| (.{%d}) \| (.{%d}) \| (.{%d}) \|$"
+            % (ws, wsrc, wc, wcur, wreq)
+        )
+        lines = body.splitlines()
+        sep_indices = [
+            i for i, line in enumerate(lines)
+            if line and set(line) <= {"-", "+"} and line.endswith("+")
+        ]
+        self.assertGreaterEqual(len(sep_indices), 2, body)
+        data_lines = lines[sep_indices[0] + 1 : sep_indices[1]]
+        matches = [row_re.match(line) for line in data_lines]
+        self.assertTrue(matches and all(matches), body)
+        reconstructed = "".join(m.group(4) for m in matches).rstrip(" ")
+        self.assertEqual(reconstructed, "not-determined; reason: " + reason)
 
 
 if __name__ == "__main__":
