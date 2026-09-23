@@ -250,6 +250,23 @@ Read-only evidence helper `slp-vm-batch-src0002-src0004-evidence-v1` выпол�
 
 Тот же read-only batch имеет integrity-verified evidence `7/7` для 2.2.1. На всех семи installations `/etc/pam.d/su` и `/etc/group` были regular root-owned files mode `0644`; active `pam_wheel` lines и exact required line count равнялись `0`, local `wheel` group count равнялся `0`, при этом `pam_wheel.so` module был обнаружен в standard security-module paths. Поэтому baseline однозначно `FAIL` ещё до необходимости локальной `<user list>` authority. Наличие module file само по себе compliance не доказывает. Evidence подтверждает assumptions CHECK внутри принятой поддерживаемой матрицы.
 
+Штатный `/etc/pam.d/su` Ubuntu 24.04 (`auth sufficient pam_rootok.so` первой
+auth-строкой, `@include common-auth`/`common-account`/`common-session`, без
+`pam_wheel.so`) до исправления Н-3 давал `ERROR pam:ambiguous-stack`: гейт
+«sufficient/include/substack/`[...]` как первая auth-строка» и отдельно
+`@include` при ещё не найденном exact-правиле обрывали разбор `break`'ом
+раньше, чем адаптер успевал убедиться, что `pam_wheel.so` в файле попросту
+нет. Правка заменила `break` на пометку `_slp_hazard`: разбор доходит до
+конца файла, и если `pam_wheel.so` ни в какой форме не встретилась —
+вердикт `VALUE/FAIL` с payload `pam_wheel=absent;wheel=<absent|gid N>;
+gid10=<имя|free>` (на этой конкретной конфигурации —
+`pam_wheel=absent;wheel=absent;gid10=uucp`, gid 10 занят `uucp`). `ERROR
+pam:ambiguous-stack` остаётся при любом реальном парсинг-сбое, а также если
+`pam_wheel.so` найдена в неэталонной форме (независимо от порядка
+относительно hazard-строки) или найдена в эталонной форме именно после
+hazard-строки: в обоих случаях реальная достижимость PAM-движком не
+доказана.
+
 ## SRC-0004 / sudoers reviewed policy — матрица привилегированного evidence
 
 Read-only evidence `slp-vm-evidence-src0002-src0004-v1-*` integrity-verified `7/7`: Ubuntu 22 FULL, Ubuntu 24 MINIMIZED/FULL, Ubuntu 26 MINIMIZED/FULL, Debian 12 SERVER, Debian 13 SERVER. Во всех семи `/etc/sudoers` существовал как regular `0440 root:root`, присутствовал active `@includedir /etc/sudoers.d`, полный `visudo` check завершался `RC=0`. На Ubuntu 26 `sudo`/`visudo` предоставлялись через alternatives symlinks. Эти host facts подтверждают способ discovery/validation; они не задают универсальный approved user/command set.

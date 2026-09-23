@@ -3,7 +3,7 @@
   "adapter_id": "product-pam-wheel-access-check-v2",
   "implementation_id": "product-pam-wheel-access-check-v2.py",
   "implementation_path": "product/adapters/product-pam-wheel-access-check-v2.py",
-  "implementation_sha256": "1e2179a1a1c198a85fe45a220482dc93b920668d2e12c9d28edd9ae2e7dea908",
+  "implementation_sha256": "b396dd7f7619b183019b1d5b2af0ca04563b013cfa3cff824a234bc5c9726cf9",
   "input_schema_id": "canonical-control-v3",
   "input_schema_version": 1,
   "operation": "check",

@@ -10,6 +10,47 @@
 
 ## [Unreleased]
 
+- Н-3, `FSTEC-LINUX-2022-2.2.1-SU-WHEEL-ACCESS` (`product-pam-wheel-access-check-v2.py`):
+  разобранный и разрешённый стек `/etc/pam.d/su` без активной `pam_wheel.so`
+  давал `ERROR pam:ambiguous-stack`, а не `VALUE/FAIL`. Причина — гейт «первая
+  auth-строка sufficient/include/substack/`[...]`» (и отдельно `@include` при
+  ещё не найденном exact-правиле) обрывал разбор `break`'ом, не давая
+  убедиться, что `pam_wheel.so` в файле попросту нет; штатный
+  `/etc/pam.d/su` Ubuntu 24.04 (`auth sufficient pam_rootok.so` первой
+  auth-строкой, `@include common-auth/common-account/common-session`)
+  попадал именно в эту ловушку. Правка: обе точки вместо `_slp_error=1;
+  break` только выставляют `_slp_hazard=1` и разбор продолжается до конца
+  файла; если `pam_wheel.so` ни в какой форме не встретилась — `VALUE/FAIL`
+  с payload `pam_wheel=absent;wheel=<absent|gid N>;gid10=<имя|free>` (wheel/
+  gid10 — из уже пройденного разбора `/etc/group`, generic-скан gid10
+  включён только при `_slp_exact==0`, чтобы не расширять поверхность ошибок
+  на уже протестированных PASS/FAIL-ветках); `ERROR ambiguous-stack`
+  остаётся, если `pam_wheel.so` найдена (в любой форме) после hazard-строки
+  — её реальная достижимость PAM-движком не доказана (7 существующих
+  regression-тестов `test_prior_include_or_success_short_circuit_fails_closed`
+  не менялись и остались зелёными). Имя владельца gid 10 в payload проверяется
+  той же `_slp_name_has_forbidden_separator`, что и раньше защищала
+  member/authority-имена; в неё же добавлен байт DEL (0x7F) — раньше
+  функция ловила TAB/CR/VT/FF/пробел/двоеточие/запятую/`#`/unicode-пробелы,
+  но не DEL. Payload старого формата `pam_exact=0;wheel=%d;members=%d;
+  authority=not-needed` для случая `_slp_exact==0` заменён новым везде (не
+  только там, где раньше была ошибка) — один существующий тест
+  (`test_missing_exact_pam_is_definitive_fail_without_authority`) обновлён
+  под новую строку. Новые тесты в `PamWheelAccessAdapterFixtures` (7 методов,
+  включая параметризованный на 2 байта): штатный стек 24.04 → FAIL +
+  точный payload; wheel с произвольным gid; gid10 занят другим именем/
+  свободен; закомментированная `pam_wheel.so` не считается активной;
+  байт-опасное имя владельца gid10 → `ERROR group:invalid-record`; до
+  правки 8 подтестов падали (6 методов + 2 байта параметризованного).
+  Новый класс `PamWheelAbsentReasonRenderFormat` (2 теста) доказывает, что
+  новый payload проходит raw/JSON/pretty без потери байт — уже проходил, не
+  тест-на-падение (VALUE-строки не подпадают под regex control-байт
+  коллектора, который применяется только к `_slp_comp == ERROR`).
+  `docs/compatibility.md` (секция SRC-0003) приведена к фактическому выводу:
+  штатный стек 24.04 теперь даёт `pam_wheel=absent;wheel=absent;gid10=uucp`.
+  Новый `CHECK_SHA256`
+  `d45437179aaea5ee716c55f8fcaf518c93e8e60e0455b4656246a148b1415d5b`.
+
 - Repair-step по аудиту Codex диапазона `3215d1c..cc90fd6` (`RESULT=REVISE`,
   3 блокера; **B-02** — диагностика, без правки продукта). **B-01**: адаптер
   `product-home-directories-mode-check-v2.py` (2.3.11) фильтровал

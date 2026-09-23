@@ -2183,9 +2183,17 @@ class PamWheelAccessAdapterFixtures(unittest.TestCase):
         self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
 
     def test_missing_exact_pam_is_definitive_fail_without_authority(self):
+        # Н-3 (репарация, аудит Codex): payload разобранного-но-без-активной-
+        # pam_wheel.so стека унифицирован под `pam_wheel=absent;wheel=<..>;
+        # gid10=<..>` для всех таких случаев, а не только для тех, что раньше
+        # шли в ambiguous-stack. wheel:x:10:root совпадает и под "wheel", и
+        # под generic-сканом gid10 (тот же gid 10) — оба поля ссылаются на
+        # группу wheel.
         row = self.run_fixture("auth required pam_unix.so\n", "wheel:x:10:root\n", None)
-        self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
-        self.assertIn("authority=not-needed", row[3])
+        self.assertEqual(
+            (row[2], row[3], row[4]),
+            ("VALUE", "pam_wheel=absent;wheel=gid 10;gid10=wheel", "FAIL"),
+        )
 
     def test_comment_backslash_does_not_continue_comment_text(self):
         row = self.run_fixture(
@@ -2231,6 +2239,83 @@ class PamWheelAccessAdapterFixtures(unittest.TestCase):
             with self.subTest(pam_text=pam_text):
                 row = self.run_fixture(pam_text, "wheel:x:10:root\n", "")
                 self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
+
+    # --- Н-3 (репарация, аудит Codex): разобранный и разрешённый стек без
+    # активной pam_wheel.so — FAIL, не ERROR ambiguous-stack. Ранее гейт
+    # "sufficient/include/substack/[...] как первая auth-строка" (и отдельно
+    # — @include при ещё не найденном exact-правиле) обрывал разбор через
+    # `break`, не давая убедиться, что pam_wheel.so в файле попросту нет;
+    # теперь такие строки только помечают `_slp_hazard` и разбор продолжается
+    # до конца файла. ERROR остаётся, если pam_wheel.so всё-таки найдена (в
+    # любой форме) после такой строки — реальный PAM-движок мог бы её не
+    # достичь (регрессия выше, не менялась).
+
+    def test_stock_ubuntu_2404_stack_without_wheel_rule_is_fail(self):
+        # Опорный факт: auth sufficient pam_rootok.so — первая auth-строка,
+        # затем session pam_env x2/pam_mail/pam_limits, затем
+        # @include common-auth/common-account/common-session; ни в su, ни в
+        # перечисленных полях нет pam_wheel.so; local wheel-группы нет; gid 10
+        # занят uucp (штатно на Ubuntu 24.04).
+        pam_text = (
+            "auth       sufficient   pam_rootok.so\n"
+            "session    required     pam_env.so\n"
+            "session    required     pam_env.so readenv=1 user_readenv=0\n"
+            "session    required     pam_mail.so\n"
+            "session    required     pam_limits.so\n"
+            "@include common-auth\n"
+            "@include common-account\n"
+            "@include common-session\n"
+        )
+        row = self.run_fixture(pam_text, "root:x:0:\nuucp:x:10:\n", None)
+        self.assertEqual(
+            (row[2], row[3], row[4]),
+            ("VALUE", "pam_wheel=absent;wheel=absent;gid10=uucp", "FAIL"),
+        )
+
+    def test_wheel_with_non_default_gid_and_free_gid10_absent_payload(self):
+        row = self.run_fixture("auth required pam_unix.so\n", "wheel:x:999:root\n", None)
+        self.assertEqual(
+            (row[2], row[3], row[4]),
+            ("VALUE", "pam_wheel=absent;wheel=gid 999;gid10=free", "FAIL"),
+        )
+
+    def test_gid10_owned_by_other_name_without_wheel_absent_payload(self):
+        row = self.run_fixture("auth required pam_unix.so\n", "custom:x:10:\n", None)
+        self.assertEqual(
+            (row[2], row[3], row[4]),
+            ("VALUE", "pam_wheel=absent;wheel=absent;gid10=custom", "FAIL"),
+        )
+
+    def test_fully_clean_stack_wheel_absent_and_gid10_free(self):
+        row = self.run_fixture("auth required pam_unix.so\n", "root:x:0:\n", None)
+        self.assertEqual(
+            (row[2], row[3], row[4]),
+            ("VALUE", "pam_wheel=absent;wheel=absent;gid10=free", "FAIL"),
+        )
+
+    def test_commented_out_pam_wheel_line_is_not_active(self):
+        row = self.run_fixture(
+            "# auth required pam_wheel.so use_uid\nauth required pam_unix.so\n",
+            "root:x:0:\n",
+            None,
+        )
+        self.assertEqual(
+            (row[2], row[3], row[4]),
+            ("VALUE", "pam_wheel=absent;wheel=absent;gid10=free", "FAIL"),
+        )
+
+    def test_gid10_owner_with_forbidden_byte_in_name_is_error(self):
+        # \r не сюда: embedded CR посреди строки ловится более ранней
+        # CRLF-проверкой того же цикла (group:invalid-record по другой
+        # причине), а не сканом gid10.
+        for byte in ("\t", "\x7f"):
+            with self.subTest(byte=repr(byte)):
+                row = self.run_fixture(
+                    "auth required pam_unix.so\n",
+                    "cus" + byte + "tom:x:10:\n",
+                    None,
+                )
+                self.assertEqual((row[2], row[3], row[4]), ("ERROR", "group:invalid-record", "ERROR"))
 
     def test_missing_wheel_is_definitive_fail_without_authority(self):
         row = self.run_fixture("auth required pam_wheel.so use_uid\n", "root:x:0:\n", None)
@@ -6366,6 +6451,96 @@ class SlpCollectPolicyReasonFormat(unittest.TestCase):
             "slp_collect_policy; printf 'RC=%s\\n' \"$?\"",
         )
         self.assertEqual(cp.stdout.strip(), "RC=0", cp.stderr)
+
+
+@unittest.skipIf(BASH is None, "bash not available")
+class PamWheelAbsentReasonRenderFormat(unittest.TestCase):
+    """Н-3 (репарация, аудит Codex): VALUE/FAIL payload
+    `pam_wheel=absent;wheel=<..>;gid10=<..>` (2.2.1, разобранный стек без
+    активной pam_wheel.so) проходит raw/JSON/pretty без искажений. В отличие
+    от ERROR-reason, `slp_collect_policy` не применяет к VALUE-строкам regex
+    control-байт (`generate-product-check-v2.py` строит строгую проверку
+    только для `_slp_comp == ERROR`) — здесь доказывается, что сам payload
+    доходит до всех трёх форматов рендера целиком, без потери байт.
+    """
+
+    ARTIFACT = SlpCollectPolicyReasonFormat.ARTIFACT
+    FNS_RE = SlpCollectPolicyReasonFormat.FNS_RE
+    IDS_RE = SlpCollectPolicyReasonFormat.IDS_RE
+    SYSTEM_PRELUDE = SlpCollectPolicyReasonFormat.SYSTEM_PRELUDE
+    TAIL_GUARD = SlpCollectPolicyReasonFormat.TAIL_GUARD
+
+    REASON = "pam_wheel=absent;wheel=absent;gid10=uucp"
+
+    def isolated_source(self):
+        text = self.ARTIFACT.read_text(encoding="utf-8")
+        text = text.split(self.TAIL_GUARD, 1)[0]
+        self.assertEqual(len(self.FNS_RE.findall(text)), 1)
+        self.assertEqual(len(self.IDS_RE.findall(text)), 1)
+        text = self.FNS_RE.sub("  local -a _slp_fns=('slp_check_TEST_H3')\n", text, count=1)
+        text = self.IDS_RE.sub("  local -a _slp_ids=('TEST-H3')\n", text, count=1)
+        stub = (
+            "slp_check_TEST_H3() {\n"
+            "  printf 'SLP-CHECK-V1\\tTEST-H3\\tVALUE\\t%s\\tFAIL\\n' " + shlex.quote(self.REASON) + "\n"
+            "}\n"
+            "slp_presentation_for_control() {\n"
+            "  printf '%s\\t%s\\t%s\\t%s\\n' 'fstec-linux-2022 §2.2.1' 'su-wheel-access' 'authority allowlist' ''\n"
+            "}\n"
+        )
+        return text + "\n" + stub + self.SYSTEM_PRELUDE
+
+    def run_driver(self, driver):
+        source = self.isolated_source()
+        return subprocess.run(
+            [BASH, "-s"], input="set -u\n" + source + "\n" + driver,
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+
+    def test_raw_and_json_carry_the_payload_intact(self):
+        cp = self.run_driver(
+            "slp_collect_policy >/dev/null\n"
+            "echo '===RAW==='\n"
+            "slp_render_raw 0\n"
+            "echo '===JSON==='\n"
+            "slp_render_json 0\n",
+        )
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertEqual(cp.stderr, "", cp.stderr)
+        raw_part, json_part = cp.stdout.split("===JSON===\n", 1)
+        raw_part = raw_part.split("===RAW===\n", 1)[1]
+        self.assertIn("SLP-CHECK-V1\tTEST-H3\tVALUE\t" + self.REASON + "\tFAIL\n", raw_part)
+        payload = json.loads(json_part)
+        rows = [r for r in payload["results"] if r["control_id"] == "TEST-H3"]
+        self.assertEqual(len(rows), 1, json_part)
+        self.assertEqual(rows[0]["value"], self.REASON)
+        self.assertEqual(rows[0]["result"], "FAIL")
+
+    def test_pretty_does_not_lose_bytes_of_payload(self):
+        cp = self.run_driver(
+            "slp_collect_policy >/dev/null\n"
+            "slp_render_pretty 0 TEST\n"
+            "printf 'WIDTHS=%s,%s,%s,%s,%s\\n' \"$SLP_PRETTY_WS\" \"$SLP_PRETTY_WSRC\" \"$SLP_PRETTY_WC\" \"$SLP_PRETTY_WCUR\" \"$SLP_PRETTY_WREQ\"\n",
+        )
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertEqual(cp.stderr, "", cp.stderr)
+        self.assertNotIn("CHECK_INTERNAL_ERROR", cp.stdout)
+        body, widths_line = cp.stdout.rsplit("WIDTHS=", 1)
+        ws, wsrc, wc, wcur, wreq = (int(n) for n in widths_line.strip().split(","))
+        row_re = re.compile(
+            r"^ (.{%d}) \| (.{%d}) \| (.{%d}) \| (.{%d}) \| (.{%d}) \|$"
+            % (ws, wsrc, wc, wcur, wreq)
+        )
+        lines = body.splitlines()
+        sep_indices = [
+            i for i, line in enumerate(lines)
+            if line and set(line) <= {"-", "+"} and line.endswith("+")
+        ]
+        self.assertGreaterEqual(len(sep_indices), 2, body)
+        data_lines = lines[sep_indices[0] + 1 : sep_indices[1]]
+        matches = [row_re.match(line) for line in data_lines]
+        self.assertTrue(matches and all(matches), body)
+        reconstructed = "".join(m.group(4) for m in matches).rstrip(" ")
+        self.assertEqual(reconstructed, self.REASON)
 
 
 if __name__ == "__main__":
