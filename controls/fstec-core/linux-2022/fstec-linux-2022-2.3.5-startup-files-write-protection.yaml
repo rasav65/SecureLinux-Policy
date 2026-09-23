@@ -23,4 +23,4 @@ expected:
   value: "0002"
   type: "string"
 apply:
-  supported: false
+  supported: true

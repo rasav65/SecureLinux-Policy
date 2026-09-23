@@ -10,6 +10,55 @@
 
 ## [Unreleased]
 
+- Механизм APPLY `startup-files-write-protection-v1` для
+  `FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION` (SRC-0009,
+  `other-write bits-clear 0002`). Строк source index не закрывает: SRC-0009
+  уже `CLOSED` по CHECK. Образец — `standard-system-paths-mode-v1`: как и у
+  2.3.5, популяция — фиксированные корни плюс корни, вычисляемые на хосте
+  (там PATH root, здесь `systemd-analyze unit-paths`), симлинк разрешается в
+  конечную цель, цели дедуплицируются по `dev:ino`; у
+  `suid-sgid-applications-mode-v1` популяция другая (`find` по точкам
+  монтирования, без разрешения симлинков).
+
+  Адаптер `product-startup-files-write-protection-apply-v1`: перечислитель —
+  Python-копия наблюдателя CHECK `product-startup-files-write-protection-check-v1`
+  (rc-корни `/etc/rc0.d`…`/etc/rc6.d`, прямые элементы, подкаталоги
+  пропускаются; прямые `*.service` уникальных корней юнитов; маска `/dev/null`
+  не объект; снимки и сверка стабильности в конце наблюдения — те же причины
+  `ERROR`). Объект мутации — разрешённая цель из популяции CHECK, в том числе
+  цель rc-симлинка вне rc-каталогов (семантика `chmod o-w`); отсечения по
+  каноническим корням, как у образца, нет, потому что популяция CHECK его не
+  делает. rc-корни разбираются из локатора `/etc/rc[0-6].d|systemd-unit-paths`
+  и совпадают с `CANONICAL_RC_ROOTS` CHECK-адаптера. Снимается только бит
+  `0002` одним `fchmod` на дескрипторе с `O_NOFOLLOW`; перед ним ревалидация
+  `S_ISREG` → `dev/ino` из плана → бит `0002`, иначе пропуск с причиной;
+  `st_nlink>1` — пропуск; словарь исходов и `step_rc`/`transaction_commit` —
+  как у образца; ошибка популяции CHECK — отказ без мутаций (`CONFLICT` для
+  `target:invalid-type`/`directory:invalid-type`, иначе `OTHER`); dry-run —
+  до проверки привилегии, без мутаций.
+
+  Authority `mechanism-startup-files-write-protection-v1.json` (только поля,
+  которые читает код), binding, строки обоих APPLY-реестров,
+  `apply.supported: true` у 2.3.5. Dispatcher генератора не менялся: маршрут
+  берётся из реестров. Литералы тестов: механизмов 5 → 6, контролей APPLY
+  28 → 29. Карта: узел `APPLY6` (`current`, ВМ-прогона нет), 2.3.5 в строке
+  G6 «да». Docs: перечисления механизмов в `README.md`, `product/README.md`
+  (и абзац APPLY в секции SRC-0009), `docs/ROADMAP.md`,
+  `docs/compatibility.md`, `docs/testing-strategy.md`, `docs/PROJECT-MAP.md`.
+  Трекнутый артефакт перегенерирован, `CHECK_SHA256`
+  `3212aff915e103cfc2db8b69100f45e8a303c9c60fb8ce10f0dfc83f3363c55e`.
+
+  Тесты: новый `tests/product-v1/test_startup_files_write_protection_apply_adapter.py`
+  (38; до адаптера 37 из 37 — ERROR на импорте, тест `os.scandir` добавлен
+  после): паритет с исполненным CHECK на 11 раскладках, включая ошибки;
+  все объекты без `0002` — ни одного `fchmod`; `.service` `0646` → `0644`,
+  прочие объекты не тронуты (`st_mode`, `st_ctime_ns`); rc3.d-симлинк на
+  скрипт `0757` — CHECK даёт `violations=1`, APPLY меняет цель на `0755`,
+  симлинк остаётся; dry-run без `fchmod`; изменение объекта между планом и
+  записью (каталог, подмена инода, снятый бит, симлинк на месте цели) —
+  пропуск с причиной образца. Шесть мутантов адаптера пойманы.
+  `test_mechanism_authority_fields.py` +1. ВМ-прогон не выполнялся.
+
 - APPLY-dispatcher: секция `blocks` в терминале показывает причину отказа
   и для `ABORTED_PRECONDITION_OTHER`, не только для
   `ABORTED_PRECONDITION_CONFLICT` (решение человека 23.09.2026). Правка в

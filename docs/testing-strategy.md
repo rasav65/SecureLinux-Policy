@@ -54,25 +54,28 @@ Regression сравнивает ожидаемые и committed bytes. Изме�
 
 Исключение — механизмы, мутация которых только ужесточает состояние:
 `file-mode-owner-v1`, `optional-file-root-files-mode-v1`,
-`suid-sgid-applications-mode-v1` и `standard-system-paths-mode-v1`. Компенсация для них
+`suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1` и
+`startup-files-write-protection-v1`. Компенсация для них
 запрещена, потому что возврат прежнего, более слабого значения ослабил бы защиту.
 Модель — `fchmod` на объект, проверка постусловия и отказ без отката; у
-`optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1` и
-`standard-system-paths-mode-v1` ошибка одного объекта не останавливает остальные
+`optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`,
+`standard-system-paths-mode-v1` и `startup-files-write-protection-v1` ошибка одного объекта не останавливает остальные
 (`APPLIED_PARTIAL`), `EROFS` прерывает прогон сразу. Пункты о
 journal/intent и компенсации к ним не применяются.
 
 Историческое: решением DP-3 APPLY для `SRC-0001` выведен из продукта, текущий
-APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1` и `standard-system-paths-mode-v1`.
+APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1` и `startup-files-write-protection-v1`.
 Каждый механизм проверяется сквозным тестом встроенного dispatcher
-(`tests/product-v1/test_apply_dispatch_integration.py`) и VM-прогоном.
+(`tests/product-v1/test_apply_dispatch_integration.py`) и VM-прогоном;
+у `startup-files-write-protection-v1` VM-прогон ещё не выполнялся.
 
 Ошибка обхода каталога обязана давать отказ до мутации, а не мутацию по неполной
 популяции. Для каждого механизма, который перечисляет каталоги
 (`optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`,
-`standard-system-paths-mode-v1`, источники sysctl у `config-line-with-runtime-v1`),
-тест внедряет ошибку `os.scandir` на одном каталоге и проверяет: причина
-`scan:find-failed` (у sysctl — `source:unreadable-directory`), `mutation_performed=false`,
+`standard-system-paths-mode-v1`, `startup-files-write-protection-v1`, источники sysctl у
+`config-line-with-runtime-v1`), тест внедряет ошибку `os.scandir` на одном каталоге и
+проверяет: причина `scan:find-failed` (у sysctl — `source:unreadable-directory`, у
+`startup-files-write-protection-v1` — `directory:scan-failed`, как у его CHECK), `mutation_performed=false`,
 `fchmod` или запись не вызывались, файлы неизменны; для APPLY и dry-run. Для
 `standard-system-paths-mode-v1` тест дополнительно доказывает, что внедрённая ошибка
 действительно доходит до `onerror` у `os.walk`. VM-прогон этого механизма повторён на

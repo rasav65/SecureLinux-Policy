@@ -85,7 +85,7 @@ def load_apply_registry():
     # Литерал закреплён явным решением: меняется только осознанной правкой этого
     # теста при принятии нового APPLY-механизма, а не автоматически под результат
     # прогона. Вычисление здесь дало бы сравнение реестра с самим собой.
-    assert len(rows) == 5
+    assert len(rows) == 6
     row = rows[0]
     assert all(row[field] for field in APPLY_REGISTRY_FIELDS)
     return row
