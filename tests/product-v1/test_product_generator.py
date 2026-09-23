@@ -389,13 +389,12 @@ class GeneratorModel(unittest.TestCase):
             ("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>", "mode", "bits-clear", "0022"),
         )
         src0013 = [c for c in controls if c["index_id"] == "SRC-0013"]
-        self.assertEqual(len(src0013), 2)
+        # 2.3.9: «белый» список в источнике — пример («например, если определён»),
+        # не обязательный объект проверки; SRC-0013 закрывается одной проверкой прав.
+        self.assertEqual(len(src0013), 1)
         self.assertEqual(
-            {(c["parameter_kind"], c["parameter_locator"], c["parameter_key"], c["expected_op"], c["expected_value"]) for c in src0013},
-            {
-                ("suid-sgid-applications", "/proc/self/mountinfo", "mode", "bits-clear", "0022"),
-                ("suid-sgid-applications", "/proc/self/mountinfo", "approved-set", "subset-of-file", "/etc/securelinux-policy/suid-sgid.allowlist-v1"),
-            },
+            (src0013[0]["parameter_kind"], src0013[0]["parameter_locator"], src0013[0]["parameter_key"], src0013[0]["expected_op"], src0013[0]["expected_value"]),
+            ("suid-sgid-applications", "/proc/self/mountinfo", "mode", "bits-clear", "0022"),
         )
         src0014 = [c for c in controls if c["index_id"] == "SRC-0014"]
         self.assertEqual(len(src0014), 1)
@@ -4613,6 +4612,57 @@ SLP_POLICY_RC=1
             ["\t".join(("SLP-CHECK-V1", "FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE", "VALUE", value, "PASS" if value == "2" else "FAIL"))],
         )
 
+    def test_src0013_suid_sgid_is_decided_by_mode_only(self):
+        """2.3.9: единственная CHECK-функция SRC-0013 — SUID-SGID-MODE; результат
+        зависит только от прав SUID/SGID-файлов, файлы в /etc/securelinux-policy/
+        не читаются."""
+        text = self.ARTIFACT.read_text(encoding="utf-8")
+        self.assertNotIn("suid-sgid.allowlist-v1", text)
+        self.assertNotIn("SUID-SGID-ALLOWLIST", text)
+        fns = sorted(set(re.findall(r"^(slp_check_FSTEC_LINUX_2022_2_3_9_[A-Z0-9_]+)\(\) \{$", text, re.M)))
+        self.assertEqual(fns, ["slp_check_FSTEC_LINUX_2022_2_3_9_SUID_SGID_MODE"])
+        body = text[text.index(fns[0] + "() {"):]
+        body = body[:body.index("\n}\n") + 3]
+        self.assertNotIn("/etc/securelinux-policy", body)
+        # Общий код адаптера объявляет local _slp_allowlist_text, но ветка
+        # чтения allowlist-файла (subset-of-file) в MODE-функцию не входит.
+        self.assertNotIn('"$_slp_allowlist"', body)
+        # Единственная подмена — путь mountinfo на фикстуру с одной точкой
+        # монтирования; каталога /etc/securelinux-policy/ в фикстуре нет.
+        canonical = "_slp_mountinfo='/proc/self/mountinfo'"
+        self.assertEqual(body.count(canonical), 1)
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            mountinfo = base / "mountinfo"
+            mountinfo.write_text(f"1 0 0:1 / {base} rw,relatime - ext4 /dev/test rw\n", encoding="utf-8")
+            app = base / "app"
+            app.write_text("x\n", encoding="utf-8")
+            fixture = body.replace(canonical, "_slp_mountinfo=" + shlex.quote(str(mountinfo)))
+            for mode, expected in ((0o4755, "violations=0\tPASS"), (0o4775, "violations=1\tFAIL")):
+                with self.subTest(mode=oct(mode)):
+                    os.chmod(app, mode)
+                    cp = subprocess.run(
+                        [BASH, "-c", "set -u\n" + fixture + "\n" + fns[0] + "\n"],
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                    )
+                    self.assertEqual(cp.returncode, 0, cp.stderr)
+                    self.assertEqual(cp.stderr, "")
+                    self.assertEqual(
+                        cp.stdout,
+                        "SLP-CHECK-V1\tFSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE\tVALUE\tmounts=1;checked=1;" + expected + "\n",
+                    )
+
+    def test_retired_suid_sgid_allowlist_control_is_absent(self):
+        """Выведенный 2.3.9 SUID-SGID-ALLOWLIST: control-yaml и строки манифеста
+        нет; общий CHECK-адаптер suid-sgid-applications остаётся в реестре для MODE."""
+        self.assertFalse(
+            (ROOT / "controls/fstec-core/linux-2022/fstec-linux-2022-2.3.9-suid-sgid-allowlist.yaml").exists()
+        )
+        manifest = (ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv").read_text(encoding="utf-8")
+        self.assertNotIn("SUID-SGID-ALLOWLIST", manifest)
+        registry = (ROOT / "product/ADAPTER-REGISTRY.tsv").read_text(encoding="utf-8")
+        self.assertIn("\nsuid-sgid-applications\tproduct-suid-sgid-applications-check-v2\t", registry)
+
     def test_retired_tested_setting_attestation_is_historical_only(self):
         """Выведенный механизм подтверждения 2.5.11 — historical bytes (конвенция
         SRC-0001): файлы на месте, в ADAPTER-REGISTRY и артефакте его нет."""
@@ -4642,14 +4692,18 @@ SLP_POLICY_RC=1
         }
         identities = {control["control_id"]: GEN_V2_CURRENT.terminal_identity(control) for control in controls}
         # Литерал: число canonical controls меняется только явным решением
-        # (51 → 50: выведен 2.5.11 RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE).
-        self.assertEqual(len(rendered), 50)
-        self.assertEqual(len(identities), 50)
+        # (51 → 50: выведен 2.5.11 RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE;
+        # 50 → 49: выведен 2.3.9 SUID-SGID-ALLOWLIST).
+        self.assertEqual(len(rendered), 49)
+        self.assertEqual(len(identities), 49)
         self.assertTrue(all(value and "\n" not in value and "\r" not in value for value in rendered.values()))
         self.assertEqual(identities["FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE"], ("fstec-linux-2022 §2.6.6", "suid-dumpable"))
         self.assertNotIn("FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE", identities)
         with self.assertRaises(RuntimeError):
             GEN_V2_CURRENT.required_display("tested-before-use", "kernel.randomize_va_space=2")
+        self.assertNotIn("FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST", identities)
+        with self.assertRaises(RuntimeError):
+            GEN_V2_CURRENT.required_display("subset-of-file", "/etc/securelinux-policy/suid-sgid.allowlist-v1")
         self.assertEqual(
             GEN_V2_CURRENT.terminal_identity(
                 {"control_id": "TEST-FILE-MODE", "doc_id": "fstec-linux-2022", "source_locator": "2.1.1"}

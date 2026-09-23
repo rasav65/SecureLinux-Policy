@@ -20,7 +20,6 @@ FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY	SRC-0010	2.3.6	mode	0033	fstec-linux-2022-2.3
 FSTEC-LINUX-2022-2.3.6-CRONTAB	SRC-0010	2.3.6	mode	0033	fstec-linux-2022-2.3.6-crontab.yaml	d50e07de9a8e1d3feaf89464fe5807c60eb0ce864931c5de0fbeea57cd48a485
 FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE	SRC-0011	2.3.7	mode	0022	fstec-linux-2022-2.3.7-user-cron-files-mode.yaml	b5cb46dc92c854012b0a970a9d3c78febae83b29f28b3dfdc3bd80626ee5ac87
 FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE	SRC-0012	2.3.8	mode	0022	fstec-linux-2022-2.3.8-standard-system-paths-mode.yaml	fc60c18b38228707f5885c13f1f16a89b3c2dca42a38e9c69effb3ceb7048216
-FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST	SRC-0013	2.3.9	approved-set	/etc/securelinux-policy/suid-sgid.allowlist-v1	fstec-linux-2022-2.3.9-suid-sgid-allowlist.yaml	0c7c2ff2dbafa54b15440ce8f8d25173c174a28c8b1752804631a829c191a86c
 FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE	SRC-0013	2.3.9	mode	0022	fstec-linux-2022-2.3.9-suid-sgid-mode.yaml	181c86580d9111600a2e2e8661db62f61c8e0f05e8c4b4c119f27bdd2818dfc8
 FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT	SRC-0016	2.4.1	kernel.dmesg_restrict	1	fstec-linux-2022-2.4.1-dmesg-restrict.yaml	53f03ee29dfa574d13b10683fcdfe738cbd04629ba81fb1ec092bb1fc91ef49a
 FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT	SRC-0017	2.4.2	kernel.kptr_restrict	2	fstec-linux-2022-2.4.2-kptr-restrict.yaml	0a257a5fadad7de419ef47749abb09eba1721028b122080b90256e7d47d156d9

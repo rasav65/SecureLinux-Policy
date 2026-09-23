@@ -9,7 +9,7 @@ TOTAL_INDEX_ROWS=349
 CONTROLLED_CLOSED_WITH_CONTRACT=40
 DISPOSED_CLOSED_ROWS=211
 OPEN_INDEX_ROWS=98
-CANONICAL_CONTROLS=50
+CANONICAL_CONTROLS=49
 ```
 
 Число canonical controls и число закрытых source rows — разные величины: одна строка источника может требовать `exact-control-set` из нескольких controls.
@@ -30,7 +30,7 @@ CANONICAL_CONTROLS=50
 | SRC-0010 | 2.3.6 | exact-control-set | `FSTEC-LINUX-2022-2.3.6-CRONTAB`<br>`FSTEC-LINUX-2022-2.3.6-CRON-D`<br>`FSTEC-LINUX-2022-2.3.6-CRON-HOURLY`<br>`FSTEC-LINUX-2022-2.3.6-CRON-DAILY`<br>`FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY`<br>`FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY` | `optional-file-root-files-mode` | `product-optional-file-root-files-mode-check-v1` |
 | SRC-0011 | 2.3.7 | atomic-single | `FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE` | `user-cron-files-mode` | `product-user-cron-files-mode-check-v2` |
 | SRC-0012 | 2.3.8 | atomic-single | `FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE` | `standard-system-paths-mode` | `product-standard-system-paths-mode-check-v2` |
-| SRC-0013 | 2.3.9 | exact-control-set | `FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE`<br>`FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST` | `suid-sgid-applications` | `product-suid-sgid-applications-check-v2` |
+| SRC-0013 | 2.3.9 | atomic-single | `FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE` | `suid-sgid-applications` | `product-suid-sgid-applications-check-v2` |
 | SRC-0014 | 2.3.10 | atomic-single | `FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE` | `home-sensitive-files-mode` | `product-home-sensitive-files-mode-check-v2` |
 | SRC-0015 | 2.3.11 | atomic-single | `FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE` | `home-directories-mode` | `product-home-directories-mode-check-v2` |
 | SRC-0016 | 2.4.1 | atomic-single | `FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT` | `sysctl` | `product-sysctl-check-v2` |
@@ -81,7 +81,7 @@ CANONICAL_CONTROLS=50
 | `startup-files-write-protection` | `product-startup-files-write-protection-check-v1` | да | 1 |
 | `sudo-root-command-files-protection` | `product-sudo-root-command-files-protection-check-v2` | да | 1 |
 | `sudoers-reviewed-policy` | `product-sudoers-reviewed-policy-check-v1` | да | 1 |
-| `suid-sgid-applications` | `product-suid-sgid-applications-check-v2` | да | 2 |
+| `suid-sgid-applications` | `product-suid-sgid-applications-check-v2` | да | 1 |
 | `sysctl` | `product-sysctl-check-v2` | да | 17 |
 | `user-cron-files-mode` | `product-user-cron-files-mode-check-v2` | да | 1 |
 
@@ -90,7 +90,7 @@ CANONICAL_CONTROLS=50
 | Документ source | Всего строк | Controlled CLOSED | Disposed CLOSED | OPEN | Canonical controls |
 |---|---:|---:|---:|---:|---:|
 | fstec-configuration-2026 | 49 | 0 | 0 | 49 | 0 |
-| fstec-linux-2022 | 40 | 40 | 0 | 0 | 50 |
+| fstec-linux-2022 | 40 | 40 | 0 | 0 | 49 |
 | fstec-logging-2025 | 14 | 0 | 0 | 14 | 0 |
 | fstec-perimeter-2026 | 35 | 0 | 0 | 35 | 0 |
 | fstec-security-update-testing-2022 | 70 | 0 | 70 | 0 | 0 |

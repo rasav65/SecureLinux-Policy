@@ -10,6 +10,51 @@
 
 ## [Unreleased]
 
+- 2.3.9 (SRC-0013) — решение человека 23.09.2026: контроль
+  `FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST` выведен из активного состава.
+  Основание: в тексте ФСТЭК 2.3.9 обязательное — права SUID/SGID-приложений
+  не позволяют остальным изменять содержимое (`chmod go-w`); про «лишние»
+  приложения сказано «например, если определен «белый» список» — список
+  необязателен, а продукт не читает входных данных администратора. SRC-0013
+  закрывается одной проверкой `FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE`
+  (`bits-clear 0022`): результат зависит только от прав SUID/SGID-файлов,
+  файлы в `/etc/securelinux-policy/` для 2.3.9 не читаются.
+
+  Удалены control-yaml и строка `CONTROL-MANIFEST.tsv`; ветка op
+  `subset-of-file` удалена из `required_display` генератора. CHECK-адаптер
+  `product-suid-sgid-applications-check-v2` общий с MODE, поэтому строка
+  `ADAPTER-REGISTRY.tsv`, байты адаптера, binding и контракт не менялись:
+  ветка `subset-of-file` в адаптере (и `allowlist_control` в контракте)
+  сохранена, ни один контроль её не использует. Не менялись также
+  `product/apply-adapters/product-suid-sgid-applications-mode-apply-v1.py`
+  (SHA привязан к пройденному ВМ-прогону; комментарий о `…-ALLOWLIST` на
+  строке 11 остался) и kind `approved-set` / op `subset-of-file` в
+  `checker/gates-v3/checker.py` и `CONTROL-SCHEMA.json`.
+  `CLOSURE-CONTRACT.tsv`: SRC-0013 `exact-control-set` → `atomic-single`.
+  `SOURCE-INDEX.tsv`: note SRC-0013 переписана без allowlist. Сгенерированные
+  блоки `README.md`, `docs/PROJECT-MAP.md`, `docs/fstec-coverage.md` — через
+  `tools/render-current-docs.py`; вручную — секция SRC-0013 и два пункта
+  перечня в `product/README.md`, вывод секции SRC-0013 в
+  `docs/compatibility.md`, строка G5 в `docs/PROJECT-MAP.md`.
+
+  Тесты: в `test_product_generator.py` модель SRC-0013 — один контроль;
+  добавлены `test_src0013_suid_sgid_is_decided_by_mode_only` (единственная
+  CHECK-функция 2.3.9 в артефакте — SUID-SGID-MODE, артефакт не содержит
+  `suid-sgid.allowlist-v1`, функция не читает allowlist-файл и
+  `/etc/securelinux-policy`; её байты из артефакта с подменой только пути
+  mountinfo на фикстуру дают `violations=0 PASS` при `4755` и
+  `violations=1 FAIL` при `4775`) и
+  `test_retired_suid_sgid_allowlist_control_is_absent`; пин числа canonical
+  controls 50 → 49; `required_display("subset-of-file")` — `RuntimeError`. До
+  правки падали 4 теста в `test_product_generator.py`. Записанные выводы
+  пересобраны: `ACTIVE-CHECKER-V3-NO-VM.txt` и
+  `checker/gates-v3/ACTIVE-NO-VM-EVIDENCE.txt` (`checked=49`),
+  `tests/source-skeleton-v1/TEST-RESULTS.txt` (`pilot=49`). Canonical
+  controls: 50 → 49. Новый `CHECK_SHA256`
+  `2f6d78ab44ec69b35f51e96a8c5bc42d06e4d7117f7404d6eba4e595bab5f119`.
+  Закрыто строк source index: 0 (SRC-0013 уже CLOSED, меняется состав
+  закрытия).
+
 - 2.5.11 (SRC-0034) — решение человека 23.09.2026: контроль
   `FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE` выведен из
   активного состава. Основание: в тексте ФСТЭК «путём использования команды

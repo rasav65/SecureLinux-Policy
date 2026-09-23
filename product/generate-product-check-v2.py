@@ -654,8 +654,6 @@ def required_display(op, value) -> str:
         return "cron command paths safe"
     if op == "root-owned-go-w-conditional":
         return "owner root if regular user; go-w if other-writable"
-    if op == "subset-of-file":
-        return "subset: " + rendered
     raise RuntimeError(f"unsupported requirement op: {op!r}")
 
 
