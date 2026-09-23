@@ -10,6 +10,63 @@
 
 ## [Unreleased]
 
+- 2.2.2 (SRC-0004) — решение человека 23.09.2026: CHECK-адаптер
+  `product-sudoers-reviewed-policy-check-v1` не читает authority-файл
+  `/etc/securelinux-policy/sudoers-reviewed-policy-v1`; правило задано внутри
+  продукта. Текст ФСТЭК 2.2.2: ограничить список пользователей, которым
+  разрешено sudo, и разрешённых команд путём пересмотра `/etc/sudoers`. На
+  чистой системе семейства Debian sudo имеют только root и штатная группа
+  администраторов, созданная установщиком, поэтому допустимы только штатные
+  правила `root ALL=(ALL:ALL) ALL`, `%sudo ALL=(ALL:ALL) ALL`,
+  `%admin ALL=(ALL) ALL`. Любое иное правило (отдельный пользователь, другая
+  группа, конкретные команды, иной runas, `NOPASSWD` и иные теги) —
+  `VALUE/FAIL`, VALUE `rules=N;nonstandard=M`. Состав группы и строки
+  `Defaults` не оцениваются; `visudo -c` с ошибкой — `ERROR`.
+
+  Адаптер правлен на месте (v1, как `sshd-root-login-v1` в `759b041`): разбор
+  тем же способом, что в 2.3.4 (`476aebd`) — изолированный `/usr/bin/python3`,
+  `visudo -c` даёт closure набора файлов, `cvtsudoers -c /dev/null -e -s
+  aliases -f json` — правила; closure с байтами и вывод `cvtsudoers`
+  снимаются дважды, расхождение — `ERROR observation:policy-changed`. Правило
+  — один `User_Spec`; сравнение — канонический JSON с представлением штатного
+  правила (команда `ALL` несёт подразумеваемый `SETENV`; форма сверена с
+  реальным выводом sudo 1.9.15p5). Код разбора скопирован из адаптера 2.3.4
+  без новых общих сущностей.
+
+  Параметры контроля: key `policy-tree` → `user-specs`, op
+  `eq-reviewed-policy` → `standard-rules-only`, expected — три штатных правила
+  через `;`; локатор `/etc/sudoers` без изменений. Синхронно: control-yaml
+  2.2.2 (и `justification`), строка 5 `CONTROL-MANIFEST.tsv`, контракт
+  `sudoers-reviewed-policy-check-semantic-v1` (блок `authority` удалён, блок
+  `rule`, `supported_ops`), binding, строка `ADAPTER-REGISTRY.tsv`,
+  `checker/gates-v3/checker.py` (`KIND_RULES`), `CONTROL-SCHEMA.json`, note
+  SRC-0004 в `SOURCE-INDEX.tsv` и basis в `CLOSURE-CONTRACT.tsv`;
+  `required_display` генератора (`eq-reviewed-policy` → `standard-rules-only`);
+  `test_schema_runtime_parity.py`; `sudoers-reviewed-policy` убран из
+  `OPS_DECLARATION_GAPS` (контракт теперь объявляет `supported_ops`).
+  Документы по гейту `test_documentation_baseline.py`: секция SRC-0004 и две
+  строки перечня в `product/README.md`, абзац SRC-0004 в
+  `tests/product-v1/README.md`, в `docs/PROJECT-MAP.md` контроль 2.2.2
+  перенесён из G5 («определяет администратор») в G7 («содержимое
+  конфигурационных файлов»).
+
+  Тесты: класс `SudoersReviewedPolicyAdapterFixtures` заменён (13 → 16
+  методов), класс `SudoersReviewedPolicySingleReadFixtures` (3 метода,
+  однократное чтение authority) удалён. Новые: штатный `/etc/sudoers` Ubuntu
+  24.04 и Debian 12 → PASS; `user1 ALL=(ALL) ALL` → FAIL; `%sudo
+  ALL=(ALL:ALL) NOPASSWD: ALL` → FAIL; другая группа, команды, runas, теги —
+  каждое правило считается; строка с двумя пользователями — одно правило;
+  `Defaults` не оцениваются; пустой набор правил → PASS; без
+  `/etc/securelinux-policy` → не ERROR; `visudo -c` с ошибкой → ERROR;
+  drift closure, её байтов и вывода `cvtsudoers` → ERROR; отказ, stderr и
+  JSON вне модели у `cvtsudoers` → ERROR. До правки со старым адаптером
+  падали 15 из 16 методов, 17 случаев с подтестами (проходил только
+  `test_adapter_selftest`), а также
+  пин SRC-0004 в `test_current_population_and_registry` и
+  `test_operation_vocabulary_gaps_only_shrink`. Новый `CHECK_SHA256`
+  `d9d2ef93875145088c22e1779877c9059e8ab62fda4495bd37def321d172ee72`.
+  Закрыто строк source index: 0 (SRC-0004 уже CLOSED).
+
 - 2.3.4 (SRC-0008) — решение человека 23.09.2026: CHECK-адаптер
   `product-sudo-root-command-files-protection-check-v2` не читает
   authority-файл `/etc/securelinux-policy/sudoers-reviewed-policy-v1`. Текст

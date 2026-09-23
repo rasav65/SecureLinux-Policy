@@ -3,7 +3,7 @@
   "adapter_id": "product-sudoers-reviewed-policy-check-v1",
   "implementation_id": "product-sudoers-reviewed-policy-check-v1.py",
   "implementation_path": "product/adapters/product-sudoers-reviewed-policy-check-v1.py",
-  "implementation_sha256": "f476ce0af4f2bee7a252ff68d49c6c950579ccc102f4b7f0344048c0e3824d8d",
+  "implementation_sha256": "fa40c955282b910e6867bafe5b5c307411d25e01beddcc7c9604c4523b02a30e",
   "input_schema_id": "canonical-control-v3",
   "input_schema_version": 1,
   "operation": "check",
@@ -12,9 +12,9 @@
   "parameter_kind": "sudoers-reviewed-policy",
   "semantic_contract_id": "sudoers-reviewed-policy-check-semantic-v1",
   "semantic_contract_path": "product/contracts/sudoers-reviewed-policy-check-semantic-v1.json",
-  "semantic_contract_sha256": "e77abc26b031bd6b4c3d95610513e39e8f392d06f7296ec34463dcda1dfa148c",
+  "semantic_contract_sha256": "e893cf22b75109d2f0df0eb932503e5bb5d0e081d299adf08cedfc3d20c13674",
   "supported_ops": [
-    "eq-reviewed-policy"
+    "standard-rules-only"
   ],
   "target_id": "linux-x86_64-supported-v1"
 }

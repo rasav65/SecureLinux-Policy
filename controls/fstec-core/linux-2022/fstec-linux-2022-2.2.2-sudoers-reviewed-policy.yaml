@@ -12,15 +12,15 @@ source:
 requirement:
   stated: "2.2.2. Ограничить список пользователей, которым разрешено использовать команду sudo и разрешенных к выполнению через sudo команд путём пересмотра файла /etc/sudoers."
   derived: true
-  justification: "Источник требует ограничить пользователей и команды путём пересмотра /etc/sudoers, но не задаёт universal approved set; exact reviewed-policy authority/pathset является product mechanism для детерминированного CHECK."
+  justification: "Источник требует ограничить пользователей и команды путём пересмотра /etc/sudoers; на чистой системе семейства Debian sudo имеют только root и штатная группа администраторов, поэтому допустимы только штатные правила (решение 23.09.2026); состав группы и Defaults не оцениваются."
   applicability: "technical"
 parameter:
   kind: "sudoers-reviewed-policy"
   locator: "/etc/sudoers"
-  key: "policy-tree"
+  key: "user-specs"
 expected:
-  op: "eq-reviewed-policy"
-  value: "/etc/securelinux-policy/sudoers-reviewed-policy-v1"
+  op: "standard-rules-only"
+  value: "root ALL=(ALL:ALL) ALL;%sudo ALL=(ALL:ALL) ALL;%admin ALL=(ALL) ALL"
   type: "string"
 apply:
   supported: false

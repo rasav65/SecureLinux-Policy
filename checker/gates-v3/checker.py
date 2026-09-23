@@ -337,14 +337,14 @@ KIND_RULES = {
     },
     "sudoers-reviewed-policy": {
         "locator": {"const": "/etc/sudoers"},
-        "key": {"const": "policy-tree"},
-        "op": {"const": "eq-reviewed-policy"},
+        "key": {"const": "user-specs"},
+        "op": {"const": "standard-rules-only"},
         "type": {"const": "string"},
         "relations": [
             {
-                "if": {"expected.op": {"const": "eq-reviewed-policy"}},
+                "if": {"expected.op": {"const": "standard-rules-only"}},
                 "then": {
-                    "expected.value": {"const": "/etc/securelinux-policy/sudoers-reviewed-policy-v1"},
+                    "expected.value": {"const": "root ALL=(ALL:ALL) ALL;%sudo ALL=(ALL:ALL) ALL;%admin ALL=(ALL) ALL"},
                     "requirement.derived": {"const": True},
                 },
             },

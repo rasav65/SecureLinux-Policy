@@ -646,8 +646,8 @@ def required_display(op, value) -> str:
         return "all non-empty"
     if op == "eq-authority-file":
         return "authority: " + rendered
-    if op == "eq-reviewed-policy":
-        return "reviewed: " + rendered
+    if op == "standard-rules-only":
+        return "stock rules only: " + rendered
     if op == "runtime-paths-safe":
         return "runtime paths safe"
     if op == "cron-command-paths-safe":

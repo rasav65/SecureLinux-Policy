@@ -1957,7 +1957,7 @@
                     "expected": {
                       "properties": {
                         "op": {
-                          "const": "eq-reviewed-policy"
+                          "const": "standard-rules-only"
                         }
                       },
                       "required": [
@@ -1978,7 +1978,7 @@
                     "expected": {
                       "properties": {
                         "value": {
-                          "const": "/etc/securelinux-policy/sudoers-reviewed-policy-v1"
+                          "const": "root ALL=(ALL:ALL) ALL;%sudo ALL=(ALL:ALL) ALL;%admin ALL=(ALL) ALL"
                         }
                       },
                       "required": [
@@ -2015,7 +2015,7 @@
           "expected": {
             "properties": {
               "op": {
-                "const": "eq-reviewed-policy"
+                "const": "standard-rules-only"
               },
               "type": {
                 "const": "string"
@@ -2025,7 +2025,7 @@
           "parameter": {
             "properties": {
               "key": {
-                "const": "policy-tree"
+                "const": "user-specs"
               },
               "locator": {
                 "const": "/etc/sudoers"

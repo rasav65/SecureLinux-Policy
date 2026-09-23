@@ -17,7 +17,6 @@ OPS_DECLARATION_GAPS = frozenset({
     "pam-wheel-access",
     "running-process-paths-write-protection",
     "standard-system-paths-mode",
-    "sudoers-reviewed-policy",
     "suid-sgid-applications",
     "user-cron-files-mode",
 })
