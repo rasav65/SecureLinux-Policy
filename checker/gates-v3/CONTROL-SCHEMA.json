@@ -1188,7 +1188,7 @@
                 "const": "root-command-files"
               },
               "locator": {
-                "const": "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1"
+                "const": "/etc/sudoers"
               }
             }
           }

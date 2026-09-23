@@ -10,6 +10,59 @@
 
 ## [Unreleased]
 
+- 2.3.4 (SRC-0008) — решение человека 23.09.2026: CHECK-адаптер
+  `product-sudo-root-command-files-protection-check-v2` не читает
+  authority-файл `/etc/securelinux-policy/sudoers-reviewed-policy-v1`. Текст
+  ФСТЭК 2.3.4 адресует каждый исполняемый файл, запускаемый через sudo с
+  привилегиями root: владелец — обычный пользователь → несоответствие; запись
+  доступна всем → несоответствие. Эти два условия в коде не менялись.
+
+  Правки адаптера: удалены `DEFAULT_REVIEWED_AUTHORITY`, `parse_authority` и
+  сравнение с authority в `policy_snapshot`; набор файлов sudoers — closure
+  из вывода `visudo -c`, его пути и байты входят в снимок, а снимок
+  сравнивается между двумя наблюдениями одной проверки (drift набора или
+  байтов — `ERROR observation:policy-changed`; ошибка `visudo -c` —
+  `ERROR visudo:validation-failed`, как раньше). Команда `ALL` — не
+  конкретный исполняемый файл: пропуск вместо `ERROR sudo-policy:all-command`
+  (права системных программ проверяет 2.3.8; донор
+  `archive/securelinux-ng.sh` тоже брал из sudoers только явные абсолютные
+  пути). Группа в Runas_Spec рядом с пользовательской частью (`(ALL:ALL)`) —
+  не ошибка, допуск решает пользовательская часть runas; group-only
+  Runas_Spec без пользовательской части по-прежнему
+  `ERROR sudo-policy:unsupported-runas-group`. Штатный `/etc/sudoers`
+  Ubuntu 24.04 даёт `NOT_APPLICABLE` вместо `ERROR`.
+
+  Локатор `/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1`
+  → `/etc/sudoers` синхронно в control-yaml 2.3.4 (и `justification`),
+  адаптере, контракте `sudo-root-command-files-protection-check-semantic-v2`
+  (блок `policy_prerequisite` заменён на `sudoers_pathset`, `ALL` — из
+  `error_forms` в `excluded_forms`, `root_runas` — группа рядом с
+  пользовательской частью), binding, `checker/gates-v3/checker.py`
+  (`KIND_RULES`), `CONTROL-SCHEMA.json`, `test_schema_runtime_parity.py`;
+  строки `CONTROL-MANIFEST.tsv` (SHA yaml) и `ADAPTER-REGISTRY.tsv`; note
+  SRC-0008 в `SOURCE-INDEX.tsv` и basis в `CLOSURE-CONTRACT.tsv`. Контроль
+  2.2.2 SUDOERS-REVIEWED-POLICY и его authority не менялись. Документы:
+  секция SRC-0008 в `product/README.md` (заодно исправлена устаревшая фраза о
+  выборе executable prefix — код даёт `ERROR` на любой пробел),
+  `tests/product-v1/README.md`.
+
+  Тесты (`SudoRootCommandFilesProtectionFixtures`, 32 → 40 методов): фикстура
+  больше не создаёт authority; добавлены штатный `/etc/sudoers` Ubuntu 24.04
+  без `/etc/securelinux-policy` → `NOT_APPLICABLE`; явная команда с
+  владельцем root (реальный `/usr/bin/true` через `fsroot=/`) → PASS;
+  `/usr/local/bin/x` 0755 с несистемным не-root владельцем → PASS, с обычным
+  пользователем-владельцем → FAIL, 0757 → FAIL; `visudo -c` с ошибкой →
+  ERROR; `ALL` — пропуск; `(ALL:ALL)` допускается, group-only — ERROR; drift
+  набора и байтов closure между снимками → ERROR. Удалены
+  `test_policy_authority_drift_is_error` и случай `ALL` в
+  `test_unbounded_and_dynamic_command_forms_are_error`. До правки со старым
+  адаптером (authority отсутствует) падали 39 из 40 методов: 48 случаев с
+  подтестами — поведенческие, `test_generation_rejects_wrong_contract_fields`
+  — потому что прежний составной локатор теперь обязан отвергаться; проходил
+  только `test_adapter_selftest`. Новый `CHECK_SHA256`
+  `ccf1634d8de3b684065e5db1b52f2617a1b3ab5dce36501f9a0119d6e4591aa3`.
+  Закрыто строк source index: 0 (SRC-0008 уже CLOSED).
+
 - 2.3.9 (SRC-0013) — решение человека 23.09.2026: контроль
   `FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST` выведен из активного состава.
   Основание: в тексте ФСТЭК 2.3.9 обязательное — права SUID/SGID-приложений

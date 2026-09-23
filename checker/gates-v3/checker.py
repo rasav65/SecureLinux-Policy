@@ -216,7 +216,7 @@ KIND_RULES = {
         ],
     },
     "sudo-root-command-files-protection": {
-        "locator": {"const": "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1"},
+        "locator": {"const": "/etc/sudoers"},
         "key": {"const": "root-command-files"},
         "op": {"const": "root-owned-go-w-conditional"},
         "type": {"const": "string"},

@@ -354,7 +354,7 @@ class GeneratorModel(unittest.TestCase):
         self.assertEqual(len(src0008), 1)
         self.assertEqual(
             (src0008[0]["parameter_kind"], src0008[0]["parameter_locator"], src0008[0]["parameter_key"], src0008[0]["expected_op"], src0008[0]["expected_value"]),
-            ("sudo-root-command-files-protection", "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1", "root-command-files", "root-owned-go-w-conditional", "owner-if-regular-user;go-w-if-other-write"),
+            ("sudo-root-command-files-protection", "/etc/sudoers", "root-command-files", "root-owned-go-w-conditional", "owner-if-regular-user;go-w-if-other-write"),
         )
         src0009 = [c for c in controls if c["index_id"] == "SRC-0009"]
         self.assertEqual(len(src0009), 1)
@@ -2749,23 +2749,27 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
             spec["Cmnd_Specs"][0]["runasusers"] = [{"username": runas}]
         return spec
 
-    def run_fixture(self, specs, mode=0o755, owner_regular=False, uid_sources=True, policy_drift=False, cvt_rc=0, malformed_json=False, symlink=False, mutate_target_second_cvt=False, target_logical="/bin/tool", extra_executables=(), defaults=None, symlink_real_name=None, hardlink_real_name=None, target_bytes=None):
+    def run_fixture(self, specs, mode=0o755, owner_regular=False, uid_sources=True, visudo_drift=None, visudo_rc=0, sudoers_members=(), cvt_rc=0, malformed_json=False, symlink=False, mutate_target_second_cvt=False, target_logical="/bin/tool", extra_executables=(), defaults=None, symlink_real_name=None, hardlink_real_name=None, target_bytes=None, real_fsroot=False):
         if BASH is None:
             self.skipTest("bash not found")
         with tempfile.TemporaryDirectory(dir=ROOT) as td:
             root = Path(td)
-            fsroot = root / "fs"
+            fsroot = Path("/") if real_fsroot else root / "fs"
             logical_target = Path(target_logical)
             if not logical_target.is_absolute():
                 raise AssertionError("fixture target must be absolute")
             link_path = fsroot / str(logical_target).lstrip("/")
-            link_path.parent.mkdir(parents=True, exist_ok=True)
-            if hardlink_real_name is not None:
+            if real_fsroot:
+                # The target is an existing system file observed read-only.
+                pass
+            elif hardlink_real_name is not None:
+                link_path.parent.mkdir(parents=True, exist_ok=True)
                 target = link_path.with_name(hardlink_real_name)
                 target.write_bytes(target_bytes if target_bytes is not None else b"\x7fELF-SLP-FIXTURE\n")
                 target.chmod(mode)
                 os.link(target, link_path)
             else:
+                link_path.parent.mkdir(parents=True, exist_ok=True)
                 target = link_path.with_name(symlink_real_name or (link_path.name + ".real")) if symlink else link_path
                 target.write_bytes(target_bytes if target_bytes is not None else b"\x7fELF-SLP-FIXTURE\n")
                 target.chmod(mode)
@@ -2783,7 +2787,7 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
             # OWNER classification is decided from UID-range sources inside the
             # fixture root: the fixture owner is the running user, and the range
             # decides whether that owner counts as a regular user.
-            etc = fsroot / "etc"
+            etc = root / "fs" / "etc"
             etc.mkdir(parents=True, exist_ok=True)
             uid = os.getuid()
             low = uid if owner_regular else uid + 1
@@ -2794,15 +2798,36 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
             (etc / "passwd").write_text(
                 "root:x:0:0:root:/root:/bin/sh\nslpfixture:x:%d:%d::/nonexistent:/bin/sh\n" % (uid, uid),
                 encoding="utf-8")
+            # No reviewed-policy authority exists: the sudoers pathset comes from
+            # the visudo closure alone.
             sudoers = root / "sudoers"
             sudoers.write_text("Defaults env_reset\n", encoding="utf-8")
-            authority = root / "authority"
-            digest = hashlib.sha256(sudoers.read_bytes()).hexdigest()
-            authority.write_text("SLP-SUDOERS-REVIEWED-POLICY-V1\n" + digest + "\t" + str(sudoers) + "\n", encoding="utf-8")
-            if policy_drift:
-                sudoers.write_text("Defaults env_reset\nalice ALL=(root) /bin/tool\n", encoding="utf-8")
+            members = []
+            for name in sudoers_members:
+                member = root / name
+                member.parent.mkdir(parents=True, exist_ok=True)
+                member.write_text("# member\n", encoding="utf-8")
+                members.append(member)
+            closure = [str(sudoers)] + [str(m) for m in members]
+            visudo_state = root / "visudo-state"
             fake_visudo = root / "visudo"
-            fake_visudo.write_text("#!/bin/bash\nprintf '%s\\n' " + shlex.quote(str(sudoers) + ": parsed OK") + "\n", encoding="utf-8")
+            visudo_body = "printf '%s\\n' " + " ".join(shlex.quote(p + ": parsed OK") for p in closure) + "\n"
+            if visudo_rc:
+                visudo_body = "printf '%s\\n' " + shlex.quote(str(sudoers) + ":1:1: syntax error") + "\nexit " + str(visudo_rc) + "\n"
+            elif visudo_drift is not None:
+                extra_member = root / "drift-member"
+                extra_member.write_text("# drift\n", encoding="utf-8")
+                if visudo_drift == "bytes":
+                    second = "printf '%s\\n' '# drift' >> " + shlex.quote(str(sudoers)) + "\n" + visudo_body
+                elif visudo_drift == "pathset":
+                    second = visudo_body + "printf '%s\\n' " + shlex.quote(str(extra_member) + ": parsed OK") + "\n"
+                else:
+                    raise AssertionError("unknown visudo drift")
+                visudo_body = (
+                    "if [[ -e " + shlex.quote(str(visudo_state)) + " ]]; then\n" + second + "else\n: > "
+                    + shlex.quote(str(visudo_state)) + "\n" + visudo_body + "fi\n"
+                )
+            fake_visudo.write_text("#!/bin/bash\n" + visudo_body, encoding="utf-8")
             fake_visudo.chmod(0o755)
             fake_cvt = root / "cvtsudoers"
             state = root / "cvt-state"
@@ -2829,8 +2854,9 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
                 SUDO_ROOT_COMMAND_FILES.CANONICAL_KEY,
                 SUDO_ROOT_COMMAND_FILES.CANONICAL_OP,
                 SUDO_ROOT_COMMAND_FILES.CANONICAL_EXPECTED,
-                str(fsroot), str(sudoers), str(authority), str(fake_visudo), str(fake_cvt),
-                "/etc/login.defs", "/etc/adduser.conf",
+                str(fsroot), str(sudoers), str(fake_visudo), str(fake_cvt),
+                str(etc / "login.defs") if real_fsroot else "/etc/login.defs",
+                str(etc / "adduser.conf") if real_fsroot else "/etc/adduser.conf",
             )
             script = root / "run.sh"
             script.write_text("#!/bin/bash -p\n" + src + "\nslp_check_TEST_SUDO_ROOT_FILES\n", encoding="utf-8")
@@ -2928,7 +2954,6 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
 
     def test_unbounded_and_dynamic_command_forms_are_error(self):
         cases = {
-            "ALL": "sudo-policy:all-command",
             "/opt/*/tool": "sudo-policy:wildcard-command",
             "^/usr/bin/[a-z]+$": "sudo-policy:regex-command",
             "relative": "sudo-policy:nonabsolute-command",
@@ -2967,17 +2992,98 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
         self.assertEqual(row[3], "sudo-policy:unsupported-runas-selector")
 
-    def test_runas_group_part_is_error(self):
-        spec = self._user_spec()
+    def test_group_only_runas_is_error(self):
+        # Runas_Spec (:group) without a user part runs the command as the
+        # invoking user; the user part is what admits a rule, so a group-only
+        # spec stays outside the supported determinate subset.
+        spec = self._user_spec(runas=None)
         spec["Cmnd_Specs"][0]["runasgroups"] = [{"usergroup": "operators"}]
         row = self.run_fixture([spec], mode=0o777)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
         self.assertEqual(row[3], "sudo-policy:unsupported-runas-group")
 
-    def test_policy_authority_drift_is_error(self):
-        row = self.run_fixture([self._user_spec()], policy_drift=True)
-        self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
-        self.assertEqual(row[3], "authority:policy-mismatch")
+    def test_runas_group_next_to_user_part_is_not_error(self):
+        # (ALL:ALL): admission is decided by the user part of Runas_Spec.
+        for runas_user in ("ALL", "root"):
+            with self.subTest(runas_user=runas_user):
+                spec = self._user_spec(runas=runas_user, command="/usr/local/bin/x")
+                spec["Cmnd_Specs"][0]["runasgroups"] = [{"usergroup": "ALL"}]
+                row = self.run_fixture([spec], mode=0o757, target_logical="/usr/local/bin/x")
+                self.assertEqual((row[2], row[3], row[4]), ("VALUE", "files=1;owner_violations=0;mode_violations=1", "FAIL"))
+        spec = self._user_spec(runas="nobody", command="/usr/local/bin/x")
+        spec["Cmnd_Specs"][0]["runasgroups"] = [{"usergroup": "ALL"}]
+        row = self.run_fixture([spec], mode=0o757, target_logical="/usr/local/bin/x")
+        self.assertEqual((row[2], row[4]), ("NOT_APPLICABLE", "NOT_APPLICABLE"))
+
+    def test_all_command_is_skipped_not_error(self):
+        # ALL names no concrete executable; the rights of system programs are
+        # checked by 2.3.8.  Only explicit absolute pathnames enter the population.
+        spec = self._user_spec(runas="ALL", command="ALL")
+        row = self.run_fixture([spec], mode=0o757)
+        self.assertEqual((row[2], row[3], row[4]), ("NOT_APPLICABLE", "files=0;owner_violations=0;mode_violations=0", "NOT_APPLICABLE"))
+        spec = self._user_spec(runas="ALL", command="/usr/local/bin/x")
+        spec["Cmnd_Specs"][0]["Commands"].insert(0, {"command": "ALL"})
+        row = self.run_fixture([spec], mode=0o757, target_logical="/usr/local/bin/x")
+        self.assertEqual((row[2], row[3], row[4]), ("VALUE", "files=1;owner_violations=0;mode_violations=1", "FAIL"))
+
+    def test_ubuntu_2404_stock_sudoers_without_policy_dir_is_not_applicable(self):
+        # cvtsudoers -e -s aliases -f json of the stock Ubuntu 24.04 /etc/sudoers:
+        # root ALL=(ALL:ALL) ALL, %admin ALL=(ALL) ALL, %sudo ALL=(ALL:ALL) ALL,
+        # @includedir /etc/sudoers.d (README only).  /etc/securelinux-policy is
+        # absent; the result is a determinate empty population, not ERROR.
+        def rule(invoker, groups):
+            spec = {"runasusers": [{"username": "ALL"}], "Options": [{"setenv": True}], "Commands": [{"command": "ALL"}]}
+            if groups:
+                spec["runasgroups"] = [{"usergroup": "ALL"}]
+            return {"User_List": [invoker], "Host_List": [{"hostname": "ALL"}], "Cmnd_Specs": [spec]}
+        specs = [rule({"username": "root"}, True), rule({"usergroup": "admin"}, False), rule({"usergroup": "sudo"}, True)]
+        defaults = [
+            {"Options": [{"env_reset": True}]},
+            {"Options": [{"mail_badpass": True}]},
+            {"Options": [{"secure_path": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"}]},
+            {"Options": [{"use_pty": True}]},
+        ]
+        row = self.run_fixture(specs, defaults=defaults, sudoers_members=("sudoers.d/README",))
+        self.assertEqual((row[2], row[3], row[4]), ("NOT_APPLICABLE", "files=0;owner_violations=0;mode_violations=0", "NOT_APPLICABLE"))
+        src = SUDO_ROOT_COMMAND_FILES.shell_function(
+            "CTRL", SUDO_ROOT_COMMAND_FILES.CANONICAL_LOCATOR, SUDO_ROOT_COMMAND_FILES.CANONICAL_KEY,
+            SUDO_ROOT_COMMAND_FILES.CANONICAL_OP, SUDO_ROOT_COMMAND_FILES.CANONICAL_EXPECTED)
+        self.assertNotIn("/etc/securelinux-policy", src)
+        self.assertNotIn("sudoers-reviewed-policy", src)
+
+    def test_explicit_command_root_owner_0755_passes(self):
+        # A real root-owned 0755 system file observed read-only through fsroot=/.
+        st = os.stat("/usr/bin/true")
+        if st.st_uid != 0 or (st.st_mode & 0o7777) != 0o755 or st.st_nlink != 1:
+            self.skipTest("/usr/bin/true is not a root-owned 0755 single-link file here")
+        row = self.run_fixture([self._user_spec(command="/usr/bin/true")], target_logical="/usr/bin/true", real_fsroot=True)
+        self.assertEqual((row[2], row[3], row[4]), ("VALUE", "files=1;owner_violations=0;mode_violations=0", "PASS"))
+
+    def test_explicit_local_command_0755_non_regular_owner_passes(self):
+        row = self.run_fixture([self._user_spec(command="/usr/local/bin/x")], target_logical="/usr/local/bin/x")
+        self.assertEqual((row[2], row[3], row[4]), ("VALUE", "files=1;owner_violations=0;mode_violations=0", "PASS"))
+
+    @unittest.skipIf(os.getuid() == 0, "owner classification needs a non-root fixture owner")
+    def test_explicit_local_command_regular_user_owner_fails(self):
+        row = self.run_fixture([self._user_spec(command="/usr/local/bin/x")], target_logical="/usr/local/bin/x", owner_regular=True)
+        self.assertEqual((row[2], row[3], row[4]), ("VALUE", "files=1;owner_violations=1;mode_violations=0", "FAIL"))
+
+    def test_explicit_local_command_0757_fails(self):
+        row = self.run_fixture([self._user_spec(command="/usr/local/bin/x")], target_logical="/usr/local/bin/x", mode=0o757)
+        self.assertEqual((row[2], row[3], row[4]), ("VALUE", "files=1;owner_violations=0;mode_violations=1", "FAIL"))
+
+    def test_visudo_validation_failure_is_error(self):
+        row = self.run_fixture([self._user_spec()], visudo_rc=1)
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "visudo:validation-failed", "ERROR"))
+
+    def test_sudoers_drift_between_snapshots_is_error(self):
+        # The sudoers pathset and bytes come from the visudo closure; a change of
+        # either between the two policy snapshots is ERROR.
+        for drift in ("bytes", "pathset"):
+            for command in ("/bin/tool", "ALL"):
+                with self.subTest(drift=drift, command=command):
+                    row = self.run_fixture([self._user_spec(command=command)], visudo_drift=drift)
+                    self.assertEqual((row[2], row[3], row[4]), ("ERROR", "observation:policy-changed", "ERROR"))
 
     def test_cvtsudoers_failure_and_malformed_json_are_error(self):
         row = self.run_fixture([self._user_spec()], cvt_rc=1)
@@ -3075,7 +3181,7 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
 
     def test_generation_rejects_wrong_contract_fields(self):
         bad = (
-            ("/etc/sudoers", SUDO_ROOT_COMMAND_FILES.CANONICAL_KEY, SUDO_ROOT_COMMAND_FILES.CANONICAL_OP, SUDO_ROOT_COMMAND_FILES.CANONICAL_EXPECTED),
+            ("/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1", SUDO_ROOT_COMMAND_FILES.CANONICAL_KEY, SUDO_ROOT_COMMAND_FILES.CANONICAL_OP, SUDO_ROOT_COMMAND_FILES.CANONICAL_EXPECTED),
             (SUDO_ROOT_COMMAND_FILES.CANONICAL_LOCATOR, "mode", SUDO_ROOT_COMMAND_FILES.CANONICAL_OP, SUDO_ROOT_COMMAND_FILES.CANONICAL_EXPECTED),
             (SUDO_ROOT_COMMAND_FILES.CANONICAL_LOCATOR, SUDO_ROOT_COMMAND_FILES.CANONICAL_KEY, "eq", SUDO_ROOT_COMMAND_FILES.CANONICAL_EXPECTED),
             (SUDO_ROOT_COMMAND_FILES.CANONICAL_LOCATOR, SUDO_ROOT_COMMAND_FILES.CANONICAL_KEY, SUDO_ROOT_COMMAND_FILES.CANONICAL_OP, "0022"),
