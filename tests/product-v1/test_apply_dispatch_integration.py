@@ -16,6 +16,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -190,6 +191,8 @@ class StateDirGuard(unittest.TestCase):
     исполнения каких-либо контролей, поэтому прогон быстрый.
     """
 
+    ENSURE_CALL = "    ensure_state_dir()\n"
+
     @classmethod
     def setUpClass(cls):
         cls.tmp = Path(tempfile.mkdtemp(prefix="slp-state-guard-"))
@@ -312,6 +315,68 @@ class StateDirGuard(unittest.TestCase):
         self.assertNotIn("already running", cp.stderr)
         self.assertTrue((self.state / "report.json").is_file(), cp.stdout + cp.stderr)
 
+    def run_dispatcher_holding_lock(self, marker, gate, mode="DRY_RUN"):
+        """Первый экземпляр dispatcher, запущенный в фоне: держит flock,
+        взятый внутри его собственного ensure_state_dir(), до появления
+        файла `gate`; сразу после взятия блокировки создаёт `marker` — по
+        нему тест узнаёт, что можно безопасно запускать второй экземпляр, не
+        полагаясь на фиксированный sleep."""
+        self.assertEqual(self.dispatcher.count(self.ENSURE_CALL), 1)
+        stall = (
+            self.ENSURE_CALL
+            + "    import time as _slp_test_time\n"
+            + "    with open(%r, 'w') as _slp_test_f:\n" % str(marker)
+            + "        _slp_test_f.write('locked')\n"
+            + "    while not os.path.exists(%r):\n" % str(gate)
+            + "        _slp_test_time.sleep(0.02)\n"
+        )
+        source = self.dispatcher.replace(self.ENSURE_CALL, stall, 1)
+        source = source.replace(STATE_DIR_LINE, "STATE_DIR = " + repr(str(self.state)), 1)
+        me = os.getuid()
+        source = source.replace(TRUSTED_UID_LINE, "TRUSTED_UID = %d\nPARENT_TRUSTED_UID = %d" % (me, me), 1)
+        proc = subprocess.Popen(
+            [PYTHON, "-I", "-S", "-B", "-", mode],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, cwd=self.tmp,
+        )
+        proc.stdin.write(source)
+        proc.stdin.close()
+        proc.stdin = None
+        return proc
+
+    def test_second_instance_is_refused_while_first_dispatcher_run_holds_lock(self):
+        # Пробел теста (репарация, аудит Codex 3215d1c..cc90fd6):
+        # test_second_instance_is_refused_while_lock_is_held держит flock
+        # ВНЕШНИМ дескриптором теста, не самим dispatcher — реальную
+        # конкуренцию двух прогонов dispatcher friend против friend не
+        # проверял. Здесь первый экземпляр dispatcher реально держит flock,
+        # взятый внутри собственного ensure_state_dir(), пока идёт второй
+        # запуск, — а не деремся за файл после того, как первый уже вышел.
+        self.state.mkdir(mode=0o700)
+        marker = self.base / "locked.marker"
+        gate = self.base / "release.gate"
+        proc = self.run_dispatcher_holding_lock(marker, gate)
+        try:
+            for _ in range(500):
+                if marker.exists():
+                    break
+                time.sleep(0.02)
+            else:
+                self.fail("первый экземпляр не подтвердил взятие блокировки")
+            self.assertIsNone(proc.poll(), "первый экземпляр завершился раньше времени")
+            cp2 = self.run_dispatcher()
+            self.assert_refused(cp2, "reporting:already-running")
+            self.assertIn("already running", cp2.stderr)
+        finally:
+            gate.write_text("go", encoding="utf-8")
+            out, err = proc.communicate(timeout=60)
+        # DRY_RUN с абортами/would-apply по устройству возвращает ненулевой
+        # RC — это не про блокировку; здесь важно, что первый экземпляр не
+        # был отказан "already running" и штатно дописал свой отчёт.
+        self.assertNotIn("Traceback", err, out + err)
+        self.assertNotIn("already running", err, out + err)
+        self.assertTrue((self.state / "report.json").is_file(), out + err)
+
 
 class StateDirDescriptorPinning(StateDirGuard):
     """После проверки каталога состояния и взятия flock все записи (отчёт,
@@ -323,8 +388,6 @@ class StateDirDescriptorPinning(StateDirGuard):
     каталог между проверкой и записью. Запись обязана остаться в исходном
     (переименованном) inode; новый каталог должен остаться пустым.
     """
-
-    ENSURE_CALL = "    ensure_state_dir()\n"
 
     def run_dispatcher_with_rename_attack(self, mode="DRY_RUN"):
         self.assertEqual(self.dispatcher.count(self.ENSURE_CALL), 1)

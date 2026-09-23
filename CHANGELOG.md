@@ -10,6 +10,59 @@
 
 ## [Unreleased]
 
+- Repair-step по аудиту Codex диапазона `3215d1c..cc90fd6` (`RESULT=REVISE`,
+  3 блокера; **B-02** — диагностика, без правки продукта). **B-01**: адаптер
+  `product-home-directories-mode-check-v2.py` (2.3.11) фильтровал
+  байт-опасные TAB/LF/CR в имени элемента `/home` только на ветках
+  error/symlink/not-directory — ветка совместимого каталога (проверка mode)
+  пропускала такое имя без проверки вовсе; DEL (0x7F) не проверялся в имени
+  ни на одной ветке; цель readlink с TAB/LF/CR давала урезанный
+  `home:symlink:<путь>` без цели вместо `home:invalid-name`, а с DEL —
+  сырой control-байт прямо в reason, ломающий регекс `slp_collect_policy`
+  (`CHECK_INTERNAL_ERROR` на сгенерированном CLI). Правка: единая проверка
+  TAB/LF/CR/DEL на имени элемента применяется на всех ветках классификации,
+  включая директорию; цель readlink с любым из этих байт даёт
+  `home:invalid-name` без payload. Тесты — параметризованные (4 байта ×
+  ветки directory/symlink/not-directory/error для имени, 4 байта для цели
+  readlink) в `HomeDirectoriesModeAdapterFixtures`, 6 новых методов (19→25);
+  до правки 11 подтестов падали. **B-02** (только диагностика, без правки):
+  предположение Codex «корневой CHECK-артефакт обязан входить в
+  `product/SHA256SUMS`» не подтвердилось — отдельного генератора
+  `product/SHA256SUMS` нет (не найден ни в одном из двух
+  `generate-product-check-v*.py`), манифест — вручную сопровождаемый
+  вложенный TREE-манифест по правилам `tools/pin-closure.py`; по
+  `tests/project-integrity-v1/test_root_manifests.py:152` его охват —
+  строго файлы с префиксом `product/`, а `securelinux-policy.sh` лежит вне
+  этого дерева и пинуется корневыми `SHA256SUMS`/`PROJECT-FILES.sha256`; ни
+  один документ не предписывает иного (`grep -rn securelinux-policy.sh
+  docs/*.md | grep -i sha256sums` — пусто). Не дефект. **B-03**: три
+  опровергнутых факта в `CHANGELOG.md` записи коммита `cc90fd6` — «16
+  sysctl-контролей» исправлено на 17 (механический подсчёт
+  `grep -l 'kind: "sysctl"' controls/fstec-core/linux-2022/*.yaml`); заявление
+  о тестах цели readlink с TAB/внутренним/завершающим LF снято — такие тесты
+  диапазон `6780086..3215d1c` не добавлял, а с B-01 этого шага любой из
+  TAB/LF/CR/DEL в цели даёт `home:invalid-name` без payload, отдельный тест
+  на сохранение «сырого» target с этими байтами больше не нужен; строка про
+  «control-байт даёт `home:invalid-name`» дополнена явным перечислением
+  TAB/LF/CR/DEL. Закрыты 4 пробела теста: `test_pretty_does_not_lose_bytes_of_wrapped_reason`
+  (было — совпадение двух фрагментов, которые оба умещаются в первую строку
+  переноса; стало — побайтовая реконструкция полного reason по всем
+  перенесённым строкам `slp_render_pretty`, ширины читаются из самого
+  прогона); `test_control_byte_in_entry_name_is_invalid_name_on_*` доказывают
+  преобразование control-byte самим адаптером, а не только отказ
+  `slp_collect_policy`; новый динамический тест
+  `test_home_ancestor_stat_failure_other_than_enoent_is_error` (ветка
+  `home-base:ancestor-stat-failed` раньше проверялась только статическим
+  grep по тексту адаптера); `test_second_instance_is_refused_while_first_dispatcher_run_holds_lock`
+  в `tests/product-v1/test_apply_dispatch_integration.py` доказывает удержание
+  flock во время реальной конкуренции двух прогонов dispatcher (первый
+  держит блокировку, взятую внутри собственного `ensure_state_dir()`, пока
+  идёт второй) — прежний тест лишь сравнивал inode `.lock` после того, как
+  первый процесс уже завершился. Обновлены `product/ADAPTER-REGISTRY.tsv`
+  (implementation/adapter_contract sha адаптера 2.3.11), `product/SHA256SUMS`,
+  `tests/product-v1/SHA256SUMS`, корневые манифесты; новый `CHECK_SHA256`
+  `5dc6da078546ec2b7abee025b506c65d7171812e749edab9a22cdf6ac94c7a21`.
+
 - Repair-step по аудиту Codex диапазона `6780086..3215d1c` (`RESULT=REVISE`,
   4 блокера). **B-01**: `home:symlink:<путь>-><цель>`/`home:not-directory:<путь>`
   (адаптер 2.3.11) отвергались regex `slp_collect_policy`
@@ -17,7 +70,10 @@
   сгенерированном CLI. Regex теперь допускает необязательный третий сегмент
   полезной нагрузки (`<seg>:<seg>[:payload]`), payload без control-байт
   (`[:cntrl:]`, локаль фиксируется `local LC_ALL=C`); payload с control-байтом
-  даёт `home:invalid-name`, как и раньше. Тест — сквозной через сгенерированный
+  даёт `home:invalid-name`, как и раньше (сам адаптер 2.3.11 с репарации по
+  аудиту Codex диапазона `3215d1c..cc90fd6`, B-01, явно фильтрует TAB/LF/CR/DEL
+  — 0x09/0x0A/0x0D/0x7F — в имени элемента и в цели readlink раньше, чем
+  reason доходит до этого регекса). Тест — сквозной через сгенерированный
   CLI (`SlpCollectPolicyReasonFormat`, 5 методов: raw/JSON/pretty с путём и
   пробелом в цели, control-байт по-прежнему отвергается, plain two-segment
   reason не регрессировал); до правки 3 из 5 падали. **B-02**: отсутствие
@@ -40,7 +96,7 @@
   Список прочих адаптеров с тем же приёмом («доступный предок +
   `[[ -e ]]`/`[[ -L ]]`» вместо доказанного `ENOENT`) для доказательства
   отсутствия, без правки (см. отчёт задачи): `product-kernel-cmdline-check-v2.py:82`
-  (10 контролей 2.4.x/2.5.x), `product-sysctl-check-v2.py:96` (16 контролей
+  (10 контролей 2.4.x/2.5.x), `product-sysctl-check-v2.py:96` (17 контролей
   2.4.x–2.6.x), `product-file-mode-owner-check-v2.py:98` (SRC-0005, 3
   контроля), `product-sshd-root-login-check-v1.py:62,87` (SRC-0002),
   `product-home-sensitive-files-mode-check-v2.py:168` (SRC-0014),
@@ -48,9 +104,14 @@
   срезал завершающий LF цели символической ссылки до проверки байт-опасности
   (`$(...)` вырезает ВСЕ завершающие переводы строк, а не только терминатор
   команды). Правка — захват через sentinel (`&& printf x`), снимается ровно
-  один служебный символ, затем ровно один служебный `\n`. Тесты (цель с TAB,
-  внутренним LF, завершающим LF — все дают `home:invalid-name`/сохраняют
-  завершающий LF в raw target) добавлены в ту же правку, что и B-02.
+  один служебный символ, затем ровно один служебный `\n`. Тестов, отдельно
+  проверяющих цель с TAB/внутренним LF/сохранением завершающего LF, этот шаг
+  не добавлял (опровергнуто репарацией по аудиту Codex диапазона
+  `3215d1c..cc90fd6`, B-03 документации); с репарации того же диапазона
+  (B-01) любой из TAB/LF/CR/DEL в цели readlink даёт `home:invalid-name` без
+  payload, поэтому отдельного теста на сохранение «сырого» target с такими
+  байтами больше не требуется — параметризованные тесты на это в
+  `HomeDirectoriesModeAdapterFixtures.test_control_byte_in_symlink_target_is_invalid_name`.
   **B-04**: единичный `read -r var < file` после `od`-валидации в
   `kernel-cmdline-check-v2.py` (91→107) и `sysctl-check-v2.py` (105→117) не
   ловил подмену содержимого файла между проверкой и разбором (TOCTOU

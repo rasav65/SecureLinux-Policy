@@ -124,11 +124,13 @@ def _render(control_id, home_base):
         '  for _slp_entry in "${_slp_entries[@]}"; do',
         '    if [[ ${_slp_seen["$_slp_entry"]+x} ]]; then continue; fi',
         '    _slp_seen["$_slp_entry"]=1',
-        # Имя записи или цель readlink с байтами табуляции/CR/LF ломают
-        # TSV-формат вывода — такой объект получает безопасную причину без
-        # внедрения сырых байт в поле reason.
+        # Имя записи или цель readlink с control-байтами (TAB/CR/LF/DEL)
+        # ломают TSV-формат вывода и регекс collect_policy ([:cntrl:]
+        # включает 0x7F) — такой объект получает безопасную причину без
+        # внедрения сырых байт в поле reason, на любой ветке классификации
+        # (B-01, repair-step по аудиту Codex диапазона 3215d1c..cc90fd6).
         "    _slp_bad=0",
-        '    if [[ "$_slp_entry" == *$\'\\t\'* || "$_slp_entry" == *$\'\\n\'* || "$_slp_entry" == *$\'\\r\'* ]]; then _slp_bad=1; fi',
+        '    if [[ "$_slp_entry" == *$\'\\t\'* || "$_slp_entry" == *$\'\\n\'* || "$_slp_entry" == *$\'\\r\'* || "$_slp_entry" == *$\'\\x7f\'* ]]; then _slp_bad=1; fi',
         # Классификация элемента — тем же приёмом, что и для корня: [[ -L ]]/
         # [[ ! -d ]] не отличают доказанное «не тот тип» от ошибки lstat
         # (в т. ч. TOCTOU-исчезновение объекта, который только что нашёл
@@ -159,7 +161,10 @@ def _render(control_id, home_base):
         "      if [[ $? -eq 0 ]]; then",
         '        _slp_target=${_slp_target%x}',
         '        _slp_target=${_slp_target%$\'\\n\'}',
-        '        if [[ -n "$_slp_target" && "$_slp_target" != *$\'\\t\'* && "$_slp_target" != *$\'\\n\'* && "$_slp_target" != *$\'\\r\'* ]]; then',
+        '        if [[ "$_slp_target" == *$\'\\t\'* || "$_slp_target" == *$\'\\n\'* || "$_slp_target" == *$\'\\r\'* || "$_slp_target" == *$\'\\x7f\'* ]]; then',
+        emit + ' "ERROR" "home:invalid-name" "ERROR"',
+        "          return 0",
+        '        elif [[ -n "$_slp_target" ]]; then',
         "          printf -v _slp_reason 'home:symlink:%s->%s' \"$_slp_entry\" \"$_slp_target\"",
         "        else",
         "          printf -v _slp_reason 'home:symlink:%s' \"$_slp_entry\"",
@@ -177,6 +182,10 @@ def _render(control_id, home_base):
         "      fi",
         "      printf -v _slp_reason 'home:not-directory:%s' \"$_slp_entry\"",
         emit + ' "ERROR" "$_slp_reason" "ERROR"',
+        "      return 0",
+        "    fi",
+        "    if (( _slp_bad )); then",
+        emit + ' "ERROR" "home:invalid-name" "ERROR"',
         "      return 0",
         "    fi",
         '    if ! _slp_mode=$(LC_ALL=C command /usr/bin/stat -Lc "%a" -- "$_slp_entry" 2>/dev/null); then',

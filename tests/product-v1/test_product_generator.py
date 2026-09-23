@@ -1854,10 +1854,9 @@ class HomeDirectoriesModeAdapterFixtures(unittest.TestCase):
         self.assertEqual(self.row(), ("VALUE", "checked=1;violations=0", "PASS"))
 
     def test_entry_name_with_newline_is_invalid_name(self):
-        # Байт-опасное имя проверяется, только когда путь идёт в ERROR-поле
-        # (симлинк/не-каталог): для обычного соответствующего каталога путь
-        # никуда не печатается, поэтому небезопасности нет. Проверяем ветку
-        # not-directory с таким именем.
+        # Ветка not-directory с LF в имени; TAB/CR/DEL и остальные ветки
+        # (включая совместимый каталог) — параметризованными тестами ниже
+        # (B-01, repair-step по аудиту Codex диапазона 3215d1c..cc90fd6).
         bad = self.home / "user\nx"
         bad.write_text("x\n", encoding="utf-8")
         self.assertEqual(self.row(), ("ERROR", "home:invalid-name", "ERROR"))
@@ -1926,6 +1925,74 @@ class HomeDirectoriesModeAdapterFixtures(unittest.TestCase):
         self.assertEqual(fields[2], "ERROR", cp.stdout)
         self.assertNotIn("checked=0", cp.stdout)
         self.assertNotIn("checked=1;violations=0", cp.stdout)
+
+    def test_home_ancestor_stat_failure_other_than_enoent_is_error(self):
+        # /home сам отсутствует (доказанный ENOENT), но пробник ближайшего
+        # предка не может подтвердить даже это: ветка home-base:ancestor-
+        # stat-failed раньше проверялась только статическим grep по тексту
+        # адаптера (test_home_directories_mode_adapter_reason_strings),
+        # без реального прогона через find/stat.
+        self.home.rmdir()
+        shim = _stat_fail_shim_text(self.base, "Permission denied")
+        status, value, compliance = self.row("/usr/bin/stat", shim)
+        self.assertEqual((status, compliance), ("ERROR", "ERROR"))
+        self.assertTrue(value.startswith("home-base:ancestor-stat-failed:"), value)
+        self.assertIn(str(self.base), value)
+
+    # --- B-01 (repair-step, аудит Codex диапазона 3215d1c..cc90fd6) --------
+    # Фильтр байт-опасного имени элемента проверял TAB/LF/CR, но не DEL
+    # (0x7F), и срабатывал только в ветках error/symlink/not-directory —
+    # совместимый каталог (mode-check) проходил без проверки вовсе. Цель
+    # readlink байт-опасность не проверяла вовсе: TAB/LF/CR давали урезанный
+    # `home:symlink:<path>` без цели, DEL — сырой control-байт прямо в
+    # reason, ломающий `slp_collect_policy` (CHECK_INTERNAL_ERROR).
+
+    BAD_NAME_BYTES = (("tab", "\t"), ("lf", "\n"), ("cr", "\r"), ("del", "\x7f"))
+
+    def _clear_home(self):
+        for child in sorted(self.home.iterdir(), reverse=True):
+            if child.is_symlink() or not child.is_dir():
+                child.unlink()
+            else:
+                child.rmdir()
+
+    def test_control_byte_in_entry_name_is_invalid_name_on_directory_branch(self):
+        for label, byte in self.BAD_NAME_BYTES:
+            with self.subTest(byte=label):
+                self._clear_home()
+                (self.home / ("user" + byte + "x")).mkdir(mode=0o700)
+                self.assertEqual(self.row(), ("ERROR", "home:invalid-name", "ERROR"))
+
+    def test_control_byte_in_entry_name_is_invalid_name_on_symlink_branch(self):
+        for label, byte in self.BAD_NAME_BYTES:
+            with self.subTest(byte=label):
+                self._clear_home()
+                target = self.home / "real"; target.mkdir(mode=0o700)
+                link = self.home / ("user" + byte + "x"); link.symlink_to(target)
+                self.assertEqual(self.row(), ("ERROR", "home:invalid-name", "ERROR"))
+
+    def test_control_byte_in_entry_name_is_invalid_name_on_not_directory_branch(self):
+        for label, byte in self.BAD_NAME_BYTES:
+            with self.subTest(byte=label):
+                self._clear_home()
+                f = self.home / ("user" + byte + "x"); f.write_text("x\n", encoding="utf-8")
+                self.assertEqual(self.row(), ("ERROR", "home:invalid-name", "ERROR"))
+
+    def test_control_byte_in_entry_name_is_invalid_name_on_error_branch(self):
+        for label, byte in self.BAD_NAME_BYTES:
+            with self.subTest(byte=label):
+                self._clear_home()
+                entry = self.home / ("user" + byte + "x"); entry.write_text("x\n", encoding="utf-8")
+                shim = _stat_fail_shim_text(entry, "Permission denied")
+                self.assertEqual(self.row("/usr/bin/stat", shim), ("ERROR", "home:invalid-name", "ERROR"))
+
+    def test_control_byte_in_symlink_target_is_invalid_name(self):
+        for label, byte in self.BAD_NAME_BYTES:
+            with self.subTest(byte=label):
+                self._clear_home()
+                target = self.home / ("real" + byte + "x"); target.mkdir(mode=0o700)
+                link = self.home / "user"; link.symlink_to(target)
+                self.assertEqual(self.row(), ("ERROR", "home:invalid-name", "ERROR"))
 
 class GeneratedArtifact(unittest.TestCase):
     @classmethod
@@ -6242,23 +6309,49 @@ class SlpCollectPolicyReasonFormat(unittest.TestCase):
         self.assertEqual(rows[0]["value"], reason)
         self.assertEqual(rows[0]["result"], "ERROR")
 
-    def test_pretty_does_not_crash_on_dynamic_reason(self):
-        reason = "home:not-directory:/home/my dir"
+    def test_pretty_does_not_lose_bytes_of_wrapped_reason(self):
+        # Прежний тест сверял два отдельных фрагмента ("not-determined;" и
+        # "reason: home:not"), которые оба умещаются в первую строку
+        # переноса и поэтому не доказывают отсутствие потери байт на
+        # границе переноса. Здесь reason заведомо длиннее одной колонки:
+        # полная реконструкция по всем перенесённым строкам должна побайтово
+        # совпасть с исходным значением. Ширины столбцов читаются из самого
+        # прогона (SLP_PRETTY_W*), а не дублируются литералом в тесте.
+        reason = "home:not-directory:/home/" + "x" * 80
         cp = self.run_variant(
             reason,
-            "slp_collect_policy >/dev/null\nslp_render_pretty 0 TEST\n",
+            "slp_collect_policy >/dev/null\n"
+            "slp_render_pretty 0 TEST\n"
+            "printf 'WIDTHS=%s,%s,%s,%s,%s\\n' \"$SLP_PRETTY_WS\" \"$SLP_PRETTY_WSRC\" \"$SLP_PRETTY_WC\" \"$SLP_PRETTY_WCUR\" \"$SLP_PRETTY_WREQ\"\n",
         )
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
         self.assertEqual(cp.stderr, "", cp.stderr)
-        self.assertNotIn("CHECK_INTERNAL_ERROR", cp.stdout + cp.stderr)
-        # pretty переносит длинные значения по ширине колонки — сплошная
-        # подстрока не гарантирована (слово "not-directory:/home/my" может
-        # разорваться переносом), важен только сам факт отсутствия краша и
-        # что строка ERROR с усечённой причиной попала в таблицу.
-        self.assertIn("not-determined;", cp.stdout)
-        self.assertIn("reason: home:not", cp.stdout)
+        self.assertNotIn("CHECK_INTERNAL_ERROR", cp.stdout)
+        body, widths_line = cp.stdout.rsplit("WIDTHS=", 1)
+        ws, wsrc, wc, wcur, wreq = (int(n) for n in widths_line.strip().split(","))
+        row_re = re.compile(
+            r"^ (.{%d}) \| (.{%d}) \| (.{%d}) \| (.{%d}) \| (.{%d}) \|$"
+            % (ws, wsrc, wc, wcur, wreq)
+        )
+        lines = body.splitlines()
+        sep_indices = [
+            i for i, line in enumerate(lines)
+            if line and set(line) <= {"-", "+"} and line.endswith("+")
+        ]
+        self.assertGreaterEqual(len(sep_indices), 2, body)
+        data_lines = lines[sep_indices[0] + 1 : sep_indices[1]]
+        matches = [row_re.match(line) for line in data_lines]
+        self.assertTrue(matches and all(matches), body)
+        reconstructed = "".join(m.group(4) for m in matches).rstrip(" ")
+        self.assertEqual(reconstructed, "not-determined; reason: " + reason)
 
     def test_reason_with_control_byte_in_payload_is_still_rejected(self):
+        # Defense-in-depth на уровне коллектора: reason с control-байтом,
+        # если он всё же дойдёт сюда, должен отвергаться. Что реальный
+        # адаптер 2.3.11 такой байт до коллектора не доводит и сам
+        # превращает его в `home:invalid-name` — доказывают параметризованные
+        # тесты `HomeDirectoriesModeAdapterFixtures.test_control_byte_in_*`
+        # (B-01, репарация по аудиту Codex диапазона 3215d1c..cc90fd6).
         reason = "home:symlink:/home/bad\x01name"
         cp = self.run_variant(
             reason,
