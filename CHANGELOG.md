@@ -10,6 +10,18 @@
 
 ## [Unreleased]
 
+- Формулировки о числе сред (`docs/PROJECT-MAP.md`, `docs/testing-strategy.md`,
+  `product/README.md`, пины `tests/roadmap-v1/test_project_map.py`): число сред
+  приёмки указывалось плоско (8 сред, восьмисредовый VM-цикл, восьми
+  поддерживаемых состояний) без разделения состава. Поддерживаемых
+  clean-reference сред семь (`SUPPORTED-PLATFORMS.tsv`); Ubuntu 24.04 x86_64
+  Desktop из `FIELD-COMPATIBILITY-DESKTOPS.tsv` — отдельный `FIELD_COMPATIBILITY`
+  environment, число supported clean-reference environments он не увеличивает.
+  Приведено к «приёмка семи сред» в узлах карты и «приёмка семи поддерживаемых
+  сред (Desktop — FIELD_COMPATIBILITY, отдельной строкой)» в тексте. Изменены
+  только формулировки: байты продукта, контроли, статусы механизмов и
+  результаты ВМ-прогонов не менялись. Прежние записи журнала не переписывались.
+
 - Н-3, `FSTEC-LINUX-2022-2.2.1-SU-WHEEL-ACCESS` (`product-pam-wheel-access-check-v2.py`):
   разобранный и разрешённый стек `/etc/pam.d/su` без активной `pam_wheel.so`
   давал `ERROR pam:ambiguous-stack`, а не `VALUE/FAIL`. Причина — гейт «первая

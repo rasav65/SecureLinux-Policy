@@ -1077,7 +1077,7 @@ assert "`file-mode-owner-v1`" in current_map
 assert "17 sysctl controls" not in current_map
 assert "итого 20 контролей" not in current_map
 assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in current_map
-assert "восьмисредовый VM-cycle" in current_map
+assert "VM-cycle по семи поддерживаемым средам" in current_map
 
 stale_checkpoint_markers = (
     "текущий substantive checkpoint — `APPLY implementation` для SRC-0001",

@@ -46,17 +46,17 @@ for marker in (
     'product-file-mode-owner-check-v2<br/>read-only"]:::closed',
     'product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed',
     'product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding активных механизмов"]:::closed',
-    'config-line-with-runtime-v1<br/>sysctl · dry-run · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current',
-    'file-mode-owner-v1<br/>режимы файлов SRC-0005 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current',
-    'optional-file-root-files-mode-v1<br/>режимы cron SRC-0010 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current',
-    'suid-sgid-applications-mode-v1<br/>режимы SUID/SGID SRC-0013 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current',
-    'standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: 1 среда PASS, приёмка 8 сред — впереди"]:::current',
+    'config-line-with-runtime-v1<br/>sysctl · dry-run · APPLY<br/>ВМ: 1 среда PASS, приёмка семи сред — впереди"]:::current',
+    'file-mode-owner-v1<br/>режимы файлов SRC-0005 · APPLY<br/>ВМ: 1 среда PASS, приёмка семи сред — впереди"]:::current',
+    'optional-file-root-files-mode-v1<br/>режимы cron SRC-0010 · APPLY<br/>ВМ: 1 среда PASS, приёмка семи сред — впереди"]:::current',
+    'suid-sgid-applications-mode-v1<br/>режимы SUID/SGID SRC-0013 · APPLY<br/>ВМ: 1 среда PASS, приёмка семи сред — впереди"]:::current',
+    'standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: 1 среда PASS, приёмка семи сред — впереди"]:::current',
     'ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note',
     'securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed',
 ):
     assert marker in product_line, marker
 # B4: status of a mechanism node is defined by gates, not by prose.
-assert "`closed` — механизм прошёл `--release` и восьмисредовый VM-цикл" in product_line
+assert "`closed` — механизм прошёл `--release` и VM-цикл по семи поддерживаемым средам" in product_line
 assert "`current` — идёт работа. Иного статуса у узла механизма нет." in product_line
 assert "APPLY1" in product_line and ":::closed" not in product_line.split('APPLY1["', 1)[1].split("\n", 1)[0]
 # B1: mechanism prose names mechanisms, not live control counts.
@@ -80,7 +80,7 @@ assert "active APPLY registries" in current
 assert "predicate / transform definitions" in current
 assert "AUTHORITY_2026_REFRESH" in current
 assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in current
-assert "восьмисредовый VM-cycle" in current
+assert "VM-cycle по семи поддерживаемым средам" in current
 assert "Step 7B · расширение FSTEC" in current
 assert "HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS" in current
 assert "Step 7B возвращён в `NEXT`" not in current

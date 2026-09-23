@@ -87,7 +87,7 @@ evidence `slp-vm-mech5-read-error-u2404min-v2-20260921-160548-271767478.tar.gz` 
 DRY_RUN/APPLY — `ABORTED_PRECONDITION_OTHER scan:find-failed`, `NOT_STARTED`, без мутаций.
 Раздельные статусы этого evidence-набора: negative v1 (кандидат `ce1292ae…5114`) — `UNPROVEN`;
 negative v2 (выше) — `PASS`; positive (кандидат `83c89147…89ae`) — `PASS`. Одна среда;
-приёмку 8 сред не закрывает.
+приёмку семи поддерживаемых сред не закрывает.
 
 Каталог состояния и блокировка APPLY-dispatcher проверяются на сгенерированных байтах
 (`tests/product-v1/test_apply_dispatch_integration.py::StateDirGuard`): подставляются `STATE_DIR` и
