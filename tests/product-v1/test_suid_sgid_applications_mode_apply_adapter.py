@@ -14,8 +14,8 @@ the privilege check and the fchmod call are injected where a case needs them.
 
 * `apply_kind` `suid-sgid-applications-mode-v1` обслуживает `parameter_kind`
   `suid-sgid-applications`, но только контроль `2.3.9-SUID-SGID-MODE`;
-  иной op (`subset-of-file`, контроль `2.3.9-ALLOWLIST`) даёт
-  `NOT_ELIGIBLE_APPLY_UNSUPPORTED` без мутаций.
+  иной key/op/expected (например, `approved-set` / `subset-of-file` выведенного
+  контроля `2.3.9-ALLOWLIST`) даёт `NOT_ELIGIBLE_APPLY_UNSUPPORTED` без мутаций.
 * Перечислитель — Python-копия CHECK-наблюдателя: `find -P -xdev -type f
   -perm /6000` по непсевдо-точкам монтирования из mountinfo, дедупликация
   точек и файлов по `dev:ino`. Паритет проверяется исполнением самого
@@ -63,8 +63,9 @@ MASK = "0022"
 CANONICAL_LOCATOR = "/proc/self/mountinfo"
 
 CID = "FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE"
-ALLOWLIST_CID = "FSTEC-LINUX-2022-2.3.9-SUID-SGID-ALLOWLIST"
-ALLOWLIST_EXPECTED = "/etc/securelinux-policy/suid-sgid.allowlist-v1"
+# key/op/expected выведенного 2.3.9 SUID-SGID-ALLOWLIST (c902f18): для
+# действующего контроля такая тройка не поддерживается.
+RETIRED_ALLOWLIST_EXPECTED = "/etc/securelinux-policy/suid-sgid.allowlist-v1"
 
 TARGETS = {CID: CANONICAL_LOCATOR}
 
@@ -167,7 +168,6 @@ class T01_Identity(unittest.TestCase):
     def test_target_table_is_the_mode_control_only(self):
         mod = load_adapter()
         self.assertEqual(mod.TARGETS, TARGETS)
-        self.assertNotIn(ALLOWLIST_CID, mod.TARGETS)
 
     def test_target_table_equals_yaml_locator(self):
         text = (CONTROL_DIR / "fstec-linux-2022-2.3.9-suid-sgid-mode.yaml").read_text(encoding="utf-8")
@@ -435,20 +435,22 @@ class T08_Eligibility(_Tree):
     def test_allowlist_op_is_not_eligible(self):
         made = self.tree({"bin/bad": 0o4775})
         result = self.adapter.execute_control(
-            ALLOWLIST_CID, "approved-set", "subset-of-file", ALLOWLIST_EXPECTED, True,
+            CID, "approved-set", "subset-of-file", RETIRED_ALLOWLIST_EXPECTED, True,
             target=self.mountinfo(), dry_run=False, privilege_check=lambda: True,
         )
         self.assertEqual(result["outcome"], "NOT_ELIGIBLE_APPLY_UNSUPPORTED")
+        self.assertEqual(result["reason"], "op-unsupported")
         self.assertIs(result["mutation_performed"], False)
         self.assertEqual(mode_of(made["bin/bad"]), 0o4775)
         self.assertEqual(self.adapter.control_result_to_report(result, "t0", "t1")["step_rc"], "0")
 
     def test_allowlist_op_is_not_eligible_in_dry_run(self):
         result = self.adapter.execute_control(
-            ALLOWLIST_CID, "approved-set", "subset-of-file", ALLOWLIST_EXPECTED, True,
+            CID, "approved-set", "subset-of-file", RETIRED_ALLOWLIST_EXPECTED, True,
             target=self.mountinfo(), dry_run=True, privilege_check=lambda: True,
         )
         self.assertEqual(result["outcome"], "NOT_ELIGIBLE_APPLY_UNSUPPORTED")
+        self.assertEqual(result["reason"], "op-unsupported")
 
     def test_apply_unsupported_control_is_not_eligible(self):
         made = self.tree({"bin/bad": 0o4775})

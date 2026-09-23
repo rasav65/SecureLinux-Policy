@@ -99,7 +99,7 @@ APPLY-dispatcher (отчёт, журналы) на дескриптор пров
 Кандидат `5e0dacf6…85a` переводил популяцию `home-directories-mode` (2.3.11) с
 обхода `/etc/passwd` на прямые элементы `/home` (решение 22.09.2026). ВМ-прогон
 на нём тоже не выполнен.
-Текущий кандидат `e683fe2bc0823eb795a8436b86c16621f46277a2dbc8bd2f73105add5b872cfc`
+Кандидат `e683fe2bc0823eb795a8436b86c16621f46277a2dbc8bd2f73105add5b872cfc`
 (репарация по аудиту Codex диапазона `6780086..3215d1c`) устраняет то же
 повторное открытие файла после проверки через `od` ещё в двух CHECK-адаптерах
 (`kernel-cmdline`, `sysctl` — decode-once по образцу остальных); корень `/home`
@@ -110,6 +110,13 @@ APPLY-dispatcher (отчёт, журналы) на дескриптор пров
 завершающий перевод строки; `slp_collect_policy` принимает у `reason`
 необязательный третий сегмент полезной нагрузки (`domain:reason:payload`) без
 управляющих байтов. Адаптеры APPLY не менялись. ВМ-прогон на нём не выполнен.
+Последующие кандидаты меняли только CHECK: 2.3.11 и 2.3.10 — популяция из прямых
+элементов `/home`; 2.2.1 — разобранный стек без `pam_wheel.so` даёт `FAIL`, затем
+`pam_rootok` перед `pam_wheel` допустим; 2.3.10, 2.3.4, 2.2.2 и 2.2.1 не читают
+authority-файлы; контроли 2.5.11 TESTED-BEFORE-USE и 2.3.9 SUID-SGID-ALLOWLIST
+выведены. Текущий кандидат — трекнутый `securelinux-policy.sh`, его SHA-256 — в
+`securelinux-policy.sh.sha256`. Адаптеры APPLY не менялись; ВМ-прогон на этих
+кандидатах не выполнен.
 
 Локальный CHECK может зависеть от прав чтения наблюдаемого объекта. По semantic
 contract невозможность чтения — `ERROR`, а не `NOT_FOUND`; поэтому ограничение
@@ -277,9 +284,11 @@ hazard-строки: в обоих случаях реальная достиж�
 доказана. Исключение — `auth required pam_wheel.so` без аргумента `use_uid`
 при отсутствии эталонной строки: это `FAIL` `pam_wheel=no-use_uid`.
 
-## SRC-0004 / sudoers reviewed policy — матрица привилегированного evidence
+## SRC-0004 / sudoers — матрица привилегированного evidence
 
-Read-only evidence `slp-vm-evidence-src0002-src0004-v1-*` integrity-verified `7/7`: Ubuntu 22 FULL, Ubuntu 24 MINIMIZED/FULL, Ubuntu 26 MINIMIZED/FULL, Debian 12 SERVER, Debian 13 SERVER. Во всех семи `/etc/sudoers` существовал как regular `0440 root:root`, присутствовал active `@includedir /etc/sudoers.d`, полный `visudo` check завершался `RC=0`. На Ubuntu 26 `sudo`/`visudo` предоставлялись через alternatives symlinks. Эти host facts подтверждают способ discovery/validation; они не задают универсальный approved user/command set.
+Read-only evidence `slp-vm-evidence-src0002-src0004-v1-*` integrity-verified `7/7`: Ubuntu 22 FULL, Ubuntu 24 MINIMIZED/FULL, Ubuntu 26 MINIMIZED/FULL, Debian 12 SERVER, Debian 13 SERVER. Во всех семи `/etc/sudoers` существовал как regular `0440 root:root`, присутствовал active `@includedir /etc/sudoers.d`, полный `visudo` check завершался `RC=0`. На Ubuntu 26 `sudo`/`visudo` предоставлялись через alternatives symlinks. Эти host facts подтверждают способ discovery/validation.
+
+С 23.09.2026 контроль допускает только штатные правила `root ALL=(ALL:ALL) ALL`, `%sudo ALL=(ALL:ALL) ALL` и `%admin ALL=(ALL) ALL`; authority-файл не читается. Штатные `/etc/sudoers` Ubuntu 24.04 и Debian 12 дают `PASS`. Представление правил `cvtsudoers` проверено на sudo 1.9.15p5 этого ПК; на ВМ с другими версиями sudo (Ubuntu 22/26, Debian 13) не прогонялось.
 
 ## SRC-0034 / 2.5.11
 

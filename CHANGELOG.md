@@ -10,6 +10,51 @@
 
 ## [Unreleased]
 
+- Уборка после выведения authority-файлов (207f887, c902f18, 476aebd,
+  b005e47, dd5ff83). Поведение проверок не менялось: вывод `--check --format
+  raw` старого и нового артефакта на этом ПК совпадает побайтово (49 строк),
+  в исполняемом коде артефакта изменились только три строки `local` функции
+  2.3.9.
+
+  `checker/gates-v3/checker.py` (`KIND_RULES`): kind
+  `tested-setting-attestation` удалён, у `suid-sgid-applications` key только
+  `mode`, op только `bits-clear` (ветка `approved-set`/`subset-of-file`
+  удалена); `CONTROL-SCHEMA.json` перегенерирован
+  (`render_control_schema`). Ни один активный контроль их не использовал.
+  CHECK-адаптер `product-suid-sgid-applications-check-v2`: удалены ветка
+  `subset-of-file`, `CANONICAL_ALLOWLIST`, `_slp_allowlist_text`,
+  `_slp_allowed`, `_slp_extras`; `SUPPORTED_OPS = ("bits-clear",)`; фикстурная
+  функция тоже отвергает иной key/op. Контракт
+  `suid-sgid-applications-check-semantic-v2`: блок `allowlist_control`
+  удалён, три фразы об allowlist приведены к текущему состоянию; binding —
+  `supported_ops: ["bits-clear"]`; строка `ADAPTER-REGISTRY.tsv`. Адаптер
+  2.3.4: комментарий строки 2 приведён к коду (владелец — не обычный
+  пользователь, бит `0o002`); SHA в binding и реестре. Basis SRC-0015 в
+  `CLOSURE-CONTRACT.tsv` — прямые элементы `/home`, `/etc/passwd` не
+  читается. `docs/compatibility.md`: «Текущий кандидат `e683fe2b…`» стал
+  историческим, добавлен абзац о последующих кандидатах; секция SRC-0004
+  описывает штатные правила. `product/README.md` — строка контракта SRC-0013.
+  Исторические адаптеры и контракты (v1, `tested-setting-attestation`) и
+  APPLY-адаптер suid-sgid не менялись.
+
+  Тесты: `test_schema_runtime_parity.py` — 10 случаев выведенного словаря
+  заменены двумя, новый метод
+  `test_retired_authority_vocabulary_is_rejected_by_both_sides`;
+  `SuidSgidApplicationsFixtures` — удалены три метода ветки allowlist
+  (`test_allowlist_pass_and_extra_fail`,
+  `test_missing_or_malformed_allowlist_is_error`,
+  `test_nul_in_allowlist_is_error`), в
+  `test_generation_rejects_wrong_contract_fields` добавлен канонический путь
+  allowlist; `SuidSgidSingleReadFixtures` переведён на MODE (5 → 3 метода,
+  удалены два метода об allowlist-файле); `test_src0013_…` требует отсутствия
+  `_slp_allowlist`/`_slp_allowed`/`extras`;
+  `test_allowlist_op_is_not_eligible*` вызывают APPLY-адаптер с id
+  `2.3.9-SUID-SGID-MODE` (вердикт `NOT_ELIGIBLE_APPLY_UNSUPPORTED`,
+  `op-unsupported`, как прежде). До правки падали 6 новых проверок. Новый
+  `CHECK_SHA256`
+  `1ad4d6ac73602451a57533446eab7a337adf4586d0d89c894db60937907516d1`.
+  Закрыто строк source index: 0.
+
 - 2.2.1 (SRC-0003) — решение человека 23.09.2026: CHECK-адаптер
   `product-pam-wheel-access-check-v2` не читает authority-файл
   `/etc/securelinux-policy/wheel-users.allowlist-v1`. Текст ФСТЭК 2.2.1:

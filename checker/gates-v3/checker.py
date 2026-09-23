@@ -248,8 +248,8 @@ KIND_RULES = {
     },
     "suid-sgid-applications": {
         "locator": {"const": "/proc/self/mountinfo"},
-        "key": {"enum": ["mode", "approved-set"]},
-        "op": {"enum": ["bits-clear", "subset-of-file"]},
+        "key": {"const": "mode"},
+        "op": {"const": "bits-clear"},
         "type": {"const": "string"},
         "relations": [
             {
@@ -257,14 +257,6 @@ KIND_RULES = {
                 "then": {
                     "parameter.key": {"const": "mode"},
                     "expected.value": {"const": "0022"},
-                },
-            },
-            {
-                "if": {"expected.op": {"const": "subset-of-file"}},
-                "then": {
-                    "parameter.key": {"const": "approved-set"},
-                    "expected.value": {"const": "/etc/securelinux-policy/suid-sgid.allowlist-v1"},
-                    "requirement.derived": {"const": True},
                 },
             },
         ],
@@ -345,21 +337,6 @@ KIND_RULES = {
                 "if": {"expected.op": {"const": "standard-rules-only"}},
                 "then": {
                     "expected.value": {"const": "root ALL=(ALL:ALL) ALL;%sudo ALL=(ALL:ALL) ALL;%admin ALL=(ALL) ALL"},
-                    "requirement.derived": {"const": True},
-                },
-            },
-        ],
-    },
-    "tested-setting-attestation": {
-        "locator": {"const": "/etc/securelinux-policy/tested-setting-attestations-v1"},
-        "key": {"const": "SRC-0034"},
-        "op": {"const": "tested-before-use"},
-        "type": {"const": "string"},
-        "relations": [
-            {
-                "if": {"expected.op": {"const": "tested-before-use"}},
-                "then": {
-                    "expected.value": {"const": "kernel.randomize_va_space=2"},
                     "requirement.derived": {"const": True},
                 },
             },

@@ -7,11 +7,10 @@ ADAPTER_ID = "product-suid-sgid-applications-check-v2"
 ADAPTER_CONTRACT_VERSION = "product-suid-sgid-applications-check-adapter-v2"
 TARGET_ID = "linux-x86_64-supported-v1"
 PARAMETER_KIND = "suid-sgid-applications"
-SUPPORTED_OPS = ("bits-clear", "subset-of-file")
+SUPPORTED_OPS = ("bits-clear",)
 WIRE_RECORD_ID = "SLP-CHECK-V1"
 CONTROL_ID_PATTERN = r"^(?!.*[\r\n])[A-Za-z0-9._-]+$"
 CANONICAL_LOCATOR = "/proc/self/mountinfo"
-CANONICAL_ALLOWLIST = "/etc/securelinux-policy/suid-sgid.allowlist-v1"
 EXPECTED_MASK = "0022"
 PSEUDO_FS = (
     "proc", "sysfs", "devtmpfs", "devpts", "cgroup", "cgroup2",
@@ -40,10 +39,10 @@ def _render(control_id, key, op, expected, mountinfo_path=CANONICAL_LOCATOR):
         "  local _slp_key=" + _sh_single(key) + " _slp_op=" + _sh_single(op) + " _slp_expected=" + _sh_single(expected),
         "  local _slp_mountinfo=" + mountinfo + " _slp_line _slp_id _slp_parent _slp_majmin _slp_root _slp_mp_raw _slp_opts _slp_tail",
         "  local _slp_mp _slp_after _slp_fstype _slp_root_id _slp_entry _slp_ident _slp_mode _slp_marker _slp_find_rc _slp_sort_rc _slp_i _slp_hex",
-        "  local _slp_mountinfo_text _slp_allowlist_text _slp_rest _slp_v_esc",
-        "  local _slp_mounts=0 _slp_checked=0 _slp_violations=0 _slp_extras=0 _slp_lineno=0",
+        "  local _slp_mountinfo_text _slp_rest _slp_v_esc",
+        "  local _slp_mounts=0 _slp_checked=0 _slp_violations=0 _slp_lineno=0",
         "  local -a _slp_entries=()",
-        "  local -A _slp_seen_mounts=() _slp_seen_files=() _slp_allowed=()",
+        "  local -A _slp_seen_mounts=() _slp_seen_files=()",
         "",
         '  if [[ -L "$_slp_mountinfo" ]]; then',
         emit + ' "ERROR" "mountinfo:symlink" "ERROR"',
@@ -78,65 +77,6 @@ def _render(control_id, key, op, expected, mountinfo_path=CANONICAL_LOCATOR):
         '    printf -v _slp_mountinfo_text %b "$_slp_v_esc"',
         '  fi',
     ]
-
-    if op == "subset-of-file":
-        lines += [
-            '  local _slp_allowlist="$_slp_expected" _slp_allow_line',
-            '  if [[ "$_slp_allowlist" != /* ]]; then',
-            emit + ' "ERROR" "allowlist:invalid-path" "ERROR"',
-            "    return 0",
-            "  fi",
-            '  if [[ -L "$_slp_allowlist" ]]; then',
-            emit + ' "ERROR" "allowlist:symlink" "ERROR"',
-            "    return 0",
-            "  fi",
-            '  if [[ ! -e "$_slp_allowlist" ]]; then',
-            emit + ' "ERROR" "allowlist:not-found" "ERROR"',
-            "    return 0",
-            "  fi",
-            '  if [[ ! -f "$_slp_allowlist" ]]; then',
-            emit + ' "ERROR" "allowlist:invalid-type" "ERROR"',
-            "    return 0",
-            "  fi",
-            '  if [[ ! -r "$_slp_allowlist" ]]; then',
-            emit + ' "ERROR" "allowlist:unreadable" "ERROR"',
-            "    return 0",
-            "  fi",
-            '  if ! _slp_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_allowlist" 2>/dev/null); then',
-            emit + ' "ERROR" "allowlist:read-failed" "ERROR"',
-            "    return 0",
-            "  fi",
-            '  if [[ "$_slp_hex" =~ (^|[[:space:]])00([[:space:]]|$) ]]; then',
-            emit + ' "ERROR" "allowlist:invalid-bytes" "ERROR"',
-            "    return 0",
-            "  fi",
-            # Файл читается один раз: проверенные `od` байты декодируются в
-            # текст, который затем разбирается; повторного открытия нет.
-            '  if [[ -z $_slp_hex ]]; then',
-            '    _slp_allowlist_text=""',
-            '  else',
-            r"    _slp_v_esc=$(printf '\\x%s' $_slp_hex)",
-            '    printf -v _slp_allowlist_text %b "$_slp_v_esc"',
-            '  fi',
-            '  _slp_rest=$_slp_allowlist_text',
-            '  while [[ -n $_slp_rest ]]; do',
-            '    if [[ $_slp_rest == *$\'\\n\'* ]]; then _slp_allow_line=${_slp_rest%%$\'\\n\'*}; _slp_rest=${_slp_rest#*$\'\\n\'}; else _slp_allow_line=$_slp_rest; _slp_rest=""; fi',
-            '    if [[ "$_slp_allow_line" == *$\'\\r\'* || "$_slp_allow_line" == *$\'\\t\'* ]]; then',
-            emit + ' "ERROR" "allowlist:invalid-record" "ERROR"',
-            "      return 0",
-            "    fi",
-            '    [[ -z "$_slp_allow_line" || "${_slp_allow_line:0:1}" == "#" ]] && continue',
-            '    if [[ "$_slp_allow_line" != /* ]]; then',
-            emit + ' "ERROR" "allowlist:invalid-path" "ERROR"',
-            "      return 0",
-            "    fi",
-            '    if [[ ${_slp_allowed["$_slp_allow_line"]+x} ]]; then',
-            emit + ' "ERROR" "allowlist:duplicate-path" "ERROR"',
-            "      return 0",
-            "    fi",
-            '    _slp_allowed["$_slp_allow_line"]=1',
-            '  done',
-        ]
 
     lines += [
         # Файл читается один раз: разбор идёт по уже декодированному тексту
@@ -229,16 +169,8 @@ def _render(control_id, key, op, expected, mountinfo_path=CANONICAL_LOCATOR):
         '      ((_slp_checked+=1))',
     ]
 
-    if op == "bits-clear":
-        lines += [
-            '      if (( (8#$_slp_mode & 8#$_slp_expected) != 0 )); then ((_slp_violations+=1)); fi',
-        ]
-    else:
-        lines += [
-            '      if [[ ! ${_slp_allowed["$_slp_entry"]+x} ]]; then ((_slp_extras+=1)); fi',
-        ]
-
     lines += [
+        '      if (( (8#$_slp_mode & 8#$_slp_expected) != 0 )); then ((_slp_violations+=1)); fi',
         "    done",
         '  done',
         '  if (( _slp_mounts == 0 )); then',
@@ -247,18 +179,9 @@ def _render(control_id, key, op, expected, mountinfo_path=CANONICAL_LOCATOR):
         "  fi",
     ]
 
-    if op == "bits-clear":
-        lines += [
-            '  local _slp_value="mounts=$_slp_mounts;checked=$_slp_checked;violations=$_slp_violations"',
-            emit + ' "VALUE" "$_slp_value" "$([[ $_slp_violations -eq 0 ]] && printf PASS || printf FAIL)"',
-        ]
-    else:
-        lines += [
-            '  local _slp_value="mounts=$_slp_mounts;checked=$_slp_checked;extras=$_slp_extras"',
-            emit + ' "VALUE" "$_slp_value" "$([[ $_slp_extras -eq 0 ]] && printf PASS || printf FAIL)"',
-        ]
-
     lines += [
+        '  local _slp_value="mounts=$_slp_mounts;checked=$_slp_checked;violations=$_slp_violations"',
+        emit + ' "VALUE" "$_slp_value" "$([[ $_slp_violations -eq 0 ]] && printf PASS || printf FAIL)"',
         "  return 0",
         "}",
     ]
@@ -271,13 +194,13 @@ def shell_function(control_id, locator, key, op, expected):
         raise ValueError("unsupported locator")
     if key == "mode" and op == "bits-clear" and expected == EXPECTED_MASK:
         return _render(control_id, key, op, expected)
-    if key == "approved-set" and op == "subset-of-file" and expected == CANONICAL_ALLOWLIST:
-        return _render(control_id, key, op, expected)
     raise ValueError("unsupported SRC-0013 SUID/SGID contract")
 
 def _shell_function_for_fixture(control_id, key, op, expected, mountinfo_path):
     if not isinstance(mountinfo_path, str) or not mountinfo_path.startswith("/"):
         raise ValueError("absolute fixture mountinfo path required")
+    if (key, op) != ("mode", "bits-clear"):
+        raise ValueError("unsupported SRC-0013 SUID/SGID contract")
     return _render(control_id, key, op, expected, mountinfo_path=mountinfo_path)
 
 MUTATING_TOKENS = (
@@ -292,21 +215,19 @@ def _selftest():
     assert _mode_compliance("2675") is False
     assert _mode_compliance("bogus") is None
     one = shell_function("CTRL.MODE", CANONICAL_LOCATOR, "mode", "bits-clear", "0022")
-    two = shell_function("CTRL.ALLOW", CANONICAL_LOCATOR, "approved-set", "subset-of-file", CANONICAL_ALLOWLIST)
-    for src in (one, two):
-        assert "command /usr/bin/find -P" in src
-        assert '-"per""m" /6000' in src
-        assert "/proc/self/mountinfo" in src
-        for token in MUTATING_TOKENS:
-            assert token not in src, token
+    assert "command /usr/bin/find -P" in one
+    assert '-"per""m" /6000' in one
+    assert "/proc/self/mountinfo" in one
+    for token in MUTATING_TOKENS:
+        assert token not in one, token
     assert "violations=" in one
-    assert "extras=" in two
     for args in (
         ("CTRL", "/proc/mounts", "mode", "bits-clear", "0022"),
         ("CTRL", CANONICAL_LOCATOR, "owner", "bits-clear", "0022"),
         ("CTRL", CANONICAL_LOCATOR, "mode", "eq", "0022"),
         ("CTRL", CANONICAL_LOCATOR, "mode", "bits-clear", "0033"),
         ("CTRL", CANONICAL_LOCATOR, "approved-set", "subset-of-file", "/tmp/list"),
+        ("CTRL", CANONICAL_LOCATOR, "approved-set", "subset-of-file", "/etc/securelinux-policy/suid-sgid.allowlist-v1"),
     ):
         try:
             shell_function(*args)

@@ -185,12 +185,11 @@ CASES = [
     ("running process paths op rejected", record("running-process-paths-write-protection", "/proc/<pid>/exe|/proc/<pid>/maps", "write-protection", "bits-clear", "file-go-w;parent-unprivileged-write-denied", "string")),
     ("running process paths expected rejected", record("running-process-paths-write-protection", "/proc/<pid>/exe|/proc/<pid>/maps", "write-protection", "runtime-paths-safe", "0022", "string")),
     ("suid-sgid mode accepted", record("suid-sgid-applications", "/proc/self/mountinfo", "mode", "bits-clear", "0022", "string")),
-    ("suid-sgid allowlist accepted", record("suid-sgid-applications", "/proc/self/mountinfo", "approved-set", "subset-of-file", "/etc/securelinux-policy/suid-sgid.allowlist-v1", "string", derived=True, justification="product mechanism")),
     ("suid-sgid locator rejected", record("suid-sgid-applications", "/proc/mounts", "mode", "bits-clear", "0022", "string")),
     ("suid-sgid mode op rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "mode", "eq", "0022", "string")),
     ("suid-sgid mode mask rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "mode", "bits-clear", "0033", "string")),
-    ("suid-sgid allowlist path rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "approved-set", "subset-of-file", "/tmp/list", "string")),
-    ("suid-sgid allowlist key rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "mode", "subset-of-file", "/etc/securelinux-policy/suid-sgid.allowlist-v1", "string")),
+    ("suid-sgid retired allowlist rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "approved-set", "subset-of-file", "/etc/securelinux-policy/suid-sgid.allowlist-v1", "string", derived=True, justification="product mechanism")),
+    ("tested setting attestation retired rejected", record("tested-setting-attestation", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0034", "tested-before-use", "kernel.randomize_va_space=2", "string", derived=True, justification="product mechanism")),
     ("home sensitive files accepted", record("home-sensitive-files-mode", "/home", "mode", "bits-clear", "0077", "string", derived=True, justification="product mechanism")),
     ("home sensitive files locator rejected", record("home-sensitive-files-mode", "/home|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "bits-clear", "0077", "string")),
     ("home sensitive files key rejected", record("home-sensitive-files-mode", "/home", "owner", "bits-clear", "0077", "string")),
@@ -216,11 +215,6 @@ CASES = [
     ("sudoers reviewed key rejected", record("sudoers-reviewed-policy", "/etc/sudoers", "policy-tree", "standard-rules-only", "root ALL=(ALL:ALL) ALL;%sudo ALL=(ALL:ALL) ALL;%admin ALL=(ALL) ALL", "string", derived=True, justification="product mechanism")),
     ("sudoers reviewed op rejected", record("sudoers-reviewed-policy", "/etc/sudoers", "user-specs", "eq-reviewed-policy", "root ALL=(ALL:ALL) ALL;%sudo ALL=(ALL:ALL) ALL;%admin ALL=(ALL) ALL", "string", derived=True, justification="product mechanism")),
     ("sudoers reviewed authority rejected", record("sudoers-reviewed-policy", "/etc/sudoers", "user-specs", "standard-rules-only", "/etc/securelinux-policy/sudoers-reviewed-policy-v1", "string", derived=True, justification="product mechanism")),
-    ("tested setting attestation accepted", record("tested-setting-attestation", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0034", "tested-before-use", "kernel.randomize_va_space=2", "string", derived=True, justification="product mechanism")),
-    ("tested setting attestation locator rejected", record("tested-setting-attestation", "/tmp/attest", "SRC-0034", "tested-before-use", "kernel.randomize_va_space=2", "string")),
-    ("tested setting attestation key rejected", record("tested-setting-attestation", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0028", "tested-before-use", "kernel.randomize_va_space=2", "string")),
-    ("tested setting attestation op rejected", record("tested-setting-attestation", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0034", "eq", "kernel.randomize_va_space=2", "string")),
-    ("tested setting attestation expected rejected", record("tested-setting-attestation", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0034", "tested-before-use", "kernel.randomize_va_space=1", "string")),
     ("sshd root-login accepted", record("sshd-root-login", "/etc/ssh/sshd_config", "PermitRootLogin", "eq", "no", "string")),
     ("sshd root-login locator rejected", record("sshd-root-login", "/etc/ssh/sshd_config.d/x.conf", "PermitRootLogin", "eq", "no", "string")),
     ("sshd root-login key rejected", record("sshd-root-login", "/etc/ssh/sshd_config", "permitrootlogin", "eq", "no", "string")),
@@ -261,11 +255,9 @@ CASES = [
     ("corporate without profile rejected", record("sysctl", "sysctl", "kernel.x", "eq", 1, "integer", layer="corporate")),
     ("firewall with profile rejected", record("sysctl", "sysctl", "kernel.x", "eq", 1, "integer", layer="firewall", profile="strict")),
     ("authority sudo root non-derived rejected", record("sudo-root-command-files-protection", "/etc/sudoers", "root-command-files", "root-owned-go-w-conditional", "owner-if-regular-user;go-w-if-other-write", "string")),
-    ("authority suid allowlist non-derived rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "approved-set", "subset-of-file", "/etc/securelinux-policy/suid-sgid.allowlist-v1", "string")),
     ("authority home sensitive non-derived rejected", record("home-sensitive-files-mode", "/home", "mode", "bits-clear", "0077", "string")),
     ("authority pam wheel non-derived rejected", record("pam-wheel-access", "/etc/pam.d/su|/etc/group", "policy", "pam-wheel-root-member", "auth required pam_wheel.so use_uid;wheel:root", "string")),
     ("authority sudoers reviewed non-derived rejected", record("sudoers-reviewed-policy", "/etc/sudoers", "user-specs", "standard-rules-only", "root ALL=(ALL:ALL) ALL;%sudo ALL=(ALL:ALL) ALL;%admin ALL=(ALL) ALL", "string")),
-    ("authority tested setting non-derived rejected", record("tested-setting-attestation", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0034", "tested-before-use", "kernel.randomize_va_space=2", "string")),
     ("derived without justification rejected", record("sysctl", "sysctl", "kernel.x", "eq", 1, "integer", derived=True)),
     ("derived with justification accepted", record("sysctl", "sysctl", "kernel.x", "eq", 1, "integer", derived=True, justification="engineering decision")),
     ("non-derived with justification rejected", record("sysctl", "sysctl", "kernel.x", "eq", 1, "integer", justification="unexpected")),
@@ -397,6 +389,16 @@ class DifferentialAcceptanceTests(unittest.TestCase):
         rejected = len(ALL_CASES) - accepted
         self.assertGreaterEqual(accepted, len(checker.KIND_RULES))
         self.assertGreaterEqual(rejected, len(checker.KIND_RULES))
+
+    def test_retired_authority_vocabulary_is_rejected_by_both_sides(self):
+        # Контроли 2.3.9 SUID-SGID-ALLOWLIST (c902f18) и 2.5.11
+        # TESTED-BEFORE-USE (207f887) выведены; их key/op/kind не допускаются.
+        by_name = dict(CASES)
+        for name in ("suid-sgid retired allowlist rejected", "tested setting attestation retired rejected"):
+            with self.subTest(name):
+                self.assertTrue(runtime_errors(by_name[name]), f"{name}: runtime accepted")
+                self.assertTrue(schema_errors(by_name[name], SCHEMA), f"{name}: schema accepted")
+        self.assertNotIn("tested-setting-attestation", checker.KIND_RULES)
 
     def test_every_newline_case_is_rejected_by_both_sides(self):
         for name, rec in NEWLINE_CASES:

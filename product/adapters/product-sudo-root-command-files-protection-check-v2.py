@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Read-only adapter SRC-0008: sudo-root command files must be root-owned and not group/other writable.
+# Read-only adapter SRC-0008: sudo-root command files must not be owned by a regular user and must not be other-writable (mode & 0o002).
 import re
 
 SEMANTIC_CONTRACT_ID = "sudo-root-command-files-protection-check-semantic-v2"

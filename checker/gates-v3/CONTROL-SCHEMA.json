@@ -1358,94 +1358,13 @@
                 }
               ]
             }
-          },
-          {
-            "if": {
-              "allOf": [
-                {
-                  "properties": {
-                    "expected": {
-                      "properties": {
-                        "op": {
-                          "const": "subset-of-file"
-                        }
-                      },
-                      "required": [
-                        "op"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "expected"
-                  ]
-                }
-              ]
-            },
-            "then": {
-              "allOf": [
-                {
-                  "properties": {
-                    "parameter": {
-                      "properties": {
-                        "key": {
-                          "const": "approved-set"
-                        }
-                      },
-                      "required": [
-                        "key"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "parameter"
-                  ]
-                },
-                {
-                  "properties": {
-                    "expected": {
-                      "properties": {
-                        "value": {
-                          "const": "/etc/securelinux-policy/suid-sgid.allowlist-v1"
-                        }
-                      },
-                      "required": [
-                        "value"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "expected"
-                  ]
-                },
-                {
-                  "properties": {
-                    "requirement": {
-                      "properties": {
-                        "derived": {
-                          "const": true
-                        }
-                      },
-                      "required": [
-                        "derived"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "requirement"
-                  ]
-                }
-              ]
-            }
           }
         ],
         "properties": {
           "expected": {
             "properties": {
               "op": {
-                "enum": [
-                  "bits-clear",
-                  "subset-of-file"
-                ]
+                "const": "bits-clear"
               },
               "type": {
                 "const": "string"
@@ -1455,10 +1374,7 @@
           "parameter": {
             "properties": {
               "key": {
-                "enum": [
-                  "mode",
-                  "approved-set"
-                ]
+                "const": "mode"
               },
               "locator": {
                 "const": "/proc/self/mountinfo"
@@ -2041,109 +1957,6 @@
           "parameter": {
             "properties": {
               "kind": {
-                "const": "tested-setting-attestation"
-              }
-            },
-            "required": [
-              "kind"
-            ]
-          }
-        }
-      },
-      "then": {
-        "allOf": [
-          {
-            "if": {
-              "allOf": [
-                {
-                  "properties": {
-                    "expected": {
-                      "properties": {
-                        "op": {
-                          "const": "tested-before-use"
-                        }
-                      },
-                      "required": [
-                        "op"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "expected"
-                  ]
-                }
-              ]
-            },
-            "then": {
-              "allOf": [
-                {
-                  "properties": {
-                    "expected": {
-                      "properties": {
-                        "value": {
-                          "const": "kernel.randomize_va_space=2"
-                        }
-                      },
-                      "required": [
-                        "value"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "expected"
-                  ]
-                },
-                {
-                  "properties": {
-                    "requirement": {
-                      "properties": {
-                        "derived": {
-                          "const": true
-                        }
-                      },
-                      "required": [
-                        "derived"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "requirement"
-                  ]
-                }
-              ]
-            }
-          }
-        ],
-        "properties": {
-          "expected": {
-            "properties": {
-              "op": {
-                "const": "tested-before-use"
-              },
-              "type": {
-                "const": "string"
-              }
-            }
-          },
-          "parameter": {
-            "properties": {
-              "key": {
-                "const": "SRC-0034"
-              },
-              "locator": {
-                "const": "/etc/securelinux-policy/tested-setting-attestations-v1"
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "parameter": {
-            "properties": {
-              "kind": {
                 "const": "mount-option"
               }
             },
@@ -2422,7 +2235,6 @@
             "sshd-root-login",
             "pam-wheel-access",
             "sudoers-reviewed-policy",
-            "tested-setting-attestation",
             "mount-option",
             "systemd-unit-state",
             "package-presence",

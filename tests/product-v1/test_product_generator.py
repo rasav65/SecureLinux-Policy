@@ -1294,35 +1294,6 @@ class SuidSgidApplicationsFixtures(unittest.TestCase):
             cp = self.run_fixture(base, "mode", "bits-clear", "0022")
             self.assertIn("checked=1;violations=1\tFAIL", cp.stdout)
 
-    def test_allowlist_pass_and_extra_fail(self):
-        with tempfile.TemporaryDirectory() as td:
-            base = Path(td)
-            app = base / "app"; app.write_text("x\n", encoding="utf-8"); os.chmod(app, 0o4755)
-            allow = base / "allowlist"
-            allow.write_text(str(app) + "\n", encoding="utf-8")
-            cp = self.run_fixture(base, "approved-set", "subset-of-file", str(allow))
-            self.assertEqual(cp.stderr, "")
-            self.assertIn("checked=1;extras=0\tPASS", cp.stdout)
-            extra = base / "extra"; extra.write_text("x\n", encoding="utf-8"); os.chmod(extra, 0o2755)
-            cp = self.run_fixture(base, "approved-set", "subset-of-file", str(allow))
-            self.assertIn("checked=2;extras=1\tFAIL", cp.stdout)
-
-    def test_missing_or_malformed_allowlist_is_error(self):
-        with tempfile.TemporaryDirectory() as td:
-            base = Path(td)
-            app = base / "app"; app.write_text("x\n", encoding="utf-8"); os.chmod(app, 0o4755)
-            missing = base / "missing"
-            cp = self.run_fixture(base, "approved-set", "subset-of-file", str(missing))
-            assert_stable_error_record(self, cp.stdout, "TEST-SUID-SGID", "allowlist:not-found")
-            allow = base / "allowlist"
-            allow.write_text("relative/path\n", encoding="utf-8")
-            cp = self.run_fixture(base, "approved-set", "subset-of-file", str(allow))
-            assert_stable_error_record(self, cp.stdout, "TEST-SUID-SGID", "allowlist:invalid-path")
-            allow.unlink()
-            allow.symlink_to(base / "missing-target")
-            cp = self.run_fixture(base, "approved-set", "subset-of-file", str(allow))
-            assert_stable_error_record(self, cp.stdout, "TEST-SUID-SGID", "allowlist:symlink")
-
     def test_nosuid_mount_is_included(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
@@ -1433,15 +1404,6 @@ class SuidSgidApplicationsFixtures(unittest.TestCase):
                 self.run_lines(base, (str(base / "m1"), "ext4"), (str(base / "m2"), "xfs")),
                 "mounts=2;checked=2;violations=1", "FAIL")
 
-    def test_nul_in_allowlist_is_error(self):
-        with tempfile.TemporaryDirectory() as td:
-            base = Path(td)
-            app = base / "app"; app.write_text("x\n", encoding="utf-8"); os.chmod(app, 0o4755)
-            allow = base / "allowlist"
-            allow.write_bytes(str(app).encode("utf-8") + b"\x00\n")
-            cp = self.run_fixture(base, "approved-set", "subset-of-file", str(allow))
-            assert_stable_error_record(self, cp.stdout, "TEST-SUID-SGID", "allowlist:invalid-bytes")
-
     def test_generation_rejects_wrong_contract_fields(self):
         for args in (
             ("TEST", "/proc/mounts", "mode", "bits-clear", "0022"),
@@ -1449,10 +1411,18 @@ class SuidSgidApplicationsFixtures(unittest.TestCase):
             ("TEST", "/proc/self/mountinfo", "mode", "eq", "0022"),
             ("TEST", "/proc/self/mountinfo", "mode", "bits-clear", "0033"),
             ("TEST", "/proc/self/mountinfo", "approved-set", "subset-of-file", "/tmp/list"),
+            # Выведенный 2.3.9 SUID-SGID-ALLOWLIST (c902f18): ветки нет.
+            ("TEST", "/proc/self/mountinfo", "approved-set", "subset-of-file", "/etc/securelinux-policy/suid-sgid.allowlist-v1"),
         ):
             with self.subTest(args=args):
                 with self.assertRaises(ValueError):
                     SUID_SGID.shell_function(*args)
+        with self.assertRaises(ValueError):
+            SUID_SGID._shell_function_for_fixture(
+                "TEST", "approved-set", "subset-of-file", "/etc/securelinux-policy/suid-sgid.allowlist-v1", "/proc/self/mountinfo"
+            )
+        self.assertEqual(SUID_SGID.SUPPORTED_OPS, ("bits-clear",))
+        self.assertFalse(hasattr(SUID_SGID, "CANONICAL_ALLOWLIST"))
 
 
 @unittest.skipIf(BASH is None, "bash not available")
@@ -4648,9 +4618,10 @@ SLP_POLICY_RC=1
         body = text[text.index(fns[0] + "() {"):]
         body = body[:body.index("\n}\n") + 3]
         self.assertNotIn("/etc/securelinux-policy", body)
-        # Общий код адаптера объявляет local _slp_allowlist_text, но ветка
-        # чтения allowlist-файла (subset-of-file) в MODE-функцию не входит.
-        self.assertNotIn('"$_slp_allowlist"', body)
+        # Ветка subset-of-file удалена из адаптера вместе с _slp_allowlist_text.
+        self.assertNotIn("_slp_allowlist", body)
+        self.assertNotIn("_slp_allowed", body)
+        self.assertNotIn("extras", body)
         # Единственная подмена — путь mountinfo на фикстуру с одной точкой
         # монтирования; каталога /etc/securelinux-policy/ в фикстуре нет.
         canonical = "_slp_mountinfo='/proc/self/mountinfo'"
@@ -6109,11 +6080,12 @@ class SshdRootLoginSingleReadFixtures(unittest.TestCase):
 
 
 class SuidSgidSingleReadFixtures(unittest.TestCase):
-    """allowlist и mountinfo для suid-sgid-applications читаются по одному разу
-    каждый: два отдельных while-цикла раньше заново открывали уже проверенные
-    через `od` файлы (аудит Codex, коммит 6780086)."""
+    """mountinfo для suid-sgid-applications читается один раз: отдельный
+    while-цикл раньше заново открывал уже проверенный через `od` файл (аудит
+    Codex, коммит 6780086). Ветка allowlist выведена вместе с контролем
+    2.3.9 SUID-SGID-ALLOWLIST (c902f18); проверяется MODE."""
 
-    PASS_ROW = ("VALUE", "mounts=1;checked=1;extras=0", "PASS")
+    PASS_ROW = ("VALUE", "mounts=1;checked=1;violations=0", "PASS")
 
     def setUp(self):
         if BASH is None:
@@ -6126,15 +6098,13 @@ class SuidSgidSingleReadFixtures(unittest.TestCase):
         self.mountinfo.write_text(
             f"1 0 0:1 / {self.tmp} rw,relatime - ext4 /dev/test rw\n", encoding="utf-8"
         )
-        self.allow = self.tmp / "allowlist"
-        self.allow.write_text(str(self.app) + "\n", encoding="utf-8")
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def run_check(self, shim=None):
         block = SUID_SGID._shell_function_for_fixture(
-            "SUID.SINGLE", "approved-set", "subset-of-file", str(self.allow), str(self.mountinfo)
+            "SUID.SINGLE", "mode", "bits-clear", "0022", str(self.mountinfo)
         )
         if shim is not None:
             block = install_od_shim(block, self.tmp, shim)
@@ -6151,10 +6121,6 @@ class SuidSgidSingleReadFixtures(unittest.TestCase):
     def test_baseline_passes(self):
         self.assertEqual(self.run_check(), self.PASS_ROW)
 
-    def test_allowlist_vanishing_after_validation_parses_checked_bytes(self):
-        self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.allow)), self.PASS_ROW)
-        self.assertFalse(self.allow.exists(), "сбой не внедрён")
-
     def test_mountinfo_vanishing_after_validation_parses_checked_bytes(self):
         self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.mountinfo)), self.PASS_ROW)
         self.assertFalse(self.mountinfo.exists(), "сбой не внедрён")
@@ -6163,15 +6129,6 @@ class SuidSgidSingleReadFixtures(unittest.TestCase):
         self.assertEqual(
             self.run_check(shim=_od_fail_after_prefix_shim_text()),
             ("ERROR", "mountinfo:read-failed", "ERROR"),
-        )
-
-    def test_second_od_call_failure_after_partial_prefix_is_error(self):
-        # Пробел теста (репарация, аудит Codex 6780086..3215d1c): сбой,
-        # ограниченный ВТОРЫМ файлом (allowlist) — mountinfo должен пройти
-        # проверку штатно, а не только оба файла разом.
-        self.assertEqual(
-            self.run_check(shim=_od_fail_after_prefix_for_target_shim_text(self.allow)),
-            ("ERROR", "allowlist:read-failed", "ERROR"),
         )
 
 

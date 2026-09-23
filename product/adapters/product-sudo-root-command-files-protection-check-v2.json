@@ -3,7 +3,7 @@
   "adapter_id": "product-sudo-root-command-files-protection-check-v2",
   "implementation_id": "product-sudo-root-command-files-protection-check-v2.py",
   "implementation_path": "product/adapters/product-sudo-root-command-files-protection-check-v2.py",
-  "implementation_sha256": "041bc17b08f49ebd6c6694c8d666343f9f9dfa90edb20f470e313b3879c21bfa",
+  "implementation_sha256": "7d851768c30e4a8c2a685564ca0f513bedec84ed5bb1bc66cc240a2bb3ebf8f4",
   "input_schema_id": "canonical-control-v3",
   "input_schema_version": 1,
   "operation": "check",
