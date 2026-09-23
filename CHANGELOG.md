@@ -11,6 +11,47 @@
 ## [Unreleased]
 
 - 2.3.10 HOME-SENSITIVE-FILES-MODE (`product-home-sensitive-files-mode-check-v2.py`,
+  SRC-0014), шаг (б) — решение человека 23.09.2026: проверяемые имена —
+  замкнутый встроенный набор, authority-файл
+  `/etc/securelinux-policy/home-sensitive-files-v1` больше не читается.
+  Набор — восемь имён источника (`MANDATORY_SOURCE_NAMES`: `.bash_history`,
+  `.history`, `.sh_history`, `.bash_profile`, `.bashrc`, `.profile`,
+  `.bash_logout`, `.rhosts`) плюс 15 имён `COMMON_SHELL_BASENAMES`. В каждом
+  home отбираются только непосредственные элементы (`find -P -xdev
+  -mindepth 1 -maxdepth 1`); рекурсивный обход и
+  `COMMON_SHELL_RELATIVE_PATTERNS` (fish/Nushell/Xonsh/Elvish в XDG-каталогах)
+  удалены — файлы глубже первого уровня вне охвата. Удалены
+  `CANONICAL_INVENTORY` и весь разбор authority-файла (причины
+  `inventory:*` больше не возникают). Поле VALUE `names=` убрано (считало
+  строки authority-файла); новый формат —
+  `homes=N;discovered=N;checked=N;violations=N`. Популяция home-директорий
+  (прямые элементы `/home`) и классификация объектов не менялись.
+
+  Локатор `/home|/etc/securelinux-policy/home-sensitive-files-v1` → `/home`;
+  синхронизированы control-yaml SRC-0014 (`parameter.locator`,
+  `justification`), контракт `home-sensitive-files-mode-check-semantic-v2.json`
+  (`canonical_locator`, `sensitive_file_population`: сняты `authority_path`,
+  `authority_role`, `missing_authority`, `dynamic_discovery`, добавлены
+  `common_shell_basenames`, `name_set`, `depth`; `wire_value`,
+  `absent_root`), `checker/gates-v3/checker.py` (`KIND_RULES`),
+  `CONTROL-SCHEMA.json` (совпадает с `--emit-schema`),
+  `tests/gates-v3/test_schema_runtime_parity.py`, `ADAPTER-REGISTRY.tsv`,
+  JSON binding адаптера, `CONTROL-MANIFEST.tsv`, `SOURCE-INDEX.tsv` (note
+  SRC-0014). Docs: `docs/compatibility.md` перечисляет все проверяемые имена,
+  `product/README.md` — упоминания authority-файла сняты.
+
+  Тесты первыми: в `HomeSensitiveFilesAdapterFixtures` добавлено 5 тестов
+  (без authority-файла проверка выполняется; восемь имён источника — литерал;
+  нарушение 0077 на каждом из восьми имён → FAIL; каждое имя
+  `COMMON_SHELL_BASENAMES` проверяется; файлы глубже первого уровня не
+  проверяются), удалено 8, ставших неприменимыми (inventory и рекурсивное
+  обнаружение), класс 18 → 15; класс `HomeSensitiveSingleReadFixtures`
+  (3 теста, однократное чтение authority-файла) удалён целиком. До правки
+  2 FAIL + 40 ERROR, после — 16/16 OK. Строк source index закрыто: 0.
+  Новый `CHECK_SHA256`
+  `725b250b48aa9048e1e9a5156766b99286dddd1d82effb6fbb88918830dc577d`.
+
+- 2.3.10 HOME-SENSITIVE-FILES-MODE (`product-home-sensitive-files-mode-check-v2.py`,
   SRC-0014): популяция home-директорий переведена с обхода `/etc/passwd` на
   непосредственные (mindepth=1,maxdepth=1) элементы `/home`, по прецеденту
   2.3.11 (коммит `3215d1c`) — решение человека 23.09.2026. Прямой элемент

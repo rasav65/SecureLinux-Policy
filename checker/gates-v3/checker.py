@@ -282,7 +282,7 @@ KIND_RULES = {
         ],
     },
     "home-sensitive-files-mode": {
-        "locator": {"const": "/home|/etc/securelinux-policy/home-sensitive-files-v1"},
+        "locator": {"const": "/home"},
         "key": {"const": "mode"},
         "op": {"const": "bits-clear"},
         "type": {"const": "string"},

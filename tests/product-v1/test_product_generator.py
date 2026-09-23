@@ -411,9 +411,9 @@ class GeneratorModel(unittest.TestCase):
         self.assertEqual(
             (src0014[0]["parameter_kind"], src0014[0]["parameter_locator"], src0014[0]["parameter_key"], src0014[0]["expected_op"], src0014[0]["expected_value"]),
             # locator сменён с /etc/passwd на /home решением человека 23.09.2026
-            # (популяция home-директорий — прямые элементы /home; authority-файл
-            # с обязательными/распространёнными shell-артефактами продолжает читаться).
-            ("home-sensitive-files-mode", "/home|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "bits-clear", "0077"),
+            # (популяция home-директорий — прямые элементы /home); authority-файл
+            # убран из локатора тем же днём, шаг (б): имена — встроенный набор.
+            ("home-sensitive-files-mode", "/home", "mode", "bits-clear", "0077"),
         )
         src0015 = [c for c in controls if c["index_id"] == "SRC-0015"]
         self.assertEqual(len(src0015), 1)
@@ -1638,129 +1638,123 @@ class TestedSettingAttestationFixtures(unittest.TestCase):
 class HomeSensitiveFilesAdapterFixtures(unittest.TestCase):
     """Популяция home-директорий — непосредственные (mindepth=1,maxdepth=1)
     элементы /home, /etc/passwd не используется (решение человека 23.09.2026,
-    по прецеденту 2.3.11 / коммит 3215d1c). Authority-файл (инвентарь
-    обязательных/распространённых shell-артефактов) и отбор файлов внутри
-    каждого home — не изменены."""
+    по прецеденту 2.3.11 / коммит 3215d1c). Проверяемые имена — замкнутый
+    встроенный набор: восемь обязательных имён источника плюс
+    COMMON_SHELL_BASENAMES, только непосредственные элементы каждого home;
+    authority-файл не читается (решение человека 23.09.2026, шаг (б))."""
+
+    # Восемь имён — прямая цитата источника 2.3.10; литерал меняется только
+    # явным решением.
+    SOURCE_NAMES = (
+        ".bash_history", ".history", ".sh_history", ".bash_profile",
+        ".bashrc", ".profile", ".bash_logout", ".rhosts",
+    )
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.base = Path(self.tmp.name)
         self.home_base = self.base / "home"
         self.home_base.mkdir()
-        self.inventory = self.base / "inventory"
         self.root_home = self.home_base / "root"
         self.service_home = self.home_base / "service"
         self.user_home = self.home_base / "user"
         for h in (self.root_home, self.service_home, self.user_home): h.mkdir()
-        self.inventory.write_text("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\n", encoding="utf-8")
 
     def tearDown(self): self.tmp.cleanup()
 
     def run_check(self):
-        block = HOME_SENSITIVE._shell_function_for_fixture(
-            "TEST.HOME", str(self.home_base), str(self.inventory)
-        )
+        block = HOME_SENSITIVE._shell_function_for_fixture("TEST.HOME", str(self.home_base))
         script = self.base / "check.sh"
         script.write_text(block + "\nslp_check_TEST_HOME\n", encoding="utf-8")
         return subprocess.run([BASH, str(script)], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    def test_check_runs_without_authority_file(self):
+        self.assertFalse(hasattr(HOME_SENSITIVE, "CANONICAL_INVENTORY"))
+        self.assertFalse(hasattr(HOME_SENSITIVE, "COMMON_SHELL_RELATIVE_PATTERNS"))
+        block = HOME_SENSITIVE.shell_function("TEST.HOME", "/home", "mode", "bits-clear", "0077")
+        self.assertNotIn("/etc/securelinux-policy", block)
+        self.assertNotIn("inventory", block)
+        p = self.user_home / ".bashrc"; p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o600)
+        cp = self.run_check()
+        self.assertEqual(cp.returncode, 0, cp.stderr); self.assertEqual(cp.stderr, "")
+        self.assertEqual(cp.stdout.strip().split("\t")[2:],
+                         ["VALUE", "homes=3;discovered=1;checked=1;violations=0", "PASS"])
+
+    def test_mandatory_names_are_the_eight_source_names(self):
+        self.assertEqual(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES, self.SOURCE_NAMES)
+
+    def test_violation_on_each_mandatory_name_fails(self):
+        for name in self.SOURCE_NAMES:
+            with self.subTest(name=name):
+                p = self.user_home / name
+                p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o640)
+                cp = self.run_check()
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                self.assertIn("discovered=1;checked=1;violations=1\tFAIL", cp.stdout)
+                p.unlink()
+
+    def test_each_common_shell_basename_is_checked(self):
+        self.assertTrue(HOME_SENSITIVE.COMMON_SHELL_BASENAMES)
+        for name in HOME_SENSITIVE.COMMON_SHELL_BASENAMES:
+            with self.subTest(name=name):
+                p = self.user_home / name
+                p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o644)
+                cp = self.run_check()
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                self.assertIn("discovered=1;checked=1;violations=1\tFAIL", cp.stdout)
+                p.unlink()
+
+    def test_files_below_first_level_are_not_checked(self):
+        for rel in (
+            "sub/.bashrc",
+            ".config/.profile",
+            ".config/fish/config.fish",
+            ".config/nushell/config.nu",
+            ".config/xonsh/rc.xsh",
+            ".local/share/fish/fish_history",
+            ".elvish/rc.elv",
+        ):
+            with self.subTest(rel=rel):
+                p = self.user_home / rel
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o644)
+                cp = self.run_check()
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                self.assertIn("homes=3;discovered=0;checked=0;violations=0\tPASS", cp.stdout)
 
     def test_positive_includes_service_home(self):
         for p in (self.root_home / ".bashrc", self.service_home / ".profile", self.user_home / ".bash_history"):
             p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o600)
         cp = self.run_check()
         self.assertEqual(cp.returncode, 0); self.assertEqual(cp.stderr, "")
-        self.assertIn("homes=3;names=8;discovered=3;checked=3;violations=0\tPASS", cp.stdout)
+        self.assertIn("homes=3;discovered=3;checked=3;violations=0\tPASS", cp.stdout)
 
     def test_service_home_sensitive_file_is_checked(self):
         p = self.service_home / ".bashrc"; p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o644)
         cp = self.run_check()
         self.assertIn("violations=1\tFAIL", cp.stdout)
 
-    def test_unlisted_zsh_history_is_discovered(self):
-        p = self.user_home / ".zsh_history"; p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o644)
-        cp = self.run_check()
-        self.assertIn("discovered=1;checked=1;violations=1\tFAIL", cp.stdout)
-
     def test_vimrc_is_not_misclassified_as_shell_config(self):
         p = self.user_home / ".vimrc"; p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o644)
         cp = self.run_check()
         self.assertIn("discovered=0;checked=0;violations=0\tPASS", cp.stdout)
 
-    def test_nushell_config_is_discovered(self):
-        d = self.user_home / ".config" / "nushell"; d.mkdir(parents=True)
-        p = d / "config.nu"; p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o644)
-        cp = self.run_check()
-        self.assertIn("discovered=1;checked=1;violations=1\tFAIL", cp.stdout)
-
-    def test_additional_common_shell_artifacts_are_discovered(self):
-        paths = (
-            ".bash_login",
-            ".xonshrc",
-            ".config/nushell/autoload/local.nu",
-            ".local/share/nushell/vendor/autoload/vendor.nu",
-            ".config/nushell/history.txt",
-            ".config/nushell/history.sqlite3",
-            ".config/xonsh/rc.xsh",
-            ".config/xonsh/rc.d/local.xsh",
-            ".config/xonsh/rc.d/local.py",
-            ".local/share/xonsh/history_json/xonsh-session.json",
-            ".local/share/xonsh/xonsh-legacy.json",
-            ".local/share/xonsh/xonsh-history.sqlite",
-            ".config/elvish/rc.elv",
-            ".elvish/rc.elv",
-            ".local/state/elvish/db.bolt",
-            ".elvish/db",
-        )
-        for rel in paths:
-            with self.subTest(rel=rel):
-                p = self.user_home / rel
-                p.parent.mkdir(parents=True, exist_ok=True)
-                p.write_text("x\n", encoding="utf-8")
-                os.chmod(p, 0o644)
-                cp = self.run_check()
-                self.assertEqual(cp.returncode, 0, cp.stderr)
-                self.assertIn("discovered=1;checked=1;violations=1\tFAIL", cp.stdout)
-                p.unlink()
-
-    def test_group_other_bits_fail(self):
-        p = self.user_home / ".profile"; p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o644)
-        self.assertIn("violations=1\tFAIL", self.run_check().stdout)
-
-    def test_missing_inventory_fails_closed(self):
-        self.inventory.unlink()
-        assert_stable_error_record(self, self.run_check().stdout, "TEST.HOME", "inventory:not-found")
-
-    def test_inventory_must_cover_all_source_examples(self):
-        self.inventory.write_text(".bashrc\n", encoding="utf-8")
-        assert_stable_error_record(self, self.run_check().stdout)
-
-    def test_additional_nested_inventory_member_is_checked(self):
-        self.inventory.write_text("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\n.config/fish/config.fish\n", encoding="utf-8")
-        d=self.user_home / ".config" / "fish"; d.mkdir(parents=True)
-        p=d / "config.fish"; p.write_text("x\n", encoding="utf-8"); os.chmod(p,0o600)
-        cp=self.run_check()
-        self.assertIn("names=9", cp.stdout); self.assertIn("checked=1;violations=0\tPASS", cp.stdout)
-
     def test_symlink_member_fails_closed(self):
         outside=self.base / "outside"; outside.write_text("x\n",encoding="utf-8")
         (self.user_home / ".bashrc").symlink_to(outside)
-        assert_stable_error_record(self, self.run_check().stdout)
-
-    def test_nul_or_cr_in_inventory_is_error(self):
-        self.inventory.write_bytes(("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\r\n").encode("utf-8"))
-        assert_stable_error_record(self, self.run_check().stdout, "TEST.HOME", "inventory:invalid-bytes")
+        assert_stable_error_record(self, self.run_check().stdout, "TEST.HOME", "target:symlink")
 
     def test_home_absent_is_pass_with_empty_population(self):
         shutil.rmtree(self.home_base)
         cp = self.run_check()
         self.assertEqual(cp.returncode, 0, cp.stderr); self.assertEqual(cp.stderr, "")
-        self.assertIn("homes=0;names=8;discovered=0;checked=0;violations=0\tPASS", cp.stdout)
+        self.assertIn("homes=0;discovered=0;checked=0;violations=0\tPASS", cp.stdout)
 
     def test_home_present_and_empty_is_pass_with_empty_population(self):
         for h in (self.root_home, self.service_home, self.user_home):
             h.rmdir()
         cp = self.run_check()
-        self.assertIn("homes=0;names=8;discovered=0;checked=0;violations=0\tPASS", cp.stdout)
+        self.assertIn("homes=0;discovered=0;checked=0;violations=0\tPASS", cp.stdout)
 
     def test_direct_home_symlink_entry_is_error(self):
         target = self.base / "real"; target.mkdir()
@@ -1782,19 +1776,18 @@ class HomeSensitiveFilesAdapterFixtures(unittest.TestCase):
     def test_passwd_is_not_read_and_has_no_effect(self):
         # /etc/passwd не используется: адаптер не ссылается на него вовсе, и
         # реальный /etc/passwd с home= вне /home на результат не влияет.
-        block = HOME_SENSITIVE._shell_function_for_fixture(
-            "TEST.HOME", str(self.home_base), str(self.inventory)
-        )
+        block = HOME_SENSITIVE._shell_function_for_fixture("TEST.HOME", str(self.home_base))
         self.assertNotIn("/etc/passwd", block)
         self.assertNotIn("_slp_passwd", block)
         p = self.user_home / ".bashrc"; p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o600)
         cp = self.run_check()
-        self.assertIn("homes=3;names=8;discovered=1;checked=1;violations=0\tPASS", cp.stdout)
+        self.assertIn("homes=3;discovered=1;checked=1;violations=0\tPASS", cp.stdout)
 
     def test_generation_rejects_wrong_contract_fields(self):
-        good_locator = HOME_SENSITIVE.CANONICAL_HOME_BASE + "|" + HOME_SENSITIVE.CANONICAL_INVENTORY
+        good_locator = HOME_SENSITIVE.CANONICAL_HOME_BASE
         for args in (
-            ("TEST", "/etc/passwd|" + HOME_SENSITIVE.CANONICAL_INVENTORY, "mode", "bits-clear", "0077"),
+            ("TEST", "/etc/passwd", "mode", "bits-clear", "0077"),
+            ("TEST", "/home|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "bits-clear", "0077"),
             ("TEST", good_locator, "owner", "bits-clear", "0077"),
             ("TEST", good_locator, "mode", "eq", "0077"),
         ):
@@ -5728,11 +5721,8 @@ class UnprovenAbsenceIsErrorFixtures(unittest.TestCase):
         home.mkdir()
         os.chmod(home, 0o700)
         self.owned(home)
-        inventory = self.visible / "inventory"
-        inventory.write_text("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\n", encoding="utf-8")
-        self.owned(inventory)
         self.seal(home)
-        block = HOME_SENSITIVE._shell_function_for_fixture("TEST.ABSENCE", str(home), str(inventory))
+        block = HOME_SENSITIVE._shell_function_for_fixture("TEST.ABSENCE", str(home))
         self.assertEqual(self.run_block(block, "slp_check_TEST_ABSENCE"),
                          ("ERROR", "home-base:stat-failed:%s" % home, "ERROR"))
 
@@ -5977,56 +5967,6 @@ class PamWheelSingleReadFixtures(unittest.TestCase):
         # пустая строка завершает продолжение: логическая строка валидна
         self.pam.write_text("auth required pam_wheel.so use_uid\\\n\n", encoding="utf-8")
         self.assertEqual(self.run_check(), self.PASS_ROW)
-
-
-class HomeSensitiveSingleReadFixtures(unittest.TestCase):
-    """inventory для home-sensitive-files-mode читается один раз: проверенные
-    через `od` байты декодируются и тут же разбираются, без повторного
-    открытия файла (аудит Codex, коммит 6780086). /etc/passwd этот адаптер
-    не читает (решение человека 23.09.2026, 2.3.10: популяция — прямые
-    элементы /home)."""
-
-    PASS_ROW = ("VALUE", "homes=1;names=8;discovered=0;checked=0;violations=0", "PASS")
-
-    def setUp(self):
-        if BASH is None:
-            self.skipTest("bash not found")
-        self.tmp = Path(tempfile.mkdtemp(prefix="slp-home-sensitive-single-read-"))
-        self.home_base = self.tmp / "home"
-        self.home_base.mkdir()
-        (self.home_base / "user").mkdir()
-        self.inventory = self.tmp / "inventory"
-        self.inventory.write_text("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\n", encoding="utf-8")
-
-    def tearDown(self):
-        shutil.rmtree(self.tmp, ignore_errors=True)
-
-    def run_check(self, shim=None):
-        block = HOME_SENSITIVE._shell_function_for_fixture("HS.SINGLE", str(self.home_base), str(self.inventory))
-        if shim is not None:
-            block = install_od_shim(block, self.tmp, shim)
-        cp = subprocess.run(
-            [BASH, "-c", "set -u\n" + block + "\nslp_check_HS_SINGLE\n"],
-            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        )
-        self.assertEqual(cp.returncode, 0, cp.stderr)
-        self.assertEqual(cp.stderr, "")
-        row = cp.stdout.strip().split("\t")
-        self.assertEqual(len(row), 5, cp.stdout)
-        return tuple(row[2:])
-
-    def test_baseline_passes(self):
-        self.assertEqual(self.run_check(), self.PASS_ROW)
-
-    def test_inventory_vanishing_after_validation_parses_checked_bytes(self):
-        self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.inventory)), self.PASS_ROW)
-        self.assertFalse(self.inventory.exists(), "сбой не внедрён")
-
-    def test_od_failure_after_partial_prefix_is_error(self):
-        self.assertEqual(
-            self.run_check(shim=_od_fail_after_prefix_shim_text()),
-            ("ERROR", "inventory:read-failed", "ERROR"),
-        )
 
 
 class LocalAccountSingleReadFixtures(unittest.TestCase):

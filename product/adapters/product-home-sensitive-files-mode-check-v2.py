@@ -10,7 +10,6 @@ TARGET_ID = "linux-x86_64-supported-v1"
 WIRE_RECORD_ID = "SLP-CHECK-V1"
 SEMANTIC_CONTRACT_ID = "home-sensitive-files-mode-check-semantic-v2"
 CANONICAL_HOME_BASE = "/home"
-CANONICAL_INVENTORY = "/etc/securelinux-policy/home-sensitive-files-v1"
 EXPECTED_MASK = "0077"
 MANDATORY_SOURCE_NAMES = (
     ".bash_history", ".history", ".sh_history", ".bash_profile",
@@ -20,17 +19,6 @@ COMMON_SHELL_BASENAMES = (
     ".bash_login", ".xonshrc",
     ".zsh_history", ".zshrc", ".zprofile", ".zlogin", ".zlogout", ".zshenv",
     ".ksh_history", ".kshrc", ".mkshrc", ".cshrc", ".tcshrc", ".login", ".logout",
-)
-COMMON_SHELL_RELATIVE_PATTERNS = (
-    ".config/fish/*.fish", ".local/share/fish/fish_history",
-    ".config/nushell/config.nu", ".config/nushell/env.nu", ".config/nushell/login.nu",
-    ".config/nushell/autoload/*.nu", ".local/share/nushell/vendor/autoload/*.nu",
-    ".config/nushell/history.txt", ".config/nushell/history.sqlite3",
-    ".config/xonsh/rc.xsh", ".config/xonsh/rc.d/*.xsh", ".config/xonsh/rc.d/*.py",
-    ".local/share/xonsh/history_json/xonsh-*.json", ".local/share/xonsh/xonsh-*.json",
-    ".local/share/xonsh/xonsh-history.sqlite",
-    ".config/elvish/rc.elv", ".elvish/rc.elv",
-    ".local/state/elvish/db.bolt", ".elvish/db",
 )
 CONTROL_ID_PATTERN = r"^(?!.*[\r\n])[A-Za-z0-9._-]+$"
 
@@ -45,78 +33,24 @@ def _sh_single(value):
     return "'" + value.replace("'", "'\"'\"'") + "'"
 
 
-def _render(control_id, home_base, inventory_path):
+def _render(control_id, home_base):
     cid = _sh_single(control_id)
     home = _sh_single(home_base)
-    inventory = _sh_single(inventory_path)
     emit = '  printf "%s\\t%s\\t%s\\t%s\\t%s\\n" ' + _sh_single(WIRE_RECORD_ID) + " " + cid
-    mandatory_words = " ".join(_sh_single(x) for x in MANDATORY_SOURCE_NAMES)
-    basename_case = "|".join(COMMON_SHELL_BASENAMES)
-    relative_case = "|".join(COMMON_SHELL_RELATIVE_PATTERNS)
+    # Замкнутый встроенный набор имён: восемь имён источника плюс
+    # распространённые shell-артефакты; authority-файл не читается.
+    name_case = "|".join(MANDATORY_SOURCE_NAMES + COMMON_SHELL_BASENAMES)
     fn = "slp_check_" + re.sub(r"[^A-Za-z0-9_]", "_", control_id)
     lines = [
         fn + "() {",
-        "  local _slp_home=" + home + " _slp_inventory=" + inventory,
+        "  local _slp_home=" + home,
         "  local _slp_expected=" + _sh_single(EXPECTED_MASK),
-        "  local _slp_entry _slp_rel _slp_base _slp_mode _slp_hex",
-        "  local _slp_ident _slp_marker _slp_find_rc _slp_sort_rc _slp_i _slp_candidate=0",
+        "  local _slp_entry _slp_base _slp_mode",
+        "  local _slp_ident _slp_marker _slp_find_rc _slp_sort_rc _slp_i",
         "  local _slp_probe _slp_stat_out _slp_reason _slp_target _slp_bad",
-        "  local _slp_rest _slp_inventory_text",
-        "  local _slp_homes=0 _slp_names=0 _slp_checked=0 _slp_violations=0 _slp_dynamic=0",
-        "  local -a _slp_fields=() _slp_entries=() _slp_mandatory=(" + mandatory_words + ") _slp_home_entries=()",
-        "  local -A _slp_inventory_names=() _slp_seen_targets=() _slp_seen_entries=()",
-        "",
-        '  if [[ -L "$_slp_inventory" ]]; then',
-        emit + ' "ERROR" "inventory:symlink" "ERROR"',
-        "    return 0",
-        "  fi",
-        '  if [[ ! -e "$_slp_inventory" ]]; then',
-        emit + ' "ERROR" "inventory:not-found" "ERROR"',
-        "    return 0",
-        "  fi",
-        '  if [[ ! -f "$_slp_inventory" ]]; then',
-        emit + ' "ERROR" "inventory:invalid-type" "ERROR"',
-        "    return 0",
-        "  fi",
-        '  if [[ ! -r "$_slp_inventory" ]]; then',
-        emit + ' "ERROR" "inventory:unreadable" "ERROR"',
-        "    return 0",
-        "  fi",
-        '  if ! _slp_hex=$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_inventory" 2>/dev/null); then',
-        emit + ' "ERROR" "inventory:read-failed" "ERROR"',
-        "    return 0",
-        "  fi",
-        '  if [[ "$_slp_hex" =~ (^|[[:space:]])(00|0d)([[:space:]]|$) ]]; then',
-        emit + ' "ERROR" "inventory:invalid-bytes" "ERROR"',
-        "    return 0",
-        "  fi",
-        # Файл читается один раз: проверенные `od` байты декодируются в текст,
-        # который затем разбирается; повторного открытия файла нет.
-        '  if [[ -z $_slp_hex ]]; then',
-        '    _slp_inventory_text=""',
-        '  else',
-        r"    _slp_inventory_text=$(printf '\\x%s' $_slp_hex)",
-        '    printf -v _slp_inventory_text %b "$_slp_inventory_text"',
-        '  fi',
-        "",
-        '  _slp_rest=$_slp_inventory_text',
-        '  while [[ -n $_slp_rest ]]; do',
-        '    if [[ $_slp_rest == *$\'\\n\'* ]]; then _slp_entry=${_slp_rest%%$\'\\n\'*}; _slp_rest=${_slp_rest#*$\'\\n\'}; else _slp_entry=$_slp_rest; _slp_rest=""; fi',
-        '    [[ -z "$_slp_entry" || "${_slp_entry:0:1}" == "#" ]] && continue',
-        '    if [[ ! "$_slp_entry" =~ ^\\.[A-Za-z0-9._@+-]+(/[A-Za-z0-9._@+-]+)*$ ]]; then',
-        emit + ' "ERROR" "inventory:invalid-path" "ERROR"',
-        "      return 0",
-        "    fi",
-        '    if [[ ${_slp_inventory_names["$_slp_entry"]+x} ]]; then',
-        emit + ' "ERROR" "inventory:duplicate-path" "ERROR"',
-        "      return 0",
-        "    fi",
-        '    _slp_inventory_names["$_slp_entry"]=1',
-        '  done',
-        '  for _slp_entry in "${_slp_mandatory[@]}"; do',
-        '    [[ ${_slp_inventory_names["$_slp_entry"]+x} ]] || { ' + emit.strip() + ' "ERROR" "inventory:missing-required" "ERROR"; return 0; }',
-        '  done',
-        '  _slp_names=${#_slp_inventory_names[@]}',
+        "  local _slp_homes=0 _slp_checked=0 _slp_violations=0 _slp_dynamic=0",
+        "  local -a _slp_entries=() _slp_home_entries=()",
+        "  local -A _slp_seen_targets=() _slp_seen_entries=()",
         "",
         # /home сам: [[ ! -e ]]/[[ -L ]] не отличают доказанный ENOENT от
         # прочих ошибок stat (EIO, ENAMETOOLONG, EACCES на самом /home и
@@ -146,7 +80,7 @@ def _render(control_id, home_base, inventory_path):
         "      fi",
         "    done",
         '    if [[ $_slp_probe == / ]]; then',
-        emit + ' "VALUE" "homes=0;names=$_slp_names;discovered=0;checked=0;violations=0" "PASS"',
+        emit + ' "VALUE" "homes=0;discovered=0;checked=0;violations=0" "PASS"',
         "      return 0",
         "    fi",
         '    case "$_slp_stat_out" in',
@@ -162,7 +96,7 @@ def _render(control_id, home_base, inventory_path):
         emit + ' "ERROR" "home-base:ancestor-unsearchable" "ERROR"',
         "      return 0",
         "    fi",
-        emit + ' "VALUE" "homes=0;names=$_slp_names;discovered=0;checked=0;violations=0" "PASS"',
+        emit + ' "VALUE" "homes=0;discovered=0;checked=0;violations=0" "PASS"',
         "    return 0",
         "  fi",
         '  case "$_slp_stat_out" in',
@@ -274,8 +208,10 @@ def _render(control_id, home_base, inventory_path):
         "    fi",
         "    ((_slp_homes+=1))",
         '    _slp_entries=()',
+        # Только непосредственные элементы home: файлы глубже первого
+        # уровня вне охвата.
         '    mapfile -d "" -t _slp_entries < <(',
-        '      LC_ALL=C command /usr/bin/find -P -- "$_slp_home" -xdev -mindepth 1 -print0 2>/dev/null | LC_ALL=C command /usr/bin/sort -z',
+        '      LC_ALL=C command /usr/bin/find -P -- "$_slp_home" -xdev -mindepth 1 -maxdepth 1 -print0 2>/dev/null | LC_ALL=C command /usr/bin/sort -z',
         '      _slp_marker="${PIPESTATUS[0]},${PIPESTATUS[1]}"',
         '      printf "__SLP_SCAN_RC=%s\\0" "$_slp_marker"',
         '    )',
@@ -286,17 +222,11 @@ def _render(control_id, home_base, inventory_path):
         '    (( _slp_find_rc == 0 )) || { ' + emit.strip() + ' "ERROR" "scan:find-failed" "ERROR"; return 0; }',
         '    (( _slp_sort_rc == 0 )) || { ' + emit.strip() + ' "ERROR" "scan:sort-failed" "ERROR"; return 0; }',
         '    for _slp_entry in "${_slp_entries[@]}"; do',
-        '      _slp_rel=${_slp_entry#"$_slp_home"/}; _slp_base=${_slp_entry##*/}; _slp_candidate=0',
-        '      if [[ ${_slp_inventory_names["$_slp_rel"]+x} ]]; then _slp_candidate=1; fi',
-        '      if [[ "$_slp_base" == .* ]]; then',
-        '        case "$_slp_base" in',
-        '          ' + basename_case + ') _slp_candidate=1 ;;',
-        '        esac',
-        '      fi',
-        '      case "$_slp_rel" in',
-        '        ' + relative_case + ') _slp_candidate=1 ;;',
+        '      _slp_base=${_slp_entry##*/}',
+        '      case "$_slp_base" in',
+        '        ' + name_case + ') ;;',
+        '        *) continue ;;',
         '      esac',
-        '      (( _slp_candidate == 1 )) || continue',
         '      ((_slp_dynamic+=1))',
         '      if [[ -L "$_slp_entry" ]]; then',
         emit + ' "ERROR" "target:symlink" "ERROR"',
@@ -321,7 +251,7 @@ def _render(control_id, home_base, inventory_path):
         '      if (( (8#$_slp_mode & 8#$_slp_expected) != 0 )); then ((_slp_violations+=1)); fi',
         '    done',
         '  done',
-        '  local _slp_value="homes=$_slp_homes;names=$_slp_names;discovered=$_slp_dynamic;checked=$_slp_checked;violations=$_slp_violations"',
+        '  local _slp_value="homes=$_slp_homes;discovered=$_slp_dynamic;checked=$_slp_checked;violations=$_slp_violations"',
         emit + ' "VALUE" "$_slp_value" "$([[ $_slp_violations -eq 0 ]] && printf PASS || printf FAIL)"',
         "  return 0",
         "}",
@@ -332,16 +262,15 @@ def _render(control_id, home_base, inventory_path):
 def shell_function(control_id, locator, key, op, expected):
     if not isinstance(control_id, str) or re.fullmatch(CONTROL_ID_PATTERN, control_id) is None:
         raise ValueError("invalid control id")
-    if locator != CANONICAL_HOME_BASE + "|" + CANONICAL_INVENTORY or key != "mode" or op != "bits-clear" or expected != EXPECTED_MASK:
+    if locator != CANONICAL_HOME_BASE or key != "mode" or op != "bits-clear" or expected != EXPECTED_MASK:
         raise ValueError("unsupported SRC-0014 home-sensitive-files contract")
-    return _render(control_id, CANONICAL_HOME_BASE, CANONICAL_INVENTORY)
+    return _render(control_id, CANONICAL_HOME_BASE)
 
 
-def _shell_function_for_fixture(control_id, home_base, inventory_path):
-    for p in (home_base, inventory_path):
-        if not isinstance(p, str) or not p.startswith("/"):
-            raise ValueError("absolute fixture path required")
-    return _render(control_id, home_base, inventory_path)
+def _shell_function_for_fixture(control_id, home_base):
+    if not isinstance(home_base, str) or not home_base.startswith("/"):
+        raise ValueError("absolute fixture path required")
+    return _render(control_id, home_base)
 
 
 MUTATING_TOKENS = (
@@ -356,15 +285,11 @@ def _selftest():
     assert _mode_compliance("0644") is False
     assert _mode_compliance("0770") is False
     assert _mode_compliance("bad") is None
-    block = shell_function(
-        "CTRL.HOME", CANONICAL_HOME_BASE + "|" + CANONICAL_INVENTORY, "mode", "bits-clear", "0077"
-    )
+    block = shell_function("CTRL.HOME", CANONICAL_HOME_BASE, "mode", "bits-clear", "0077")
     assert "/etc/passwd" not in block and "_slp_passwd" not in block
-    for marker in (
-        CANONICAL_HOME_BASE, CANONICAL_INVENTORY, "discovered=", "violations=",
-        ".bash_login", ".xonshrc", ".config/nushell/autoload/*.nu", ".config/xonsh/rc.xsh",
-        ".config/elvish/rc.elv", ".local/state/elvish/db.bolt",
-    ):
+    assert "/etc/securelinux-policy" not in block and "inventory" not in block
+    assert "-xdev -mindepth 1 -maxdepth 1 -print0" in block
+    for marker in (CANONICAL_HOME_BASE, "discovered=", "violations=") + MANDATORY_SOURCE_NAMES + COMMON_SHELL_BASENAMES:
         assert marker in block
     assert "UID_MIN" not in block and "nologin" not in block
     for token in MUTATING_TOKENS:

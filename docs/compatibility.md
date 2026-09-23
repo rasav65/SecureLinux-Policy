@@ -196,7 +196,12 @@ Generated CHECK отклоняет с RC=3 до policy checks. Причина р
 
 Исторический VM batch использовал selector `root OR UID>=UID_MIN` + interactive shell; retrospective audit признал это source-unanchored сужением. Решением человека 23.09.2026 (по прецеденту 2.3.11) популяция переведена с обхода `/etc/passwd` на непосредственные (mindepth=1,maxdepth=1) элементы `/home`, включая service/system home-директории; `/etc/passwd` не читается. Старые 7-run counts сохраняются только как historical evidence и не доказывают current v2 population.
 
-Open-ended `и т. п.` больше не доверяется одному inventory: восемь source examples остаются mandatory authority entries, а read-only traversal дополнительно обнаруживает standard common-shell history/config artifacts для Bash/zsh/ksh/csh/tcsh/fish/Nushell/Xonsh/Elvish; custom/XDG override paths остаются через local inventory, ambiguity fail-closed.
+Проверяемые имена — замкнутый встроенный список (решение человека 23.09.2026, шаг (б)); authority-файл `/etc/securelinux-policy/home-sensitive-files-v1` не читается, его отсутствие на результат не влияет. Список:
+
+- восемь обязательных имён источника: `.bash_history`, `.history`, `.sh_history`, `.bash_profile`, `.bashrc`, `.profile`, `.bash_logout`, `.rhosts`;
+- распространённые имена оболочек (`COMMON_SHELL_BASENAMES`): `.bash_login`, `.xonshrc`, `.zsh_history`, `.zshrc`, `.zprofile`, `.zlogin`, `.zlogout`, `.zshenv`, `.ksh_history`, `.kshrc`, `.mkshrc`, `.cshrc`, `.tcshrc`, `.login`, `.logout`.
+
+Проверяются только непосредственные элементы каждого домашнего каталога с одним из этих имён; файлы глубже первого уровня (например, `.config/fish/*.fish`, история Nushell/Xonsh/Elvish в XDG-каталогах) вне охвата. Выбранный объект-симлинк или не обычный файл — `ERROR`. Поле VALUE: `homes=N;discovered=N;checked=N;violations=N`.
 
 ## SRC-0015 / 2.3.11 — режим доступа домашнего каталога
 
