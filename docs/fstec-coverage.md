@@ -9,7 +9,7 @@ TOTAL_INDEX_ROWS=349
 CONTROLLED_CLOSED_WITH_CONTRACT=40
 DISPOSED_CLOSED_ROWS=211
 OPEN_INDEX_ROWS=98
-CANONICAL_CONTROLS=51
+CANONICAL_CONTROLS=50
 ```
 
 Число canonical controls и число закрытых source rows — разные величины: одна строка источника может требовать `exact-control-set` из нескольких controls.
@@ -51,7 +51,7 @@ CANONICAL_CONTROLS=51
 | SRC-0031 | 2.5.8 | atomic-single | `FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD` | `sysctl` | `product-sysctl-check-v2` |
 | SRC-0032 | 2.5.9 | atomic-single | `FSTEC-LINUX-2022-2.5.9-TSX` | `kernel-cmdline` | `product-kernel-cmdline-check-v2` |
 | SRC-0033 | 2.5.10 | atomic-single | `FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR` | `sysctl` | `product-sysctl-check-v2` |
-| SRC-0034 | 2.5.11 | exact-control-set | `FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE`<br>`FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE` | `sysctl`<br>`tested-setting-attestation` | `product-sysctl-check-v2`<br>`product-tested-setting-attestation-check-v1` |
+| SRC-0034 | 2.5.11 | atomic-single | `FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE` | `sysctl` | `product-sysctl-check-v2` |
 | SRC-0035 | 2.6.1 | atomic-single | `FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE` | `sysctl` | `product-sysctl-check-v2` |
 | SRC-0036 | 2.6.2 | atomic-single | `FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS` | `sysctl` | `product-sysctl-check-v2` |
 | SRC-0037 | 2.6.3 | atomic-single | `FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS` | `sysctl` | `product-sysctl-check-v2` |
@@ -83,7 +83,6 @@ CANONICAL_CONTROLS=51
 | `sudoers-reviewed-policy` | `product-sudoers-reviewed-policy-check-v1` | да | 1 |
 | `suid-sgid-applications` | `product-suid-sgid-applications-check-v2` | да | 2 |
 | `sysctl` | `product-sysctl-check-v2` | да | 17 |
-| `tested-setting-attestation` | `product-tested-setting-attestation-check-v1` | да | 1 |
 | `user-cron-files-mode` | `product-user-cron-files-mode-check-v2` | да | 1 |
 
 ## Покрытие по исходным документам
@@ -91,7 +90,7 @@ CANONICAL_CONTROLS=51
 | Документ source | Всего строк | Controlled CLOSED | Disposed CLOSED | OPEN | Canonical controls |
 |---|---:|---:|---:|---:|---:|
 | fstec-configuration-2026 | 49 | 0 | 0 | 49 | 0 |
-| fstec-linux-2022 | 40 | 40 | 0 | 0 | 51 |
+| fstec-linux-2022 | 40 | 40 | 0 | 0 | 50 |
 | fstec-logging-2025 | 14 | 0 | 0 | 14 | 0 |
 | fstec-perimeter-2026 | 35 | 0 | 0 | 35 | 0 |
 | fstec-security-update-testing-2022 | 70 | 0 | 70 | 0 | 0 |

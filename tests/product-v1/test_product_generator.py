@@ -31,7 +31,6 @@ HOME_DIRECTORIES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-home-di
 SSHD_ROOT_LOGIN_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sshd-root-login-check-v1.py"
 PAM_WHEEL_ACCESS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-pam-wheel-access-check-v2.py"
 SUDOERS_REVIEWED_POLICY_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sudoers-reviewed-policy-check-v1.py"
-TESTED_SETTING_ATTESTATION_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-tested-setting-attestation-check-v1.py"
 RUNNING_PROCESS_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-running-process-paths-write-protection-check-v1.py"
 CRON_COMMAND_PATHS_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-cron-command-paths-write-protection-check-v1.py"
 SUDO_ROOT_COMMAND_FILES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sudo-root-command-files-protection-check-v2.py"
@@ -269,14 +268,6 @@ def load_sudoers_reviewed_policy_adapter():
 
 SUDOERS_REVIEWED_POLICY = load_sudoers_reviewed_policy_adapter()
 
-def load_tested_setting_attestation_adapter():
-    spec = importlib.util.spec_from_file_location("slp_tested_setting_attestation_adapter", TESTED_SETTING_ATTESTATION_ADAPTER_PATH)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-TESTED_SETTING_ATTESTATION = load_tested_setting_attestation_adapter()
-
 def load_running_process_paths_adapter():
     spec = importlib.util.spec_from_file_location("slp_running_process_paths_adapter", RUNNING_PROCESS_PATHS_ADAPTER_PATH)
     mod = importlib.util.module_from_spec(spec)
@@ -333,8 +324,8 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "cron-command-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy", "sudo-root-command-files-protection", "startup-files-write-protection", "tested-setting-attestation"} <= set(adapters))
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "cron-command-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy", "sudo-root-command-files-protection", "startup-files-write-protection", "tested-setting-attestation"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "cron-command-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy", "sudo-root-command-files-protection", "startup-files-write-protection"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "cron-command-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy", "sudo-root-command-files-protection", "startup-files-write-protection"})
         src0002 = [c for c in controls if c["index_id"] == "SRC-0002"]
         self.assertEqual(len(src0002), 1)
         self.assertEqual(
@@ -466,13 +457,12 @@ class GeneratorModel(unittest.TestCase):
             ("sysctl", "vm.mmap_min_addr", "ge", 4096),
         )
         src0034 = [c for c in controls if c["index_id"] == "SRC-0034"]
-        self.assertEqual(len(src0034), 2)
+        # 2.5.11 «после тестирования» — порядок действий администратора, не объект
+        # проверки: SRC-0034 закрывается одной проверкой sysctl.
+        self.assertEqual(len(src0034), 1)
         self.assertEqual(
-            {(c["parameter_kind"], c["parameter_locator"], c["parameter_key"], c["expected_op"], c["expected_value"]) for c in src0034},
-            {
-                ("sysctl", "sysctl", "kernel.randomize_va_space", "eq", 2),
-                ("tested-setting-attestation", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0034", "tested-before-use", "kernel.randomize_va_space=2"),
-            },
+            (src0034[0]["parameter_kind"], src0034[0]["parameter_locator"], src0034[0]["parameter_key"], src0034[0]["expected_op"], src0034[0]["expected_value"]),
+            ("sysctl", "sysctl", "kernel.randomize_va_space", "eq", 2),
         )
         src0040 = [c for c in controls if c["index_id"] == "SRC-0040"]
         self.assertEqual(len(src0040), 1)
@@ -1547,91 +1537,6 @@ class LocalAccountPasswordStateFixtures(unittest.TestCase):
             with self.subTest(args=args):
                 with self.assertRaises(ValueError):
                     SHADOW.shell_function(*args)
-
-
-@unittest.skipIf(BASH is None, "bash not available")
-class TestedSettingAttestationFixtures(unittest.TestCase):
-    def run_authority(self, content=None, *, symlink=False):
-        with tempfile.TemporaryDirectory() as td:
-            base = Path(td)
-            authority = base / "tested-setting-attestations-v1"
-            if symlink:
-                target = base / "target"
-                target.write_text(
-                    "SLP-TESTED-SETTING-ATTESTATIONS-V1\n"
-                    "SRC-0034\tkernel.randomize_va_space=2\tTESTED-BEFORE-USE\n",
-                    encoding="utf-8",
-                )
-                authority.symlink_to(target)
-            elif content is not None:
-                if isinstance(content, bytes):
-                    authority.write_bytes(content)
-                else:
-                    authority.write_text(content, encoding="utf-8")
-            source = TESTED_SETTING_ATTESTATION._shell_function_for_fixture("TEST-ATTEST", str(authority))
-            return subprocess.run(
-                [BASH, "-c", "set -u\n" + source + "\nslp_check_TEST_ATTEST"],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-            )
-
-    def test_tested_before_use_pass(self):
-        cp = self.run_authority(
-            "SLP-TESTED-SETTING-ATTESTATIONS-V1\n"
-            "SRC-0034\tkernel.randomize_va_space=2\tTESTED-BEFORE-USE\n"
-        )
-        self.assertEqual(cp.stderr, "")
-        self.assertEqual(
-            cp.stdout.strip(),
-            "SLP-CHECK-V1\tTEST-ATTEST\tVALUE\tauthority_rows=1;target_rows=1;setting_match=1;tested_before_use=1\tPASS",
-        )
-
-    def test_explicit_not_tested_or_wrong_setting_fail(self):
-        cases = (
-            "SRC-0034\tkernel.randomize_va_space=2\tNOT-TESTED-BEFORE-USE\n",
-            "SRC-0034\tkernel.randomize_va_space=1\tTESTED-BEFORE-USE\n",
-        )
-        for row in cases:
-            with self.subTest(row=row):
-                cp = self.run_authority("SLP-TESTED-SETTING-ATTESTATIONS-V1\n" + row)
-                self.assertEqual(cp.stderr, "")
-                self.assertTrue(cp.stdout.rstrip().endswith("\tFAIL"), cp.stdout)
-
-    def test_missing_target_malformed_duplicate_symlink_and_control_bytes_error(self):
-        cases = (
-            None,
-            "SLP-TESTED-SETTING-ATTESTATIONS-V1\nSRC-0028\tkernel.kptr_restrict=2\tTESTED-BEFORE-USE\n",
-            "SLP-TESTED-SETTING-ATTESTATIONS-V1\nBROKEN\n",
-            "SLP-TESTED-SETTING-ATTESTATIONS-V1\nSRC-0034\tkernel.randomize_va_space=2\tTESTED-BEFORE-USE\nSRC-0034\tkernel.randomize_va_space=2\tTESTED-BEFORE-USE\n",
-            b"SLP-TESTED-SETTING-ATTESTATIONS-V1\nSRC-0034\tkernel.randomize_va_space=2\tTESTED-BEFORE-USE\x00\n",
-            b"SLP-TESTED-SETTING-ATTESTATIONS-V1\r\nSRC-0034\tkernel.randomize_va_space=2\tTESTED-BEFORE-USE\r\n",
-        )
-        for content in cases:
-            with self.subTest(content=content):
-                cp = self.run_authority(content)
-                if content is None:
-                    assert_stable_error_record(self, cp.stdout, "TEST-ATTEST", "authority:not-found")
-                else:
-                    assert_stable_error_record(self, cp.stdout, "TEST-ATTEST")
-        cp = self.run_authority(symlink=True)
-        assert_stable_error_record(self, cp.stdout, "TEST-ATTEST", "authority:symlink")
-
-    def test_generation_rejects_wrong_contract_fields_and_adapter_is_read_only(self):
-        src = TESTED_SETTING_ATTESTATION.shell_function(
-            "TEST", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0034",
-            "tested-before-use", "kernel.randomize_va_space=2",
-        )
-        self.assertIn("TESTED-BEFORE-USE", src)
-        for token in TESTED_SETTING_ATTESTATION.MUTATING_TOKENS:
-            self.assertNotIn(token, src)
-        for args in (
-            ("TEST", "/tmp/attest", "SRC-0034", "tested-before-use", "kernel.randomize_va_space=2"),
-            ("TEST", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0028", "tested-before-use", "kernel.randomize_va_space=2"),
-            ("TEST", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0034", "eq", "kernel.randomize_va_space=2"),
-            ("TEST", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0034", "tested-before-use", "kernel.randomize_va_space=1"),
-        ):
-            with self.subTest(args=args):
-                with self.assertRaises(ValueError):
-                    TESTED_SETTING_ATTESTATION.shell_function(*args)
 
 
 @unittest.skipIf(BASH is None, "bash not available")
@@ -4685,6 +4590,47 @@ SLP_POLICY_RC=1
         fobj = json.loads(self.run_sourced(pre + "\nslp_render_json 1\n").stdout)
         self.assertEqual([x["result"] for x in fobj["results"]], ["FAIL", "ERROR"])
 
+    def test_src0034_randomize_va_space_is_decided_by_parameter_value_only(self):
+        """2.5.11: единственная CHECK-функция SRC-0034 — sysctl; результат зависит
+        только от значения kernel.randomize_va_space, файлы в
+        /etc/securelinux-policy/ не читаются."""
+        text = self.ARTIFACT.read_text(encoding="utf-8")
+        self.assertNotIn("tested-setting-attestations-v1", text)
+        self.assertNotIn("TESTED-BEFORE-USE", text)
+        fns = sorted(set(re.findall(r"^(slp_check_FSTEC_LINUX_2022_2_5_11_[A-Z0-9_]+)\(\) \{$", text, re.M)))
+        self.assertEqual(fns, ["slp_check_FSTEC_LINUX_2022_2_5_11_RANDOMIZE_VA_SPACE"])
+        body = text[text.index(fns[0] + "() {"):]
+        body = body[:body.index("\n}\n")]
+        self.assertNotIn("/etc/securelinux-policy", body)
+        proc = Path("/proc/sys/kernel/randomize_va_space")
+        if not proc.is_file():
+            self.skipTest("no /proc/sys/kernel/randomize_va_space")
+        value = str(int(proc.read_text(encoding="ascii").strip()))
+        cp = self.run_sourced(f"\n{fns[0]}\n")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(
+            cp.stdout.splitlines(),
+            ["\t".join(("SLP-CHECK-V1", "FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE", "VALUE", value, "PASS" if value == "2" else "FAIL"))],
+        )
+
+    def test_retired_tested_setting_attestation_is_historical_only(self):
+        """Выведенный механизм подтверждения 2.5.11 — historical bytes (конвенция
+        SRC-0001): файлы на месте, в ADAPTER-REGISTRY и артефакте его нет."""
+        retired = (
+            "product/adapters/product-tested-setting-attestation-check-v1.py",
+            "product/adapters/product-tested-setting-attestation-check-v1.json",
+            "product/contracts/tested-setting-attestation-check-semantic-v1.json",
+        )
+        for rel in retired:
+            self.assertTrue((ROOT / rel).is_file(), rel)
+        registry = (ROOT / "product/ADAPTER-REGISTRY.tsv").read_text(encoding="utf-8")
+        self.assertNotIn("tested-setting-attestation", registry)
+        artifact = self.ARTIFACT.read_text(encoding="utf-8")
+        self.assertNotIn("tested-setting-attestation", artifact)
+        self.assertFalse(
+            (ROOT / "controls/fstec-core/linux-2022/fstec-linux-2022-2.5.11-randomize-va-space-tested-before-use.yaml").exists()
+        )
+
     def test_required_presentation_covers_all_current_controls_from_machine_truth(self):
         rows, _ = GEN_V2_CURRENT.load_manifest(ROOT)
         controls = [GEN_V2_CURRENT.load_control(ROOT, row) for row in rows]
@@ -4695,11 +4641,15 @@ SLP_POLICY_RC=1
             for control in controls
         }
         identities = {control["control_id"]: GEN_V2_CURRENT.terminal_identity(control) for control in controls}
-        self.assertEqual(len(rendered), 51)
-        self.assertEqual(len(identities), 51)
+        # Литерал: число canonical controls меняется только явным решением
+        # (51 → 50: выведен 2.5.11 RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE).
+        self.assertEqual(len(rendered), 50)
+        self.assertEqual(len(identities), 50)
         self.assertTrue(all(value and "\n" not in value and "\r" not in value for value in rendered.values()))
         self.assertEqual(identities["FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE"], ("fstec-linux-2022 §2.6.6", "suid-dumpable"))
-        self.assertEqual(identities["FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE"], ("fstec-linux-2022 §2.5.11", "randomize-va-space-tested-before-use"))
+        self.assertNotIn("FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE", identities)
+        with self.assertRaises(RuntimeError):
+            GEN_V2_CURRENT.required_display("tested-before-use", "kernel.randomize_va_space=2")
         self.assertEqual(
             GEN_V2_CURRENT.terminal_identity(
                 {"control_id": "TEST-FILE-MODE", "doc_id": "fstec-linux-2022", "source_locator": "2.1.1"}
@@ -6225,55 +6175,6 @@ class SuidSgidSingleReadFixtures(unittest.TestCase):
         )
 
 
-class TestedSettingAttestationSingleReadFixtures(unittest.TestCase):
-    """authority для tested-setting-attestation читается один раз: while-цикл
-    раньше заново открывал файл, уже проверенный через `od` (аудит Codex,
-    коммит 6780086)."""
-
-    PASS_ROW = ("VALUE", "authority_rows=1;target_rows=1;setting_match=1;tested_before_use=1", "PASS")
-
-    def setUp(self):
-        if BASH is None:
-            self.skipTest("bash not found")
-        self.tmp = Path(tempfile.mkdtemp(prefix="slp-attestation-single-read-"))
-        self.authority = self.tmp / "tested-setting-attestations-v1"
-        self.authority.write_text(
-            "SLP-TESTED-SETTING-ATTESTATIONS-V1\n"
-            "SRC-0034\tkernel.randomize_va_space=2\tTESTED-BEFORE-USE\n",
-            encoding="utf-8",
-        )
-
-    def tearDown(self):
-        shutil.rmtree(self.tmp, ignore_errors=True)
-
-    def run_check(self, shim=None):
-        block = TESTED_SETTING_ATTESTATION._shell_function_for_fixture("ATT.SINGLE", str(self.authority))
-        if shim is not None:
-            block = install_od_shim(block, self.tmp, shim)
-        cp = subprocess.run(
-            [BASH, "-c", "set -u\n" + block + "\nslp_check_ATT_SINGLE\n"],
-            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        )
-        self.assertEqual(cp.returncode, 0, cp.stderr)
-        self.assertEqual(cp.stderr, "")
-        row = cp.stdout.strip().split("\t")
-        self.assertEqual(len(row), 5, cp.stdout)
-        return tuple(row[2:])
-
-    def test_baseline_passes(self):
-        self.assertEqual(self.run_check(), self.PASS_ROW)
-
-    def test_authority_vanishing_after_validation_parses_checked_bytes(self):
-        self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.authority)), self.PASS_ROW)
-        self.assertFalse(self.authority.exists(), "сбой не внедрён")
-
-    def test_od_failure_after_partial_prefix_is_error(self):
-        self.assertEqual(
-            self.run_check(shim=_od_fail_after_prefix_shim_text()),
-            ("ERROR", "authority:read-failed", "ERROR"),
-        )
-
-
 @unittest.skipIf(BASH is None, "bash not available")
 class SlpCollectPolicyReasonFormat(unittest.TestCase):
     """B-01 (repair-step по аудиту Codex диапазона 6780086..3215d1c):
@@ -6281,7 +6182,7 @@ class SlpCollectPolicyReasonFormat(unittest.TestCase):
     (путь и цель readlink для 2.3.11) как `CHECK_INTERNAL_ERROR`, хотя такой
     reason реально печатают CHECK-функции. Проверяется на реальном
     `slp_collect_policy` из трекнутого артефакта (единственная подмена — список
-    из одной синтетической CHECK-функции вместо 51 реальной), сквозь три
+    из одной синтетической CHECK-функции вместо всех реальных), сквозь три
     формата рендера.
     """
 

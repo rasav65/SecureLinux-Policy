@@ -276,6 +276,6 @@ hazard-строки: в обоих случаях реальная достиж�
 
 Read-only evidence `slp-vm-evidence-src0002-src0004-v1-*` integrity-verified `7/7`: Ubuntu 22 FULL, Ubuntu 24 MINIMIZED/FULL, Ubuntu 26 MINIMIZED/FULL, Debian 12 SERVER, Debian 13 SERVER. Во всех семи `/etc/sudoers` существовал как regular `0440 root:root`, присутствовал active `@includedir /etc/sudoers.d`, полный `visudo` check завершался `RC=0`. На Ubuntu 26 `sudo`/`visudo` предоставлялись через alternatives symlinks. Эти host facts подтверждают способ discovery/validation; они не задают универсальный approved user/command set.
 
-## Процедурный authority SRC-0034
+## SRC-0034 / 2.5.11
 
-`SRC-0034 / 2.5.11` не получает OS-specific default: source qualifier `после тестирования` представлен explicit local authority `/etc/securelinux-policy/tested-setting-attestations-v1`. Это не VM observation и не предположение о distro defaults. CHECK не запускает тестирование и не изменяет `kernel.randomize_va_space`; отсутствие доверяемой target attestation даёт `ERROR`.
+`SRC-0034 / 2.5.11` проверяется одним контролем `sysctl eq 2`: результат зависит только от текущего значения `kernel.randomize_va_space`. Слова источника «после тестирования» — порядок действий администратора; файлы в `/etc/securelinux-policy/` для 2.5.11 не читаются, OS-specific default не вводится.

@@ -1,9 +1,9 @@
 GATE0=PASS schema_generation_parity errors=0
-GATE1=PASS checked=51 errors=0
+GATE1=PASS checked=50 errors=0
 GATE2=FAIL total=349 controlled_closed=40 disposed_closed=211 uncovered=98 contracts=40 errors=98
-GATE3=PASS checked=51 errors=0
-GATE4=PASS checked=51 unique_ids=51 scoped_identities=51 physical_identities=51 scope_conflicts=0 profile_variants=0 cross_scope_conflicts=0 errors=0
-GATE5=FAIL checked=51 value=0 not_found=0 noncompliant=0 errors=1
+GATE3=PASS checked=50 errors=0
+GATE4=PASS checked=50 unique_ids=50 scoped_identities=50 physical_identities=50 scope_conflicts=0 profile_variants=0 cross_scope_conflicts=0 errors=0
+GATE5=FAIL checked=50 value=0 not_found=0 noncompliant=0 errors=1
 OVERALL=FAIL
 ERROR[GATE2]=SRC-0041: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
 ERROR[GATE2]=SRC-0042: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')

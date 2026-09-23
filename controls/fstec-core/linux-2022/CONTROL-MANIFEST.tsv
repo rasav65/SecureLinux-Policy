@@ -35,7 +35,6 @@ FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN	SRC-0023	2.4.8	net.core.bpf_jit_harden	2	f
 FSTEC-LINUX-2022-2.5.1-VSYSCALL	SRC-0024	2.5.1	vsyscall	none	fstec-linux-2022-2.5.1-vsyscall.yaml	611d219ec1d517ebceb3539968662a6e40a75bb028fc553ec18eb9a95544f413
 FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR	SRC-0033	2.5.10	vm.mmap_min_addr	4096	fstec-linux-2022-2.5.10-mmap-min-addr.yaml	a78e5d528693d8981244270851b0e562063b021045e56f9b58fd855c82760818
 FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE	SRC-0034	2.5.11	kernel.randomize_va_space	2	fstec-linux-2022-2.5.11-randomize-va-space.yaml	c5d4a6d65c18a1a12d68d14594f93bf6d33fc0c3e8f18b8a5333d3ad7ae9ea70
-FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE	SRC-0034	2.5.11	SRC-0034	kernel.randomize_va_space=2	fstec-linux-2022-2.5.11-randomize-va-space-tested-before-use.yaml	c301ab7c5f08b0822aa61c955d00bdbec607f8188ce4fbe8d88ad0b756a293c0
 FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID	SRC-0025	2.5.2	kernel.perf_event_paranoid	3	fstec-linux-2022-2.5.2-perf-event-paranoid.yaml	e7bce3ca88fe891571b2a31bac7b7e78a35e736cf4dbdc0f0de0c3278342dc6a
 FSTEC-LINUX-2022-2.5.3-DEBUGFS	SRC-0026	2.5.3	debugfs	off|no-mount	fstec-linux-2022-2.5.3-debugfs.yaml	806da488a05c5d4ea11c2cef4bbde3b327387c1b96b143fe97c32e50e08a8894
 FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED	SRC-0027	2.5.4	kernel.kexec_load_disabled	1	fstec-linux-2022-2.5.4-kexec-load-disabled.yaml	6e5edb1b1a4ae8d231abfb1aa6df0695b632d4ec4c36f9da1a98307b1526f6cf

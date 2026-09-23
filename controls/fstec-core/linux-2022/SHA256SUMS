@@ -1,4 +1,4 @@
-3ea547dbe0af5a4ae66d7b55c3e0efd19c308c6cf61a8491117b8eef0a7bd461  CONTROL-MANIFEST.tsv
+3f6583aa9b66ab06e5249fac9016ad147c43fbf905bbcba3d385c0990619882c  CONTROL-MANIFEST.tsv
 82d8121586664ee803efec1f1b4bb93a248ce1f302bdf90a2561468ead86d802  fstec-linux-2022-2.1.1-local-account-password-state.yaml
 2f965f6e8901380f14088a167c77b07fc3b4c1872ac1f38865ba0a236a80b1de  fstec-linux-2022-2.1.2-ssh-root-login.yaml
 d6771f8b26de807a96b62b7f4cbc84c4527e80798e0e00d5789598af5d36faba  fstec-linux-2022-2.2.1-su-wheel-access.yaml
@@ -33,7 +33,6 @@ fc60c18b38228707f5885c13f1f16a89b3c2dca42a38e9c69effb3ceb7048216  fstec-linux-20
 2d004e6effde058bcd8d5713b8116adec36af1476da6e4f5acb1553d7857d981  fstec-linux-2022-2.4.7-mitigations.yaml
 47b6b8e37bf7cc6065455bc2fe3607841eaf5c16cf1e748ac58c6a838c7d0132  fstec-linux-2022-2.4.8-bpf-jit-harden.yaml
 a78e5d528693d8981244270851b0e562063b021045e56f9b58fd855c82760818  fstec-linux-2022-2.5.10-mmap-min-addr.yaml
-c301ab7c5f08b0822aa61c955d00bdbec607f8188ce4fbe8d88ad0b756a293c0  fstec-linux-2022-2.5.11-randomize-va-space-tested-before-use.yaml
 c5d4a6d65c18a1a12d68d14594f93bf6d33fc0c3e8f18b8a5333d3ad7ae9ea70  fstec-linux-2022-2.5.11-randomize-va-space.yaml
 611d219ec1d517ebceb3539968662a6e40a75bb028fc553ec18eb9a95544f413  fstec-linux-2022-2.5.1-vsyscall.yaml
 e7bce3ca88fe891571b2a31bac7b7e78a35e736cf4dbdc0f0de0c3278342dc6a  fstec-linux-2022-2.5.2-perf-event-paranoid.yaml

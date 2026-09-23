@@ -19,7 +19,6 @@ OPS_DECLARATION_GAPS = frozenset({
     "standard-system-paths-mode",
     "sudoers-reviewed-policy",
     "suid-sgid-applications",
-    "tested-setting-attestation",
     "user-cron-files-mode",
 })
 

@@ -29,7 +29,6 @@
 - `contracts/suid-sgid-applications-check-semantic-v2.json` — текущий read-only contract SRC-0013: SUID/SGID population на всех non-pseudo mounts, включая `nosuid`, проверка mode `go-w` и отдельная проверка authority allowlist;
 - `contracts/home-sensitive-files-mode-check-semantic-v2.json` — current SRC-0014 contract: прямые элементы `/home` (mindepth=1,maxdepth=1; `/etc/passwd` не читается); в каждом home — только непосредственные элементы с именем из замкнутого встроенного набора (восемь имён источника плюс распространённые имена shell history/config); broad suffix matching вроде `*rc` запрещён;
 - `contracts/home-directories-mode-check-semantic-v2.json` — текущий contract SRC-0015: точный `0700` для каждого прямого элемента `/home`, который является каталогом; `/etc/passwd` не используется;
-- `contracts/tested-setting-attestation-check-semantic-v1.json` — read-only procedural-fact contract SRC-0034: explicit local authority должен подтвердить `TESTED-BEFORE-USE` для exact `kernel.randomize_va_space=2`; authority не подменяет отсутствующую в source методику тестирования;
 - `adapters/product-file-mode-owner-check-v2.py` + JSON binding; v1 сохранён как предыдущая identity;
 - `adapters/product-sysctl-check-v2.py` + JSON binding (v1 сохранён как предыдущая product identity);
 - `adapters/product-kernel-cmdline-check-v2.py` + JSON binding; только чтение
@@ -38,7 +37,6 @@
 - `adapters/product-local-account-password-state-check-v2.py` + JSON binding; raw-byte validation + read-only `/etc/passwd`/`/etc/shadow`, без passwd/usermod/APPLY;
 - `adapters/product-sshd-root-login-check-v1.py` + JSON binding; только чтение SSH config tree и `sshd -t/-T`, без записи/reload/restart/APPLY;
 - `adapters/product-pam-wheel-access-check-v2.py` + JSON binding; только чтение `/etc/pam.d/su`, `/etc/group` и local authority; `-auth` учитывается в PAM stack semantics, group password field не фиксируется в `x`; без group/PAM mutation/APPLY;
-- `adapters/product-tested-setting-attestation-check-v1.py` + JSON binding; только чтение `/etc/securelinux-policy/tested-setting-attestations-v1`, без запуска тестов, изменения sysctl или записи authority;
 - `adapters/product-sudoers-reviewed-policy-check-v1.py` + JSON binding; только `visudo -c`/read/hash active sudoers closure и reviewed authority, без sudoers mutation/APPLY;
 - `adapters/product-cron-command-paths-write-protection-check-v1.py` + JSON binding; isolated `/usr/bin/python3` read-only parser canonical Ubuntu cron sources, fail-closed command resolution и direct `run-parts` target expansion; без host mutation/APPLY;
 - `adapters/product-user-cron-files-mode-check-v2.py` + JSON binding; direct-only read-only traversal admitted cron roots, без recursive `atd` subtree capture и без chmod/chown/APPLY;
@@ -58,6 +56,7 @@
 - `apply-adapters/product-config-line-runtime-apply-v1.py` — реализация persistent `/etc/sysctl.d` + runtime `/proc/sys`, dry-run, fail-closed source precedence, compensation и post-check; продуктовый `slp_run_apply` вызывает `execute_control` по одному применимому control;
 - `tools/rebuild-apply-contract-bindings.py` — единый `--check`/`--write` verifier всех строк обоих APPLY-реестров; строки взаимно сопоставляются по `apply_kind`, неизвестная authority form, неоднозначный `parameter_kind` или несопоставленная строка дают отказ; счётчик `APPLY_BINDING_ARCHITECTURES` вычисляется по полностью проверенным связкам;
 - `contracts/src0001-apply/*`, `apply-adapters/product-local-account-password-state-apply-v1.*` и `contracts/local-account-password-state-apply-semantic-v1.json` — historical bytes прежней SRC-0001 APPLY-вертикали. Решением DP-3 SRC-0001 выведен из product APPLY; эти файлы не являются active authority и не входят в APPLY registries;
+- `adapters/product-tested-setting-attestation-check-v1.{py,json}` и `contracts/tested-setting-attestation-check-semantic-v1.json` — historical bytes выведенного контроля `FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE`; не входят в `ADAPTER-REGISTRY.tsv` и в сгенерированный CLI;
 - `SUPPORTED-PLATFORMS.tsv` — machine-readable authority основной проверенной 7/7 runtime-матрицы (`FULL | MINIMIZED | SERVER`);
 - `FIELD-COMPATIBILITY-DESKTOPS.tsv` — отдельная machine-readable authority Ubuntu 24.04 x86_64 `TYPE=DESKTOP` со статусом `FIELD_COMPATIBILITY`; desktop environment/GUI shell не является compatibility discriminator;
 - `generate-product-check-v2.py` — текущий отслеживаемый детерминированный generator единого CLI с read-only CHECK и mechanism-oriented APPLY; `slp_run_apply` владеет общим циклом по `apply.supported=true` controls, маршрут выбирается по `parameter.kind`; runtime preflight определяет OS/version/arch, затем либо основной FULL/MINIMIZED/SERVER profile, либо дополнительный `TYPE=DESKTOP`;
@@ -271,11 +270,7 @@ CHECK запускает pinned `/usr/sbin/visudo -c -f /etc/sudoers` под `LC
 
 ## SRC-0034 / 2.5.11
 
-Source clause `2.5.11` содержит не только конечное значение `kernel.randomize_va_space = 2`, но и прямой procedural qualifier `после тестирования`. Поэтому current closure — exact два read-only controls: обычный `sysctl eq 2` проверяет только фактическое текущее значение, а `tested-setting-attestation` отдельно проверяет explicit local procedural fact.
-
-Canonical authority `/etc/securelinux-policy/tested-setting-attestations-v1` начинается строкой `SLP-TESTED-SETTING-ATTESTATIONS-V1`; далее строки имеют вид `SRC-NNNN<TAB>setting<TAB>state`. Для `SRC-0034` допустим exact setting `kernel.randomize_va_space=2` и states `TESTED-BEFORE-USE` / `NOT-TESTED-BEFORE-USE`. Первый даёт PASS только при exact binding; второй или wrong setting — FAIL; missing/malformed/duplicate/symlink/unreadable authority или отсутствующая target row — ERROR.
-
-Этот authority является product mechanism для явного представления локального факта «тестирование выполнено до использования». Он не вводит новую норму ФСТЭК, не задаёт отсутствующую в source методику тестирования и не утверждает, что CHECK способен независимо реконструировать историческое тестирование. APPLY/RESTORE и запуск тестов отсутствуют.
+Source clause `2.5.11` требует `kernel.randomize_va_space = 2`. Слова «после тестирования» — порядок действий администратора, а не объект проверки: те же слова стоят в 2.5.5 и 2.5.6, где подтверждение не требуется. Поэтому SRC-0034 закрывается одним read-only control `sysctl eq 2`, результат зависит только от текущего значения параметра. Прежний control `tested-setting-attestation` выведен; authority `/etc/securelinux-policy/tested-setting-attestations-v1` CLI не читает.
 
 
 ## SRC-0009 / 2.3.5

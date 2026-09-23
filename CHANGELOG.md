@@ -10,6 +10,57 @@
 
 ## [Unreleased]
 
+- 2.5.11 (SRC-0034) — решение человека 23.09.2026: контроль
+  `FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE` выведен из
+  активного состава. Основание: в тексте ФСТЭК «путём использования команды
+  после тестирования kernel.randomize_va_space = 2» слова «после тестирования»
+  — порядок действий администратора, а не объект проверки; те же слова
+  («рекомендуется предварительно проверить на тестовой системе») стоят в 2.5.5
+  и 2.5.6, где подтверждения проект не требует. SRC-0034 закрывается одной
+  проверкой `FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE` (`sysctl eq 2`):
+  результат зависит только от значения параметра, файлы в
+  `/etc/securelinux-policy/` для 2.5.11 не читаются.
+
+  Удалены control-yaml и строка `CONTROL-MANIFEST.tsv`; строка
+  `tested-setting-attestation` удалена из `ADAPTER-REGISTRY.tsv`; ветка op
+  `tested-before-use` удалена из `required_display` генератора.
+  `product/adapters/product-tested-setting-attestation-check-v1.{py,json}` и
+  `product/contracts/tested-setting-attestation-check-semantic-v1.json`
+  оставлены на диске как historical bytes — по конвенции прежней SRC-0001
+  APPLY-цепочки; `product/README.md` помечает их так же. Kind
+  `tested-setting-attestation` в `checker/gates-v3/checker.py` и
+  `CONTROL-SCHEMA.json` не трогался (в объём шага не входил).
+  `CLOSURE-CONTRACT.tsv`: SRC-0034 `exact-control-set` → `atomic-single`.
+  `SOURCE-INDEX.tsv`: note SRC-0034 переписана без attestation; заодно note
+  SRC-0015 (2.3.11) приведена к коду `3215d1c` — популяция из прямых
+  элементов `/home`, `/etc/passwd` не читается (код не менялся).
+  Сгенерированные блоки `README.md`, `docs/PROJECT-MAP.md`,
+  `docs/fstec-coverage.md` — через `tools/render-current-docs.py`; вручную —
+  секция SRC-0034 в `product/README.md` и `docs/compatibility.md`, строка G5 в
+  `docs/PROJECT-MAP.md`, `tests/product-v1/README.md`.
+
+  Тесты: удалены классы `TestedSettingAttestationFixtures` и
+  `TestedSettingAttestationSingleReadFixtures` (адаптер вне продукта);
+  добавлены `test_src0034_randomize_va_space_is_decided_by_parameter_value_only`
+  (единственная CHECK-функция 2.5.11 в артефакте — sysctl, не ссылается на
+  `/etc/securelinux-policy`, её строка совпадает со значением
+  `/proc/sys/kernel/randomize_va_space`) и
+  `test_retired_tested_setting_attestation_is_historical_only`; пин числа
+  canonical controls 51 → 50; kind убран из списков в
+  `test_control_contract_binding.py` (`OPS_DECLARATION_GAPS`) и
+  `test_current_status.py`. До правки падали 4 теста в
+  `test_product_generator.py`, 1 — в `test_control_contract_binding.py`, 1 —
+  в `test_current_status.py`. Записанные выводы пересобраны по текущему
+  состоянию: `ACTIVE-CHECKER-V3-NO-VM.txt` и
+  `checker/gates-v3/ACTIVE-NO-VM-EVIDENCE.txt` (вывод checker, `checked=50`),
+  `tests/source-skeleton-v1/TEST-RESULTS.txt` (`pilot=50`); запись
+  `checker/source-parity-v1/RESULT.txt` (`controls=51`) — исторический
+  снимок, тестами не сверяется, не менялась. Canonical controls: 51 → 50. Новый
+  `CHECK_SHA256`
+  `2e7c3eb2aa11239971f543ad3b05274f75ea75408a48a9bf37f49b53d3ccaabd`.
+  Закрыто строк source index: 0 (SRC-0034 уже CLOSED, меняется состав
+  закрытия).
+
 - 2.3.10 HOME-SENSITIVE-FILES-MODE (`product-home-sensitive-files-mode-check-v2.py`,
   SRC-0014), шаг (б) — решение человека 23.09.2026: проверяемые имена —
   замкнутый встроенный набор, authority-файл
