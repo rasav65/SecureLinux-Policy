@@ -244,7 +244,7 @@ Generated CHECK отклоняет с RC=3 до policy checks. Причина р
 значащий).
 
 Раздела «blocks» (control | detail | note) у CHECK нет — он существует только
-у встроенного APPLY-dispatcher и только для `ABORTED_PRECONDITION_CONFLICT`;
+у встроенного APPLY-dispatcher и только для исходов `ABORTED_PRECONDITION_*`;
 для ERROR по 2.3.11 путь и цель readlink передаются прямо в поле `reason`.
 Такое состояние (симлинк/не каталог на месте домашнего каталога) — вне модели
 продукта: 2.3.11 не выполняется, решение остаётся за администратором.

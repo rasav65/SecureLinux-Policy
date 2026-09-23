@@ -10,6 +10,34 @@
 
 ## [Unreleased]
 
+- APPLY-dispatcher: секция `blocks` в терминале показывает причину отказа
+  и для `ABORTED_PRECONDITION_OTHER`, не только для
+  `ABORTED_PRECONDITION_CONFLICT` (решение человека 23.09.2026). Правка в
+  `_block_entry` (`product/generate-product-check-v2.py`): блок формируется
+  для обоих исходов `ABORTED_PRECONDITION_*`, detail — поле `reason` записи;
+  инвариант «мутации не было» (`mutation_performed is False`, `step_rc` не
+  `"0"`) действует для обоих, нарушение — `presentation:block-invariant`;
+  примечание `SERVICE_MANAGED_PARAMETER` — как прежде, только при
+  `operator_decision`. Таблица результатов, JSON-отчёт и исходы не менялись.
+  `docs/compatibility.md`: фраза о разделе «blocks» приведена к коду.
+  Трекнутый артефакт перегенерирован, `CHECK_SHA256`
+  `aad49782779a7c51d1f9aa2355d57c7a3da14eb733502243a3a0d75c0680ea1d`.
+
+  Тесты (`ApplyMechanismRegistryIntegration`, +3): OTHER с `reason`
+  `privilege` и `target:unmapped-control` — строка detail с этим `reason`, без
+  note, отчёт без изменений; CONFLICT с `operator_decision` — stdout
+  побайтово равен выводу до правки (снят на `e3af78f`); OTHER с
+  `mutation_performed` `True`/`None` или `step_rc` `"0"` —
+  `presentation:block-invariant`. До правки падали 5 подтестов, регрессия
+  CONFLICT проходила.
+
+  Предыдущий коммит `e3af78f` (только тесты, запись не заводилась): 17 тестов
+  2.3.10 — `HomeSensitiveFilesAdapterFixtures` +11 (матрица TAB/LF/CR/DEL по
+  веткам имени элемента `/home` и цели readlink, завершающий LF цели,
+  внедрённые ошибки stat), новый класс `HomeSensitiveReasonRenderFormat` (6:
+  сверка raw/JSON/pretty). В сообщении коммита указано «+12» — по байтам
+  добавлено 11 методов.
+
 - Уборка после выведения authority-файлов (207f887, c902f18, 476aebd,
   b005e47, dd5ff83). Поведение проверок не менялось: вывод `--check --format
   raw` старого и нового артефакта на этом ПК совпадает побайтово (49 строк),

@@ -3,7 +3,7 @@
 # STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 # PRODUCT_CLI=product-cli-v1
 # GENERATOR_ID=product-check-generator-v2
-# GENERATOR_SHA256=cd2dac136995f801d847b7199a865c1b4d828d51250a53eca10809b3e70615e7
+# GENERATOR_SHA256=2529c62313b5290e6cf0002a71cbf33c83dfbf8e38023b936d4eb386d27fabf8
 # CONTROL_MANIFEST_SHA256=f2d766b817541a17f83d93809c540ff3f53092fc63e86c0eca8a9cff20635b57
 # ADAPTER_REGISTRY_SHA256=59942bfbf4289308b34600911d0bccc8872367bc7eb383d7820500dbf6dc15e2
 # APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1,optional-file-root-files-mode-v1,standard-system-paths-mode-v1,suid-sgid-applications-mode-v1
@@ -6402,7 +6402,7 @@ slp_build_info() {
     'STATUS=NON_RELEASE_PRODUCT_CANDIDATE' \
     'PRODUCT_CLI=product-cli-v1' \
     'GENERATOR_ID=product-check-generator-v2' \
-    'GENERATOR_SHA256=cd2dac136995f801d847b7199a865c1b4d828d51250a53eca10809b3e70615e7' \
+    'GENERATOR_SHA256=2529c62313b5290e6cf0002a71cbf33c83dfbf8e38023b936d4eb386d27fabf8' \
     'CONTROL_COUNT=49' \
     'CONTROL_MANIFEST_SHA256=f2d766b817541a17f83d93809c540ff3f53092fc63e86c0eca8a9cff20635b57' \
     'ADAPTER_COUNT=17' \
@@ -7263,7 +7263,8 @@ def _current_display(record):
     return "not-determined"
 
 def _block_entry(record, control):
-    if record.get("outcome") != "ABORTED_PRECONDITION_CONFLICT":
+    # Причина отказа видна администратору для обоих исходов ABORTED_PRECONDITION_*.
+    if record.get("outcome") not in ("ABORTED_PRECONDITION_CONFLICT", "ABORTED_PRECONDITION_OTHER"):
         return None
     if record.get("step_rc") == "0" or record.get("mutation_performed") is not False:
         raise RuntimeError("presentation:block-invariant")

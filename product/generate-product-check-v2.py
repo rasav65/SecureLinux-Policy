@@ -1040,7 +1040,8 @@ def _current_display(record):
     return "not-determined"
 
 def _block_entry(record, control):
-    if record.get("outcome") != "ABORTED_PRECONDITION_CONFLICT":
+    # Причина отказа видна администратору для обоих исходов ABORTED_PRECONDITION_*.
+    if record.get("outcome") not in ("ABORTED_PRECONDITION_CONFLICT", "ABORTED_PRECONDITION_OTHER"):
         return None
     if record.get("step_rc") == "0" or record.get("mutation_performed") is not False:
         raise RuntimeError("presentation:block-invariant")

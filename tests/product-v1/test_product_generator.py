@@ -5563,6 +5563,132 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             self.assertIn("TOTAL=1 ABORTED_PRECONDITION_CONFLICT=1 RC=NONZERO", cp.stdout)
 
 
+    def _run_synthetic_apply_dispatcher(self, record):
+        # Одна синтетическая запись механизма; dispatcher исполняется целиком
+        # в изолированном каталоге состояния.
+        implementation = (
+            'import json\n'
+            'MECHANISM_ID = "test-mechanism"\n'
+            'ADAPTER_ID = "test-adapter"\n'
+            f'RECORD = json.loads({json.dumps(json.dumps(record))})\n'
+            'def execute_control(control_id, key, op, expected, apply_supported, dry_run=False):\n'
+            '    return control_id\n'
+            'def control_result_to_report(result, started_at, finished_at):\n'
+            '    out = dict(RECORD)\n'
+            '    out.update({"control_id": result, "started_at": started_at, "finished_at": finished_at})\n'
+            '    return out\n'
+        ).encode("utf-8")
+        impl_sha = hashlib.sha256(implementation).hexdigest()
+        controls = [
+            {"control_id": "FSTEC-LINUX-2099-9.9.4-PASSWD-MODE", "doc_id": "fstec-linux-2099", "source_locator": "9.9.4",
+             "parameter_kind": "synthetic", "parameter_key": "mode", "expected_op": "eq", "expected_value": "0644"},
+        ]
+        mechanisms = {"synthetic": {"kind_row": {"apply_kind": "test-kind"}, "authority": {"mechanism_id": "test-mechanism"}, "implementation_row": {"adapter_id": "test-adapter", "implementation_sha256": impl_sha}, "implementation_source": implementation}}
+        dispatcher = GEN_V2_CURRENT.render_product_apply_dispatcher(controls, mechanisms)
+        with tempfile.TemporaryDirectory(prefix="slp-dispatcher-blocks-", dir=ROOT) as td:
+            isolated = dispatcher.replace('STATE_DIR = "/var/log/securelinux-policy"', "STATE_DIR = " + repr(td), 1).replace("TRUSTED_UID = PARENT_TRUSTED_UID = 0", "TRUSTED_UID = PARENT_TRUSTED_UID = %d" % os.getuid(), 1)
+            cp = subprocess.run([os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", "-", "APPLY"], input=isolated, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=ROOT)
+            report = json.loads(Path(td, "report.json").read_text(encoding="utf-8"))
+        return cp, report
+
+    @staticmethod
+    def _blocks_section(stdout):
+        lines = stdout.splitlines()
+        if "blocks" not in lines:
+            return None
+        start = lines.index("blocks")
+        end = next(i for i, line in enumerate(lines) if line.startswith("TOTAL="))
+        return lines[start:end]
+
+    def test_apply_blocks_show_reason_for_precondition_other(self):
+        # Решение человека 23.09.2026: причина отказа видна в blocks и для
+        # ABORTED_PRECONDITION_OTHER; detail — поле reason записи, note без
+        # operator_decision нет. Таблица результатов и JSON-отчёт не меняются.
+        for reason in ("privilege", "target:unmapped-control"):
+            with self.subTest(reason=reason):
+                record = {
+                    "outcome": "ABORTED_PRECONDITION_OTHER", "reason": reason,
+                    "actions_attempted": ["P0_ELIGIBILITY"], "step_rc": "nonzero",
+                    "mutation_performed": False, "transaction_commit": "NOT_STARTED",
+                    "target": "/etc/passwd",
+                }
+                cp, report = self._run_synthetic_apply_dispatcher(record)
+                self.assertEqual(cp.returncode, 1, cp.stderr)
+                self.assertEqual(cp.stderr, "")
+                lines = cp.stdout.splitlines()
+                row = next(line for line in lines if "passwd-mode" in line and line.count("|") == 5)
+                self.assertEqual(row.split("|")[0].strip(), "abort", row)
+                self.assertEqual(row.split("|")[3].strip(), "not-determined", row)
+                self.assertIn("TOTAL=1 ABORTED_PRECONDITION_OTHER=1 RC=NONZERO", lines)
+                blocks = self._blocks_section(cp.stdout)
+                self.assertIsNotNone(blocks, cp.stdout)
+                self.assertTrue(all(len(line) == 116 for line in blocks[1:]), cp.stdout)
+                rows = [[cell.strip() for cell in line.split("|")[:3]] for line in blocks[1:] if line.count("|") == 3]
+                self.assertEqual(rows, [
+                    ["control", "type", "message"],
+                    ["§9.9.4 passwd-mode", "detail", reason],
+                ])
+                self.assertEqual(report["complete"], True)
+                self.assertIsNone(report["run_error"])
+                self.assertEqual(len(report["controls"]), 1)
+                entry = report["controls"][0]
+                self.assertEqual(entry["outcome"], "ABORTED_PRECONDITION_OTHER")
+                self.assertEqual(entry["reason"], reason)
+                self.assertEqual(entry["mutation_performed"], False)
+                self.assertEqual(entry["mechanism_result"], {"target": "/etc/passwd"})
+
+    def test_apply_blocks_precondition_conflict_output_unchanged(self):
+        # Регрессия: вывод CONFLICT с operator_decision — байты до решения
+        # 23.09.2026 (снято на e3af78f). Меняется только явным решением.
+        record = {
+            "outcome": "ABORTED_PRECONDITION_CONFLICT",
+            "reason": "runtime-writer:APPORT-NATIVE-SUID-DUMPABLE-V1:C4:agent-exact",
+            "actions_attempted": ["P2R_RUNTIME_WRITER"], "step_rc": "nonzero",
+            "mutation_performed": False, "transaction_commit": "NOT_STARTED",
+            "key": "fs.suid_dumpable", "runtime_before": 2, "runtime_after": None,
+            "operator_decision": {"class": "SERVICE_MANAGED_PARAMETER", "required": True, "service": "Apport", "parameter": "fs.suid_dumpable", "current_value": 2},
+        }
+        cp, report = self._run_synthetic_apply_dispatcher(record)
+        self.assertEqual(cp.returncode, 1, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        self.assertEqual(cp.stdout, (
+            'MODE=APPLY APPLY_CONTROLS=1\n'
+            ' st    | source                   | control                          | current          | required                 |\n'
+            '-------+--------------------------+----------------------------------+------------------+--------------------------+\n'
+            ' block | fstec-linux-2099 §9.9.4  | passwd-mode                      | 2                | = 0644                   |\n'
+            '-------+--------------------------+----------------------------------+------------------+--------------------------+\n'
+            'blocks\n'
+            ' control            | type   | message                                                                             |\n'
+            '--------------------+--------+-------------------------------------------------------------------------------------+\n'
+            ' §9.9.4 passwd-mode | detail | runtime-writer:APPORT-NATIVE-SUID-DUMPABLE-V1:C4:agent-exact                        |\n'
+            '                    | note   | fs.suid_dumpable=2: обнаружен штатный механизм Apport, управляющий этим параметром. |\n'
+            '                    | note   | Автоматическое изменение пропущено. Требуется решение администратора.               |\n'
+            '--------------------+--------+-------------------------------------------------------------------------------------+\n'
+            'TOTAL=1 ABORTED_PRECONDITION_CONFLICT=1 RC=NONZERO\n'
+        ))
+        self.assertEqual(report["controls"][0]["outcome"], "ABORTED_PRECONDITION_CONFLICT")
+
+    def test_apply_blocks_precondition_other_invariant_requires_no_mutation(self):
+        # Инвариант «мутации не было» действует и для OTHER: mutation_performed
+        # не False или step_rc "0" — presentation:block-invariant, отчёт
+        # незавершён.
+        for field, value in (("mutation_performed", True), ("mutation_performed", None), ("step_rc", "0")):
+            with self.subTest(field=field, value=value):
+                record = {
+                    "outcome": "ABORTED_PRECONDITION_OTHER", "reason": "privilege",
+                    "actions_attempted": ["P0_ELIGIBILITY"], "step_rc": "nonzero",
+                    "mutation_performed": False, "transaction_commit": "NOT_STARTED",
+                    "target": "/etc/passwd",
+                }
+                record[field] = value
+                cp, report = self._run_synthetic_apply_dispatcher(record)
+                self.assertNotEqual(cp.returncode, 0)
+                self.assertIn("RuntimeError: presentation:block-invariant", cp.stderr)
+                self.assertIsNone(self._blocks_section(cp.stdout))
+                self.assertEqual(report["complete"], False)
+                self.assertEqual(report["run_error"]["message"], "presentation:block-invariant")
+
+
     def _step_rc_literal_for_dispatcher_function(self, function_name):
         _, enabled, mechanisms = self._current_apply()
         dispatcher = GEN_V2_CURRENT.render_product_apply_dispatcher(enabled, mechanisms)
