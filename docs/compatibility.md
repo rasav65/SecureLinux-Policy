@@ -194,9 +194,9 @@ Generated CHECK отклоняет с RC=3 до policy checks. Причина р
 
 ### SRC-0014 / 2.3.10 — чувствительные файлы в домашних каталогах локальных пользователей
 
-Исторический VM batch использовал selector `root OR UID>=UID_MIN` + interactive shell; retrospective audit признал это source-unanchored сужением. **Current v2 не использует этот selector:** в population входят все syntactically valid local `/etc/passwd` accounts с absolute home, включая service/system accounts. Старые 7-run counts сохраняются только как historical evidence и не доказывают current v2 population.
+Исторический VM batch использовал selector `root OR UID>=UID_MIN` + interactive shell; retrospective audit признал это source-unanchored сужением. Решением человека 23.09.2026 (по прецеденту 2.3.11) популяция переведена с обхода `/etc/passwd` на непосредственные (mindepth=1,maxdepth=1) элементы `/home`, включая service/system home-директории; `/etc/passwd` не читается. Старые 7-run counts сохраняются только как historical evidence и не доказывают current v2 population.
 
-Open-ended `и т. п.` больше не доверяется одному inventory: восемь source examples остаются mandatory authority entries, а read-only traversal дополнительно обнаруживает standard common-shell history/config artifacts для Bash/zsh/ksh/csh/tcsh/fish/Nushell/Xonsh/Elvish; custom/XDG override paths остаются через local inventory, ambiguity fail-closed. NSS/network-only accounts по-прежнему требуют отдельной authority model и не выводятся из локального `/etc/passwd`.
+Open-ended `и т. п.` больше не доверяется одному inventory: восемь source examples остаются mandatory authority entries, а read-only traversal дополнительно обнаруживает standard common-shell history/config artifacts для Bash/zsh/ksh/csh/tcsh/fish/Nushell/Xonsh/Elvish; custom/XDG override paths остаются через local inventory, ambiguity fail-closed.
 
 ## SRC-0015 / 2.3.11 — режим доступа домашнего каталога
 

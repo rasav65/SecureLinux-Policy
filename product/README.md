@@ -27,7 +27,7 @@
 - `contracts/running-process-paths-write-protection-check-semantic-v1.json` — read-only aggregate contract SRC-0006 для executable/library population текущих процессов и containing/all-parent directory write protection;
 - `contracts/standard-system-paths-mode-check-semantic-v2.json` — текущий read-only aggregate contract SRC-0012: executable regular targets из canonical/root `$PATH`, standard/local library roots и модулей current kernel; non-executable regular data под exec roots исключены; числовой критерий mode явно derived;
 - `contracts/suid-sgid-applications-check-semantic-v2.json` — текущий read-only contract SRC-0013: SUID/SGID population на всех non-pseudo mounts, включая `nosuid`, проверка mode `go-w` и отдельная проверка authority allowlist;
-- `contracts/home-sensitive-files-mode-check-semantic-v2.json` — current SRC-0014 contract: все local passwd accounts плюс mandatory inventory и explicit common shell-history/config discovery для Bash/zsh/ksh/csh/tcsh/fish/Nushell/Xonsh/Elvish; broad suffix matching вроде `*rc` запрещён;
+- `contracts/home-sensitive-files-mode-check-semantic-v2.json` — current SRC-0014 contract: прямые элементы `/home` (mindepth=1,maxdepth=1; `/etc/passwd` не читается) плюс mandatory inventory и explicit common shell-history/config discovery для Bash/zsh/ksh/csh/tcsh/fish/Nushell/Xonsh/Elvish; broad suffix matching вроде `*rc` запрещён;
 - `contracts/home-directories-mode-check-semantic-v2.json` — текущий contract SRC-0015: точный `0700` для каждого прямого элемента `/home`, который является каталогом; `/etc/passwd` не используется;
 - `contracts/tested-setting-attestation-check-semantic-v1.json` — read-only procedural-fact contract SRC-0034: explicit local authority должен подтвердить `TESTED-BEFORE-USE` для exact `kernel.randomize_va_space=2`; authority не подменяет отсутствующую в source методику тестирования;
 - `adapters/product-file-mode-owner-check-v2.py` + JSON binding; v1 сохранён как предыдущая identity;
@@ -45,7 +45,7 @@
 - `adapters/product-running-process-paths-write-protection-check-v1.py` + JSON binding; isolated `/usr/bin/python3` read-only observation `/proc` принимает все executable file-backed mappings независимо от basename, строго валидирует maps grammar и binding `dev:inode`, контролирует transient process creation через `/proc/stat` `processes`, повторно сверяет per-PID exe/maps и file/parent identity перед verdict; без host mutation/APPLY;
 - `adapters/product-standard-system-paths-mode-check-v2.py` + JSON binding; читает root-process `$PATH`, включает в exec population regular targets с `(mode & 0111) != 0`; метаданные читает внутри Python, обход и разрешение путей выполняет через GNU find/readlink, версию ядра получает через uname. Guard `[[ ! -x /usr/bin/python3 ]]` даёт `runtime:python3-missing` при отсутствии или недоступности исполнения; последующий сбой запуска даёт `runtime:observer-failed`. Причины ERROR перечислены в `error_reasons` семантического контракта; изменения состояния хоста не выполняются. В роли exec ссылка на каталог с dev:inode exec-корня пропускается без нового поля отчёта; другие недопустимые directory targets сохраняют ERROR. Применимость VM-результатов описана в `docs/testing-strategy.md`.
 - `adapters/product-suid-sgid-applications-check-v2.py` + JSON binding; только чтение mountinfo/allowlist и `find/sort/stat`, без chmod/chown/remount/APPLY;
-- `adapters/product-home-sensitive-files-mode-check-v2.py` + JSON binding; local passwd + inventory + read-only home traversal с explicit shell-artifact classifier для стандартных Bash/zsh/ksh/csh/tcsh/fish/Nushell/Xonsh/Elvish artifacts и без broad `*rc/*env`;
+- `adapters/product-home-sensitive-files-mode-check-v2.py` + JSON binding; прямые элементы `/home` + inventory + read-only home traversal с explicit shell-artifact classifier для стандартных Bash/zsh/ksh/csh/tcsh/fish/Nushell/Xonsh/Elvish artifacts и без broad `*rc/*env`;
 - `adapters/product-home-directories-mode-check-v2.py` + JSON binding; read-only наблюдение mode прямых элементов `/home` (`find -mindepth 1 -maxdepth 1`), без чтения `/etc/passwd`;
 - `ADAPTER-REGISTRY.tsv` — единственный tracked mapping parameter kind →
   semantic contract / binding / implementation с SHA-256;
@@ -221,10 +221,10 @@ Pinned donor использован только как precedent для `/proc/
 
 ## SRC-0014 / 2.3.10 — чувствительные файлы домашних каталогов пользователей
 
-- v2 включает **все** syntactically valid local `/etc/passwd` accounts с absolute home, включая service/system accounts; `UID_MIN`, `nologin` и `false` больше не являются source-unanchored exclusions.
+- v2 включает **все** непосредственные (mindepth=1,maxdepth=1) элементы `/home`, включая service/system home-директории; `/etc/passwd` не читается (решение человека 23.09.2026, по прецеденту 2.3.11).
 - Exact mode relation остаётся source `chmod go-rwx` → `(mode & 0077) == 0`.
 - Восемь явно названных source entries обязательны в `/etc/securelinux-policy/home-sensitive-files-v1`, но inventory больше не считается доказательством полноты сам по себе: read-only traversal дополнительно обнаруживает explicit common shell artifacts для Bash (`.bash_login`), zsh/ksh/csh/tcsh, fish, Linux-default Nushell config/autoload/history, Xonsh rc/history и Elvish rc/history. Broad suffix matching (`*rc`, `*env`) запрещён, поэтому несвязанный `.vimrc` не попадает в population. Custom XDG/override paths остаются в обязательном local inventory augmentation channel.
-- Open-ended «и т. п.» population явно помечена `derived:true` с justification; NUL/CR, malformed passwd/inventory, traversal failure, selected symlink/nonregular object => `ERROR`.
+- Open-ended «и т. п.» population явно помечена `derived:true` с justification; NUL/CR, malformed inventory, traversal failure, selected symlink/nonregular object => `ERROR`.
 - Owner/group и home-directory mode сюда не добавляются; APPLY/RESTORE отсутствуют.
 
 ## SRC-0015 / 2.3.11 — режим домашних директорий пользователей

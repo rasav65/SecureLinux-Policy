@@ -1650,7 +1650,7 @@
                 "const": "mode"
               },
               "locator": {
-                "const": "/etc/passwd|/etc/securelinux-policy/home-sensitive-files-v1"
+                "const": "/home|/etc/securelinux-policy/home-sensitive-files-v1"
               }
             }
           }

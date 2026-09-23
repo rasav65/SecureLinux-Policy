@@ -410,7 +410,10 @@ class GeneratorModel(unittest.TestCase):
         self.assertEqual(len(src0014), 1)
         self.assertEqual(
             (src0014[0]["parameter_kind"], src0014[0]["parameter_locator"], src0014[0]["parameter_key"], src0014[0]["expected_op"], src0014[0]["expected_value"]),
-            ("home-sensitive-files-mode", "/etc/passwd|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "bits-clear", "0077"),
+            # locator сменён с /etc/passwd на /home решением человека 23.09.2026
+            # (популяция home-директорий — прямые элементы /home; authority-файл
+            # с обязательными/распространёнными shell-артефактами продолжает читаться).
+            ("home-sensitive-files-mode", "/home|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "bits-clear", "0077"),
         )
         src0015 = [c for c in controls if c["index_id"] == "SRC-0015"]
         self.assertEqual(len(src0015), 1)
@@ -718,6 +721,18 @@ class GeneratorModel(unittest.TestCase):
                 ("printf -v _slp_reason 'home:vanished:%s'", "home:stat-failed"),
             ),
             "product-home-sensitive-files-mode-check-v2.py": (
+                # По прецеденту 2.3.11: тип прямого элемента /home — по
+                # `case "$_slp_stat_out" in` (вывод `stat -c %F`), не по
+                # `[[ -L ]]`/`[[ ! -d ]]`.
+                ("'symbolic link')", '"home-base:symlink"'),
+                ("'symbolic link')", '"home-base:ancestor-symlink"'),
+                ("directory) ;;", '"home-base:ancestor-invalid-type"'),
+                ('[[ ! -x "$_slp_probe" ]]', '"home-base:ancestor-unsearchable"'),
+                ("directory) ;;", '"home-base:invalid-type"'),
+                ("printf -v _slp_reason 'home-base:stat-failed:%s'", "home-base:stat-failed"),
+                ("printf -v _slp_reason 'home-base:ancestor-stat-failed:%s'", "home-base:ancestor-stat-failed"),
+                ("printf -v _slp_reason 'home:not-directory:%s'", "home:invalid-name"),
+                ("printf -v _slp_reason 'home:vanished:%s'", "home:stat-failed"),
                 ('[[ ! -r "$_slp_home" ]]', '"home:unreadable"'),
                 ('[[ ! -x "$_slp_home" ]]', '"home:unsearchable"'),
                 ('[[ -L "$_slp_entry" ]]', '"target:symlink"'),
@@ -1621,41 +1636,42 @@ class TestedSettingAttestationFixtures(unittest.TestCase):
 
 @unittest.skipIf(BASH is None, "bash not available")
 class HomeSensitiveFilesAdapterFixtures(unittest.TestCase):
+    """Популяция home-директорий — непосредственные (mindepth=1,maxdepth=1)
+    элементы /home, /etc/passwd не используется (решение человека 23.09.2026,
+    по прецеденту 2.3.11 / коммит 3215d1c). Authority-файл (инвентарь
+    обязательных/распространённых shell-артефактов) и отбор файлов внутри
+    каждого home — не изменены."""
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.base = Path(self.tmp.name)
-        self.passwd = self.base / "passwd"
+        self.home_base = self.base / "home"
+        self.home_base.mkdir()
         self.inventory = self.base / "inventory"
-        self.root_home = self.base / "root"
-        self.service_home = self.base / "service"
-        self.user_home = self.base / "user"
+        self.root_home = self.home_base / "root"
+        self.service_home = self.home_base / "service"
+        self.user_home = self.home_base / "user"
         for h in (self.root_home, self.service_home, self.user_home): h.mkdir()
         self.inventory.write_text("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\n", encoding="utf-8")
-        self.passwd.write_text(
-            f"root:x:0:0:root:{self.root_home}:/bin/bash\n"
-            f"svc:x:500:500:service:{self.service_home}:/usr/sbin/nologin\n"
-            f"user:x:1000:1000:user:{self.user_home}:/bin/bash\n",
-            encoding="utf-8",
-        )
 
     def tearDown(self): self.tmp.cleanup()
 
     def run_check(self):
         block = HOME_SENSITIVE._shell_function_for_fixture(
-            "TEST.HOME", str(self.passwd), str(self.inventory)
+            "TEST.HOME", str(self.home_base), str(self.inventory)
         )
         script = self.base / "check.sh"
         script.write_text(block + "\nslp_check_TEST_HOME\n", encoding="utf-8")
         return subprocess.run([BASH, str(script)], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    def test_positive_includes_service_account(self):
+    def test_positive_includes_service_home(self):
         for p in (self.root_home / ".bashrc", self.service_home / ".profile", self.user_home / ".bash_history"):
             p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o600)
         cp = self.run_check()
         self.assertEqual(cp.returncode, 0); self.assertEqual(cp.stderr, "")
-        self.assertIn("accounts=3;homes=3;names=8;discovered=3;checked=3;violations=0\tPASS", cp.stdout)
+        self.assertIn("homes=3;names=8;discovered=3;checked=3;violations=0\tPASS", cp.stdout)
 
-    def test_service_account_sensitive_file_is_checked(self):
+    def test_service_home_sensitive_file_is_checked(self):
         p = self.service_home / ".bashrc"; p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o644)
         cp = self.run_check()
         self.assertIn("violations=1\tFAIL", cp.stdout)
@@ -1730,19 +1746,57 @@ class HomeSensitiveFilesAdapterFixtures(unittest.TestCase):
         (self.user_home / ".bashrc").symlink_to(outside)
         assert_stable_error_record(self, self.run_check().stdout)
 
-    def test_nul_or_cr_in_passwd_or_inventory_is_error(self):
-        original = self.passwd.read_bytes()
-        self.passwd.write_bytes(original + b"bad:x:2:2::/tmp/bad:/bin/sh\x00\n")
-        assert_stable_error_record(self, self.run_check().stdout, "TEST.HOME", "passwd:invalid-bytes")
-        self.passwd.write_bytes(original)
+    def test_nul_or_cr_in_inventory_is_error(self):
         self.inventory.write_bytes(("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\r\n").encode("utf-8"))
         assert_stable_error_record(self, self.run_check().stdout, "TEST.HOME", "inventory:invalid-bytes")
 
+    def test_home_absent_is_pass_with_empty_population(self):
+        shutil.rmtree(self.home_base)
+        cp = self.run_check()
+        self.assertEqual(cp.returncode, 0, cp.stderr); self.assertEqual(cp.stderr, "")
+        self.assertIn("homes=0;names=8;discovered=0;checked=0;violations=0\tPASS", cp.stdout)
+
+    def test_home_present_and_empty_is_pass_with_empty_population(self):
+        for h in (self.root_home, self.service_home, self.user_home):
+            h.rmdir()
+        cp = self.run_check()
+        self.assertIn("homes=0;names=8;discovered=0;checked=0;violations=0\tPASS", cp.stdout)
+
+    def test_direct_home_symlink_entry_is_error(self):
+        target = self.base / "real"; target.mkdir()
+        self.user_home.rmdir()
+        self.user_home.symlink_to(target, target_is_directory=True)
+        cp = self.run_check()
+        self.assertEqual(cp.returncode, 0, cp.stderr); self.assertEqual(cp.stderr, "")
+        fields = cp.stdout.strip().split("\t")
+        self.assertEqual(fields[2:], ["ERROR", "home:symlink:%s->%s" % (self.user_home, target), "ERROR"])
+
+    def test_direct_home_non_directory_entry_is_error(self):
+        self.user_home.rmdir()
+        self.user_home.write_text("x\n", encoding="utf-8")
+        cp = self.run_check()
+        self.assertEqual(cp.returncode, 0, cp.stderr); self.assertEqual(cp.stderr, "")
+        fields = cp.stdout.strip().split("\t")
+        self.assertEqual(fields[2:], ["ERROR", "home:not-directory:%s" % self.user_home, "ERROR"])
+
+    def test_passwd_is_not_read_and_has_no_effect(self):
+        # /etc/passwd не используется: адаптер не ссылается на него вовсе, и
+        # реальный /etc/passwd с home= вне /home на результат не влияет.
+        block = HOME_SENSITIVE._shell_function_for_fixture(
+            "TEST.HOME", str(self.home_base), str(self.inventory)
+        )
+        self.assertNotIn("/etc/passwd", block)
+        self.assertNotIn("_slp_passwd", block)
+        p = self.user_home / ".bashrc"; p.write_text("x\n", encoding="utf-8"); os.chmod(p, 0o600)
+        cp = self.run_check()
+        self.assertIn("homes=3;names=8;discovered=1;checked=1;violations=0\tPASS", cp.stdout)
+
     def test_generation_rejects_wrong_contract_fields(self):
+        good_locator = HOME_SENSITIVE.CANONICAL_HOME_BASE + "|" + HOME_SENSITIVE.CANONICAL_INVENTORY
         for args in (
-            ("TEST", "/etc/passwd", "mode", "bits-clear", "0077"),
-            ("TEST", HOME_SENSITIVE.CANONICAL_LOCATOR, "owner", "bits-clear", "0077"),
-            ("TEST", HOME_SENSITIVE.CANONICAL_LOCATOR, "mode", "eq", "0077"),
+            ("TEST", "/etc/passwd|" + HOME_SENSITIVE.CANONICAL_INVENTORY, "mode", "bits-clear", "0077"),
+            ("TEST", good_locator, "owner", "bits-clear", "0077"),
+            ("TEST", good_locator, "mode", "eq", "0077"),
         ):
             with self.subTest(args=args):
                 with self.assertRaises(ValueError): HOME_SENSITIVE.shell_function(*args)
@@ -5642,25 +5696,6 @@ class UnprovenAbsenceIsErrorFixtures(unittest.TestCase):
         self.assertEqual(len(row), 5, cp.stdout)
         return tuple(row[2:])
 
-    def passwd_with(self, user_home):
-        """/etc/passwd-фикстура: два доступных дома и дом проверяемой учётной записи."""
-        homes = []
-        for name in ("root", "svc"):
-            h = self.visible / name
-            h.mkdir()
-            os.chmod(h, 0o700)
-            self.owned(h)
-            homes.append(h)
-        passwd = self.visible / "passwd"
-        passwd.write_text(
-            "root:x:0:0:root:%s:/bin/bash\n"
-            "svc:x:500:500:service:%s:/usr/sbin/nologin\n"
-            "user:x:1000:1000:user:%s:/bin/bash\n" % (homes[0], homes[1], user_home),
-            encoding="utf-8",
-        )
-        self.owned(passwd)
-        return passwd
-
     # --- home-directories-mode ------------------------------------------
     def test_home_directories_unreachable_home_base_is_error(self):
         # B-02 (repair-step): stat(/home) сам получает EACCES (родитель
@@ -5685,19 +5720,21 @@ class UnprovenAbsenceIsErrorFixtures(unittest.TestCase):
                          ("VALUE", "checked=0;violations=0", "PASS"))
 
     # --- home-sensitive-files-mode --------------------------------------
-    def test_home_sensitive_unreachable_home_is_error(self):
+    def test_home_sensitive_unreachable_home_base_is_error(self):
+        # /home сам получает EACCES (родитель запечатан) — не доказанный
+        # ENOENT, поэтому адаптер не идёт в обход предков и отдаёт честный
+        # ERROR немедленно (тот же приём, что и у home-directories-mode).
         home = self.closed / "home"
         home.mkdir()
         os.chmod(home, 0o700)
         self.owned(home)
-        passwd = self.passwd_with(home)
         inventory = self.visible / "inventory"
         inventory.write_text("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\n", encoding="utf-8")
         self.owned(inventory)
         self.seal(home)
-        block = HOME_SENSITIVE._shell_function_for_fixture("TEST.ABSENCE", str(passwd), str(inventory))
+        block = HOME_SENSITIVE._shell_function_for_fixture("TEST.ABSENCE", str(home), str(inventory))
         self.assertEqual(self.run_block(block, "slp_check_TEST_ABSENCE"),
-                         ("ERROR", "home:identity-failed", "ERROR"))
+                         ("ERROR", "home-base:stat-failed:%s" % home, "ERROR"))
 
     # --- pam-wheel-access -----------------------------------------------
     def pam_fixture(self, pam, group):
@@ -5943,20 +5980,21 @@ class PamWheelSingleReadFixtures(unittest.TestCase):
 
 
 class HomeSensitiveSingleReadFixtures(unittest.TestCase):
-    """inventory и passwd для home-sensitive-files-mode читаются по одному разу
-    каждый: два отдельных while-цикла раньше заново открывали уже проверенные
-    через `od` файлы (аудит Codex, коммит 6780086)."""
+    """inventory для home-sensitive-files-mode читается один раз: проверенные
+    через `od` байты декодируются и тут же разбираются, без повторного
+    открытия файла (аудит Codex, коммит 6780086). /etc/passwd этот адаптер
+    не читает (решение человека 23.09.2026, 2.3.10: популяция — прямые
+    элементы /home)."""
 
-    PASS_ROW = ("VALUE", "accounts=1;homes=1;names=8;discovered=0;checked=0;violations=0", "PASS")
+    PASS_ROW = ("VALUE", "homes=1;names=8;discovered=0;checked=0;violations=0", "PASS")
 
     def setUp(self):
         if BASH is None:
             self.skipTest("bash not found")
         self.tmp = Path(tempfile.mkdtemp(prefix="slp-home-sensitive-single-read-"))
-        self.home = self.tmp / "home"
-        self.home.mkdir()
-        self.passwd = self.tmp / "passwd"
-        self.passwd.write_text("user:x:1000:1000:user:%s:/bin/bash\n" % self.home, encoding="utf-8")
+        self.home_base = self.tmp / "home"
+        self.home_base.mkdir()
+        (self.home_base / "user").mkdir()
         self.inventory = self.tmp / "inventory"
         self.inventory.write_text("\n".join(HOME_SENSITIVE.MANDATORY_SOURCE_NAMES) + "\n", encoding="utf-8")
 
@@ -5964,7 +6002,7 @@ class HomeSensitiveSingleReadFixtures(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def run_check(self, shim=None):
-        block = HOME_SENSITIVE._shell_function_for_fixture("HS.SINGLE", str(self.passwd), str(self.inventory))
+        block = HOME_SENSITIVE._shell_function_for_fixture("HS.SINGLE", str(self.home_base), str(self.inventory))
         if shim is not None:
             block = install_od_shim(block, self.tmp, shim)
         cp = subprocess.run(
@@ -5984,22 +6022,9 @@ class HomeSensitiveSingleReadFixtures(unittest.TestCase):
         self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.inventory)), self.PASS_ROW)
         self.assertFalse(self.inventory.exists(), "сбой не внедрён")
 
-    def test_passwd_vanishing_after_validation_parses_checked_bytes(self):
-        self.assertEqual(self.run_check(shim=_od_vanish_shim_text(self.passwd)), self.PASS_ROW)
-        self.assertFalse(self.passwd.exists(), "сбой не внедрён")
-
     def test_od_failure_after_partial_prefix_is_error(self):
         self.assertEqual(
             self.run_check(shim=_od_fail_after_prefix_shim_text()),
-            ("ERROR", "passwd:read-failed", "ERROR"),
-        )
-
-    def test_second_od_call_failure_after_partial_prefix_is_error(self):
-        # Пробел теста (репарация, аудит Codex 6780086..3215d1c): сбой,
-        # ограниченный ВТОРЫМ файлом (inventory) — passwd должен пройти
-        # проверку штатно, а не только оба файла разом.
-        self.assertEqual(
-            self.run_check(shim=_od_fail_after_prefix_for_target_shim_text(self.inventory)),
             ("ERROR", "inventory:read-failed", "ERROR"),
         )
 

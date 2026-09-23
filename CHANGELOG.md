@@ -10,6 +10,49 @@
 
 ## [Unreleased]
 
+- 2.3.10 HOME-SENSITIVE-FILES-MODE (`product-home-sensitive-files-mode-check-v2.py`,
+  SRC-0014): популяция home-директорий переведена с обхода `/etc/passwd` на
+  непосредственные (mindepth=1,maxdepth=1) элементы `/home`, по прецеденту
+  2.3.11 (коммит `3215d1c`) — решение человека 23.09.2026. Прямой элемент
+  `/home`, который симлинк или не каталог, — `ERROR` с путём и (для симлинка)
+  целью `readlink` прямо в `reason` (`home:symlink:<путь>-><цель>` /
+  `home:not-directory:<путь>`; байт-опасное имя/цель — `home:invalid-name`),
+  классификация — по прецеденту (`stat -c %F`, ENOENT-устойчивый разбор
+  предков /home). Authority-файл `/etc/securelinux-policy/home-sensitive-files-v1`
+  и отбор файлов внутри каждого home (MANDATORY_SOURCE_NAMES,
+  COMMON_SHELL_BASENAMES, относительные паттерны) не изменены — продолжают
+  читаться/применяться как раньше. Отсутствующий/пустой `/home` — вне
+  популяции, `VALUE/PASS`. Поле VALUE `accounts=` убрано (концепция учётной
+  записи в популяции больше не участвует), `homes=` считает валидные прямые
+  элементы `/home`; новый формат — `homes=N;names=N;discovered=N;checked=N;
+  violations=N`.
+
+  Синхронизированы локатор-связанные артефакты: control-yaml SRC-0014
+  (`parameter.locator` → `/home|/etc/securelinux-policy/home-sensitive-files-v1`),
+  контракт `home-sensitive-files-mode-check-semantic-v2.json` (`canonical_locator`,
+  `population`, `wire_value`, снят устаревший `account_population`),
+  `checker/gates-v3/checker.py` (`KIND_RULES` locator), `CONTROL-SCHEMA.json`
+  (перегенерирован `--emit-schema`), `product/ADAPTER-REGISTRY.tsv`,
+  `CONTROL-MANIFEST.tsv`, `SOURCE-INDEX.tsv` (note SRC-0014). Попутно
+  поправлены две фразы, ставшие фактически неверными после смены популяции
+  (`product/README.md`, `docs/compatibility.md`: «все local /etc/passwd
+  accounts» → прямые элементы `/home`) — этого потребовал обязательный
+  гейт `test_documentation_baseline.py` (общий `truth_sha256` по всем
+  `STATE_DOCS`); остальная нарративная правка docs (`docs/PROJECT-MAP.md` и
+  далее) в этот шаг не входит.
+
+  Тесты первыми: класс `HomeSensitiveFilesAdapterFixtures` переписан (пустой/
+  отсутствующий `/home` → PASS, прямой symlink/not-directory → ERROR, `/etc/passwd`
+  не читается и не влияет на результат); `UnprovenAbsenceIsErrorFixtures`
+  (`test_home_sensitive_unreachable_home_base_is_error` заменил passwd-based
+  вариант, мёртвый `passwd_with` удалён); `HomeSensitiveSingleReadFixtures`
+  сокращён до inventory-only (passwd-специфичные подтесты удалены, адаптер
+  их больше не читает); `test_schema_runtime_parity.py` (locator в
+  accepted/rejected/newline-кейсах). Все новые/изменённые тесты падали на
+  прежнем адаптере до правки. Новый `CHECK_SHA256`
+  `017d85b36646d7959e0bc1e23abe54183795eaa1b02f4c228169a2e4c98238f9`. DEV
+  31/31, RELEASE PASS.
+
 - Формулировки о числе сред (`docs/PROJECT-MAP.md`, `docs/testing-strategy.md`,
   `product/README.md`, пины `tests/roadmap-v1/test_project_map.py`): число сред
   приёмки указывалось плоско (8 сред, восьмисредовый VM-цикл, восьми
