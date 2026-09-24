@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+- `index/source-v4/CLOSURE-CONTRACT.tsv`, строка SRC-0009 (2.3.5), очередь v70.
+  Строк source index не закрывает, байты продукта не меняет. Было: в `basis`
+  стояло «APPLY/RESTORE отсутствуют», хотя APPLY для 2.3.5 выполняет механизм
+  `startup-files-write-protection-v1` (`apply.supported: true` в control-yaml,
+  строка в `APPLY-KIND-REGISTRY.tsv`). Стало: «APPLY — механизм
+  startup-files-write-protection-v1: снимается только бит 0002 через fchmod на
+  дескрипторе с O_NOFOLLOW; RESTORE отсутствует». В строках SRC-0004, SRC-0006,
+  SRC-0007 фраза остаётся: у 2.2.2, 2.3.2, 2.3.3 APPLY нет.
+
 - CHECK-адаптер `cron-command-paths-write-protection` (2.3.3, SRC-0007), решение
   человека 24.09.2026. Строк source index не закрывает, PASS/FAIL не меняет.
   Было: один файл, найденный по нескольким путям (`/usr/bin/run-parts` и
