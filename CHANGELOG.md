@@ -10,6 +10,48 @@
 
 ## [Unreleased]
 
+- CHECK-адаптер `running-process-paths-write-protection` (2.3.2, SRC-0006),
+  решение человека 24.09.2026. Строк source index не закрывает. Основание —
+  ERROR на чистых эталонных средах (прогон кандидата `3212aff9…c55e` и
+  диагностика 24.09.2026, evidence `dashboard/src0009-vm-evidence`):
+
+  - было: процесс без `/proc/PID/exe` исключался только при строке
+    `Kthread: 1` или состоянии `Z` в `/proc/PID/status`. На Ubuntu 22.04
+    (ядро 5.15) и Debian 12 (ядро 6.1) строки `Kthread:` нет, все потоки ядра
+    давали `ERROR proc-status:no-exe-unclassified`. Стало: при отсутствии
+    строки `Kthread:` поток ядра определяется по флагу `PF_KTHREAD`
+    (`0x00200000`) в поле 9 (`flags`) проверенного `/proc/PID/stat`; флаг —
+    ASCII-десятичное без знака, иначе `ERROR proc-stat:invalid-flags`;
+    исчезновение `stat` до чтения флагов — `ERROR
+    proc-stat:excluded-classification-vanished`. Строка `Kthread:`, если есть,
+    решающая, флаги тогда не читаются. Проверка `starttime` после
+    классификации не менялась;
+  - было: любое отображение `maps` с неабсолютным путём давало `ERROR
+    proc-maps:nonabsolute-path`. На Ubuntu 26.04 (min и full)
+    `systemd-networkd` держит `anon_inode:bpf-map` с правами `r--s`/`rw-s`.
+    Стало: неисполняемое отображение с путём `anon_inode:…` не файловое и
+    пропускается, как `[heap]`; исполняемое `anon_inode:` и прочие
+    неабсолютные пути — по-прежнему `ERROR proc-maps:nonabsolute-path`;
+  - не менялось: удалённые отображения (`… (deleted)`) — `ERROR
+    proc-maps:deleted-path`; на Ubuntu 26.04 min это состояние снимка
+    (библиотеки обновлены, службы не перезапущены), решение человека
+    24.09.2026 — оставить ERROR.
+
+  Синхронизированы семантический контракт (`kernel_threads_and_zombies`,
+  `libraries`), пины адаптера в `.json` и `ADAPTER-REGISTRY.tsv`. Трекнутый
+  артефакт перегенерирован, `CHECK_SHA256` `5c82511ffaedbda916954e959e666610e7baa34865042881f6c515d0dfbb64f9`.
+
+  Тесты (`test_product_generator.py`, класс
+  `RunningProcessPathsWriteProtectionFixtures`, +8): без строки `Kthread`
+  с флагом `0x00208040` (kthreadd) — PASS, `excluded=1`; без флага —
+  `no-exe-unclassified`; `Kthread: 0` при установленном флаге —
+  `no-exe-unclassified`, `Kthread: 1` при флагах 0 — PASS; флаги `-1` —
+  `invalid-flags`; нет `stat` — `excluded-classification-vanished`;
+  `anon_inode:bpf-map` `r--s`/`rw-s` — PASS; `r-xs` — `nonabsolute-path`;
+  прочий неабсолютный путь `r--s` — `nonabsolute-path`. На адаптере до правки
+  4 из 8 новых — FAIL, остальные 4 фиксируют сохранённое поведение.
+  ВМ-прогон нового артефакта не выполнялся.
+
 - Механизм APPLY `startup-files-write-protection-v1` для
   `FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION` (SRC-0009,
   `other-write bits-clear 0002`). Строк source index не закрывает: SRC-0009

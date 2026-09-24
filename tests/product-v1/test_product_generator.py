@@ -3439,13 +3439,16 @@ class SshdRootLoginAdapterFixtures(unittest.TestCase):
 
 class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
     @staticmethod
-    def _stat_text(pid_name="1", start="123"):
+    def _stat_text(pid_name="1", start="123", flags="0"):
         fields = ["S"] + ["0"] * 49
+        fields[6] = flags
         fields[19] = start
         return f"{pid_name} (fixture) " + " ".join(fields) + "\n"
 
     @staticmethod
     def _status_text(state="S", kthread=0):
+        if kthread is None:
+            return f"State:\t{state} (fixture)\n"
         return f"State:\t{state} (fixture)\nKthread:\t{kthread}\n"
 
     def _prepare_fs(self, root, name="app"):
@@ -3470,10 +3473,10 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
             for d in (fsroot / "opt" / name, fsroot / "opt" / name / "bin", fsroot / "opt" / name / "lib"):
                 d.chmod(mode)
 
-    def _add_pid(self, proc, pid_name, exe, maps_text, start="123", status=None):
+    def _add_pid(self, proc, pid_name, exe, maps_text, start="123", status=None, flags="0"):
         pid = proc / str(pid_name)
         pid.mkdir(parents=True)
-        (pid / "stat").write_text(self._stat_text(str(pid_name), start), encoding="ascii")
+        (pid / "stat").write_text(self._stat_text(str(pid_name), start, flags), encoding="ascii")
         (pid / "status").write_text(status or self._status_text(), encoding="utf-8")
         if exe is not None:
             (pid / "exe").symlink_to(exe)
@@ -3709,6 +3712,101 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
         row = self.run_fixture(malformed_escape=True)
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
         self.assertEqual(row[3], "proc:invalid-path-escape")
+
+    # Kernel 5.15 (Ubuntu 22.04) and 6.1 (Debian 12): /proc/PID/status has no
+    # Kthread line; kthreadd flags observed 0x00208040 (PF_KTHREAD set).
+    def _no_exe_case(self, *, kthread, flags, extra_maps=""):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            fsroot, exe, lib, _ = self._prepare_fs(root)
+            self._seal_fs(fsroot, ("app",))
+            proc = self._prepare_proc(root)
+            self._add_pid(proc, "100", exe, self._maps_line(str(lib)) + extra_maps)
+            if kthread is not False:
+                self._add_pid(
+                    proc, "2", None, None,
+                    status=self._status_text(kthread=kthread), flags=flags,
+                )
+            return self._run_script(self._script(root, proc, fsroot))
+
+    def test_no_kthread_line_pf_kthread_flag_is_excluded(self):
+        row = self._no_exe_case(kthread=None, flags=str(0x00208040))
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertIn("excluded=1;", row[3])
+
+    def test_no_kthread_line_without_pf_kthread_flag_is_error(self):
+        row = self._no_exe_case(kthread=None, flags=str(0x00400100))
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "proc-status:no-exe-unclassified", "ERROR"))
+
+    def test_kthread_line_is_authoritative_over_flags(self):
+        row = self._no_exe_case(kthread=0, flags=str(0x00208040))
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "proc-status:no-exe-unclassified", "ERROR"))
+        row = self._no_exe_case(kthread=1, flags="0")
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+        self.assertIn("excluded=1;", row[3])
+
+    def test_no_kthread_line_negative_flags_is_error(self):
+        row = self._no_exe_case(kthread=None, flags="-1")
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "proc-stat:invalid-flags", "ERROR"))
+
+    def test_no_kthread_line_stat_vanished_is_error(self):
+        tree = ast.parse(RUNNING_PROCESS_PATHS._PY)
+        first_function = next(i for i, node in enumerate(tree.body) if isinstance(node, ast.FunctionDef))
+        selected = []
+        for node in tree.body[:first_function]:
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                selected.append(node)
+            elif isinstance(node, ast.Assign) and node.targets[0].id not in {"proc_root", "parent_stop"}:
+                selected.append(node)
+        for node in tree.body[first_function:]:
+            if isinstance(node, ast.FunctionDef) and node.name in {
+                "error", "read_stat_fields", "read_start", "classify_no_exe",
+            }:
+                selected.append(node)
+        namespace = {}
+        exec(
+            compile(
+                ast.fix_missing_locations(ast.Module(body=selected, type_ignores=[])),
+                "<src0006-classify-no-exe-flags>",
+                "exec",
+            ),
+            namespace,
+        )
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            pid = Path(td) / "2"
+            pid.mkdir()
+            (pid / "status").write_text(self._status_text(kthread=None), encoding="utf-8")
+            captured = io.StringIO()
+            with contextlib.redirect_stdout(captured):
+                with self.assertRaises(SystemExit) as cm:
+                    namespace["classify_no_exe"](pid, "123")
+            self.assertEqual(cm.exception.code, 0)
+            self.assertEqual(captured.getvalue().strip(), "ERROR\tproc-stat:excluded-classification-vanished")
+
+    # Ubuntu 26.04 systemd-networkd: BPF map mappings "anon_inode:bpf-map" r--s / rw-s.
+    def test_non_executable_anon_inode_mapping_is_skipped(self):
+        extra = (
+            self._maps_line("anon_inode:bpf-map", perms="r--s", inode=2061, dev="00:10",
+                            address="7f0000000000-7f0000001000")
+            + self._maps_line("anon_inode:bpf-map", perms="rw-s", inode=2061, dev="00:10",
+                              address="7f0000001000-7f0000002000")
+        )
+        row = self._no_exe_case(kthread=False, flags="0", extra_maps=extra)
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+
+    def test_executable_anon_inode_mapping_is_error(self):
+        extra = self._maps_line("anon_inode:bpf-map", perms="r-xs", inode=2061, dev="00:10",
+                                address="7f0000000000-7f0000001000")
+        row = self._no_exe_case(kthread=False, flags="0", extra_maps=extra)
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "proc-maps:nonabsolute-path", "ERROR"))
+
+    def test_non_anon_inode_relative_mapping_is_still_error(self):
+        extra = self._maps_line("memfd-like:name", perms="r--s", inode=2061, dev="00:10",
+                                address="7f0000000000-7f0000001000")
+        row = self._no_exe_case(kthread=False, flags="0", extra_maps=extra)
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "proc-maps:nonabsolute-path", "ERROR"))
 
     def test_each_pid_requires_file_backed_executable_mapping(self):
         if BASH is None:
