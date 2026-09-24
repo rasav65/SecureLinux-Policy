@@ -50,6 +50,20 @@ Builder использует:
 9. после всех renderer/manifest/test операций повторно проверить exact ожидаемый `git status --short` и `git diff --check`;
 10. если substantive checkpoint изменился, обновить описание текущего состояния для следующего рабочего сеанса после подтверждённого PASS дерева.
 
+Шаги 5–7 и перегенерацию трекнутого `securelinux-policy.sh` выполняет одна команда:
+
+```bash
+python3 -I -B tools/refresh-pins.py --write [--reviewed DOC ...] [--reviewed-truth]
+python3 -I -B tools/refresh-pins.py --check
+```
+
+Она обновляет пины адаптеров CHECK (`.json` и `product/ADAPTER-REGISTRY.tsv`), привязки APPLY,
+трекнутый артефакт, строки вложенных `SHA256SUMS`, `*.sha256` и `CONTROL-MANIFEST.tsv` для путей,
+изменённых относительно HEAD, и корневые manifests. Устаревший пин неизменённого пути — ошибка,
+а не обновление. Новый файл, которого нет ни в одном manifest, — ошибка: строку добавляет человек.
+Строку review baseline изменённого документа команда обновляет только с `--reviewed DOC`,
+`truth_sha256` — только с `--reviewed-truth`: флаг фиксирует, что сверку выполнил человек.
+
 Старое значение `NEXT`, прежняя текущая точка в PROJECT-MAP или противоречащий
 новому machine truth README считается дефектом commit-кандидата. Обновление
 manifest не является заменой semantic review документации.
