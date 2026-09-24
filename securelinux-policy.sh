@@ -3,7 +3,7 @@
 # STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 # PRODUCT_CLI=product-cli-v1
 # GENERATOR_ID=product-check-generator-v2
-# GENERATOR_SHA256=5d8d5078f28ff5d6aff93c02ff3a984585243c465953423bc3009da5ff186015
+# GENERATOR_SHA256=3850d4f572ac5b61d9412bba4aa93b4a874f64d5a9d5d439b186b1c2b71e1d25
 # CONTROL_MANIFEST_SHA256=23263a0f0dd75f7cb0d0686655eacc86d91a691a006acadee07fcc07e1fe6194
 # ADAPTER_REGISTRY_SHA256=b69ff24de9a59c0fc507b798231dc80dcbd3f1d003a4357e1dc954f3832ceea7
 # APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1,kernel-cmdline-grub-v1,optional-file-root-files-mode-v1,standard-system-paths-mode-v1,startup-files-write-protection-v1,suid-sgid-applications-mode-v1
@@ -6551,7 +6551,7 @@ slp_build_info() {
     'STATUS=NON_RELEASE_PRODUCT_CANDIDATE' \
     'PRODUCT_CLI=product-cli-v1' \
     'GENERATOR_ID=product-check-generator-v2' \
-    'GENERATOR_SHA256=5d8d5078f28ff5d6aff93c02ff3a984585243c465953423bc3009da5ff186015' \
+    'GENERATOR_SHA256=3850d4f572ac5b61d9412bba4aa93b4a874f64d5a9d5d439b186b1c2b71e1d25' \
     'CONTROL_COUNT=49' \
     'CONTROL_MANIFEST_SHA256=23263a0f0dd75f7cb0d0686655eacc86d91a691a006acadee07fcc07e1fe6194' \
     'ADAPTER_COUNT=17' \
@@ -7316,6 +7316,27 @@ def _table_chunks(value, width, label):
         return [""]
     return [text[i:i + width] for i in range(0, len(text), width)]
 
+def _word_chunks(value, width, label):
+    # Перенос по пробелам; слово длиннее колонки режется по ширине.
+    text = _terminal_scalar(value, label) if value != "" else ""
+    chunks, line = [], ""
+    for word in text.split(" "):
+        while len(word) > width:
+            if line:
+                chunks.append(line)
+                line = ""
+            chunks.append(word[:width])
+            word = word[width:]
+        if not word:
+            continue
+        if line and len(line) + 1 + len(word) > width:
+            chunks.append(line)
+            line = word
+        else:
+            line = line + " " + word if line else word
+    chunks.append(line)
+    return chunks
+
 def _terminal_columns():
     try:
         cols = os.get_terminal_size(sys.stdout.fileno()).columns
@@ -7424,7 +7445,7 @@ def _block_entry(record, control):
         raise RuntimeError("presentation:control-id-mismatch")
     display_control = _block_control_label(control)
     detail = _terminal_scalar(record.get("reason"), "reason")
-    notes = []
+    entry = {"control": display_control, "rows": [("detail", detail)], "admin": False, "risk": None}
     mechanism_result = record.get("mechanism_result")
     if not isinstance(mechanism_result, dict):
         raise RuntimeError("presentation:block-mechanism-result-invalid")
@@ -7436,21 +7457,19 @@ def _block_entry(record, control):
             service = _terminal_scalar(decision.get("service"), "service")
             parameter = _terminal_scalar(decision.get("parameter"), "parameter")
             current_value = _terminal_scalar(decision.get("current_value"), "current-value")
-            notes.append(
-                f"{parameter}={current_value}: обнаружен штатный механизм {service}, управляющий этим параметром."
+            entry["rows"].append(
+                ("note", f"{parameter}={current_value}: обнаружен штатный механизм {service}, управляющий этим параметром.")
             )
-            notes.append("Автоматическое изменение пропущено. Требуется решение администратора.")
         elif decision.get("class") == "BOOT_PARAMETER_ADMIN_DECISION":
             value = _terminal_scalar(decision.get("value"), "value")
             risk = _terminal_scalar(decision.get("risk"), "risk")
-            notes.append(f"{value}: {risk}.")
-            notes.append(
-                "Автоматическое изменение пропущено. Требуется решение администратора: добавить "
-                f"{value} в GRUB_CMDLINE_LINUX, выполнить update-grub и перезагрузить систему."
-            )
+            # Код причины остаётся в JSON-отчёте; инструкция add печатается над таблицей.
+            entry["rows"] = [("add", value)]
+            entry["risk"] = risk + "."
         else:
             raise RuntimeError("presentation:operator-decision-invalid")
-    return {"control": display_control, "detail": detail, "notes": notes}
+        entry["admin"] = True
+    return entry
 
 def _block_control_label(control):
     source = _terminal_scalar(control.get("source"), "source")
@@ -7474,7 +7493,7 @@ def _emit_blocks_row(control, kind, message):
     wcontrol, wtype, wmessage = widths
     control_chunks = _table_chunks(control, wcontrol, "block-control")
     kind_chunks = _table_chunks(kind, wtype, "block-type")
-    message_chunks = _table_chunks(message, wmessage, "block-message")
+    message_chunks = _word_chunks(message, wmessage, "block-message")
     rows = max(len(control_chunks), len(kind_chunks), len(message_chunks))
     for i in range(rows):
         c = control_chunks[i] if i < len(control_chunks) else ""
@@ -7494,13 +7513,24 @@ def _emit_blocks_separator():
 def emit_blocks():
     if not BLOCKS:
         return
+    # Общие для блоков фразы печатаются один раз над таблицей (решение человека 24.09.2026).
+    # «Пропущено» верно для каждого блока: _block_entry требует mutation_performed=False.
+    all_admin = all(entry["admin"] for entry in BLOCKS)
     print("blocks")
+    print("Автоматическое изменение пропущено" + (". Требуется решение администратора." if all_admin else "."))
+    if any(kind == "add" for entry in BLOCKS for kind, _message in entry["rows"]):
+        print("add: добавить параметр в GRUB_CMDLINE_LINUX, выполнить update-grub и перезагрузить систему.")
     _emit_blocks_row("control", "type", "message")
     _emit_blocks_separator()
-    for entry in BLOCKS:
-        _emit_blocks_row(entry["control"], "detail", entry["detail"])
-        for note in entry["notes"]:
-            _emit_blocks_row("", "note", note)
+    for i, entry in enumerate(BLOCKS):
+        for n, (kind, message) in enumerate(entry["rows"]):
+            _emit_blocks_row(entry["control"] if n == 0 else "", kind, message)
+        if entry["admin"] and not all_admin:
+            _emit_blocks_row("", "note", "Требуется решение администратора.")
+        # Одинаковый риск у блоков подряд — один раз, после последнего из них.
+        following = BLOCKS[i + 1] if i + 1 < len(BLOCKS) else None
+        if entry["risk"] and (following is None or following["risk"] != entry["risk"]):
+            _emit_blocks_row("", "risk", entry["risk"])
     _emit_blocks_separator()
 
 def emit_control_result(record, control):

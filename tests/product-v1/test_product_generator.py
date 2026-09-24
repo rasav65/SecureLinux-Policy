@@ -563,7 +563,8 @@ class GeneratorModel(unittest.TestCase):
         self.assertIn(b"SLP-APPLY-REPORT-V2", one)
         self.assertIn(b"SERVICE_MANAGED_PARAMETER", one)
         self.assertIn("обнаружен штатный механизм".encode("utf-8"), one)
-        self.assertIn("Автоматическое изменение пропущено. Требуется решение администратора.".encode("utf-8"), one)
+        self.assertIn("Автоматическое изменение пропущено".encode("utf-8"), one)
+        self.assertIn(". Требуется решение администратора.".encode("utf-8"), one)
         self.assertIn(b'decision.get("service")', one)
         for c in controls:
             self.assertGreaterEqual(one.count(c["control_id"].encode("utf-8")), 2)
@@ -5905,8 +5906,9 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             self.assertNotIn("detail:", table_text)
             self.assertNotIn("note:", table_text)
 
-            blocks_header = lines[blocks_index + 1]
-            blocks_separator = lines[blocks_index + 2]
+            self.assertEqual(lines[blocks_index + 1], "Автоматическое изменение пропущено. Требуется решение администратора.")
+            blocks_header = lines[blocks_index + 2]
+            blocks_separator = lines[blocks_index + 3]
             blocks_end = lines[total_index - 1]
             self.assertIn("control", blocks_header)
             self.assertIn("type", blocks_header)
@@ -5914,10 +5916,11 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             self.assertEqual(blocks_header.count("|"), 3)
             self.assertEqual(blocks_separator.count("+"), 3)
             self.assertEqual(blocks_end.count("+"), 3)
-            block_table_lines = lines[blocks_index + 1:total_index]
+            block_table_lines = lines[blocks_index + 2:total_index]
             self.assertTrue(all(len(line) == 116 for line in block_table_lines), cp.stdout)
             self.assertTrue(all(line.endswith(("|", "+")) for line in block_table_lines), cp.stdout)
-            message_stream = "".join(
+            # Перенос по словам: строки ячейки соединяются пробелом.
+            message_stream = " ".join(
                 line.split("|")[2].strip()
                 for line in block_table_lines
                 if line.count("|") == 3
@@ -5935,32 +5938,32 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
                 "fs.suid_dumpable=2: обнаружен штатный механизм Apport, управляющий этим параметром.",
                 message_stream,
             )
-            self.assertIn(
-                "Автоматическое изменение пропущено. Требуется решение администратора.",
-                message_stream,
-            )
+            self.assertNotIn("Требуется решение администратора", message_stream)
             self.assertIn("TOTAL=1 ABORTED_PRECONDITION_CONFLICT=1 RC=NONZERO", cp.stdout)
 
 
     def _run_synthetic_apply_dispatcher(self, record):
-        # Одна синтетическая запись механизма; dispatcher исполняется целиком
-        # в изолированном каталоге состояния.
+        # Синтетические записи механизма: одна запись (контроль 9.9.4 passwd-mode)
+        # или {control_id: запись}; dispatcher исполняется целиком в изолированном
+        # каталоге состояния.
+        records = record if all(k.startswith("FSTEC-") for k in record) else {"FSTEC-LINUX-2099-9.9.4-PASSWD-MODE": record}
         implementation = (
             'import json\n'
             'MECHANISM_ID = "test-mechanism"\n'
             'ADAPTER_ID = "test-adapter"\n'
-            f'RECORD = json.loads({json.dumps(json.dumps(record))})\n'
+            f'RECORDS = json.loads({json.dumps(json.dumps(records))})\n'
             'def execute_control(control_id, key, op, expected, apply_supported, dry_run=False):\n'
             '    return control_id\n'
             'def control_result_to_report(result, started_at, finished_at):\n'
-            '    out = dict(RECORD)\n'
+            '    out = dict(RECORDS[result])\n'
             '    out.update({"control_id": result, "started_at": started_at, "finished_at": finished_at})\n'
             '    return out\n'
         ).encode("utf-8")
         impl_sha = hashlib.sha256(implementation).hexdigest()
         controls = [
-            {"control_id": "FSTEC-LINUX-2099-9.9.4-PASSWD-MODE", "doc_id": "fstec-linux-2099", "source_locator": "9.9.4",
-             "parameter_kind": "synthetic", "parameter_key": "mode", "expected_op": "eq", "expected_value": "0644"},
+            {"control_id": control_id, "doc_id": "fstec-linux-2099", "source_locator": control_id.split("-")[3],
+             "parameter_kind": "synthetic", "parameter_key": "mode", "expected_op": "eq", "expected_value": "0644"}
+            for control_id in records
         ]
         mechanisms = {"synthetic": {"kind_row": {"apply_kind": "test-kind"}, "authority": {"mechanism_id": "test-mechanism"}, "implementation_row": {"adapter_id": "test-adapter", "implementation_sha256": impl_sha}, "implementation_source": implementation}}
         dispatcher = GEN_V2_CURRENT.render_product_apply_dispatcher(controls, mechanisms)
@@ -6001,7 +6004,9 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
                 self.assertIn("TOTAL=1 ABORTED_PRECONDITION_OTHER=1 RC=NONZERO", lines)
                 blocks = self._blocks_section(cp.stdout)
                 self.assertIsNotNone(blocks, cp.stdout)
-                self.assertTrue(all(len(line) == 116 for line in blocks[1:]), cp.stdout)
+                # Без operator_decision решение администратора не заявляется.
+                self.assertEqual(blocks[1], "Автоматическое изменение пропущено.")
+                self.assertTrue(all(len(line) == 116 for line in blocks[2:]), cp.stdout)
                 rows = [[cell.strip() for cell in line.split("|")[:3]] for line in blocks[1:] if line.count("|") == 3]
                 self.assertEqual(rows, [
                     ["control", "type", "message"],
@@ -6016,9 +6021,9 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
                 self.assertEqual(entry["mutation_performed"], False)
                 self.assertEqual(entry["mechanism_result"], {"target": "/etc/passwd"})
 
-    def test_apply_blocks_precondition_conflict_output_unchanged(self):
-        # Регрессия: вывод CONFLICT с operator_decision — байты до решения
-        # 23.09.2026 (снято на e3af78f). Меняется только явным решением.
+    def test_apply_blocks_precondition_conflict_output_exact(self):
+        # Регрессия: вывод CONFLICT с operator_decision побайтно (снято на e3af78f;
+        # решение 24.09.2026: общая фраза над таблицей). Меняется только явным решением.
         record = {
             "outcome": "ABORTED_PRECONDITION_CONFLICT",
             "reason": "runtime-writer:APPORT-NATIVE-SUID-DUMPABLE-V1:C4:agent-exact",
@@ -6037,11 +6042,11 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             ' block | fstec-linux-2099 §9.9.4  | passwd-mode                      | 2                | = 0644                   |\n'
             '-------+--------------------------+----------------------------------+------------------+--------------------------+\n'
             'blocks\n'
+            'Автоматическое изменение пропущено. Требуется решение администратора.\n'
             ' control            | type   | message                                                                             |\n'
             '--------------------+--------+-------------------------------------------------------------------------------------+\n'
             ' §9.9.4 passwd-mode | detail | runtime-writer:APPORT-NATIVE-SUID-DUMPABLE-V1:C4:agent-exact                        |\n'
             '                    | note   | fs.suid_dumpable=2: обнаружен штатный механизм Apport, управляющий этим параметром. |\n'
-            '                    | note   | Автоматическое изменение пропущено. Требуется решение администратора.               |\n'
             '--------------------+--------+-------------------------------------------------------------------------------------+\n'
             'TOTAL=1 ABORTED_PRECONDITION_CONFLICT=1 RC=NONZERO\n'
         ))
@@ -6064,11 +6069,73 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         row = next(line for line in cp.stdout.splitlines() if "passwd-mode" in line and line.count("|") == 5)
         self.assertEqual([c.strip() for c in row.split("|")[:4]], ["block", "fstec-linux-2099 §9.9.4", "passwd-mode", "<absent>"])
         blocks = self._blocks_section(cp.stdout)
-        # Ячейка переносится по ширине, а не по словам: сравнение без пробелов.
-        text = "".join("".join(line.split("|")[2].split()) for line in blocks[1:] if line.count("|") == 3)
-        self.assertIn("tsx=off:начастипроцессоровснижаетсяпроизводительность.", text)
-        self.assertIn("Требуетсярешениеадминистратора:добавитьtsx=offвGRUB_CMDLINE_LINUX", text)
+        self.assertEqual(blocks[1:3], [
+            "Автоматическое изменение пропущено. Требуется решение администратора.",
+            "add: добавить параметр в GRUB_CMDLINE_LINUX, выполнить update-grub и перезагрузить систему.",
+        ])
+        rows = [[cell.strip() for cell in line.split("|")[:3]] for line in blocks[3:] if line.count("|") == 3]
+        self.assertEqual(rows, [
+            ["control", "type", "message"],
+            ["§9.9.4 passwd-mode", "add", "tsx=off"],
+            ["", "risk", "на части процессоров снижается производительность."],
+        ])
         self.assertEqual(report["controls"][0]["outcome"], "ABORTED_PRECONDITION_CONFLICT")
+        self.assertEqual(report["controls"][0]["reason"], "admin-decision:tsx")
+
+    def test_apply_blocks_common_phrases_once(self):
+        # Решение 24.09.2026: одинаковый риск у блоков подряд — один раз после
+        # последнего; при блоке без operator_decision «требуется решение» — у каждого
+        # блока с решением, а не над таблицей.
+        def boot(value, risk):
+            return {"outcome": "ABORTED_PRECONDITION_CONFLICT", "reason": "admin-decision:" + value.split("=")[0],
+                    "actions_attempted": ["P0_ELIGIBILITY"], "step_rc": "nonzero", "mutation_performed": False,
+                    "transaction_commit": "NOT_STARTED", "cmdline_current": "<absent>",
+                    "operator_decision": {"class": "BOOT_PARAMETER_ADMIN_DECISION", "required": True,
+                                          "parameter": value.split("=")[0], "value": value, "risk": risk}}
+        other = {"outcome": "ABORTED_PRECONDITION_OTHER", "reason": "privilege", "actions_attempted": ["P0_ELIGIBILITY"],
+                 "step_rc": "nonzero", "mutation_performed": False, "transaction_commit": "NOT_STARTED"}
+        records = {"FSTEC-LINUX-2099-9.9.1-A-MODE": boot("iommu=force", "риск А"),
+                   "FSTEC-LINUX-2099-9.9.2-B-MODE": boot("iommu.strict=1", "риск А"),
+                   "FSTEC-LINUX-2099-9.9.3-C-MODE": boot("tsx=off", "риск Б")}
+        cp, _report = self._run_synthetic_apply_dispatcher(dict(records))
+        blocks = self._blocks_section(cp.stdout)
+        self.assertEqual(blocks[1], "Автоматическое изменение пропущено. Требуется решение администратора.")
+        rows = [[cell.strip() for cell in line.split("|")[:3]] for line in blocks[3:] if line.count("|") == 3]
+        self.assertEqual(rows, [
+            ["control", "type", "message"],
+            ["§9.9.1 a-mode", "add", "iommu=force"],
+            ["§9.9.2 b-mode", "add", "iommu.strict=1"],
+            ["", "risk", "риск А."],
+            ["§9.9.3 c-mode", "add", "tsx=off"],
+            ["", "risk", "риск Б."],
+        ])
+        records["FSTEC-LINUX-2099-9.9.4-D-MODE"] = other
+        cp, _report = self._run_synthetic_apply_dispatcher(records)
+        blocks = self._blocks_section(cp.stdout)
+        self.assertEqual(blocks[1:3], [
+            "Автоматическое изменение пропущено.",
+            "add: добавить параметр в GRUB_CMDLINE_LINUX, выполнить update-grub и перезагрузить систему.",
+        ])
+        rows = [[cell.strip() for cell in line.split("|")[:3]] for line in blocks[3:] if line.count("|") == 3]
+        need = "Требуется решение администратора."
+        self.assertEqual(rows, [
+            ["control", "type", "message"],
+            ["§9.9.1 a-mode", "add", "iommu=force"], ["", "note", need],
+            ["§9.9.2 b-mode", "add", "iommu.strict=1"], ["", "note", need], ["", "risk", "риск А."],
+            ["§9.9.3 c-mode", "add", "tsx=off"], ["", "note", need], ["", "risk", "риск Б."],
+            ["§9.9.4 d-mode", "detail", "privilege"],
+        ])
+        # Перенос в колонке message — по словам.
+        long_risk = " ".join(["слово%02d" % i for i in range(30)])
+        cp, _report = self._run_synthetic_apply_dispatcher({"FSTEC-LINUX-2099-9.9.1-A-MODE": boot("tsx=off", long_risk)})
+        blocks = self._blocks_section(cp.stdout)
+        cells = [line.split("|")[2] for line in blocks[3:] if line.count("|") == 3]
+        risk_at = next(i for i, line in enumerate(blocks[3:]) if line.count("|") == 3 and line.split("|")[1].strip() == "risk")
+        risk_cells = [line.split("|")[2].strip() for line in blocks[3 + risk_at:] if line.count("|") == 3]
+        self.assertGreater(len(risk_cells), 1, cp.stdout)
+        self.assertEqual(" ".join(risk_cells), long_risk + ".")
+        self.assertTrue(all(len(line) == 116 for line in blocks[3:]), cp.stdout)
+        self.assertTrue(all(cell.startswith(" ") and cell.endswith(" ") for cell in cells), cp.stdout)
 
     def test_apply_pending_reboot_is_success_without_block(self):
         record = {

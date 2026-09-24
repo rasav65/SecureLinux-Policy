@@ -128,4 +128,4 @@ d15d7e89982de63578337429b97a429ecad136c8a8f39f5ba218cce5597193c7  contracts/test
 81e008a5ecc0e451679b4b7bacf25d2c2de365c4cd4573db801009f926559ea3  contracts/user-cron-files-mode-check-semantic-v1.json
 1f1a6a01bc4a5f0b1ca8cf1d649a7e1c08b3667df2a8702134d56497950abc13  contracts/user-cron-files-mode-check-semantic-v2.json
 cc75c216e685c792e5dd14a1b056e9f8f6602f772bc8622f04be95bc88d501d3  generate-product-check-v1.py
-5d8d5078f28ff5d6aff93c02ff3a984585243c465953423bc3009da5ff186015  generate-product-check-v2.py
+3850d4f572ac5b61d9412bba4aa93b4a874f64d5a9d5d439b186b1c2b71e1d25  generate-product-check-v2.py
