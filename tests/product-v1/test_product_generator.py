@@ -2575,7 +2575,7 @@ class SudoersReviewedPolicyAdapterFixtures(unittest.TestCase):
     def debian_12_specs(self):
         return [self.root_rule(), self.sudo_rule()]
 
-    def run_fixture(self, specs, defaults=None, visudo_rc=0, drift=None, cvt_rc=0, cvt_stderr=False, payload_text=None, members=("sudoers.d/README",)):
+    def run_fixture(self, specs, defaults=None, visudo_rc=0, drift=None, cvt_rc=0, cvt_stderr=False, payload_text=None, members=("sudoers.d/README",), cvt_name="cvtsudoers", cvt_mode=0o755):
         if BASH is None:
             self.skipTest("bash not found")
         # dir=ROOT: a temporary /tmp may be mounted noexec, and the tool stubs are
@@ -2623,18 +2623,18 @@ class SudoersReviewedPolicyAdapterFixtures(unittest.TestCase):
                 changed = json.dumps({"User_Specs": specs + [self._rule({"username": "user1"}, False)]}, sort_keys=True)
                 cvt_body = ("if [[ -e " + shlex.quote(str(cvt_state)) + " ]]; then printf '%s\\n' " + shlex.quote(changed)
                             + "; exit 0; fi\n: > " + shlex.quote(str(cvt_state)) + "\n" + cvt_body)
-            fake_cvt = root / "cvtsudoers"
+            fake_cvt = root / cvt_name
             fake_cvt.write_text(
                 "#!/bin/bash\n[[ \"$*\" == " + shlex.quote("-c /dev/null -e -s aliases -f json " + str(sudoers)) + " ]] || exit 64\n" + cvt_body,
                 encoding="utf-8")
-            fake_cvt.chmod(0o755)
+            fake_cvt.chmod(cvt_mode)
             src = SUDOERS_REVIEWED_POLICY.shell_function_for_fixture(
                 "TEST-SUDOERS",
                 SUDOERS_REVIEWED_POLICY.CANONICAL_LOCATOR,
                 SUDOERS_REVIEWED_POLICY.CANONICAL_KEY,
                 SUDOERS_REVIEWED_POLICY.CANONICAL_OP,
                 SUDOERS_REVIEWED_POLICY.CANONICAL_EXPECTED,
-                str(sudoers), str(fake_visudo), str(fake_cvt),
+                str(sudoers), str(fake_visudo), str(root / "cvtsudoers"),
             )
             script = root / "run.sh"
             script.write_text("#!/bin/bash -p\n" + src + "\nslp_check_TEST_SUDOERS\n", encoding="utf-8")
@@ -2719,6 +2719,22 @@ class SudoersReviewedPolicyAdapterFixtures(unittest.TestCase):
         for drift in ("bytes", "pathset", "cvt"):
             with self.subTest(drift=drift):
                 self.assertEqual(self.run_fixture(self.debian_12_specs(), drift=drift), ("ERROR", "observation:policy-changed", "ERROR"))
+
+    # Ubuntu 26.04 (sudo-rs active): package sudo 1.9.17p2 ships /usr/bin/cvtsudoers.ws only.
+    def test_cvtsudoers_ws_fallback_when_primary_absent(self):
+        row = self.run_fixture(self.ubuntu_2404_specs(), defaults=self.UBUNTU_2404_DEFAULTS, cvt_name="cvtsudoers.ws")
+        self.assertEqual(row, ("VALUE", "rules=3;nonstandard=0", "PASS"))
+
+    def test_cvtsudoers_ws_fallback_group_or_other_writable_is_error(self):
+        for mode in (0o775, 0o757):
+            with self.subTest(mode=oct(mode)):
+                row = self.run_fixture(self.ubuntu_2404_specs(), defaults=self.UBUNTU_2404_DEFAULTS,
+                                       cvt_name="cvtsudoers.ws", cvt_mode=mode)
+                self.assertEqual(row, ("ERROR", "cvtsudoers:untrusted-fallback", "ERROR"))
+
+    def test_cvtsudoers_absent_without_fallback_is_error(self):
+        row = self.run_fixture(self.ubuntu_2404_specs(), defaults=self.UBUNTU_2404_DEFAULTS, cvt_name="cvtsudoers.other")
+        self.assertEqual(row, ("ERROR", "cvtsudoers:execution-failed", "ERROR"))
 
     def test_cvtsudoers_failures_are_error(self):
         self.assertEqual(self.run_fixture(self.debian_12_specs(), cvt_rc=1), ("ERROR", "cvtsudoers:execution-failed", "ERROR"))
