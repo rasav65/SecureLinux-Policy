@@ -1141,11 +1141,12 @@ def _emit_blocks_separator():
 def emit_blocks():
     if not BLOCKS:
         return
-    # Общие для блоков фразы печатаются один раз над таблицей (решение человека 24.09.2026).
-    # «Пропущено» верно для каждого блока: _block_entry требует mutation_performed=False.
+    # Первая строка определяет статус block основной таблицы и общие для блоков фразы
+    # (решения человека 24.09.2026). «Не применено» верно для каждого блока: _block_entry
+    # требует mutation_performed=False.
     all_admin = all(entry["admin"] for entry in BLOCKS)
-    print("blocks")
-    print("Автоматическое изменение пропущено" + (". Требуется решение администратора." if all_admin else "."))
+    print("block — не применено автоматически"
+          + (", требуется решение администратора" if all_admin else "") + f" ({len(BLOCKS)}):")
     if any(kind == "add" for entry in BLOCKS for kind, _message in entry["rows"]):
         print("add: добавить параметр в GRUB_CMDLINE_LINUX, выполнить update-grub и перезагрузить систему.")
     _emit_blocks_row("control", "type", "message")

@@ -563,8 +563,8 @@ class GeneratorModel(unittest.TestCase):
         self.assertIn(b"SLP-APPLY-REPORT-V2", one)
         self.assertIn(b"SERVICE_MANAGED_PARAMETER", one)
         self.assertIn("обнаружен штатный механизм".encode("utf-8"), one)
-        self.assertIn("Автоматическое изменение пропущено".encode("utf-8"), one)
-        self.assertIn(". Требуется решение администратора.".encode("utf-8"), one)
+        self.assertIn("block — не применено автоматически".encode("utf-8"), one)
+        self.assertIn(", требуется решение администратора".encode("utf-8"), one)
         self.assertIn(b'decision.get("service")', one)
         for c in controls:
             self.assertGreaterEqual(one.count(c["control_id"].encode("utf-8")), 2)
@@ -5852,7 +5852,7 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             cp = subprocess.run([os.environ.get("PYTHON", "/usr/bin/python3"), "-I", "-S", "-B", "-", "APPLY"], input=isolated, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=ROOT)
             self.assertEqual(cp.stderr, "")
             lines = cp.stdout.splitlines()
-            blocks_index = lines.index("blocks")
+            blocks_index = next(i for i, line in enumerate(lines) if line.startswith("block — "))
             main = lines[:blocks_index]
             passwd_row = next(line for line in main if "passwd-mode" in line and "|" in line)
             group_row = next(line for line in main if "group-mode" in line and "|" in line)
@@ -5891,7 +5891,7 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             self.assertIn("fstec-linux-2099 §9.9.3", row)
             self.assertIn("| 2", row)
             self.assertIn("= 0", row)
-            blocks_index = lines.index("blocks")
+            blocks_index = next(i for i, line in enumerate(lines) if line.startswith("block — "))
             total_index = next(i for i, line in enumerate(lines) if line.startswith("TOTAL=1 "))
             main_plus = [i for i, line in enumerate(lines[:blocks_index]) if "+" in line]
             self.assertGreaterEqual(len(main_plus), 2, cp.stdout)
@@ -5906,9 +5906,9 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             self.assertNotIn("detail:", table_text)
             self.assertNotIn("note:", table_text)
 
-            self.assertEqual(lines[blocks_index + 1], "Автоматическое изменение пропущено. Требуется решение администратора.")
-            blocks_header = lines[blocks_index + 2]
-            blocks_separator = lines[blocks_index + 3]
+            self.assertEqual(lines[blocks_index], "block — не применено автоматически, требуется решение администратора (1):")
+            blocks_header = lines[blocks_index + 1]
+            blocks_separator = lines[blocks_index + 2]
             blocks_end = lines[total_index - 1]
             self.assertIn("control", blocks_header)
             self.assertIn("type", blocks_header)
@@ -5916,7 +5916,7 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             self.assertEqual(blocks_header.count("|"), 3)
             self.assertEqual(blocks_separator.count("+"), 3)
             self.assertEqual(blocks_end.count("+"), 3)
-            block_table_lines = lines[blocks_index + 2:total_index]
+            block_table_lines = lines[blocks_index + 1:total_index]
             self.assertTrue(all(len(line) == 116 for line in block_table_lines), cp.stdout)
             self.assertTrue(all(line.endswith(("|", "+")) for line in block_table_lines), cp.stdout)
             # Перенос по словам: строки ячейки соединяются пробелом.
@@ -5976,9 +5976,9 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
     @staticmethod
     def _blocks_section(stdout):
         lines = stdout.splitlines()
-        if "blocks" not in lines:
+        start = next((i for i, line in enumerate(lines) if line.startswith("block — ")), None)
+        if start is None:
             return None
-        start = lines.index("blocks")
         end = next(i for i, line in enumerate(lines) if line.startswith("TOTAL="))
         return lines[start:end]
 
@@ -6005,8 +6005,8 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
                 blocks = self._blocks_section(cp.stdout)
                 self.assertIsNotNone(blocks, cp.stdout)
                 # Без operator_decision решение администратора не заявляется.
-                self.assertEqual(blocks[1], "Автоматическое изменение пропущено.")
-                self.assertTrue(all(len(line) == 116 for line in blocks[2:]), cp.stdout)
+                self.assertEqual(blocks[0], "block — не применено автоматически (1):")
+                self.assertTrue(all(len(line) == 116 for line in blocks[1:]), cp.stdout)
                 rows = [[cell.strip() for cell in line.split("|")[:3]] for line in blocks[1:] if line.count("|") == 3]
                 self.assertEqual(rows, [
                     ["control", "type", "message"],
@@ -6041,8 +6041,7 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             '-------+--------------------------+----------------------------------+------------------+--------------------------+\n'
             ' block | fstec-linux-2099 §9.9.4  | passwd-mode                      | 2                | = 0644                   |\n'
             '-------+--------------------------+----------------------------------+------------------+--------------------------+\n'
-            'blocks\n'
-            'Автоматическое изменение пропущено. Требуется решение администратора.\n'
+            'block — не применено автоматически, требуется решение администратора (1):\n'
             ' control            | type   | message                                                                             |\n'
             '--------------------+--------+-------------------------------------------------------------------------------------+\n'
             ' §9.9.4 passwd-mode | detail | runtime-writer:APPORT-NATIVE-SUID-DUMPABLE-V1:C4:agent-exact                        |\n'
@@ -6069,11 +6068,11 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         row = next(line for line in cp.stdout.splitlines() if "passwd-mode" in line and line.count("|") == 5)
         self.assertEqual([c.strip() for c in row.split("|")[:4]], ["block", "fstec-linux-2099 §9.9.4", "passwd-mode", "<absent>"])
         blocks = self._blocks_section(cp.stdout)
-        self.assertEqual(blocks[1:3], [
-            "Автоматическое изменение пропущено. Требуется решение администратора.",
+        self.assertEqual(blocks[0:2], [
+            "block — не применено автоматически, требуется решение администратора (1):",
             "add: добавить параметр в GRUB_CMDLINE_LINUX, выполнить update-grub и перезагрузить систему.",
         ])
-        rows = [[cell.strip() for cell in line.split("|")[:3]] for line in blocks[3:] if line.count("|") == 3]
+        rows = [[cell.strip() for cell in line.split("|")[:3]] for line in blocks[2:] if line.count("|") == 3]
         self.assertEqual(rows, [
             ["control", "type", "message"],
             ["§9.9.4 passwd-mode", "add", "tsx=off"],
@@ -6099,8 +6098,8 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
                    "FSTEC-LINUX-2099-9.9.3-C-MODE": boot("tsx=off", "риск Б")}
         cp, _report = self._run_synthetic_apply_dispatcher(dict(records))
         blocks = self._blocks_section(cp.stdout)
-        self.assertEqual(blocks[1], "Автоматическое изменение пропущено. Требуется решение администратора.")
-        rows = [[cell.strip() for cell in line.split("|")[:3]] for line in blocks[3:] if line.count("|") == 3]
+        self.assertEqual(blocks[0], "block — не применено автоматически, требуется решение администратора (3):")
+        rows = [[cell.strip() for cell in line.split("|")[:3]] for line in blocks[2:] if line.count("|") == 3]
         self.assertEqual(rows, [
             ["control", "type", "message"],
             ["§9.9.1 a-mode", "add", "iommu=force"],
@@ -6112,11 +6111,11 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         records["FSTEC-LINUX-2099-9.9.4-D-MODE"] = other
         cp, _report = self._run_synthetic_apply_dispatcher(records)
         blocks = self._blocks_section(cp.stdout)
-        self.assertEqual(blocks[1:3], [
-            "Автоматическое изменение пропущено.",
+        self.assertEqual(blocks[0:2], [
+            "block — не применено автоматически (4):",
             "add: добавить параметр в GRUB_CMDLINE_LINUX, выполнить update-grub и перезагрузить систему.",
         ])
-        rows = [[cell.strip() for cell in line.split("|")[:3]] for line in blocks[3:] if line.count("|") == 3]
+        rows = [[cell.strip() for cell in line.split("|")[:3]] for line in blocks[2:] if line.count("|") == 3]
         need = "Требуется решение администратора."
         self.assertEqual(rows, [
             ["control", "type", "message"],
@@ -6129,12 +6128,12 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         long_risk = " ".join(["слово%02d" % i for i in range(30)])
         cp, _report = self._run_synthetic_apply_dispatcher({"FSTEC-LINUX-2099-9.9.1-A-MODE": boot("tsx=off", long_risk)})
         blocks = self._blocks_section(cp.stdout)
-        cells = [line.split("|")[2] for line in blocks[3:] if line.count("|") == 3]
-        risk_at = next(i for i, line in enumerate(blocks[3:]) if line.count("|") == 3 and line.split("|")[1].strip() == "risk")
-        risk_cells = [line.split("|")[2].strip() for line in blocks[3 + risk_at:] if line.count("|") == 3]
+        cells = [line.split("|")[2] for line in blocks[2:] if line.count("|") == 3]
+        risk_at = next(i for i, line in enumerate(blocks[2:]) if line.count("|") == 3 and line.split("|")[1].strip() == "risk")
+        risk_cells = [line.split("|")[2].strip() for line in blocks[2 + risk_at:] if line.count("|") == 3]
         self.assertGreater(len(risk_cells), 1, cp.stdout)
         self.assertEqual(" ".join(risk_cells), long_risk + ".")
-        self.assertTrue(all(len(line) == 116 for line in blocks[3:]), cp.stdout)
+        self.assertTrue(all(len(line) == 116 for line in blocks[2:]), cp.stdout)
         self.assertTrue(all(cell.startswith(" ") and cell.endswith(" ") for cell in cells), cp.stdout)
 
     def test_apply_pending_reboot_is_success_without_block(self):

@@ -3,7 +3,7 @@
 # STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 # PRODUCT_CLI=product-cli-v1
 # GENERATOR_ID=product-check-generator-v2
-# GENERATOR_SHA256=3850d4f572ac5b61d9412bba4aa93b4a874f64d5a9d5d439b186b1c2b71e1d25
+# GENERATOR_SHA256=8df05112a28fa69ae70a084318d62611942a4985a2f087463a2b2bbcf780e8e4
 # CONTROL_MANIFEST_SHA256=23263a0f0dd75f7cb0d0686655eacc86d91a691a006acadee07fcc07e1fe6194
 # ADAPTER_REGISTRY_SHA256=b69ff24de9a59c0fc507b798231dc80dcbd3f1d003a4357e1dc954f3832ceea7
 # APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1,kernel-cmdline-grub-v1,optional-file-root-files-mode-v1,standard-system-paths-mode-v1,startup-files-write-protection-v1,suid-sgid-applications-mode-v1
@@ -6551,7 +6551,7 @@ slp_build_info() {
     'STATUS=NON_RELEASE_PRODUCT_CANDIDATE' \
     'PRODUCT_CLI=product-cli-v1' \
     'GENERATOR_ID=product-check-generator-v2' \
-    'GENERATOR_SHA256=3850d4f572ac5b61d9412bba4aa93b4a874f64d5a9d5d439b186b1c2b71e1d25' \
+    'GENERATOR_SHA256=8df05112a28fa69ae70a084318d62611942a4985a2f087463a2b2bbcf780e8e4' \
     'CONTROL_COUNT=49' \
     'CONTROL_MANIFEST_SHA256=23263a0f0dd75f7cb0d0686655eacc86d91a691a006acadee07fcc07e1fe6194' \
     'ADAPTER_COUNT=17' \
@@ -7513,11 +7513,12 @@ def _emit_blocks_separator():
 def emit_blocks():
     if not BLOCKS:
         return
-    # Общие для блоков фразы печатаются один раз над таблицей (решение человека 24.09.2026).
-    # «Пропущено» верно для каждого блока: _block_entry требует mutation_performed=False.
+    # Первая строка определяет статус block основной таблицы и общие для блоков фразы
+    # (решения человека 24.09.2026). «Не применено» верно для каждого блока: _block_entry
+    # требует mutation_performed=False.
     all_admin = all(entry["admin"] for entry in BLOCKS)
-    print("blocks")
-    print("Автоматическое изменение пропущено" + (". Требуется решение администратора." if all_admin else "."))
+    print("block — не применено автоматически"
+          + (", требуется решение администратора" if all_admin else "") + f" ({len(BLOCKS)}):")
     if any(kind == "add" for entry in BLOCKS for kind, _message in entry["rows"]):
         print("add: добавить параметр в GRUB_CMDLINE_LINUX, выполнить update-grub и перезагрузить систему.")
     _emit_blocks_row("control", "type", "message")
