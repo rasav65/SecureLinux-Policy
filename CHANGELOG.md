@@ -10,6 +10,23 @@
 
 ## [Unreleased]
 
+- CHECK-адаптер `cron-command-paths-write-protection` (2.3.3, SRC-0007), решение
+  человека 24.09.2026. Строк source index не закрывает, PASS/FAIL не меняет.
+  Было: один файл, найденный по нескольким путям (`/usr/bin/run-parts` и
+  `/bin/run-parts` на merged `/usr`, symlink и его цель), учитывался в `targets`
+  и `violations` по каждому пути, число нарушений в отчёте было завышено.
+  Стало: `targets` и `violations` считаются по уникальным файлам — `dev:ino`
+  конечного regular file. Синхронизированы семантический контракт
+  (`command_language.path_resolution`), пины адаптера в `.json` и
+  `ADAPTER-REGISTRY.tsv`, `tests/product-v1/README.md`. Трекнутый артефакт
+  перегенерирован, `CHECK_SHA256` `9811bb4b2ff4f798db9c2b3957e56dbe673aadbd9d1e5034bd43471360142c18`.
+
+  Тесты (`CronCommandPathsWriteProtectionFixtures`, 33 → 35): merged `/usr`,
+  `run-parts` без `PATH=` — `targets=2`, после `go+w` на `/usr/bin/run-parts` —
+  `violations=1`; symlink и его цель в двух строках crontab — `targets=1`,
+  `violations=1`. На адаптере до правки оба теста — FAIL. ВМ-прогон нового
+  артефакта не выполнялся.
+
 - `tools/refresh-pins.py`: откат при отказе `--write` (решение человека
   24.09.2026). Строк source index не закрывает, байты продукта не меняет.
   Было: этапы писали файлы по ходу работы, и отказ позднего этапа оставлял

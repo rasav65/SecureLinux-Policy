@@ -5380,6 +5380,34 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
                     row = self._run(root)
                     self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"), row)
 
+    def test_same_file_by_two_paths_is_counted_once(self):
+        # Decision 24.09.2026: on merged /usr, /bin/run-parts and /usr/bin/run-parts
+        # are one file (dev:ino) and count once in targets and violations.
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._merged_base(root)
+            self._write_cron(root, "0 1 * * * root run-parts /etc/cron.daily\n", {})
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("VALUE", "PASS"), row)
+            self.assertIn("targets=2;", row[3])
+            (root / "usr/bin/run-parts").chmod(0o575)
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"), row)
+            self.assertIn("targets=2;", row[3])
+            self.assertIn("violations=1;", row[3])
+
+    def test_symlink_alias_and_target_are_counted_once(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            target = root / "opt/job"; target.parent.mkdir(); target.write_text("x\n"); target.chmod(0o575)
+            (root / "opt/alias").symlink_to("job")
+            (root / "etc/crontab").write_text("0 1 * * * root /opt/job\n0 2 * * * root /opt/alias\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"), row)
+            self.assertIn("targets=1;", row[3])
+            self.assertIn("violations=1;", row[3])
+
     def test_explicit_path_missing_directory_is_still_error(self):
         if BASH is None: self.skipTest("bash not found")
         with tempfile.TemporaryDirectory(dir=ROOT) as td:
