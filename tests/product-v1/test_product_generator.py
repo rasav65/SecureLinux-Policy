@@ -5180,14 +5180,217 @@ class CronCommandPathsWriteProtectionFixtures(unittest.TestCase):
             self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
             self.assertEqual(row[3], "command:unresolved-name")
 
-    def test_root_bare_command_without_explicit_path_is_error(self):
+    def test_root_bare_command_without_path_checks_every_standard_match(self):
+        # Decision 24.09.2026: no PATH= -> every executable match in
+        # DEFAULT_SEARCH_PATH is a target, not only the first one.
         if BASH is None: self.skipTest("bash not found")
         with tempfile.TemporaryDirectory(dir=ROOT) as td:
             root = Path(td); self._base(root)
             (root / "etc/crontab").write_text("0 1 * * * root tool\n", encoding="utf-8")
             row = self._run(root)
-            self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
-            self.assertEqual(row[3], "command:unresolved-name")
+            self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+            self.assertIn("targets=1;", row[3])
+            late = root / "bin/tool"; late.write_text("x\n", encoding="utf-8"); late.chmod(0o575)
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"))
+            self.assertIn("targets=2;", row[3])
+            self.assertIn("violations=1;", row[3])
+
+    def test_root_bare_command_without_path_and_without_match_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._base(root)
+            (root / "etc/crontab").write_text("0 1 * * * root absent-tool\n", encoding="utf-8")
+            row = self._run(root)
+            self.assertEqual((row[2], row[3], row[4]), ("ERROR", "command:not-found", "ERROR"))
+
+    # Merged-/usr layout of the reference environments: /bin -> usr/bin, /sbin -> usr/sbin.
+    @staticmethod
+    def _merged_base(root):
+        for rel in (
+            "etc/cron.d", "usr/bin", "usr/sbin", "usr/local/bin", "usr/local/sbin",
+            "usr/lib/x86_64-linux-gnu/e2fsprogs", "usr/libexec/e2fsprogs", "usr/lib/sysstat",
+            "etc/init.d",
+        ):
+            (root / rel).mkdir(parents=True, exist_ok=True)
+        (root / "bin").symlink_to("usr/bin")
+        (root / "sbin").symlink_to("usr/sbin")
+        (root / "etc/passwd").write_text("root:x:0:0:root:/root:/bin/sh\n", encoding="utf-8")
+        for rel in (
+            "usr/bin/run-parts", "usr/sbin/e2scrub_all", "usr/sbin/invoke-rc.d",
+            "usr/lib/x86_64-linux-gnu/e2fsprogs/e2scrub_all_cron",
+            "usr/libexec/e2fsprogs/e2scrub_all_cron", "usr/lib/sysstat/debian-sa1",
+        ):
+            path = root / rel
+            path.write_text("fixture\n", encoding="utf-8")
+            path.chmod(0o555)
+        for name in ("hourly", "daily", "weekly", "monthly"):
+            periodic = root / ("etc/cron." + name)
+            periodic.mkdir()
+            job = periodic / "job"; job.write_text("x\n", encoding="utf-8"); job.chmod(0o555)
+
+    @staticmethod
+    def _write_cron(root, crontab, cron_d):
+        if crontab is not None:
+            (root / "etc/crontab").write_text(crontab, encoding="utf-8")
+        for name, body in cron_d.items():
+            path = root / "etc/cron.d" / name
+            path.write_text(body, encoding="utf-8")
+            path.chmod(0o644)
+
+    # Lines verbatim from the clean reference snapshots (probe 24.09.2026).
+    CRONTAB_U22 = (
+        "SHELL=/bin/sh\n"
+        "17 *\t* * *\troot    cd / && run-parts --report /etc/cron.hourly\n"
+        "25 6\t* * *\troot\ttest -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.daily )\n"
+        "47 6\t* * 7\troot\ttest -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.weekly )\n"
+        "52 6\t1 * *\troot\ttest -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.monthly )\n"
+    )
+    CRONTAB_BRACES_BODY = (
+        "17 *\t* * *\troot\tcd / && run-parts --report /etc/cron.hourly\n"
+        "25 6\t* * *\troot\ttest -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.daily; }\n"
+        "47 6\t* * 7\troot\ttest -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.weekly; }\n"
+        "52 6\t1 * *\troot\ttest -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.monthly; }\n"
+    )
+    E2SCRUB_LIB = (
+        "30 3 * * 0 root test -e /run/systemd/system || SERVICE_MODE=1 /usr/lib/x86_64-linux-gnu/e2fsprogs/e2scrub_all_cron\n"
+        "10 3 * * * root test -e /run/systemd/system || SERVICE_MODE=1 /sbin/e2scrub_all -A -r\n"
+    )
+    E2SCRUB_LIBEXEC = (
+        "30 3 * * 0 root test -e /run/systemd/system || SERVICE_MODE=1 /usr/libexec/e2fsprogs/e2scrub_all_cron\n"
+        "10 3 * * * root test -e /run/systemd/system || SERVICE_MODE=1 /sbin/e2scrub_all -A -r\n"
+    )
+    SYSSTAT_U24 = (
+        "PATH=/usr/lib/sysstat:/usr/sbin:/usr/sbin:/usr/bin:/sbin:/bin\n"
+        "5-55/10 * * * * root command -v debian-sa1 > /dev/null && debian-sa1 1 1\n"
+        "59 23 * * * root command -v debian-sa1 > /dev/null && debian-sa1 60 2\n"
+    )
+    ANACRON_D12 = (
+        "SHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n"
+        "30 7-23 * * *   root\t[ -x /etc/init.d/anacron ] && if [ ! -d /run/systemd/system ]; then /usr/sbin/invoke-rc.d anacron start >/dev/null; fi\n"
+    )
+    ANACRON_D13 = (
+        "SHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n"
+        "30 7-23 * * *   root\tif [ -x /etc/init.d/anacron ] && ! [ -d /run/systemd/system ]; then exec /usr/sbin/invoke-rc.d anacron start >/dev/null; fi\n"
+    )
+
+    def _reference_cases(self):
+        return {
+            "ubuntu-22.04-full": (self.CRONTAB_U22, {"e2scrub_all": self.E2SCRUB_LIB}, 4),
+            "ubuntu-24.04-min": (None, {"e2scrub_all": self.E2SCRUB_LIB}, 0),
+            "ubuntu-24.04-full": (
+                "SHELL=/bin/sh\n" + self.CRONTAB_BRACES_BODY,
+                {"e2scrub_all": self.E2SCRUB_LIB, "sysstat": self.SYSSTAT_U24}, 4,
+            ),
+            "ubuntu-26.04-min": (None, {"e2scrub_all": self.E2SCRUB_LIBEXEC}, 0),
+            "ubuntu-26.04-full": ("SHELL=/bin/sh\n" + self.CRONTAB_BRACES_BODY, {"e2scrub_all": self.E2SCRUB_LIBEXEC}, 4),
+            "debian-12": (
+                "SHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n" + self.CRONTAB_BRACES_BODY,
+                {"anacron": self.ANACRON_D12, "e2scrub_all": self.E2SCRUB_LIB}, 4,
+            ),
+            "debian-13": (
+                "SHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n" + self.CRONTAB_BRACES_BODY,
+                {"anacron": self.ANACRON_D13, "e2scrub_all": self.E2SCRUB_LIBEXEC}, 4,
+            ),
+        }
+
+    def test_reference_environment_cron_lines_pass(self):
+        if BASH is None: self.skipTest("bash not found")
+        for name, (crontab, cron_d, periodic) in self._reference_cases().items():
+            with self.subTest(environment=name):
+                with tempfile.TemporaryDirectory(dir=ROOT) as td:
+                    root = Path(td); self._merged_base(root)
+                    self._write_cron(root, crontab, cron_d)
+                    row = self._run(root)
+                    self.assertEqual((row[2], row[4]), ("VALUE", "PASS"), row)
+                    self.assertIn(f"periodic_dirs={periodic};", row[3])
+
+    def test_reference_environment_periodic_job_go_w_is_fail(self):
+        if BASH is None: self.skipTest("bash not found")
+        for name, (crontab, cron_d, periodic) in self._reference_cases().items():
+            if not periodic:
+                continue
+            with self.subTest(environment=name):
+                with tempfile.TemporaryDirectory(dir=ROOT) as td:
+                    root = Path(td); self._merged_base(root)
+                    self._write_cron(root, crontab, cron_d)
+                    (root / "etc/cron.weekly/job").chmod(0o557)
+                    row = self._run(root)
+                    self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"), row)
+
+    def test_reference_environment_exec_and_then_targets_are_checked(self):
+        if BASH is None: self.skipTest("bash not found")
+        for name in ("debian-12", "debian-13"):
+            with self.subTest(environment=name):
+                crontab, cron_d, _ = self._reference_cases()[name]
+                with tempfile.TemporaryDirectory(dir=ROOT) as td:
+                    root = Path(td); self._merged_base(root)
+                    self._write_cron(root, crontab, cron_d)
+                    (root / "usr/sbin/invoke-rc.d").chmod(0o575)
+                    row = self._run(root)
+                    self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"), row)
+
+    def test_explicit_path_missing_directory_is_still_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._merged_base(root)
+            self._write_cron(root, "PATH=/opt/absent:/usr/bin\n0 1 * * * root run-parts /etc/cron.daily\n", {})
+            row = self._run(root)
+            self.assertEqual((row[2], row[3], row[4]), ("ERROR", "directory:not-found", "ERROR"))
+
+    def test_explicit_path_dangling_symlink_directory_is_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._merged_base(root)
+            (root / "opt").mkdir(); (root / "opt/gone").symlink_to("missing")
+            self._write_cron(root, "PATH=/opt/gone:/usr/bin\n0 1 * * * root run-parts /etc/cron.daily\n", {})
+            row = self._run(root)
+            self.assertEqual((row[2], row[3], row[4]), ("ERROR", "directory:not-found", "ERROR"))
+
+    def test_else_branch_and_redirected_run_parts_are_checked(self):
+        if BASH is None: self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td); self._merged_base(root)
+            (root / "opt").mkdir()
+            for name, mode in (("a", 0o555), ("b", 0o575)):
+                p = root / "opt" / name; p.write_text("x\n", encoding="utf-8"); p.chmod(mode)
+            self._write_cron(root, (
+                "0 1 * * * root if [ -x /opt/a ]; then /opt/a; elif true; then /opt/a; else /opt/b 2>&1; fi\n"
+                "0 2 * * * root run-parts --report /etc/cron.daily >/dev/null 2>&1\n"
+            ), {})
+            row = self._run(root)
+            self.assertEqual((row[2], row[4]), ("VALUE", "FAIL"), row)
+            self.assertIn("periodic_dirs=1;", row[3])
+            self.assertIn("violations=1;", row[3])
+
+    def test_unsupported_shell_forms_are_error(self):
+        if BASH is None: self.skipTest("bash not found")
+        cases = (
+            ("{ /usr/bin/run-parts /etc/cron.daily;", "command:unbalanced-group"),
+            ("/usr/bin/run-parts /etc/cron.daily; fi", "command:unbalanced-group"),
+            ("if true; /usr/bin/run-parts /etc/cron.daily; fi", "command:unbalanced-group"),
+            ("if true; then /usr/bin/run-parts /etc/cron.daily; }", "command:unbalanced-group"),
+            ("{ true; } /usr/bin/run-parts /etc/cron.daily", "command:unsupported-grouping"),
+            ("while true; do /usr/bin/run-parts /etc/cron.daily; done", "command:unsupported-compound"),
+            ("exec", "command:unsupported-wrapper"),
+            ("exec -a x /usr/bin/run-parts /etc/cron.daily", "command:unsupported-wrapper"),
+            ("command /usr/bin/run-parts /etc/cron.daily", "command:unsupported-wrapper"),
+            ("command -v run-parts x", "command:unsupported-wrapper"),
+            ("/usr/bin/run-parts /etc/cron.daily >>/dev/null", "command:unsupported-redirection"),
+            ("/usr/bin/run-parts /etc/cron.daily > /tmp/out", "command:unsupported-redirection"),
+            ("/usr/bin/run-parts /etc/cron.daily 2>&3", "command:unsupported-redirection"),
+            ("/usr/bin/run-parts /etc/cron.daily < /dev/null", "command:unsupported-redirection"),
+            ("/usr/bin/run-parts /etc/cron.daily >", "command:unsupported-redirection"),
+            ("> /dev/null", "command:unsupported-redirection"),
+        )
+        for command, reason in cases:
+            with self.subTest(command=command):
+                with tempfile.TemporaryDirectory(dir=ROOT) as td:
+                    root = Path(td); self._merged_base(root)
+                    self._write_cron(root, f"0 1 * * * root {command}\n", {})
+                    row = self._run(root)
+                    self.assertEqual((row[2], row[3], row[4]), ("ERROR", reason, "ERROR"))
+
 
     def test_dynamic_shell_expansion_is_error(self):
         if BASH is None: self.skipTest("bash not found")

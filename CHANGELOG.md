@@ -10,6 +10,53 @@
 
 ## [Unreleased]
 
+- CHECK-адаптер `cron-command-paths-write-protection` (2.3.3, SRC-0007),
+  решение человека 24.09.2026. Строк source index не закрывает. Основание —
+  ERROR на пяти из семи чистых эталонных сред (прогон кандидата
+  `3212aff9…c55e` и диагностика 24.09.2026, evidence
+  `dashboard/src0009-vm-evidence`):
+
+  - было: root bare command без `PATH=` в crontab — `ERROR
+    command:unresolved-name` (Ubuntu 22.04, 24.04 full, 26.04 full: в
+    `/etc/crontab` нет `PATH=`). Стало: target — каждое executable regular
+    совпадение в каждом каталоге `/usr/local/sbin`, `/usr/local/bin`,
+    `/usr/sbin`, `/usr/bin`, `/sbin`, `/bin`, `/snap/bin`; отсутствующий
+    каталог пропускается, ни одного совпадения — `ERROR command:not-found`.
+    При явном `PATH=` — первое совпадение, как раньше. Не-root bare command —
+    по-прежнему `ERROR`;
+  - было: каталог PATH-симлинк — `ERROR directory:symlink` (Debian 12 и 13:
+    `/sbin -> usr/sbin`, `/bin -> usr/bin`). Стало: разрешается, snapshot
+    берётся с symlink и с конечного каталога; висячий symlink в явном PATH —
+    `ERROR directory:not-found`;
+  - было: `{ …; }`, `if/then/fi`, `!`, `exec`, `command -v` и любое
+    перенаправление — `ERROR`. Стало: поддержаны `{ …; }`,
+    `if`/`then`/`elif`/`else`/`fi` и `!` в начале команды (все ветки входят в
+    популяцию), `exec КОМАНДА`, `command -v|-V ИМЯ` (target не создаёт),
+    перенаправления `> /dev/null` и `>& 1|2` с необязательным дескриптором
+    `1`/`2`. Новая причина `command:unsupported-compound` для
+    `while`/`until`/`for`/`case`/`select`/`function`/`coproc`/`[[`;
+    прочие перенаправления — `command:unsupported-redirection`.
+
+  Один файл, найденный по нескольким путям (`/usr/bin/run-parts` и
+  `/bin/run-parts`), учитывается в `targets` и `violations` по каждому пути.
+  Синхронизированы семантический контракт (`command_language`,
+  `cron_population.snapshot`), пины адаптера в `.json` и
+  `ADAPTER-REGISTRY.tsv`, `product/README.md`, `tests/product-v1/README.md`.
+  Трекнутый артефакт перегенерирован, `CHECK_SHA256` `35a0599c431304caeff8aeefcab03ef5c1deebc1b267579e2b5ec8f96efc6c17`.
+
+  Тесты (`CronCommandPathsWriteProtectionFixtures`, 25 → 33): тест
+  «root bare command без PATH — ERROR» заменён тестом нового правила
+  (совпадение в `/usr/bin` — PASS, второе совпадение `/bin/tool` `0575` —
+  FAIL, `targets=2`); нет совпадений — `command:not-found`; дословные
+  cron-строки семи эталонных сред в раскладке merged-/usr — PASS, периодическое
+  задание `0557` — FAIL, `invoke-rc.d` `0575` после `then`/`exec` на Debian —
+  FAIL; missing и висячий каталог явного PATH — `ERROR`; ветка `else` и
+  `run-parts … >/dev/null 2>&1` — FAIL с `periodic_dirs=1`; 16 неподдержанных
+  форм — `ERROR` с точной причиной. На адаптере до правки падают 22 проверки
+  новых тестов, тест дословных строк — на пяти средах из семи (24.04 min и
+  26.04 min проходили и раньше, как в поле). ВМ-прогон нового артефакта не
+  выполнялся.
+
 - CHECK-адаптер `running-process-paths-write-protection` (2.3.2, SRC-0006),
   решение человека 24.09.2026. Строк source index не закрывает. Основание —
   ERROR на чистых эталонных средах (прогон кандидата `3212aff9…c55e` и
