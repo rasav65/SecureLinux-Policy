@@ -24,6 +24,13 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def tree_state(root: Path) -> dict[str, tuple[str, int]]:
+    listed = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+                            cwd=root, text=True, capture_output=True, check=True).stdout.split("\0")
+    return {rel: (sha256(root / rel), (root / rel).stat().st_mode & 0o7777)
+            for rel in listed if rel and (root / rel).is_file()}
+
+
 def fresh_copy(tmp: str) -> Path:
     copy = Path(tmp) / "repo"
     shutil.copytree(ROOT, copy, symlinks=True)
@@ -77,10 +84,17 @@ with tempfile.TemporaryDirectory(prefix="slp-refresh-pins-") as tmp:
     assert cp.returncode == 0, (cp.stdout, cp.stderr)
 
     # A changed review-bound document is refreshed only when named with --reviewed.
+    # With an adapter edit in the same run, earlier stages (adapter pins, the
+    # artifact, nested SHA256SUMS) write before the baseline stage refuses; the
+    # refused --write leaves every file as it was.
+    adapter.write_bytes(adapter.read_bytes() + b"# second fixture edit\n")
     doc = copy / "docs/README.md"
     doc.write_bytes(doc.read_bytes() + b"\n")
+    before = tree_state(copy)
     cp = run(copy, "--write")
     assert cp.returncode == 2 and "--reviewed docs/README.md" in cp.stderr, (cp.returncode, cp.stdout, cp.stderr)
+    assert "REFRESH_PINS_ROLLBACK=" in cp.stderr and "REFRESH_PINS_ROLLBACK=0" not in cp.stderr, cp.stderr
+    assert tree_state(copy) == before
     cp = run(copy, "--write", "--reviewed", "docs/README.md")
     assert cp.returncode == 0, (cp.stdout, cp.stderr)
     cp = run(copy, "--check")

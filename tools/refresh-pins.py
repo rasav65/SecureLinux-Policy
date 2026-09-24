@@ -33,6 +33,8 @@ Stages, in this order:
 7. tools/render-current-docs.py --check, then the whole check once more.
 
 --check writes nothing and exits 1 when any stage would change a file.
+--write that fails restores every Git-visible file to its bytes and mode before
+the run and removes files the run created, then exits 2.
 """
 
 from __future__ import annotations
@@ -397,6 +399,30 @@ def execute(root: Path, write: bool, reviewed: set[str], reviewed_truth: bool) -
     return run.actions
 
 
+def visible_files(root: Path) -> list[str]:
+    listed = git(root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").split("\0")
+    return [rel for rel in listed if rel and (root / rel).is_file() and not (root / rel).is_symlink()]
+
+
+def snapshot(root: Path) -> dict[str, tuple[bytes, int]]:
+    return {rel: ((root / rel).read_bytes(), (root / rel).stat().st_mode & 0o7777) for rel in visible_files(root)}
+
+
+def rollback(root: Path, before: dict[str, tuple[bytes, int]]) -> int:
+    restored = 0
+    for rel in visible_files(root):
+        if rel not in before:
+            (root / rel).unlink()
+            restored += 1
+    for rel, (raw, mode) in before.items():
+        path = root / rel
+        if not path.is_file() or path.read_bytes() != raw or path.stat().st_mode & 0o7777 != mode:
+            write_bytes(path, raw)
+            os.chmod(path, mode)
+            restored += 1
+    return restored
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description="Refresh or check byte pins.")
     mode = ap.add_mutually_exclusive_group(required=True)
@@ -412,6 +438,7 @@ def main(argv: list[str]) -> int:
     if args.check and (args.reviewed or args.reviewed_truth):
         print("REFRESH_PINS_RESULT=FAIL: --reviewed/--reviewed-truth only with --write", file=sys.stderr)
         return 2
+    before = snapshot(root) if args.write else None
     try:
         actions = execute(root, args.write, set(args.reviewed), args.reviewed_truth)
         for line in actions:
@@ -428,7 +455,11 @@ def main(argv: list[str]) -> int:
             if actions:
                 print("REFRESH_PINS_RESULT=STALE")
                 return 1
-    except RuntimeError as exc:
+    except BaseException as exc:
+        if before is not None:
+            print(f"REFRESH_PINS_ROLLBACK={rollback(root, before)}", file=sys.stderr)
+        if not isinstance(exc, RuntimeError):
+            raise
         print(f"REFRESH_PINS_RESULT=FAIL: {exc}", file=sys.stderr)
         return 2
     print("REFRESH_PINS_RESULT=PASS")
