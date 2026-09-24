@@ -10,6 +10,18 @@
 
 ## [Unreleased]
 
+- ВМ-прогон APPLY 24.09.2026 (runner `slp-vm-apply-supported7-v15`, 7 сред,
+  снимки `upd-20260924`, артефакт `d840ede3…c8aa`). Строк source index не
+  закрывает, байты продукта не меняет. Было: у `kernel-cmdline-grub-v1` и
+  `startup-files-write-protection-v1` ВМ-прогон не выполнялся. Стало, по
+  архивам в evidence: на всех 7 средах после перезагрузки четыре параметра
+  `kernel-cmdline-grub-v1` в `/proc/cmdline`, их CHECK — PASS; шесть параметров
+  решения администратора — `ABORTED_PRECONDITION_CONFLICT`; повторный APPLY —
+  без `APPLIED` и `FAILED_*`. CHECK до → после: Ubuntu 18–22 → 37 PASS, Debian
+  21 → 39 PASS. У `startup-files-write-protection-v1` исход
+  `ALREADY_COMPLIANT` на всех средах — путь с изменением прав не проверен.
+  Синхронизированы `docs/testing-strategy.md` и очередь `docs/HANDOFF.md`.
+
 - Инфраструктура шагов правки, решение человека 24.09.2026. Строк source index
   не закрывает, байты продукта не меняет. Было: для каждого шага собирался
   отдельный helper-скрипт с проверками HEAD, прав, `refresh-pins`, сверкой

@@ -57,9 +57,8 @@
 
 ## Очередь
 
-1. Запись о ВМ-прогоне 24.09.2026 в `CHANGELOG.md` и
-   [`testing-strategy.md`](testing-strategy.md).
-2. `tools/refresh-pins.py`: обновлять `CONTROL-MANIFEST.tsv` до генератора.
-3. APPLY 2.2.1 `su-wheel-access`; B-02 (нужен текст от человека); отклонения 2.3.1 и 2.6.6.
-4. Инфраструктура: эталонный набор 7 сред в тестах, runner ВМ в `tools/vm-runner/`, evidence.
-5. 63 OPEN-пункта.
+1. `tools/refresh-pins.py`: обновлять `CONTROL-MANIFEST.tsv` до генератора.
+2. APPLY 2.2.1 `su-wheel-access`; B-02 (нужен текст от человека); отклонения 2.3.1 и 2.6.6.
+3. Инфраструктура: эталонный набор 7 сред в тестах, runner ВМ в `tools/vm-runner/`, evidence;
+   ВМ-проверка пути с изменением прав у `startup-files-write-protection-v1`.
+4. 63 OPEN-пункта.

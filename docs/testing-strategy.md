@@ -74,8 +74,11 @@ journal/intent и компенсации к ним не применяются.
 APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1`, `startup-files-write-protection-v1` и `kernel-cmdline-grub-v1`.
 Каждый механизм проверяется сквозным тестом встроенного dispatcher
 (`tests/product-v1/test_apply_dispatch_integration.py`) и VM-прогоном;
-у `startup-files-write-protection-v1` и `kernel-cmdline-grub-v1` VM-прогон ещё не выполнялся; для `kernel-cmdline-grub-v1`
-он требует перезагрузки ВМ между APPLY и CHECK.
+у `kernel-cmdline-grub-v1` VM-прогон выполнен 24.09.2026 на 7 средах (артефакт `d840ede3…c8aa`):
+APPLY → перезагрузка → CHECK; после перезагрузки `init_on_alloc=1 slab_nomerge randomize_kstack_offset=1
+vsyscall=none` в `/proc/cmdline`, 2.4.3, 2.4.4, 2.4.6 и 2.5.1 — PASS, повторный APPLY без `APPLIED` и `FAILED_*`.
+У `startup-files-write-protection-v1` в том же прогоне на всех 7 средах исход `ALREADY_COMPLIANT`:
+путь с изменением прав на ВМ не проверялся.
 
 Ошибка обхода каталога обязана давать отказ до мутации, а не мутацию по неполной
 популяции. Для каждого механизма, который перечисляет каталоги
