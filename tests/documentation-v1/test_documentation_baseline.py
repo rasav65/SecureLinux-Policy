@@ -893,9 +893,24 @@ STATE_DOCS = (
 )
 
 
+def truth_view(rel: str, raw: bytes) -> bytes:
+    # Колонки sha256 и *_sha256 — пины байтов, а не состав: их смена после правки
+    # исходника не требует пересмотра документов текущего состояния.
+    lines = raw.decode("utf-8").split("\n")
+    header = lines[0].split("\t")
+    keep = [i for i, name in enumerate(header) if not (name == "sha256" or name.endswith("_sha256"))]
+    out = []
+    for line in lines:
+        cells = line.split("\t") if line else []
+        assert not cells or len(cells) == len(header), (rel, line[:80])
+        out.append("\t".join(cells[i] for i in keep) if cells else "")
+    return "\n".join(out).encode("utf-8")
+
+
 def current_truth_sha256(root: Path) -> str:
     joined = "".join(
-        f"{rel}\t{hashlib.sha256((root / rel).read_bytes()).hexdigest()}\n" for rel in TRUTH_INPUTS
+        f"{rel}\t{hashlib.sha256(truth_view(rel, (root / rel).read_bytes())).hexdigest()}\n"
+        for rel in TRUTH_INPUTS
     )
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()
 

@@ -26,7 +26,8 @@ Stages, in this order:
    path to a manifest is a decision, not a refresh.
 5. Review baseline: the sha256 column of a changed document is rewritten only
    when the document is named with --reviewed; truth_sha256 of the state
-   documents is rewritten only with --reviewed-truth. Both flags record that a
+   documents (computed over TRUTH_INPUTS without their sha256 and *_sha256
+   columns) is rewritten only with --reviewed-truth. Both flags record that a
    person compared the document with the data; without them a stale row fails.
 6. Root manifests: tools/rebuild-root-manifests.py.
 7. tools/render-current-docs.py --check, then the whole check once more.
@@ -302,10 +303,27 @@ def baseline_lists(root: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
     return ns["TRUTH_INPUTS"], ns["STATE_DOCS"]
 
 
+def truth_view(rel: str, raw: bytes) -> bytes:
+    # Mirrors truth_view() of tests/documentation-v1/test_documentation_baseline.py:
+    # columns sha256 and *_sha256 are byte pins, not composition, and are left out.
+    lines = raw.decode("utf-8").split("\n")
+    header = lines[0].split("\t")
+    keep = [i for i, name in enumerate(header) if not (name == "sha256" or name.endswith("_sha256"))]
+    out = []
+    for line in lines:
+        cells = line.split("\t") if line else []
+        if cells and len(cells) != len(header):
+            raise RuntimeError(f"{rel}: row width differs from header: {line[:80]}")
+        out.append("\t".join(cells[i] for i in keep) if cells else "")
+    return "\n".join(out).encode("utf-8")
+
+
 def truth_sha256(root: Path, truth_inputs: tuple[str, ...]) -> str:
     # Mirrors current_truth_sha256() of tests/documentation-v1/test_documentation_baseline.py;
     # tests/project-integrity-v1/test_refresh_pins.py fails when the two disagree.
-    joined = "".join(f"{rel}\t{sha256_file(root / rel)}\n" for rel in truth_inputs)
+    joined = "".join(
+        f"{rel}\t{sha256_bytes(truth_view(rel, (root / rel).read_bytes()))}\n" for rel in truth_inputs
+    )
     return sha256_bytes(joined.encode("utf-8"))
 
 

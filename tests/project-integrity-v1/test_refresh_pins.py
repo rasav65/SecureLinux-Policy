@@ -64,8 +64,12 @@ with tempfile.TemporaryDirectory(prefix="slp-refresh-pins-") as tmp:
     adapter.write_bytes(adapter.read_bytes() + b"\n# refresh-pins fixture edit\n")
     cp = run(copy, "--check")
     assert cp.returncode == 1 and "STALE " + REGISTRY in cp.stdout, (cp.returncode, cp.stdout, cp.stderr)
-    cp = run(copy, "--write", "--reviewed-truth")
+    # Only SHA columns of the registry change, so truth_sha256 stays and no
+    # --reviewed-truth is needed.
+    truth_before = tool.truth_sha256(copy, truth_inputs)
+    cp = run(copy, "--write")
     assert cp.returncode == 0 and "REFRESH_PINS_RESULT=PASS" in cp.stdout, (cp.returncode, cp.stdout, cp.stderr)
+    assert tool.truth_sha256(copy, truth_inputs) == truth_before
     row = next(l.split("\t") for l in (copy / REGISTRY).read_text(encoding="utf-8").splitlines()
                if l.startswith("cron-command-paths-write-protection\t"))
     assert row[7] == sha256(adapter), row
@@ -81,6 +85,22 @@ with tempfile.TemporaryDirectory(prefix="slp-refresh-pins-") as tmp:
     assert cp.returncode == 0, (cp.stdout, cp.stderr)
     cp = run(copy, "--check")
     assert cp.returncode == 0, (cp.stdout, cp.stderr)
+
+with tempfile.TemporaryDirectory(prefix="slp-refresh-pins-") as tmp:
+    copy = fresh_copy(tmp)
+    # A composition change (a non-SHA cell of a truth input) changes truth_sha256:
+    # --write without --reviewed-truth fails, with it passes.
+    ledger = copy / "index/source-v4/DISPOSITION-LEDGER.tsv"
+    lines = ledger.read_text(encoding="utf-8").split("\n")
+    cells = lines[1].split("\t")
+    cells[2] += " (fixture edit)"
+    lines[1] = "\t".join(cells)
+    ledger.write_text("\n".join(lines), encoding="utf-8")
+    assert tool.truth_sha256(copy, truth_inputs) != truth
+    cp = run(copy, "--write")
+    assert cp.returncode == 2 and "--reviewed-truth" in cp.stderr, (cp.returncode, cp.stdout, cp.stderr)
+    cp = run(copy, "--write", "--reviewed-truth")
+    assert cp.returncode == 0 and "REFRESH_PINS_RESULT=PASS" in cp.stdout, (cp.returncode, cp.stdout, cp.stderr)
 
 with tempfile.TemporaryDirectory(prefix="slp-refresh-pins-") as tmp:
     copy = fresh_copy(tmp)

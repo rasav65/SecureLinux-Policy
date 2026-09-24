@@ -18,7 +18,9 @@ Regression-проверка воспроизводимости корневых 
 
 `test_refresh_pins.py` проверяет `tools/refresh-pins.py` на копии дерева: формула `truth_sha256`
 совпадает с гейтом документации; согласованное дерево даёт `--check` PASS; правка адаптера даёт
-`--check` STALE, после `--write` — PASS; изменённый документ обновляется только с `--reviewed`;
+`--check` STALE, после `--write` без `--reviewed-truth` — PASS, `truth_sha256` не меняется; смена
+текста `reason` в `DISPOSITION-LEDGER.tsv` без `--reviewed-truth` — отказ, с ним — PASS; изменённый
+документ обновляется только с `--reviewed`;
 устаревший пин неизменённого пути и новый файл вне manifest — ошибка.
 
 Два файла с маркировкой `ACTIVE` для gates-v3 обязаны побайтово совпадать со
