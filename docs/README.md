@@ -35,6 +35,7 @@ engineering contracts, roadmap и donor reference, чтобы несколько
 | Документ | Роль |
 |---|---|
 | [`ROADMAP.md`](ROADMAP.md) | человекочитаемое объяснение macro-roadmap |
+| [`HANDOFF.md`](HANDOFF.md) | порядок работы, особенности рабочего ПК, текущая очередь |
 
 Machine truth порядка и статуса roadmap находится в `ROADMAP.tsv`.
 
