@@ -23,4 +23,4 @@ expected:
   value: "none"
   type: "string"
 apply:
-  supported: false
+  supported: true

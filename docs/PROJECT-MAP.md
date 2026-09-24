@@ -218,6 +218,7 @@ flowchart LR
     APPLY4["suid-sgid-applications-mode-v1<br/>режимы SUID/SGID SRC-0013 · APPLY<br/>ВМ: 1 среда PASS, приёмка семи сред — впереди"]:::current
     APPLY5["standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: 1 среда PASS, приёмка семи сред — впереди"]:::current
     APPLY6["startup-files-write-protection-v1<br/>режимы файлов запуска SRC-0009 · APPLY<br/>ВМ: прогона нет, приёмка семи сред — впереди"]:::current
+    APPLY7["kernel-cmdline-grub-v1<br/>параметры загрузки ядра G4 · APPLY<br/>ВМ: прогона нет, приёмка семи сред — впереди"]:::current
     CLI["securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
     ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note
 
@@ -233,7 +234,9 @@ flowchart LR
     IMPLREG --> APPLY4 --> GEN2
     IMPLREG --> APPLY5 --> GEN2
     IMPLREG --> APPLY6 --> GEN2
+    IMPLREG --> APPLY7 --> GEN2
     APPLY1 -. решение администратору .-> ADMIN
+    APPLY7 -. решение администратору .-> ADMIN
     GEN1 -. historical .-> GEN2
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
@@ -251,18 +254,19 @@ gitignored rebuild output. APPLY scope вычисляется из `apply.suppor
 (sysctl), `file-mode-owner-v1` (режимы файлов), `optional-file-root-files-mode-v1`
 (режимы системных файлов cron), `suid-sgid-applications-mode-v1`
 (режимы SUID/SGID-приложений), `standard-system-paths-mode-v1`
-(режимы стандартных системных путей) и `startup-files-write-protection-v1`
-(режимы файлов запуска). SRC-0001 выведен из product APPLY, его артефакты historical.
+(режимы стандартных системных путей), `startup-files-write-protection-v1`
+(режимы файлов запуска) и `kernel-cmdline-grub-v1` (параметры ядра в командной строке загрузки). SRC-0001 выведен из product APPLY, его артефакты historical.
 Пользовательский `--restore` отсутствует, потому что operational RESTORE не является future feature.
 Human-readable CHECK/REPORT выводит обнаруженную ОС, архитектуру, profile и runtime platform; target family един для всей поддерживаемой матрицы.
 
 Статус узла механизма задаётся гейтами: `closed` — механизм прошёл `--release` и VM-цикл по семи поддерживаемым средам;
 `current` — идёт работа. Иного статуса у узла механизма нет.
-Все шесть механизмов в статусе `current`: на ВМ у пяти пройдена одна среда, у `startup-files-write-protection-v1` ВМ-прогона ещё нет; приёмка семи поддерживаемых сред (Desktop — FIELD_COMPATIBILITY, отдельной строкой) впереди.
+Все семь механизмов в статусе `current`: на ВМ у пяти пройдена одна среда, у `startup-files-write-protection-v1` и `kernel-cmdline-grub-v1` ВМ-прогона ещё нет; приёмка семи поддерживаемых сред (Desktop — FIELD_COMPATIBILITY, отдельной строкой) впереди.
 
 Узел `ADMIN` — граница продукта: для части контролей APPLY не реализуется по решению,
 и продукт возвращает решение администратору отдельным терминальным исходом.
 Прецедент — `suid-dumpable` при обнаруженном Apport (`ABORTED_PRECONDITION_CONFLICT`).
+Тем же исходом `kernel-cmdline-grub-v1` возвращает шесть параметров загрузки, которые по решению человека 24.09.2026 не пишутся автоматически: `mitigations=auto,nosmt`, `iommu=force`, `iommu.strict=1`, `iommu.passthrough=0`, `tsx=off`, `debugfs=off`.
 
 ## 4. Инженерный донор → принятый mapping → historical SRC-0001 APPLY → упаковка
 
@@ -345,7 +349,7 @@ APPLY — общая форма `MECHANISM_AUTHORITY_V1`, по одному до
 (режимы файлов SRC-0005), `optional-file-root-files-mode-v1` (режимы cron SRC-0010),
 `suid-sgid-applications-mode-v1` (режимы SUID/SGID-приложений SRC-0013),
 `standard-system-paths-mode-v1` (стандартные системные пути SRC-0012) и
-`startup-files-write-protection-v1` (файлы запуска SRC-0009); контроли включаются через `apply.supported=true`,
+`startup-files-write-protection-v1` (файлы запуска SRC-0009) и `kernel-cmdline-grub-v1` (параметры загрузки ядра G4); контроли включаются через `apply.supported=true`,
 а общий цикл выполняет generated CLI.
 Старые SRC-0001 contracts/definitions/adapter сохраняются побайтово как historical.
 `SINGLE_DISTRIBUTABLE_ARTIFACT` остаётся generated `securelinux-policy.sh`; полная
@@ -393,7 +397,7 @@ flowchart LR
 ```
 
 `fstec-linux-2022` read-only CHECK vertical и donor mapping остаются принятыми.
-Модульная SRC-0001 architecture связывает exact SHA восьми historical definition roles и сохраняется как evidence прошлой вертикали. В active APPLY registries её больше нет. Текущий generated CLI маршрутизирует APPLY через шесть механизмов: `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1` и `startup-files-write-protection-v1`. ВМ-PASS механизма `standard-system-paths-mode-v1` (20.09.2026) выполнен повторно на кандидате `ba96131b…a55b` после исправления обхода подкаталогов; прежний PASS относится к кандидату `e170aae1…dd38`. Кандидат `be828dae…5128` (CHECK: недоступность не принимается за отсутствие; `pam-wheel-access` разбирает проверенные байты за одно чтение; dispatcher проверяет каталог состояния и берёт `flock`) отличался от обоих; ВМ-прогон на нём не выполнен. Кандидат `a64e662a…f4b9` устранял то же повторное открытие файла после проверки через `od` ещё в семи CHECK-адаптерах (`home-directories-mode`, `home-sensitive-files-mode`, `local-account-password-state`, `sshd-root-login`, `sudoers-reviewed-policy`, `suid-sgid-applications`, `tested-setting-attestation`) и переводил записи APPLY-dispatcher (отчёт, журналы) на дескриптор проверенного каталога состояния вместо строки пути; ВМ-прогон на нём не выполнен. Кандидат `5e0dacf6…85a` переводил популяцию `home-directories-mode` (2.3.11) с обхода `/etc/passwd` на прямые элементы `/home` (решение 22.09.2026); ВМ-прогон на нём тоже не выполнен. Текущий кандидат `e683fe2b…2cfc` (репарация по аудиту Codex диапазона `6780086..3215d1c`) устраняет то же повторное открытие файла после проверки через `od` ещё в двух CHECK-адаптерах (`kernel-cmdline`, `sysctl`); отсутствие `/home` и тип каждого прямого элемента определяются только доказанным `ENOENT` (разбор текста ошибки `stat -c %F`), а не `[[ ! -e ]]`/`[[ -L ]]`; захват цели `readlink` для 2.3.11 больше не теряет собственный завершающий перевод строки; `slp_collect_policy` принимает у `reason` необязательный третий сегмент полезной нагрузки. ВМ-прогон на нём тоже не выполнен. Operational recovery после завершённого
+Модульная SRC-0001 architecture связывает exact SHA восьми historical definition roles и сохраняется как evidence прошлой вертикали. В active APPLY registries её больше нет. Текущий generated CLI маршрутизирует APPLY через семь механизмов: `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1`, `startup-files-write-protection-v1` и `kernel-cmdline-grub-v1`. ВМ-PASS механизма `standard-system-paths-mode-v1` (20.09.2026) выполнен повторно на кандидате `ba96131b…a55b` после исправления обхода подкаталогов; прежний PASS относится к кандидату `e170aae1…dd38`. Кандидат `be828dae…5128` (CHECK: недоступность не принимается за отсутствие; `pam-wheel-access` разбирает проверенные байты за одно чтение; dispatcher проверяет каталог состояния и берёт `flock`) отличался от обоих; ВМ-прогон на нём не выполнен. Кандидат `a64e662a…f4b9` устранял то же повторное открытие файла после проверки через `od` ещё в семи CHECK-адаптерах (`home-directories-mode`, `home-sensitive-files-mode`, `local-account-password-state`, `sshd-root-login`, `sudoers-reviewed-policy`, `suid-sgid-applications`, `tested-setting-attestation`) и переводил записи APPLY-dispatcher (отчёт, журналы) на дескриптор проверенного каталога состояния вместо строки пути; ВМ-прогон на нём не выполнен. Кандидат `5e0dacf6…85a` переводил популяцию `home-directories-mode` (2.3.11) с обхода `/etc/passwd` на прямые элементы `/home` (решение 22.09.2026); ВМ-прогон на нём тоже не выполнен. Текущий кандидат `e683fe2b…2cfc` (репарация по аудиту Codex диапазона `6780086..3215d1c`) устраняет то же повторное открытие файла после проверки через `od` ещё в двух CHECK-адаптерах (`kernel-cmdline`, `sysctl`); отсутствие `/home` и тип каждого прямого элемента определяются только доказанным `ENOENT` (разбор текста ошибки `stat -c %F`), а не `[[ ! -e ]]`/`[[ -L ]]`; захват цели `readlink` для 2.3.11 больше не теряет собственный завершающий перевод строки; `slp_collect_policy` принимает у `reason` необязательный третий сегмент полезной нагрузки. ВМ-прогон на нём тоже не выполнен. Operational recovery после завершённого
 APPLY остаётся внешним snapshot/backup, а пользовательский RESTORE исключён.
 
 ## Что является источником истины
@@ -433,7 +437,7 @@ normative controls, semantic contracts и implementation adapters. Sidecar
 | G1 | sysctl: runtime и persistent-значение параметра ядра | `FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT`, `FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT`, `FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN`, `FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID`, `FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED`, `FSTEC-LINUX-2022-2.5.5-MAX-USER-NAMESPACES`, `FSTEC-LINUX-2022-2.5.6-UNPRIVILEGED-BPF-DISABLED`, `FSTEC-LINUX-2022-2.5.7-UNPRIVILEGED-USERFAULTFD`, `FSTEC-LINUX-2022-2.5.8-LDISC-AUTOLOAD`, `FSTEC-LINUX-2022-2.5.10-MMAP-MIN-ADDR`, `FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE`, `FSTEC-LINUX-2022-2.6.1-PTRACE-SCOPE`, `FSTEC-LINUX-2022-2.6.2-PROTECTED-SYMLINKS`, `FSTEC-LINUX-2022-2.6.3-PROTECTED-HARDLINKS`, `FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS`, `FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR`, `FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE` | да |
 | G2 | режим файла по фиксированному пути, только снятие битов | `FSTEC-LINUX-2022-2.3.1-GROUP-MODE`, `FSTEC-LINUX-2022-2.3.1-PASSWD-MODE`, `FSTEC-LINUX-2022-2.3.1-SHADOW-GO-RWX` | да |
 | G3 | режимы и владелец файлов по нестабильной популяции: пользователи, процессы, настроенные команды | `FSTEC-LINUX-2022-2.3.2-RUNNING-PROCESS-PATHS-WRITE-PROTECTION`, `FSTEC-LINUX-2022-2.3.3-CRON-COMMAND-PATHS-WRITE-PROTECTION`, `FSTEC-LINUX-2022-2.3.4-SUDO-ROOT-COMMAND-FILES-PROTECTION`, `FSTEC-LINUX-2022-2.3.7-USER-CRON-FILES-MODE`, `FSTEC-LINUX-2022-2.3.10-HOME-SENSITIVE-FILES-MODE`, `FSTEC-LINUX-2022-2.3.11-HOME-DIRECTORIES-MODE` | нет |
-| G4 | параметры ядра в командной строке загрузки: правка загрузчика и перезагрузка | `FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC`, `FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE`, `FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE`, `FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT`, `FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH`, `FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET`, `FSTEC-LINUX-2022-2.4.7-MITIGATIONS`, `FSTEC-LINUX-2022-2.5.1-VSYSCALL`, `FSTEC-LINUX-2022-2.5.3-DEBUGFS`, `FSTEC-LINUX-2022-2.5.9-TSX` | нет |
+| G4 | параметры ядра в командной строке загрузки: правка загрузчика и перезагрузка | `FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC`, `FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE`, `FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE`, `FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT`, `FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH`, `FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET`, `FSTEC-LINUX-2022-2.4.7-MITIGATIONS`, `FSTEC-LINUX-2022-2.5.1-VSYSCALL`, `FSTEC-LINUX-2022-2.5.3-DEBUGFS`, `FSTEC-LINUX-2022-2.5.9-TSX` | да |
 | G5 | политика или allowlist, которые определяет администратор | `FSTEC-LINUX-2022-2.2.1-SU-WHEEL-ACCESS` | нет |
 | G6 | режимы файлов по вычисляемой стабильной популяции системных объектов (корни cron, файлы запуска, стандартные системные пути, SUID/SGID-файлы непсевдо-точек монтирования), только снятие битов | `FSTEC-LINUX-2022-2.3.6-CRONTAB`, `FSTEC-LINUX-2022-2.3.6-CRON-D`, `FSTEC-LINUX-2022-2.3.6-CRON-HOURLY`, `FSTEC-LINUX-2022-2.3.6-CRON-DAILY`, `FSTEC-LINUX-2022-2.3.6-CRON-WEEKLY`, `FSTEC-LINUX-2022-2.3.6-CRON-MONTHLY`, `FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE`, `FSTEC-LINUX-2022-2.3.8-STANDARD-SYSTEM-PATHS-MODE`, `FSTEC-LINUX-2022-2.3.5-STARTUP-FILES-WRITE-PROTECTION` | да |
 | G7 | содержимое конфигурационных файлов | `FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE`, `FSTEC-LINUX-2022-2.1.2-SSH-ROOT-LOGIN`, `FSTEC-LINUX-2022-2.2.2-SUDOERS-REVIEWED-POLICY` | нет |

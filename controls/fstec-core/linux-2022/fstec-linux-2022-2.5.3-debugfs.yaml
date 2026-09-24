@@ -23,4 +23,4 @@ expected:
   value: "off|no-mount"
   type: "string"
 apply:
-  supported: false
+  supported: true

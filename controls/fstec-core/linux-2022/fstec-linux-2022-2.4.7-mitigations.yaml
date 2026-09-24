@@ -23,4 +23,4 @@ expected:
   value: "auto,nosmt"
   type: "string"
 apply:
-  supported: false
+  supported: true

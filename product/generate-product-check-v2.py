@@ -929,6 +929,7 @@ def _compact_outcome(outcome):
         "ALREADY_COMPLIANT": "ok",
         "APPLIED": "done",
         "APPLIED_PARTIAL": "part",
+        "PENDING_REBOOT": "boot",
         "DRY_RUN_WOULD_APPLY": "would",
         "ABORTED_PRECONDITION_CONFLICT": "block",
         "ABORTED_PRECONDITION_OTHER": "abort",
@@ -1032,8 +1033,8 @@ def _current_display(record):
     mechanism_result = record.get("mechanism_result")
     if not isinstance(mechanism_result, dict):
         return "not-determined"
-    # sysctl отдаёт runtime_*, режимы файлов — resulting_mode/current_mode.
-    for field in ("runtime_after", "runtime_before", "resulting_mode", "current_mode"):
+    # sysctl отдаёт runtime_*, режимы файлов — resulting_mode/current_mode, параметры ядра — cmdline_current.
+    for field in ("runtime_after", "runtime_before", "resulting_mode", "current_mode", "cmdline_current"):
         value = mechanism_result.get(field)
         if value is not None:
             return _terminal_scalar(value, "current")
@@ -1057,17 +1058,26 @@ def _block_entry(record, control):
         raise RuntimeError("presentation:block-mechanism-result-invalid")
     decision = mechanism_result.get("operator_decision")
     if decision is not None:
-        if not isinstance(decision, dict):
+        if not isinstance(decision, dict) or decision.get("required") is not True:
             raise RuntimeError("presentation:operator-decision-invalid")
-        if decision.get("class") != "SERVICE_MANAGED_PARAMETER" or decision.get("required") is not True:
+        if decision.get("class") == "SERVICE_MANAGED_PARAMETER":
+            service = _terminal_scalar(decision.get("service"), "service")
+            parameter = _terminal_scalar(decision.get("parameter"), "parameter")
+            current_value = _terminal_scalar(decision.get("current_value"), "current-value")
+            notes.append(
+                f"{parameter}={current_value}: обнаружен штатный механизм {service}, управляющий этим параметром."
+            )
+            notes.append("Автоматическое изменение пропущено. Требуется решение администратора.")
+        elif decision.get("class") == "BOOT_PARAMETER_ADMIN_DECISION":
+            value = _terminal_scalar(decision.get("value"), "value")
+            risk = _terminal_scalar(decision.get("risk"), "risk")
+            notes.append(f"{value}: {risk}.")
+            notes.append(
+                "Автоматическое изменение пропущено. Требуется решение администратора: добавить "
+                f"{value} в GRUB_CMDLINE_LINUX, выполнить update-grub и перезагрузить систему."
+            )
+        else:
             raise RuntimeError("presentation:operator-decision-invalid")
-        service = _terminal_scalar(decision.get("service"), "service")
-        parameter = _terminal_scalar(decision.get("parameter"), "parameter")
-        current_value = _terminal_scalar(decision.get("current_value"), "current-value")
-        notes.append(
-            f"{parameter}={current_value}: обнаружен штатный механизм {service}, управляющий этим параметром."
-        )
-        notes.append("Автоматическое изменение пропущено. Требуется решение администратора.")
     return {"control": display_control, "detail": detail, "notes": notes}
 
 def _block_control_label(control):
@@ -1240,7 +1250,10 @@ except BaseException as exc:
         pass
     raise
 '''
-    return source.replace("@@APPLY_CONTROLS_JSON@@", controls_json).replace("@@APPLY_ROUTES_JSON@@", routes_json)
+    # JSON встраивается как строковый литерал и разбирается json.loads: литерал JSON
+    # напрямую не является Python при true/false/null (bool-ожидание `present` у 2.4.4).
+    return source.replace("@@APPLY_CONTROLS_JSON@@", "json.loads(" + repr(controls_json) + ")").replace(
+        "@@APPLY_ROUTES_JSON@@", "json.loads(" + repr(routes_json) + ")")
 
 
 def render_script(

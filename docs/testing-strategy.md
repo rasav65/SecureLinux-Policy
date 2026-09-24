@@ -63,11 +63,19 @@ Regression сравнивает ожидаемые и committed bytes. Изме�
 (`APPLIED_PARTIAL`), `EROFS` прерывает прогон сразу. Пункты о
 journal/intent и компенсации к ним не применяются.
 
+`kernel-cmdline-grub-v1` пишет только свой файл `/etc/default/grub.d/zz-securelinux-policy.cfg`; при ошибке
+`update-grub` или отсутствии токена в строках `linux …vmlinuz…` файла `/boot/grub/grub.cfg` прежнее
+содержимое файла (или его отсутствие) восстанавливается и `update-grub` запускается снова
+(`FAILED_NOT_COMMITTED`, при повторной ошибке — `FAILED_COMPENSATION`). Тест —
+`tests/product-v1/test_kernel_cmdline_grub_apply_adapter.py` на временном дереве с подставным
+`update-grub`.
+
 Историческое: решением DP-3 APPLY для `SRC-0001` выведен из продукта, текущий
-APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1` и `startup-files-write-protection-v1`.
+APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1`, `startup-files-write-protection-v1` и `kernel-cmdline-grub-v1`.
 Каждый механизм проверяется сквозным тестом встроенного dispatcher
 (`tests/product-v1/test_apply_dispatch_integration.py`) и VM-прогоном;
-у `startup-files-write-protection-v1` VM-прогон ещё не выполнялся.
+у `startup-files-write-protection-v1` и `kernel-cmdline-grub-v1` VM-прогон ещё не выполнялся; для `kernel-cmdline-grub-v1`
+он требует перезагрузки ВМ между APPLY и CHECK.
 
 Ошибка обхода каталога обязана давать отказ до мутации, а не мутацию по неполной
 популяции. Для каждого механизма, который перечисляет каталоги

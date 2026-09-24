@@ -23,4 +23,4 @@ expected:
   value: true
   type: "boolean"
 apply:
-  supported: false
+  supported: true

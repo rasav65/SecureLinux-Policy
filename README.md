@@ -1,6 +1,6 @@
 # SecureLinux-Policy
 
-> Инструмент проверки и безопасного применения настроек Debian и Ubuntu по требованиям, представленным в политике проекта. CHECK работает без изменения системы; автоматический APPLY реализован для параметров `sysctl`, режимов доступа файлов `/etc/passwd`, `/etc/group`, `/etc/shadow`, системных файлов заданий cron, SUID/SGID-приложений, стандартных системных путей и файлов запуска.
+> Инструмент проверки и безопасного применения настроек Debian и Ubuntu по требованиям, представленным в политике проекта. CHECK работает без изменения системы; автоматический APPLY реализован для параметров `sysctl`, режимов доступа файлов `/etc/passwd`, `/etc/group`, `/etc/shadow`, системных файлов заданий cron, SUID/SGID-приложений, стандартных системных путей, файлов запуска и части параметров ядра в командной строке загрузки (через GRUB, вступают в силу после перезагрузки).
 
 ![Статус](https://img.shields.io/badge/status-product%20candidate-orange) ![ОС](https://img.shields.io/badge/ОС-Debian%2012%2F13%20%7C%20Ubuntu%2022.04%2F24.04%2F26.04-informational) ![CHECK](https://img.shields.io/badge/CHECK-read--only-blue) ![APPLY](https://img.shields.io/badge/APPLY-sysctl%20%7C%20file%20modes-green) ![Лицензия](https://img.shields.io/badge/license-MIT-lightgrey)
 
@@ -151,7 +151,7 @@ sudo /bin/bash -p ./securelinux-policy.sh --apply
 
 ## Применение изменений
 
-Автоматический APPLY выполняется механизмами `config-line-with-runtime-v1` (sysctl), `file-mode-owner-v1` (режим файлов), `optional-file-root-files-mode-v1` (режимы системных файлов cron), `suid-sgid-applications-mode-v1` (режимы SUID/SGID-приложений), `standard-system-paths-mode-v1` (режимы стандартных системных путей) и `startup-files-write-protection-v1` (режимы файлов запуска); состав берётся из APPLY registries, количества — из машинного статуса ниже. Остальные controls могут участвовать в CHECK, но не изменяются автоматически без явно поддерживаемой APPLY-семантики.
+Автоматический APPLY выполняется механизмами `config-line-with-runtime-v1` (sysctl), `file-mode-owner-v1` (режим файлов), `optional-file-root-files-mode-v1` (режимы системных файлов cron), `suid-sgid-applications-mode-v1` (режимы SUID/SGID-приложений), `standard-system-paths-mode-v1` (режимы стандартных системных путей) `startup-files-write-protection-v1` (режимы файлов запуска) и `kernel-cmdline-grub-v1` (параметры ядра в командной строке загрузки: файл `/etc/default/grub.d/zz-securelinux-policy.cfg` и `update-grub`, вступают в силу после перезагрузки; `mitigations`, три `iommu`, `tsx` и `debugfs` не пишутся и выводятся блоком «требуется решение администратора»); состав берётся из APPLY registries, количества — из машинного статуса ниже. Остальные controls могут участвовать в CHECK, но не изменяются автоматически без явно поддерживаемой APPLY-семантики.
 
 Сухой запуск:
 
@@ -255,9 +255,9 @@ FIELD_COMPATIBILITY_ENVIRONMENTS=1
 CHECK_STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 CHECK=IMPLEMENTED_READ_ONLY
 APPLY=IMPLEMENTED
-APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1,optional-file-root-files-mode-v1,standard-system-paths-mode-v1,startup-files-write-protection-v1,suid-sgid-applications-mode-v1
-APPLY_CONTROL_COUNT=29
-APPLY_IMPLEMENTATION_COUNT=6
+APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1,kernel-cmdline-grub-v1,optional-file-root-files-mode-v1,standard-system-paths-mode-v1,startup-files-write-protection-v1,suid-sgid-applications-mode-v1
+APPLY_CONTROL_COUNT=39
+APPLY_IMPLEMENTATION_COUNT=7
 RESTORE=NOT_PLANNED
 ROLLBACK_MODEL=EXTERNAL_SNAPSHOT
 FULL_FSTEC_COMPLIANCE_CLAIM=false

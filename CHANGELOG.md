@@ -10,6 +10,53 @@
 
 ## [Unreleased]
 
+- Механизм APPLY `kernel-cmdline-grub-v1` для 10 контролей параметров ядра в
+  командной строке загрузки (2.4.3, 2.4.4, 2.4.5 ×3, 2.4.6, 2.4.7, 2.5.1, 2.5.3,
+  2.5.9; класс G4), решения человека 24.09.2026 (вариант A, имя файла `zz-`,
+  состав, отказ при конфликте, блок администратора как у 2.6.6). Строк source
+  index не закрывает. Было: у всех 10 контролей `apply.supported: false`, APPLY
+  их не касался. Стало: `apply.supported: true`, маршрут
+  `parameter_kind=kernel-cmdline` → `kernel-cmdline-grub-v1`
+  (`product/contracts/mechanism-kernel-cmdline-grub-v1.json`,
+  `product/apply-adapters/product-kernel-cmdline-grub-apply-v1.{py,json}`, строки
+  в `APPLY-KIND-REGISTRY.tsv` и `APPLY-IMPLEMENTATION-REGISTRY.tsv`).
+
+  - `init_on_alloc=1`, `slab_nomerge`, `randomize_kstack_offset=1`,
+    `vsyscall=none` добавляются в `GRUB_CMDLINE_LINUX` файла
+    `/etc/default/grub.d/zz-securelinux-policy.cfg`, затем `update-grub` и
+    проверка токена в каждой строке `linux …vmlinuz…` файла `/boot/grub/grub.cfg`. Исход
+    `APPLIED`, до перезагрузки повторный запуск — новый исход `PENDING_REBOOT`
+    (код 0, в таблице `boot`); CHECK до перезагрузки остаётся FAIL.
+  - `mitigations=auto,nosmt`, `iommu=force`, `iommu.strict=1`,
+    `iommu.passthrough=0`, `tsx=off`, `debugfs=off` не пишутся: исход
+    `ABORTED_PRECONDITION_CONFLICT`, `operator_decision` класса
+    `BOOT_PARAMETER_ADMIN_DECISION`, блок «требуется решение администратора» с
+    готовым токеном; код APPLY — 1, пока параметр не задан администратором.
+  - Другое значение того же параметра в `/etc/default/grub` или другом
+    `grub.d/*.cfg` — отказ без записи `grub:foreign-conflict`; тот же токен там
+    не дублируется. Ошибка `update-grub` или проверки — прежний файл (или его
+    отсутствие) восстанавливается и `update-grub` запускается снова
+    (`FAILED_NOT_COMMITTED` / `FAILED_COMPENSATION`).
+
+  Генератор: `APPLY_CONTROLS` и `ROUTES` встраиваются в dispatcher через
+  `json.loads` строкового литерала — литерал JSON с `true` (ожидание `present`
+  у 2.4.4) не был корректным Python (`NameError: true`); отображение `boot` для
+  `PENDING_REBOOT`, поле `cmdline_current`, второй класс `operator_decision`.
+
+  Тесты: `tests/product-v1/test_kernel_cmdline_grub_apply_adapter.py` (16 на
+  временном дереве с подставным `update-grub`, в том числе строка memtest86+
+  `linux` без `vmlinuz` в `grub.cfg`); в `test_product_generator.py` — блок
+  `BOOT_PARAMETER_ADMIN_DECISION` и исход `PENDING_REBOOT` (`boot`, код 0), на
+  генераторе до правки оба — FAIL; литералы APPLY-популяции в
+  `test_product_generator.py` (29 → 39 контролей, +`kernel-cmdline`),
+  `test_current_status.py`, `test_donor_policy.py` и `test_real_jsonschema_gate.py`
+  (6 → 7 механизмов),
+  `test_project_map.py` (узел `APPLY7`). Синхронизированы `README.md`,
+  `product/README.md`, `docs/PROJECT-MAP.md` (узел, G4 → «да»),
+  `docs/ROADMAP.md`, `docs/compatibility.md`, `docs/testing-strategy.md`.
+  Трекнутый артефакт перегенерирован, `CHECK_SHA256` `281adcf631a0925a5635518a4b47392012914913690ffbd7e1541ce9a127a611`.
+  ВМ-прогон не выполнялся; для него нужна перезагрузка ВМ между APPLY и CHECK.
+
 - `index/source-v4/CLOSURE-CONTRACT.tsv`, строка SRC-0009 (2.3.5), очередь v70.
   Строк source index не закрывает, байты продукта не меняет. Было: в `basis`
   стояло «APPLY/RESTORE отсутствуют», хотя APPLY для 2.3.5 выполняет механизм

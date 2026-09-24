@@ -23,4 +23,4 @@ expected:
   value: "force"
   type: "string"
 apply:
-  supported: false
+  supported: true

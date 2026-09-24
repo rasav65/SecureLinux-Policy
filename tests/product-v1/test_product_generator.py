@@ -4989,7 +4989,7 @@ SLP_POLICY_RC=1
         # Литерал закреплён явным решением: расширяется только осознанной правкой
         # этого теста при принятии нового APPLY-механизма, а не автоматически под
         # результат прогона.
-        self.assertEqual(set(apply_mechanisms), {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode", "startup-files-write-protection"})
+        self.assertEqual(set(apply_mechanisms), {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode", "startup-files-write-protection", "kernel-cmdline"})
         apply_rows = [row for row in rows if "apply" in row]
         expected_apply_controls = [
             c for c in (
@@ -5679,7 +5679,7 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         # Литерал закреплён явным решением: расширяется только осознанной правкой
         # этого теста при принятии нового APPLY-механизма, а не автоматически под
         # результат прогона.
-        self.assertEqual(set(mechanisms), {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode", "startup-files-write-protection"})
+        self.assertEqual(set(mechanisms), {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode", "startup-files-write-protection", "kernel-cmdline"})
         mechanism = mechanisms["sysctl"]
         self.assertEqual(mechanism["kind_row"]["apply_kind"], "config-line-with-runtime-v1")
         self.assertEqual(mechanism["kind_row"]["authority_form"], "MECHANISM_AUTHORITY_V1")
@@ -5694,10 +5694,10 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         # Литералы закреплены явным решением: меняются только осознанной правкой
         # этого теста при изменении APPLY-популяции, а не автоматически под
         # результат прогона. Вычисление здесь дало бы сравнение реестра с собой.
-        self.assertEqual(len(enabled), 29)
+        self.assertEqual(len(enabled), 39)
         self.assertEqual(
             {control["parameter_kind"] for control in enabled},
-            {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode", "startup-files-write-protection"},
+            {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode", "startup-files-write-protection", "kernel-cmdline"},
         )
         self.assertNotIn(
             "FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE",
@@ -6046,6 +6046,43 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             'TOTAL=1 ABORTED_PRECONDITION_CONFLICT=1 RC=NONZERO\n'
         ))
         self.assertEqual(report["controls"][0]["outcome"], "ABORTED_PRECONDITION_CONFLICT")
+
+    def test_apply_blocks_boot_parameter_admin_decision(self):
+        # Решение 24.09.2026: рискованный параметр загрузки не пишется, блок
+        # администратора с готовым токеном, как у 2.6.6.
+        record = {
+            "outcome": "ABORTED_PRECONDITION_CONFLICT", "reason": "admin-decision:tsx",
+            "actions_attempted": ["P0_ELIGIBILITY", "P1_OBSERVE"], "step_rc": "nonzero",
+            "mutation_performed": False, "transaction_commit": "NOT_STARTED",
+            "cmdline_current": "<absent>",
+            "operator_decision": {"class": "BOOT_PARAMETER_ADMIN_DECISION", "required": True, "parameter": "tsx",
+                                  "value": "tsx=off", "risk": "на части процессоров снижается производительность"},
+        }
+        cp, report = self._run_synthetic_apply_dispatcher(record)
+        self.assertEqual(cp.returncode, 1, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        row = next(line for line in cp.stdout.splitlines() if "passwd-mode" in line and line.count("|") == 5)
+        self.assertEqual([c.strip() for c in row.split("|")[:4]], ["block", "fstec-linux-2099 §9.9.4", "passwd-mode", "<absent>"])
+        blocks = self._blocks_section(cp.stdout)
+        # Ячейка переносится по ширине, а не по словам: сравнение без пробелов.
+        text = "".join("".join(line.split("|")[2].split()) for line in blocks[1:] if line.count("|") == 3)
+        self.assertIn("tsx=off:начастипроцессоровснижаетсяпроизводительность.", text)
+        self.assertIn("Требуетсярешениеадминистратора:добавитьtsx=offвGRUB_CMDLINE_LINUX", text)
+        self.assertEqual(report["controls"][0]["outcome"], "ABORTED_PRECONDITION_CONFLICT")
+
+    def test_apply_pending_reboot_is_success_without_block(self):
+        record = {
+            "outcome": "PENDING_REBOOT", "reason": None,
+            "actions_attempted": ["P0_ELIGIBILITY", "P1_OBSERVE", "P2_PLAN"], "step_rc": "0",
+            "mutation_performed": False, "transaction_commit": "COMMITTED",
+            "cmdline_current": "<absent>", "reboot_required": True,
+        }
+        cp, report = self._run_synthetic_apply_dispatcher(record)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        row = next(line for line in cp.stdout.splitlines() if "passwd-mode" in line and line.count("|") == 5)
+        self.assertEqual(row.split("|")[0].strip(), "boot", row)
+        self.assertIsNone(self._blocks_section(cp.stdout))
+        self.assertIn("TOTAL=1 PENDING_REBOOT=1 RC=0", cp.stdout.splitlines())
 
     def test_apply_blocks_precondition_other_invariant_requires_no_mutation(self):
         # Инвариант «мутации не было» действует и для OTHER: mutation_performed
