@@ -10,6 +10,33 @@
 
 ## [Unreleased]
 
+- CHECK-адаптер `sudo-root-command-files-protection` (2.3.4, SRC-0008), решение человека 24.09.2026. Строк
+  source index не закрывает. Основание — `ERROR cvtsudoers:execution-failed`
+  на Ubuntu 26.04 min и full (прогон `32c1eba` 24.09.2026, evidence
+  `dashboard/src0009-vm-evidence`): активен `sudo-rs 0.2.13`, пакет
+  `sudo 1.9.17p2` ставит `cvtsudoers` как `/usr/bin/cvtsudoers.ws`,
+  `/usr/bin/cvtsudoers` нет; `visudo` из sudo-rs выводит `/etc/sudoers: parsed
+  OK` с кодом 0. `/etc/sudoers` на 26.04 побайтно равен 24.04 (`5bac27ce…`).
+
+  - было: вызывается только `/usr/bin/cvtsudoers`. Стало: если его нет,
+    вызывается `/usr/bin/cvtsudoers.ws`, только если это обычный файл root
+    без записи для группы и прочих, иначе `ERROR cvtsudoers:untrusted-fallback`;
+    ошибка `stat` — `ERROR cvtsudoers:fallback-stat-failed`; нет обоих —
+    `ERROR cvtsudoers:execution-failed`, как раньше. Разбирает парсер пакета
+    `sudo`, а исполняет политику `sudo-rs`: совпадение их толкований для
+    нештатных файлов не проверялось.
+
+  Синхронизированы семантический контракт, пины адаптера в `.json` и
+  `ADAPTER-REGISTRY.tsv`, `product/README.md`, `tests/product-v1/README.md`.
+  Трекнутый артефакт перегенерирован, `CHECK_SHA256` `579d926df7e6eaf038fe9d5679f3cf5fb61186f929f2d9459d2df7d2cd80a775`.
+
+  Тесты (`SudoRootCommandFilesProtectionFixtures`, 40 → 43): фолбэк `cvtsudoers.ws` на штатном sudoers
+  Ubuntu — `NOT_APPLICABLE` `files=0`; `cvtsudoers.ws` с режимом `0775` и `0757` — `ERROR
+  cvtsudoers:untrusted-fallback`; нет ни `cvtsudoers`, ни `cvtsudoers.ws` —
+  `ERROR cvtsudoers:execution-failed`. На адаптере до правки первые два
+  теста — FAIL, третий фиксирует прежнее поведение. ВМ-прогон нового
+  артефакта не выполнялся.
+
 - CHECK-адаптер `sudoers-reviewed-policy` (2.2.2, SRC-0004), решение человека 24.09.2026. Строк
   source index не закрывает. Основание — `ERROR cvtsudoers:execution-failed`
   на Ubuntu 26.04 min и full (прогон `32c1eba` 24.09.2026, evidence

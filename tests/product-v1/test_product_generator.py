@@ -2773,7 +2773,7 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
             spec["Cmnd_Specs"][0]["runasusers"] = [{"username": runas}]
         return spec
 
-    def run_fixture(self, specs, mode=0o755, owner_regular=False, uid_sources=True, visudo_drift=None, visudo_rc=0, sudoers_members=(), cvt_rc=0, malformed_json=False, symlink=False, mutate_target_second_cvt=False, target_logical="/bin/tool", extra_executables=(), defaults=None, symlink_real_name=None, hardlink_real_name=None, target_bytes=None, real_fsroot=False):
+    def run_fixture(self, specs, mode=0o755, owner_regular=False, uid_sources=True, visudo_drift=None, visudo_rc=0, sudoers_members=(), cvt_rc=0, malformed_json=False, symlink=False, mutate_target_second_cvt=False, target_logical="/bin/tool", extra_executables=(), defaults=None, symlink_real_name=None, hardlink_real_name=None, target_bytes=None, real_fsroot=False, cvt_name="cvtsudoers", cvt_mode=0o755):
         if BASH is None:
             self.skipTest("bash not found")
         with tempfile.TemporaryDirectory(dir=ROOT) as td:
@@ -2853,7 +2853,7 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
                 )
             fake_visudo.write_text("#!/bin/bash\n" + visudo_body, encoding="utf-8")
             fake_visudo.chmod(0o755)
-            fake_cvt = root / "cvtsudoers"
+            fake_cvt = root / cvt_name
             state = root / "cvt-state"
             if malformed_json:
                 body = "printf '%s\\n' '{bad json'\nexit 0"
@@ -2871,14 +2871,14 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
                         "else : > " + shlex.quote(str(state)) + "; fi\n" + body
                     )
             fake_cvt.write_text("#!/bin/bash\n" + body + "\n", encoding="utf-8")
-            fake_cvt.chmod(0o755)
+            fake_cvt.chmod(cvt_mode)
             src = SUDO_ROOT_COMMAND_FILES.shell_function_for_fixture(
                 "TEST-SUDO-ROOT-FILES",
                 SUDO_ROOT_COMMAND_FILES.CANONICAL_LOCATOR,
                 SUDO_ROOT_COMMAND_FILES.CANONICAL_KEY,
                 SUDO_ROOT_COMMAND_FILES.CANONICAL_OP,
                 SUDO_ROOT_COMMAND_FILES.CANONICAL_EXPECTED,
-                str(fsroot), str(sudoers), str(fake_visudo), str(fake_cvt),
+                str(fsroot), str(sudoers), str(fake_visudo), str(root / "cvtsudoers"),
                 str(etc / "login.defs") if real_fsroot else "/etc/login.defs",
                 str(etc / "adduser.conf") if real_fsroot else "/etc/adduser.conf",
             )
@@ -3108,6 +3108,40 @@ class SudoRootCommandFilesProtectionFixtures(unittest.TestCase):
                 with self.subTest(drift=drift, command=command):
                     row = self.run_fixture([self._user_spec(command=command)], visudo_drift=drift)
                     self.assertEqual((row[2], row[3], row[4]), ("ERROR", "observation:policy-changed", "ERROR"))
+
+    # Ubuntu 26.04 (sudo-rs active): package sudo 1.9.17p2 ships /usr/bin/cvtsudoers.ws only.
+    def _ubuntu_stock(self):
+        def rule(invoker, groups):
+            spec = {"runasusers": [{"username": "ALL"}], "Options": [{"setenv": True}], "Commands": [{"command": "ALL"}]}
+            if groups:
+                spec["runasgroups"] = [{"usergroup": "ALL"}]
+            return {"User_List": [invoker], "Host_List": [{"hostname": "ALL"}], "Cmnd_Specs": [spec]}
+        specs = [rule({"username": "root"}, True), rule({"usergroup": "admin"}, False), rule({"usergroup": "sudo"}, True)]
+        defaults = [
+            {"Options": [{"env_reset": True}]},
+            {"Options": [{"mail_badpass": True}]},
+            {"Options": [{"secure_path": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"}]},
+            {"Options": [{"use_pty": True}]},
+        ]
+        return specs, defaults
+
+    def test_cvtsudoers_ws_fallback_when_primary_absent(self):
+        specs, defaults = self._ubuntu_stock()
+        row = self.run_fixture(specs, defaults=defaults, sudoers_members=("sudoers.d/README",), cvt_name="cvtsudoers.ws")
+        self.assertEqual((row[2], row[3], row[4]), ("NOT_APPLICABLE", "files=0;owner_violations=0;mode_violations=0", "NOT_APPLICABLE"))
+
+    def test_cvtsudoers_ws_fallback_group_or_other_writable_is_error(self):
+        specs, defaults = self._ubuntu_stock()
+        for mode in (0o775, 0o757):
+            with self.subTest(mode=oct(mode)):
+                row = self.run_fixture(specs, defaults=defaults, sudoers_members=("sudoers.d/README",),
+                                       cvt_name="cvtsudoers.ws", cvt_mode=mode)
+                self.assertEqual((row[2], row[3], row[4]), ("ERROR", "cvtsudoers:untrusted-fallback", "ERROR"))
+
+    def test_cvtsudoers_absent_without_fallback_is_error(self):
+        specs, defaults = self._ubuntu_stock()
+        row = self.run_fixture(specs, defaults=defaults, sudoers_members=("sudoers.d/README",), cvt_name="cvtsudoers.other")
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "cvtsudoers:execution-failed", "ERROR"))
 
     def test_cvtsudoers_failure_and_malformed_json_are_error(self):
         row = self.run_fixture([self._user_spec()], cvt_rc=1)
