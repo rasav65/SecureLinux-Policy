@@ -35,13 +35,6 @@
 - `/tmp` смонтирован с `noexec`: `os.access(X_OK)` для файла во временном каталоге
   ложен; исполняемость проверяется по типу файла и битам режима.
 
-## Известные дефекты инструментов
-
-- `tools/refresh-pins.py` запускает генератор до обновления
-  `controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv`: правка control-yaml
-  отказывает с `control SHA mismatch`. Обход — `edit.py` шага пересчитывает колонку
-  `sha256` манифеста для изменённых control-yaml.
-
 ## ВМ-прогоны
 
 - 7 сред: Ubuntu 22.04 full, Ubuntu 24.04 mini и full, Ubuntu 26.04 mini и full,
@@ -57,8 +50,7 @@
 
 ## Очередь
 
-1. `tools/refresh-pins.py`: обновлять `CONTROL-MANIFEST.tsv` до генератора.
-2. APPLY 2.2.1 `su-wheel-access`; B-02 (нужен текст от человека); отклонения 2.3.1 и 2.6.6.
-3. Инфраструктура: эталонный набор 7 сред в тестах, runner ВМ в `tools/vm-runner/`, evidence;
+1. APPLY 2.2.1 `su-wheel-access`; B-02 (нужен текст от человека); отклонения 2.3.1 и 2.6.6.
+2. Инфраструктура: эталонный набор 7 сред в тестах, runner ВМ в `tools/vm-runner/`, evidence;
    ВМ-проверка пути с изменением прав у `startup-files-write-protection-v1`.
-4. 63 OPEN-пункта.
+3. 63 OPEN-пункта.

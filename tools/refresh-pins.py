@@ -12,6 +12,9 @@ Stages, in this order:
    each adapter JSON listed by product/ADAPTER-REGISTRY.tsv, then the three SHA
    columns of the registry row.
 2. APPLY bindings: tools/rebuild-apply-contract-bindings.py.
+2a. The sha256 column of CONTROL-MANIFEST.tsv for changed control files: the
+   generator refuses a control whose SHA differs from the manifest, so this
+   carrier is refreshed before the artifact.
 3. Tracked artifact: product/generate-product-check-v2.py into a temporary
    directory outside the repository; the tracked securelinux-policy.sh and its
    sidecar are replaced when the bytes differ.
@@ -111,7 +114,9 @@ class Run:
         path = self.root / rel
         if path.read_bytes() == raw:
             return
-        self.actions.append(f"{'UPDATE' if self.write else 'STALE'} {rel} ({why})")
+        action = f"{'UPDATE' if self.write else 'STALE'} {rel} ({why})"
+        if action not in self.actions:
+            self.actions.append(action)
         if self.write:
             write_bytes(path, raw)
 
@@ -388,6 +393,7 @@ def execute(root: Path, write: bool, reviewed: set[str], reviewed_truth: bool) -
     changed = changed_paths(root)
     stage_adapter_pins(run)
     stage_apply_bindings(run)
+    refresh_carrier(run, CONTROL_MANIFEST, changed)
     stage_artifact(run)
     if write:
         changed = changed_paths(root)

@@ -135,4 +135,17 @@ with tempfile.TemporaryDirectory(prefix="slp-refresh-pins-") as tmp:
     cp = run(copy, "--check")
     assert cp.returncode == 2 and "listed by no carrier" in cp.stderr, (cp.returncode, cp.stdout, cp.stderr)
 
+with tempfile.TemporaryDirectory(prefix="slp-refresh-pins-") as tmp:
+    copy = fresh_copy(tmp)
+    # A control-yaml edit: the generator checks control SHA against
+    # CONTROL-MANIFEST.tsv, so --write refreshes the manifest before the artifact.
+    control = next((copy / "controls/fstec-core/linux-2022").glob("*-2.4.1-*.yaml"))
+    control.write_bytes(control.read_bytes() + b"# refresh-pins fixture edit\n")
+    cp = run(copy, "--write")
+    assert cp.returncode == 0 and "REFRESH_PINS_RESULT=PASS" in cp.stdout, (cp.returncode, cp.stdout, cp.stderr)
+    manifest = (copy / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv").read_text(encoding="utf-8")
+    assert sha256(control) in manifest
+    cp = run(copy, "--check")
+    assert cp.returncode == 0, (cp.stdout, cp.stderr)
+
 print("REFRESH_PINS_TEST=PASS")

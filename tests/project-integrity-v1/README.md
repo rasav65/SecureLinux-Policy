@@ -21,7 +21,8 @@ Regression-проверка воспроизводимости корневых 
 `--check` STALE, после `--write` без `--reviewed-truth` — PASS, `truth_sha256` не меняется; смена
 текста `reason` в `DISPOSITION-LEDGER.tsv` без `--reviewed-truth` — отказ, с ним — PASS; изменённый
 документ обновляется только с `--reviewed`, отказ `--write` возвращает все файлы в состояние до запуска;
-устаревший пин неизменённого пути и новый файл вне manifest — ошибка.
+устаревший пин неизменённого пути и новый файл вне manifest — ошибка; правка control-yaml проходит
+`--write`: `CONTROL-MANIFEST.tsv` обновляется до генератора.
 
 Два файла с маркировкой `ACTIVE` для gates-v3 обязаны побайтово совпадать со
 свежим current checker stdout. Regression не пинует исторические числовые

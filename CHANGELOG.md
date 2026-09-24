@@ -10,6 +10,16 @@
 
 ## [Unreleased]
 
+- `tools/refresh-pins.py`: порядок этапов. Строк source index не закрывает,
+  байты продукта не меняет. Было: генератор артефакта запускался до обновления
+  колонки `sha256` в `CONTROL-MANIFEST.tsv`, и правка control-yaml отказывала с
+  `control SHA mismatch` (обход — пересчёт колонки в скрипте шага). Стало:
+  строки манифеста для изменённых control-файлов обновляются до генератора;
+  одинаковые записи о действиях не повторяются. Тест `test_refresh_pins.py`:
+  правка control-yaml — `--write` PASS, SHA файла в манифесте, `--check` PASS;
+  на прежней версии — `generator failed: … control SHA mismatch`. Известный
+  дефект снят из `docs/HANDOFF.md`.
+
 - ВМ-прогон APPLY 24.09.2026 (runner `slp-vm-apply-supported7-v15`, 7 сред,
   снимки `upd-20260924`, артефакт `d840ede3…c8aa`). Строк source index не
   закрывает, байты продукта не меняет. Было: у `kernel-cmdline-grub-v1` и
