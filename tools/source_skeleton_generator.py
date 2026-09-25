@@ -82,7 +82,6 @@ REASON_EXACT_EXTRACTION = "EXACT_EXTRACTION"
 REASON_BARE_TRAILING_PAGE_INTEGER = "BARE_TRAILING_PAGE_INTEGER"
 REASON_UNIT_KIND_UNSUPPORTED = "UNIT_KIND_UNSUPPORTED"
 REASON_BARE_INTEGER_INSIDE_UNIT = "BARE_INTEGER_INSIDE_UNIT"
-REASON_SOURCE_NUMBERING_MISMATCH = "SOURCE_NUMBERING_MISMATCH"
 
 
 class DeliberateRefusal(ValueError):
@@ -105,7 +104,6 @@ def validate_coverage_result(result: CoverageResult) -> CoverageResult:
         STATE_REFUSED: {
             REASON_BARE_TRAILING_PAGE_INTEGER,
             REASON_BARE_INTEGER_INSIDE_UNIT,
-            REASON_SOURCE_NUMBERING_MISMATCH,
         },
         STATE_UNSUPPORTED: {REASON_UNIT_KIND_UNSUPPORTED},
     }
@@ -182,15 +180,22 @@ MARKER = re.compile(r"(?<![^\s])(\d+(?:\.\d+)*)\.(?=\s)")
 # successor filter as MARKER.
 SUBPOINT_MARKER = re.compile(r"(?<![^\s])(?:(\d+)\.|(\d+\.\d+))(?=\s)")
 
+# Any standalone integer token (of any length) inside a numbered subpoint may be
+# a page number; such a subpoint is refused, never emitted as EXACT.
+SUBPOINT_INTEGER_TOKEN = re.compile(r"(?<!\S)\d+(?!\S)")
+
 # A candidate marker that directly follows one of these exact tokens is a table
 # reference ("в таблице 2."), not an outline boundary. Pinned per source.
 SUBPOINT_EXCLUDED_MARKER_PREFIXES = {
     "fstec-configuration-2026": ("таблице ", "Таблица "),
 }
 
-# A row whose printed number breaks the outline cannot be extracted exactly.
-# Pinned per index row: SRC-0091 is printed as 8.4 inside section 9.
-INDEX_NUMBERING_MISMATCH = {"SRC-0091"}
+# A printed subpoint number that is a source typo takes its outline position
+# from a pinned alias; the locator keeps the printed number. Pinned per source:
+# fstec-configuration-2026 prints 9.4 as "8.4" after 9.3 in section 9.
+SUBPOINT_PRINTED_ALIASES = {
+    ("fstec-configuration-2026", "8.4"): "9.4",
+}
 
 
 def sha256_text(text: str) -> str:
@@ -378,7 +383,7 @@ def subpoint_markers(corpus: str, source_id: str):
         if excluded and corpus[:match.start()].endswith(excluded):
             continue
         locator = match.group(1) or match.group(2)
-        candidate = parts(locator)
+        candidate = parts(SUBPOINT_PRINTED_ALIASES.get((source_id, locator), locator))
         if is_successor(previous, candidate):
             accepted.append((match.start(), locator))
             previous = candidate
@@ -494,11 +499,6 @@ def build_source_block(project_root: Path, row, normalize_text):
     if corpus.endswith("\n"):
         corpus = corpus[:-1]
     if row["unit_kind"] == "numbered-subpoint":
-        if row["index_id"] in INDEX_NUMBERING_MISMATCH:
-            raise DeliberateRefusal(
-                REASON_SOURCE_NUMBERING_MISMATCH,
-                "printed number breaks the source outline; refusing",
-            )
         raw_quote = extract_subpoint_unit(
             corpus, row["locator"], row["source_id"]
         )
@@ -527,9 +527,7 @@ def build_source_block(project_root: Path, row, normalize_text):
 
     # A numbered subpoint crossing a page break carries the page number inside
     # the span; no generic stripping, every standalone integer token refuses.
-    if row["unit_kind"] == "numbered-subpoint" and re.search(
-        r"(?<!\S)\d{1,3}(?!\S)", quote
-    ):
+    if row["unit_kind"] == "numbered-subpoint" and SUBPOINT_INTEGER_TOKEN.search(quote):
         raise DeliberateRefusal(
             REASON_BARE_INTEGER_INSIDE_UNIT,
             "numbered subpoint contains a standalone integer token (possible "

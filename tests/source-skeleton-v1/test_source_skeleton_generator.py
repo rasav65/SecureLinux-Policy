@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CONTROL_MANIFEST = ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 GEN = ROOT / "tools/source_skeleton_generator.py"
-EXPECTED_GEN_SHA = "552fb80ba6800dde26b969aade1c095dc2163ebb1ee7e409b2aa5c98e1276a60"
+EXPECTED_GEN_SHA = "bd725a348c35d8ff84e134e45dec1bb6600c14f6151e775f2b58b39163263508"
 EXPECTED_SRC0018_SHA = "016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d"
 EXPECTED_SRC0040_SHA = "f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d"
 EXPECTED_SRC0001_SHA = "799b85637928264e6f43d5e32d8cc6b48af6694e30f6fbf5e4c6ddef3a207f3b"
@@ -21,7 +21,7 @@ EXPECTED_SRC0008_SHA = "0be87131f3aea07d4da4134cd82c960c608b16feff43b6996ea4817d
 EXPECTED_SRC0014_SHA = "c243edbafcfee7fadede64b0dec702e3f8f92553d6240a89c36575934958b5f0"
 EXPECTED_REFUSED = {
     "SRC-0055", "SRC-0060", "SRC-0064", "SRC-0069", "SRC-0075", "SRC-0079",
-    "SRC-0080", "SRC-0090", "SRC-0091", "SRC-0095", "SRC-0096", "SRC-0101",
+    "SRC-0080", "SRC-0091", "SRC-0095", "SRC-0096", "SRC-0101",
     "SRC-0133",
 }
 EXPECTED_SRC0088_SHA = "8b03ebc02e6d0ad956759a0577eae939adb29e2a31024e70db9e3cd902ebfd06"
@@ -100,8 +100,8 @@ state_counts = {
     for state in (gate.STATE_EXACT, gate.STATE_REFUSED, gate.STATE_UNSUPPORTED)
 }
 assert state_counts == {
-    gate.STATE_EXACT: 118,
-    gate.STATE_REFUSED: 13,
+    gate.STATE_EXACT: 119,
+    gate.STATE_REFUSED: 12,
     gate.STATE_UNSUPPORTED: 218,
 }
 supported = [
@@ -122,7 +122,7 @@ unsupported = [
 assert len(supported) == len(ok) + len(refused) == 131
 assert set(refused) == EXPECTED_REFUSED
 assert refused["SRC-0133"] == gate.REASON_BARE_TRAILING_PAGE_INTEGER
-assert refused["SRC-0091"] == gate.REASON_SOURCE_NUMBERING_MISMATCH
+assert refused["SRC-0091"] == gate.REASON_BARE_INTEGER_INSIDE_UNIT
 assert refused["SRC-0055"] == gate.REASON_BARE_INTEGER_INSIDE_UNIT
 assert len(unsupported) == 218
 
@@ -145,6 +145,29 @@ else:
     raise AssertionError("SRC-0056 extracted without the pinned table prefix")
 finally:
     gate.SUBPOINT_EXCLUDED_MARKER_PREFIXES = _saved_prefixes
+# The source prints 9.4 as "8.4" (typo); the pinned alias keeps it in the
+# outline: 9.3 ends before it and 8.4 is extracted (refused only for page
+# numbers inside). Without the alias 8.4 is unreachable.
+assert typed["SRC-0090"].state == gate.STATE_EXACT
+assert typed["SRC-0090"].source_block["quote"].endswith("AllowUsers/AllowGroups.")
+_corpus = gate.resolve_corpus(ROOT, by_id["SRC-0091"]).read_text(encoding="utf-8").rstrip("\n")
+assert gate.extract_subpoint_unit(_corpus, "8.4", "fstec-configuration-2026").startswith("8.4 Организовать мониторинг")
+_saved_aliases = gate.SUBPOINT_PRINTED_ALIASES
+gate.SUBPOINT_PRINTED_ALIASES = {}
+try:
+    gate.extract_subpoint_unit(_corpus, "8.4", "fstec-configuration-2026")
+except ValueError as exc:
+    assert "matches=0" in str(exc), exc
+else:
+    raise AssertionError("8.4 extracted without the pinned alias")
+finally:
+    gate.SUBPOINT_PRINTED_ALIASES = _saved_aliases
+# Any-length standalone integer inside or at the end of a subpoint refuses
+# (B-01 аудита c5d12f1..d1edcac: a 4+ digit token must not pass as EXACT).
+for _probe in ("9.9 Текст 1000 текст.", "9.9 Текст значение 1000"):
+    assert gate.SUBPOINT_INTEGER_TOKEN.search(_probe), _probe
+for _probe in ("9.9 Текст retry=3 и TLSv1.2.", "9.9 SMBv2 и 1000x."):
+    assert not gate.SUBPOINT_INTEGER_TOKEN.search(_probe), _probe
 # Terminal footer of fstec-configuration-2026 is not part of 12.3.
 assert typed["SRC-0103"].state == gate.STATE_EXACT
 assert "____" not in typed["SRC-0103"].source_block["quote"]
@@ -153,8 +176,8 @@ rc, coverage_out, coverage_err = run_cli("--coverage")
 assert rc == 0, (coverage_out, coverage_err)
 assert "INDEX_ROWS_TOTAL=349" in coverage_out
 assert "ROWS_IN_SUPPORTED_KINDS=131" in coverage_out
-assert "EXACT=118" in coverage_out
-assert "REFUSED=13" in coverage_out
+assert "EXACT=119" in coverage_out
+assert "REFUSED=12" in coverage_out
 assert "UNSUPPORTED=218" in coverage_out
 assert (
     "REFUSED SRC-0133 6.2 "
@@ -440,14 +463,14 @@ expected_summary = (
     f"pilot={control_count} unit_kinds={len(gate.SUPPORTED_UNIT_KINDS)}/{len({row['unit_kind'] for row in rows})} "
     f"total_rows={len(rows)} supported_rows={len(supported)} "
     f"exact={len(ok)} refused={len(refused)} unsupported={len(unsupported)} "
-    "typed_reason_codes=5 index_generic_path=1 negative_duplicate_index=1 "
+    "typed_reason_codes=4 index_generic_path=1 negative_duplicate_index=1 "
     "negative_quote_anchor=1 negative_normalizer_sha=1 "
     "negative_normalizer_sha_coverage=1 negative_quote_integrity=1 "
     "negative_unknown_state=1 negative_norm_sha=1 internal_page_exact=1 "
     "internal_page_negative=2 inline_page_exact=1 inline_page_negative=2 "
     "terminal_footer_exact=1 terminal_footer_negative=2 "
     "documentation_population_parity=3 subpoint_exact=1 subpoint_table_prefix_negative=1 "
-    "subpoint_terminal_footer=1 test_results_fresh=1"
+    "subpoint_printed_alias=2 subpoint_integer_token=4 subpoint_terminal_footer=1 test_results_fresh=1"
 )
 stored_summary = (ROOT / "tests/source-skeleton-v1/TEST-RESULTS.txt").read_text(encoding="utf-8").strip()
 assert stored_summary == expected_summary, (stored_summary, expected_summary)
