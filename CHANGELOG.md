@@ -10,6 +10,17 @@
 
 ## [Unreleased]
 
+- Каталог контролей на документ (решение пользователя 25.09.2026): генератор продукта,
+  `tools/render-current-docs.py`, `tools/refresh-pins.py`, `tools/pin-closure.py` читают
+  все `controls/fstec-core/<каталог>/CONTROL-MANIFEST.tsv`. Строк source index не
+  закрывает. Каталог пока один (`linux-2022`), сводный SHA манифестов при одном
+  манифесте равен SHA этого файла; в `securelinux-policy.sh` изменились только две
+  строки `GENERATOR_SHA256` — логика CHECK и APPLY побайтно та же, поэтому ВМ-приёмка
+  кандидата `dcf6ceaf…ef28` переносится (REUSED, регламент v27 §53). Было: путь
+  `controls/fstec-core/linux-2022` зашит в четырёх инструментах. Стало: повтор
+  `control_id` или имени файла между каталогами и недопустимое имя каталога — отказ;
+  тесты `ControlDirectoriesTests`, `test_refresh_pins.py`, `test_pin_closure.py`.
+
 - Генератор source-блока: пункт 9.4 fstec-configuration-2026, напечатанный как «8.4»
   (опечатка источника, `SRC-0091`), стоит в outline по закреплённому псевдониму
   (решение пользователя 25.09.2026: требование не пропускается). Строк source index не

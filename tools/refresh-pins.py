@@ -58,6 +58,12 @@ from pathlib import Path, PurePosixPath
 ROOT_MANIFESTS = ("PROJECT-FILES.sha256", "SHA256SUMS")
 ADAPTER_REGISTRY = "product/ADAPTER-REGISTRY.tsv"
 CONTROL_MANIFEST = "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
+# Каталог на документ: любой controls/fstec-core/<каталог>/CONTROL-MANIFEST.tsv.
+CONTROL_MANIFEST_RE = re.compile(r"controls/fstec-core/[a-z0-9][a-z0-9-]*/CONTROL-MANIFEST\.tsv")
+
+
+def is_control_manifest(rel: str) -> bool:
+    return CONTROL_MANIFEST_RE.fullmatch(rel) is not None
 REVIEW_BASELINE = "tests/documentation-v1/CURRENT-MARKDOWN-REVIEW-BASELINE.tsv"
 BASELINE_TEST = "tests/documentation-v1/test_documentation_baseline.py"
 ARTIFACT = "securelinux-policy.sh"
@@ -198,7 +204,7 @@ def nested_carriers(root: Path) -> list[str]:
     carriers = [
         rel for rel in visible
         if rel not in ROOT_MANIFESTS
-        and (PurePosixPath(rel).name == "SHA256SUMS" or rel.endswith(".sha256") or rel == CONTROL_MANIFEST)
+        and (PurePosixPath(rel).name == "SHA256SUMS" or rel.endswith(".sha256") or is_control_manifest(rel))
     ]
     return sorted(carriers, key=lambda rel: (-rel.count("/"), rel))
 
@@ -208,7 +214,7 @@ def refresh_carrier(run: Run, rel: str, changed: set[str]) -> bool:
     raw_text = (run.root / rel).read_text(encoding="utf-8")
     lines = raw_text.split("\n")
     out = []
-    if rel == CONTROL_MANIFEST:
+    if is_control_manifest(rel):
         header = lines[0].split("\t")
         col_file, col_sha = header.index("file"), header.index("sha256")
         out.append(lines[0])
@@ -219,7 +225,7 @@ def refresh_carrier(run: Run, rel: str, changed: set[str]) -> bool:
     for line in rows:
         if not line:
             continue
-        if rel == CONTROL_MANIFEST:
+        if is_control_manifest(rel):
             targets.append((base / line.split("\t")[col_file]).as_posix())
         else:
             m = CHECKSUM_LINE.fullmatch(line)
@@ -232,7 +238,7 @@ def refresh_carrier(run: Run, rel: str, changed: set[str]) -> bool:
         if not line:
             out.append(line)
             continue
-        if rel == CONTROL_MANIFEST:
+        if is_control_manifest(rel):
             f = line.split("\t")
             old, target = f[col_sha], f[col_file]
         else:
@@ -248,7 +254,7 @@ def refresh_carrier(run: Run, rel: str, changed: set[str]) -> bool:
         if new != old:
             if target_rel not in changed:
                 raise RuntimeError(f"{rel}: stale pin for a path unchanged against HEAD: {target_rel}")
-            if rel == CONTROL_MANIFEST:
+            if is_control_manifest(rel):
                 f[col_sha] = new
                 line = "\t".join(f)
             else:
@@ -266,7 +272,7 @@ def listed_paths(root: Path, carriers: list[str]) -> set[str]:
     for rel in carriers + list(ROOT_MANIFESTS):
         base = PurePosixPath(rel).parent
         text = (root / rel).read_text(encoding="utf-8")
-        if rel == CONTROL_MANIFEST:
+        if is_control_manifest(rel):
             rows = list(csv.DictReader(io.StringIO(text), delimiter="\t"))
             listed |= {(base / r["file"]).as_posix() for r in rows}
         else:
@@ -393,7 +399,9 @@ def execute(root: Path, write: bool, reviewed: set[str], reviewed_truth: bool) -
     changed = changed_paths(root)
     stage_adapter_pins(run)
     stage_apply_bindings(run)
-    refresh_carrier(run, CONTROL_MANIFEST, changed)
+    visible = git(root, "ls-files", "--cached", "--others", "--exclude-standard").splitlines()
+    for manifest in sorted(rel for rel in visible if is_control_manifest(rel)):
+        refresh_carrier(run, manifest, changed)
     stage_artifact(run)
     if write:
         changed = changed_paths(root)

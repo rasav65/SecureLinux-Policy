@@ -21,6 +21,9 @@ DESKTOP_MATRIX_REL = "product/FIELD-COMPATIBILITY-DESKTOPS.tsv"
 
 MANIFEST_REL = "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 CONTROL_DIR_REL = "controls/fstec-core/linux-2022"
+# Каталог на документ: controls/fstec-core/<каталог>/CONTROL-MANIFEST.tsv.
+CONTROLS_ROOT_REL = "controls/fstec-core"
+CONTROL_DIR_NAME_RE = re.compile(r"[a-z0-9][a-z0-9-]*")
 REGISTRY_REL = "product/ADAPTER-REGISTRY.tsv"
 APPLY_KIND_REGISTRY_REL = "product/APPLY-KIND-REGISTRY.tsv"
 APPLY_REGISTRY_REL = "product/APPLY-IMPLEMENTATION-REGISTRY.tsv"
@@ -185,9 +188,52 @@ def safe_repo_rel(raw: str, prefix: str) -> str:
     return raw
 
 
+def control_manifest_paths(repo: Path) -> list[Path]:
+    """Все CONTROL-MANIFEST.tsv каталогов документов, в порядке имён каталогов."""
+    root = repo / CONTROLS_ROOT_REL
+    if root.is_symlink() or not root.is_dir():
+        raise RuntimeError("controls root missing or not a directory")
+    paths = []
+    for d in sorted(root.iterdir(), key=lambda p: p.name.encode("utf-8")):
+        m = d / "CONTROL-MANIFEST.tsv"
+        if not m.exists() and not m.is_symlink():
+            continue
+        if d.is_symlink() or not d.is_dir() or not CONTROL_DIR_NAME_RE.fullmatch(d.name):
+            raise RuntimeError(f"invalid control directory: {d.name!r}")
+        require_regular(m, "control manifest")
+        paths.append(m)
+    if not paths:
+        raise RuntimeError("no CONTROL-MANIFEST.tsv under controls root")
+    return paths
+
+
 def load_manifest(repo: Path):
-    path = repo / MANIFEST_REL
-    require_regular(path, "control manifest")
+    """Строки всех каталогов контролей; у каждой строки поле dir — её каталог.
+
+    Сводный SHA: при одном манифесте — SHA этого файла (прежнее значение), при
+    нескольких — SHA строк «SHA  путь» всех манифестов в порядке каталогов.
+    """
+    manifests = control_manifest_paths(repo)
+    all_rows, listing = [], []
+    for path in manifests:
+        rows = _load_one_manifest(repo, path)
+        rel_dir = path.parent.relative_to(repo).as_posix()
+        for row in rows:
+            row["dir"] = rel_dir
+        all_rows.extend(rows)
+        listing.append(f"{sha_file(path)}  {path.relative_to(repo).as_posix()}\n")
+    ids = [r["control_id"] for r in all_rows]
+    files = [r["file"] for r in all_rows]
+    if len(set(ids)) != len(ids) or len(set(files)) != len(files):
+        raise RuntimeError("duplicate control id/file across control manifests")
+    if len(manifests) == 1:
+        digest = sha_file(manifests[0])
+    else:
+        digest = hashlib.sha256("".join(listing).encode("utf-8")).hexdigest()
+    return all_rows, digest
+
+
+def _load_one_manifest(repo: Path, path: Path):
     with path.open("r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f, delimiter="\t")
         if reader.fieldnames != MANIFEST_FIELDS:
@@ -208,16 +254,16 @@ def load_manifest(repo: Path):
             raise RuntimeError(f"invalid control SHA: {row['control_id']}")
         if "/" in row["file"] or row["file"] in (".", "..") or not row["file"].endswith(".yaml"):
             raise RuntimeError(f"invalid control filename: {row['file']!r}")
-    actual_files = sorted(p.name for p in (repo / CONTROL_DIR_REL).glob("*.yaml"))
+    actual_files = sorted(p.name for p in path.parent.glob("*.yaml"))
     if sorted(files) != actual_files:
         raise RuntimeError(
             f"manifest/YAML population mismatch manifest={sorted(files)!r} actual={actual_files!r}"
         )
-    return rows, sha_file(path)
+    return rows
 
 
 def load_control(repo: Path, row: dict[str, str]) -> dict[str, object]:
-    path = repo / CONTROL_DIR_REL / row["file"]
+    path = repo / row.get("dir", CONTROL_DIR_REL) / row["file"]
     require_regular(path, "control")
     actual_sha = sha_file(path)
     if actual_sha != row["sha256"]:

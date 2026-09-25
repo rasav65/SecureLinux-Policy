@@ -174,7 +174,14 @@ def collect_state(root: Path) -> dict:
         if progress[key] != expected:
             raise RuntimeError(f"PROGRESS mismatch {key}: {progress[key]!r} != {expected!r}")
 
-    controls = read_tsv(root / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv")
+    controls = []
+    for manifest in sorted((root / "controls/fstec-core").glob("*/CONTROL-MANIFEST.tsv"),
+                           key=lambda p: p.parent.name.encode("utf-8")):
+        for row in read_tsv(manifest):
+            row["dir"] = manifest.parent.relative_to(root).as_posix()
+            controls.append(row)
+    if not controls:
+        raise RuntimeError("no CONTROL-MANIFEST.tsv under controls/fstec-core")
     control_by_id = {row["control_id"]: row for row in controls}
     if len(control_by_id) != len(controls):
         raise RuntimeError("duplicate control id in CONTROL-MANIFEST")
@@ -182,7 +189,7 @@ def collect_state(root: Path) -> dict:
     kinds: dict[str, str] = {}
     apply_supported: dict[str, bool] = {}
     for row in controls:
-        path = root / "controls/fstec-core/linux-2022" / row["file"]
+        path = root / row["dir"] / row["file"]
         if not path.is_file() or path.is_symlink():
             raise RuntimeError(f"control file missing/non-regular: {row['file']}")
         if sha256(path) != row["sha256"]:

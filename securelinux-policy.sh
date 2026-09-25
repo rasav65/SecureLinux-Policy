@@ -3,7 +3,7 @@
 # STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 # PRODUCT_CLI=product-cli-v1
 # GENERATOR_ID=product-check-generator-v2
-# GENERATOR_SHA256=4fb831d6c9b8a0a9be5d2bbca4d76b6c9547ed4a59bc7fd9dc78c7261117fcd5
+# GENERATOR_SHA256=291756f99c87bdc54d8cbde2603e955050cb4ac8a5d0dff07fe835cc5c80b8c2
 # CONTROL_MANIFEST_SHA256=e6c9fbf494c3d647cda2fdc6e70a5b32aa74e8692a788294ecdbdbd8a47dd9db
 # ADAPTER_REGISTRY_SHA256=1021bb274b0178d1b92af18fd24b814a23931e75db20bf671297d392837209ab
 # APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1,kernel-cmdline-grub-v1,optional-file-root-files-mode-v1,pam-wheel-su-v1,standard-system-paths-mode-v1,startup-files-write-protection-v1,suid-sgid-applications-mode-v1
@@ -6615,7 +6615,7 @@ slp_build_info() {
     'STATUS=NON_RELEASE_PRODUCT_CANDIDATE' \
     'PRODUCT_CLI=product-cli-v1' \
     'GENERATOR_ID=product-check-generator-v2' \
-    'GENERATOR_SHA256=4fb831d6c9b8a0a9be5d2bbca4d76b6c9547ed4a59bc7fd9dc78c7261117fcd5' \
+    'GENERATOR_SHA256=291756f99c87bdc54d8cbde2603e955050cb4ac8a5d0dff07fe835cc5c80b8c2' \
     'CONTROL_COUNT=49' \
     'CONTROL_MANIFEST_SHA256=e6c9fbf494c3d647cda2fdc6e70a5b32aa74e8692a788294ecdbdbd8a47dd9db' \
     'ADAPTER_COUNT=17' \

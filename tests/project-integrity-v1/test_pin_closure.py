@@ -192,4 +192,12 @@ with tempfile.TemporaryDirectory(prefix="slp-pin-closure-") as tmp:
     assert cp.returncode == 2, (UNDEFINED_SCOPE_NEW_FILE, cp.returncode, cp.stdout, cp.stderr)
 assert not Path(tmp).exists(), tmp
 
+# Каталог на документ: манифест любого каталога документа — carrier.
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location("slp_pin_closure_tool", ROOT / "tools/pin-closure.py")
+_tool = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_tool)
+assert _tool.is_carrier("controls/fstec-core/configuration-2026/CONTROL-MANIFEST.tsv")
+assert not _tool.is_carrier("controls/fstec-core/a/b/CONTROL-MANIFEST.tsv")
+
 print(f"PIN_CLOSURE_CASES=PASS_{len(CASES) + 1 + len(NEW_FILE_CASES) + 1}")

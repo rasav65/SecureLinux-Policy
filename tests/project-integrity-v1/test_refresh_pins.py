@@ -148,4 +148,14 @@ with tempfile.TemporaryDirectory(prefix="slp-refresh-pins-") as tmp:
     cp = run(copy, "--check")
     assert cp.returncode == 0, (cp.stdout, cp.stderr)
 
+# Каталог на документ: любой controls/fstec-core/<каталог>/CONTROL-MANIFEST.tsv — carrier.
+for rel, expected in (
+    ("controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv", True),
+    ("controls/fstec-core/configuration-2026/CONTROL-MANIFEST.tsv", True),
+    ("controls/fstec-core/CONTROL-MANIFEST.tsv", False),
+    ("controls/fstec-core/a/b/CONTROL-MANIFEST.tsv", False),
+    ("controls/fstec-core/Bad_Dir/CONTROL-MANIFEST.tsv", False),
+):
+    assert tool.is_control_manifest(rel) is expected, rel
+
 print("REFRESH_PINS_TEST=PASS")

@@ -7484,5 +7484,66 @@ class HomeSensitiveReasonRenderFormat(unittest.TestCase):
         self.assertEqual(reconstructed, "not-determined; reason: " + reason)
 
 
+class ControlDirectoriesTests(unittest.TestCase):
+    """Каталог на документ: load_manifest объединяет все CONTROL-MANIFEST.tsv."""
+
+    HEADER = "\t".join(GEN_V2_CURRENT.MANIFEST_FIELDS) + "\n"
+
+    def _repo(self, tmp, dirs):
+        repo = Path(tmp)
+        for name, rows in dirs.items():
+            d = repo / "controls/fstec-core" / name
+            d.mkdir(parents=True)
+            lines = [self.HEADER]
+            for cid, fname in rows:
+                (d / fname).write_text("x\n", encoding="utf-8")
+                lines.append("\t".join([cid, "SRC-0001", "1.1", "k", "v", fname, "0" * 64]) + "\n")
+            (d / "CONTROL-MANIFEST.tsv").write_text("".join(lines), encoding="utf-8")
+        return repo
+
+    def test_current_tree_single_manifest_keeps_file_sha(self):
+        rows, digest = GEN_V2_CURRENT.load_manifest(ROOT)
+        manifest = ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
+        self.assertEqual(digest, sha256_file(manifest))
+        self.assertEqual({row["dir"] for row in rows}, {"controls/fstec-core/linux-2022"})
+
+    def test_two_directories_are_merged_with_listing_digest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._repo(tmp, {"a-doc": [("A-1", "a-1.yaml")], "b-doc": [("B-1", "b-1.yaml")]})
+            rows, digest = GEN_V2_CURRENT.load_manifest(repo)
+            self.assertEqual([r["control_id"] for r in rows], ["A-1", "B-1"])
+            self.assertEqual([r["dir"] for r in rows], ["controls/fstec-core/a-doc", "controls/fstec-core/b-doc"])
+            listing = "".join(
+                f"{sha256_file(repo / 'controls/fstec-core' / n / 'CONTROL-MANIFEST.tsv')}  "
+                f"controls/fstec-core/{n}/CONTROL-MANIFEST.tsv\n" for n in ("a-doc", "b-doc")
+            )
+            self.assertEqual(digest, hashlib.sha256(listing.encode("utf-8")).hexdigest())
+
+    def test_duplicate_control_id_across_directories_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._repo(tmp, {"a-doc": [("X-1", "a-1.yaml")], "b-doc": [("X-1", "b-1.yaml")]})
+            with self.assertRaisesRegex(RuntimeError, "duplicate control id/file across"):
+                GEN_V2_CURRENT.load_manifest(repo)
+
+    def test_duplicate_file_name_across_directories_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._repo(tmp, {"a-doc": [("A-1", "same.yaml")], "b-doc": [("B-1", "same.yaml")]})
+            with self.assertRaisesRegex(RuntimeError, "duplicate control id/file across"):
+                GEN_V2_CURRENT.load_manifest(repo)
+
+    def test_yaml_without_manifest_row_is_rejected_per_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._repo(tmp, {"a-doc": [("A-1", "a-1.yaml")]})
+            (repo / "controls/fstec-core/a-doc/extra.yaml").write_text("x\n", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "manifest/YAML population mismatch"):
+                GEN_V2_CURRENT.load_manifest(repo)
+
+    def test_invalid_directory_name_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._repo(tmp, {"Bad_Dir": [("A-1", "a-1.yaml")]})
+            with self.assertRaisesRegex(RuntimeError, "invalid control directory"):
+                GEN_V2_CURRENT.load_manifest(repo)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -9,7 +9,7 @@ link files. Carriers in scope:
   to the carrier directory (for the root manifests that is the project root);
 - tests/documentation-v1/CURRENT-MARKDOWN-REVIEW-BASELINE.tsv: header
   "path<TAB>sha256<TAB>truth_sha256", path relative to the project root;
-- controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv: column "file", path
+- controls/fstec-core/<каталог>/CONTROL-MANIFEST.tsv: column "file", path
   relative to the carrier directory.
 
 A carrier line that cannot be parsed fails closed with rc=2.
@@ -33,6 +33,7 @@ from pathlib import Path, PurePosixPath
 USAGE = "usage: pin-closure.py --check PATH..."
 REVIEW_BASELINE = "tests/documentation-v1/CURRENT-MARKDOWN-REVIEW-BASELINE.tsv"
 CONTROL_MANIFEST = "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
+CONTROL_MANIFEST_RE = re.compile(r"controls/fstec-core/[a-z0-9][a-z0-9-]*/CONTROL-MANIFEST\.tsv")
 CHECKSUM_LINE = re.compile(r"[0-9a-f]{64}  (.+)")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 ROOT_MANIFESTS = ("PROJECT-FILES.sha256", "SHA256SUMS")
@@ -73,7 +74,8 @@ def is_carrier(rel: str) -> bool:
     return (
         name == "SHA256SUMS"
         or name.endswith(".sha256")
-        or rel in (REVIEW_BASELINE, CONTROL_MANIFEST)
+        or rel == REVIEW_BASELINE
+        or CONTROL_MANIFEST_RE.fullmatch(rel) is not None
     )
 
 
@@ -128,7 +130,7 @@ def parse_tsv(root: Path, rel: str, header: tuple[str, ...], column: str, base: 
 def pinned_by(root: Path, rel: str) -> set[str]:
     if rel == REVIEW_BASELINE:
         return parse_tsv(root, rel, ("path", "sha256", "truth_sha256"), "path", PurePosixPath("."))
-    if rel == CONTROL_MANIFEST:
+    if CONTROL_MANIFEST_RE.fullmatch(rel) is not None:
         header = ("control_id", "index_id", "locator", "key", "expected", "file", "sha256")
         return parse_tsv(root, rel, header, "file", PurePosixPath(rel).parent)
     return parse_checksums(root, rel)

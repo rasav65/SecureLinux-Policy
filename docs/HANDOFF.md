@@ -95,8 +95,8 @@
    своим `CONTROL-MANIFEST.tsv`; `linux-2022` не меняется. Пункт 9.1: три контроля —
    `PermitEmptyPasswords no`, `PermitRootLogin no`, `PasswordAuthentication no` — с
    APPLY, требование политики компании. Порядок работ по 9.1:
-   0) генератор, `render-current-docs.py`, `refresh-pins.py`, `pin-closure.py` читают
-   список каталогов контролей вместо одного пути `controls/fstec-core/linux-2022`;
+   0) выполнено: генератор, `render-current-docs.py`, `refresh-pins.py`, `pin-closure.py`
+   читают все `controls/fstec-core/<каталог>/CONTROL-MANIFEST.tsv`;
    а) выполнено: `tools/source_skeleton_generator.py` поддерживает
    `unit_kind=numbered-subpoint`, для SRC-0088 — `EXACT`;
    б) CHECK-адаптер `sshd-config-option` по образцу `sshd-root-login` (директива в
