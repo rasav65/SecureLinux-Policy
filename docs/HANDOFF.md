@@ -46,12 +46,16 @@
 - 7 сред: Ubuntu 22.04 full, Ubuntu 24.04 mini и full, Ubuntu 26.04 mini и full,
   Debian 12, Debian 13; снимки `upd-20260924`.
 - Сценарий прогона APPLY на ВМ находится в файле
-  [`tools/vm-runner/slp-vm-apply-supported7-v15.sh`](../tools/vm-runner/slp-vm-apply-supported7-v15.sh), порядок:
+  [`tools/vm-runner/slp-vm-apply-supported7-v17.sh`](../tools/vm-runner/slp-vm-apply-supported7-v17.sh), порядок:
   восстановление снимка → CHECK → `--apply --dry-run` → `--apply` → перезагрузка (смена
   `boot_id`) → CHECK → `--apply` → возврат к снимку. Пути, имена ВМ и UUID снимков
-  встроены для рабочего ПК; запуск — копией из `$DOWNLOADS`. Кандидат задаётся
-  `EXPECTED_CHECK_SHA256` (по умолчанию `d840ede3…c8aa`; для `0b8cb6a` —
-  `9a42418f2d3e644d4409458fd72fcf3c2cf9ed95996d28ec7c3d7463b7b867ab`), одна среда — `ONLY=N`.
+  встроены для рабочего ПК; запуск — из репозитория. Кандидат задаётся
+  `EXPECTED_CHECK_SHA256` явно: значение по умолчанию в сценарии устарело. Одна среда —
+  `ONLY=N`; `FIXTURES=1` (по умолчанию) создаёт нарушения для 2.3.5, 2.3.8 и 2.3.9.
+  Пароль user вводится один раз (регламент v27 §25). `RESULT=PASS` сценария не
+  оценивает вердикты CHECK: число `ERROR` проверяется по архиву.
+- Версии v15 и v16 в `tools/vm-runner/` — исторические (заменены v17; отличия версий —
+  в заголовке v17), для прогонов не используются.
 - Прогон 24.09.2026, артефакт `d840ede3…c8aa`: на всех 7 средах после перезагрузки
   `init_on_alloc=1 slab_nomerge randomize_kstack_offset=1 vsyscall=none` в
   `/proc/cmdline`, повторный APPLY — без `APPLIED` и `FAILED_*`. Архивы
@@ -60,13 +64,8 @@
 - Прогон 25.09.2026, артефакт `9a42418f…67ab`, все 7 сред: архив
   `slp-vm-apply-supported7-v15-states1-7-20260925-105923.tar.gz` (SHA `cb1fe630…8ab4`) —
   в evidence; принят 25.09.2026 (статусы узлов — `PROJECT-MAP.md`).
-- Сценарий v16 находится в файле
-  [`tools/vm-runner/slp-vm-apply-supported7-v16.sh`](../tools/vm-runner/slp-vm-apply-supported7-v16.sh): пароль
-  user вводится один раз (ssh — через `SSH_ASKPASS`, sudo на ВМ — через stdin,
-  `sudo -S -p ''`), мастер-соединение ssh повторяется до 5 раз. Пароль в окружении
-  процесса ssh — отступление от регламента v26 §25 по указанию человека 25.09.2026.
-  Запуск — копией из `$DOWNLOADS` (байты прогона на 1 перевод строки длиннее копии в
-  репозитории).
+- Runner v16 (исторический): пароль вводится один раз, мастер-соединение ssh повторяется
+  до 5 раз.
 - Прогон кандидата `1836091` (артефакт `d348b953…32be7`) принят 25.09.2026: среды 1, 3–7 —
   runner v15, `slp-vm-apply-supported7-v15-20260925-135344-work.tar.gz` (SHA
   `3146b071…c5e8`); среда 2 — runner v16,
@@ -74,11 +73,9 @@
   Везде CHECK после APPLY без `ERROR`, повторный APPLY без `APPLIED`/`FAILED_*`.
   Прогон среды 2 в 14:11 (`…-141127.tar.gz`, SHA `c3737287…edfd`) дал `ERROR
   pid-population:final-snapshot-changed` в 2.3.2 — популяция процессов изменилась
-  во время CHECK после загрузки; повтор — PASS. При повторении — ожидание
-  `systemctl is-system-running --wait` перед фазой 2.
-- Сценарий v17 находится в файле
-  [`tools/vm-runner/slp-vm-apply-supported7-v17.sh`](../tools/vm-runner/slp-vm-apply-supported7-v17.sh):
-  v16 плюс `FIXTURES=1` (по умолчанию) — подготовленные нарушения для 2.3.5, 2.3.8 и 2.3.9.
+  во время CHECK после загрузки; повтор — PASS. Устранено повтором наблюдения
+  2.3.2 в адаптере (см. «Закрыто»).
+- Runner v17: v16 плюс `FIXTURES=1` (по умолчанию) — подготовленные нарушения для 2.3.5, 2.3.8 и 2.3.9.
   Прогон 25.09.2026 (артефакт `74f333d5…d1ae`, архив `…-v17-states1-7-20260925-162722.tar.gz`,
   SHA `b82a9d8c…3ead`) принят для этих трёх механизмов на 7 средах.
 
@@ -87,8 +84,7 @@
 Решения 25.09.2026 приняты по делегированию человека. Источник пунктов
 вне репозитория — файл очереди `SecureLinux-Policy-20260923-v70.txt` (далее v70).
 
-1. Инфраструктура: эталонный набор 7 сред в тестах, evidence в репозитории.
-2. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: OPEN-строки
+1. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: OPEN-строки
    `index/source-v4/SOURCE-INDEX.tsv` — 63 `technical-core` и 35 `technical-perimeter`.
 
 Закрыто 25.09.2026:
@@ -107,6 +103,12 @@
   (`912c543`, `f7eb765`, `691be9b`, `105bdbb`, `41c3061`, `1836091`); аудит
   `6afb18e..41c3061` — REVISE (B-01), `41c3061..1836091` — PASS; ВМ-прогон кандидата
   `1836091` на 7 средах принят. Узлы APPLY в `PROJECT-MAP.md` не меняются.
+
+- Инфраструктура ВМ: runner — `tools/vm-runner/slp-vm-apply-supported7-v17.sh`
+  (v15, v16 — исторические); 7 сред — `product/SUPPORTED-PLATFORMS.tsv` и тесты генератора;
+  evidence — постоянный каталог `dashboard/src0009-vm-evidence` (регламент v27 §1),
+  SHA архивов — `CHANGELOG.md`. Отдельный тест набора сред не вводится: состав уже
+  проверяется по `SUPPORTED-PLATFORMS.tsv`.
 
 - `OPS_DECLARATION_GAPS`: все активные семантические контракты CHECK объявляют
   `supported_ops` (список пуст).
