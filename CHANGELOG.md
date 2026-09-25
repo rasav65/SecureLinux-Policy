@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+- 2.3.2, исправление повтора наблюдения по аудиту `bb08bbb..31c92ed` (B-01, B-02).
+  Строк source index не закрывает. Было: `proc-exe:recheck-changed` (включает смену
+  режима/владельца исполняемого файла) повторялся, и следующая попытка могла дать
+  VALUE; `UnicodeDecodeError` в `status`/`maps` давал повторяемый `read-failed`.
+  Стало: `proc-exe:recheck-changed` исключён из `RETRY_REASONS`; ошибка декодирования —
+  неповторяемые `proc-status:invalid-bytes` / `proc-maps:invalid-bytes`. Тесты:
+  `test_exe_state_change_is_not_retried`, `test_maps_utf8_decode_error_is_invalid_bytes`,
+  `test_status_utf8_decode_error_is_invalid_bytes` (до правки — FAIL).
+
 - CHECK-адаптер `running-process-paths-write-protection-v1` (2.3.2): ограниченный
   повтор наблюдения. Строк source index не закрывает. Было: на живой системе любое
   изменение популяции процессов во время CHECK давало `ERROR`

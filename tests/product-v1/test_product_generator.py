@@ -4298,6 +4298,39 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
         ])
         self.assertEqual((row, calls), (("ERROR", "path:recheck-snapshot-changed", "ERROR"), 1))
 
+    def test_exe_state_change_is_not_retried(self):
+        # B-01: proc-exe:recheck-changed включает смену режима/владельца файла.
+        row, calls = self._run_with_observer_outputs([
+            "ERROR\tproc-exe:recheck-changed",
+            "VALUE\tpids=1;files=1\tPASS",
+        ])
+        self.assertEqual((row, calls), (("ERROR", "proc-exe:recheck-changed", "ERROR"), 1))
+
+    def _decode_error_fixture(self, maps_bytes=None, status_bytes=None):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            fsroot, exe, lib, _ = self._prepare_fs(root)
+            self._seal_fs(fsroot, ("app",))
+            proc = self._prepare_proc(root)
+            pid = self._add_pid(proc, "100", exe, self._maps_line(str(lib), source_path=lib))
+            if maps_bytes is not None:
+                (pid / "maps").write_bytes(maps_bytes)
+            if status_bytes is not None:
+                other = self._add_pid(proc, "200", None, None)
+                (other / "status").write_bytes(status_bytes)
+            return self._run_script(self._script(root, proc, fsroot))
+
+    def test_maps_utf8_decode_error_is_invalid_bytes(self):
+        # B-02: ошибка декодирования — неповторяемая invalid-bytes, не read-failed.
+        row = self._decode_error_fixture(maps_bytes=b"\xff\xfe\n")
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "proc-maps:invalid-bytes", "ERROR"))
+
+    def test_status_utf8_decode_error_is_invalid_bytes(self):
+        row = self._decode_error_fixture(status_bytes=b"State:\tS (\xff)\nKthread:\t1\n")
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "proc-status:invalid-bytes", "ERROR"))
+
     def test_retry_reasons_are_observer_reasons(self):
         self.assertEqual(RUNNING_PROCESS_PATHS.OBSERVATION_ATTEMPTS, 3)
         for reason in RUNNING_PROCESS_PATHS.RETRY_REASONS:
