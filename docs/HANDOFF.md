@@ -60,29 +60,37 @@
 - Прогон 25.09.2026, артефакт `9a42418f…67ab`, все 7 сред: архив
   `slp-vm-apply-supported7-v15-states1-7-20260925-105923.tar.gz` (SHA `cb1fe630…8ab4`) —
   в evidence; принят 25.09.2026 (статусы узлов — `PROJECT-MAP.md`).
+- Сценарий v16 находится в файле
+  [`tools/vm-runner/slp-vm-apply-supported7-v16.sh`](../tools/vm-runner/slp-vm-apply-supported7-v16.sh): пароль
+  user вводится один раз (ssh — через `SSH_ASKPASS`, sudo на ВМ — через stdin,
+  `sudo -S -p ''`), мастер-соединение ssh повторяется до 5 раз. Пароль в окружении
+  процесса ssh — отступление от регламента v26 §25 по указанию человека 25.09.2026.
+  Запуск — копией из `$DOWNLOADS` (байты прогона на 1 перевод строки длиннее копии в
+  репозитории).
+- Прогон кандидата `a5bffb4` (артефакт `d348b953…32be7`) принят 25.09.2026: среды 1, 3–7 —
+  runner v15, `slp-vm-apply-supported7-v15-20260925-135344-work.tar.gz` (SHA
+  `3146b071…c5e8`); среда 2 — runner v16,
+  `slp-vm-apply-supported7-v16-states2-20260925-150156.tar.gz` (SHA `e59ff0b7…4a18`).
+  Везде CHECK после APPLY без `ERROR`, повторный APPLY без `APPLIED`/`FAILED_*`.
+  Прогон среды 2 в 14:11 (`…-141127.tar.gz`, SHA `c3737287…edfd`) дал `ERROR
+  pid-population:final-snapshot-changed` в 2.3.2 — популяция процессов изменилась
+  во время CHECK после загрузки; повтор — PASS. При повторении — ожидание
+  `systemctl is-system-running --wait` перед фазой 2.
 
 ## Очередь
 
 Решения 25.09.2026 приняты по делегированию человека. Источник пунктов
 вне репозитория — файл очереди `SecureLinux-Policy-20260923-v70.txt` (далее v70).
 
-1. B-02, остаток (v70 §7 п.4; недоступный родитель закрыт в `e420aee`): CHECK-адаптеры
-   `kernel-cmdline-v2`, `sysctl-v2`, `file-mode-owner-v2`, `sshd-root-login-v1`,
-   `pam-wheel-access-v2` определяют отсутствие через `[[ -e ]]`/`[[ -L ]]`, и ошибка,
-   отличная от ENOENT, при доступном родителе даёт `NOT_FOUND`. Решение: отсутствие —
-   только доказанный ENOENT по образцу `home-directories-mode` (`stat -c %F`), иначе
-   `ERROR`; основание — регламент v26 §8. Один адаптер — один коммит.
-   Исправлены: `kernel-cmdline-v2`, `sysctl-v2`, `file-mode-owner-v2`, `sshd-root-login-v1`, `pam-wheel-access-v2`. После всех пяти — ВМ-прогон 7 сред на новом
-   кандидате (регламент v26 §53).
-2. `OPS_DECLARATION_GAPS` в `tests/product-v1/test_control_contract_binding.py`:
+1. `OPS_DECLARATION_GAPS` в `tests/product-v1/test_control_contract_binding.py`:
    6 активных контрактов без `supported_ops`; сократить.
-3. Комментарий `product/apply-adapters/product-suid-sgid-applications-mode-apply-v1.py`
+2. Комментарий `product/apply-adapters/product-suid-sgid-applications-mode-apply-v1.py`
    (строки 9–11) называет выведенный контроль `…-SUID-SGID-ALLOWLIST` (v70 §7 п.5).
-4. ВМ-проверка пути с изменением прав у `suid-sgid-applications-mode-v1`,
+3. ВМ-проверка пути с изменением прав у `suid-sgid-applications-mode-v1`,
    `standard-system-paths-mode-v1`, `startup-files-write-protection-v1` на семи средах
    (подготовленное нарушение после восстановления снимка).
-5. Инфраструктура: эталонный набор 7 сред в тестах, evidence в репозитории.
-6. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: OPEN-строки
+4. Инфраструктура: эталонный набор 7 сред в тестах, evidence в репозитории.
+5. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: OPEN-строки
    `index/source-v4/SOURCE-INDEX.tsv` — 63 `technical-core` и 35 `technical-perimeter`.
 
 Закрыто 25.09.2026:
@@ -97,6 +105,10 @@
   `slp-vm-apply-v15-work.tar.gz` SHA `2fda8aa6…dab5`,
   `slp-vm-apply-supported7-v15-states2-20260924-235858.tar.gz` SHA `d4e4d251…97ac`)
   относится к прежнему кандидату `d840ede3…c8aa` и заменён прогоном 25.09.2026.
+- B-02 (v70 §7 п.4): отсутствие — только доказанный ENOENT в пяти CHECK-адаптерах
+  (`93d886e`, `0707aea`, `42bb7a2`, `dfd600e`, `3c70ab1`, `a5bffb4`); аудит
+  `d22a663..3c70ab1` — REVISE (B-01), `3c70ab1..a5bffb4` — PASS; ВМ-прогон кандидата
+  `a5bffb4` на 7 средах принят. Узлы APPLY в `PROJECT-MAP.md` не меняются.
 
 Вне репозитория, статус UNKNOWN: v70 §7 п.6 (пункты P3–P9 очереди v68);
 v70 §7 п.7 (три несогласованности регламента v26).

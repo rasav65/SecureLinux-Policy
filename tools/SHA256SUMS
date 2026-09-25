@@ -7,3 +7,4 @@ ac0e0264d8f910aad622bb842cee89badfbfc778684e317d47227f7604d65953  rebuild-apply-
 bb4b9c48da1f45d97efee801c1fa169b75617885458aaffc99595e683290a7bb  source_skeleton_generator.py
 b1ffce05870ea7969378a0353bebe33838984f9c9ba30fd5b339c55f07e1b93f  write-sha256.py
 3213f4b2eb47db1115958ef8622d23ff4bcc439598cd6ae0c7e30a386685aa59  vm-runner/slp-vm-apply-supported7-v15.sh
+13b2dcb2d8912c0b213dd509ee48ddb5db9e50ec3b79489180eb34384a80057f  vm-runner/slp-vm-apply-supported7-v16.sh

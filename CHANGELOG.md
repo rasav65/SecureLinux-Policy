@@ -10,6 +10,23 @@
 
 ## [Unreleased]
 
+- Приёмка ВМ-прогона кандидата `a5bffb4` (артефакт `d348b953…32be7`) после B-02;
+  runner v16 в `tools/vm-runner/`. Строк source index не закрывает, байты продукта не
+  меняет. Evidence: среды 1, 3–7 — runner v15,
+  `slp-vm-apply-supported7-v15-20260925-135344-work.tar.gz` SHA
+  `3146b0715f031a2ea421591d03d28317d9560b920804dd2d15001140f880c5e8` (среда 2 в нём
+  прервана: sshd закрыл первое соединение после перезагрузки); среда 2 — runner v16,
+  `slp-vm-apply-supported7-v16-states2-20260925-150156.tar.gz` SHA
+  `e59ff0b7de5804fe8fc4b6247311307ca97534e946ffbca78fbdd685aea24a18`. CHECK после
+  APPLY: Ubuntu 38 PASS / 10 FAIL, Debian 40 / 8, без `ERROR`; stderr пуст; повторный
+  APPLY без `APPLIED` и `FAILED_*`. Промежуточный прогон среды 2
+  (`…-141127.tar.gz`, SHA
+  `c373728760254ae533cafe33934f75678696bead6881fbef6ba70a017a88edfd`): `ERROR
+  pid-population:final-snapshot-changed` в 2.3.2 (популяция процессов изменилась
+  во время CHECK), повтор — PASS. Runner v16: пароль вводится один раз, ssh — через
+  `SSH_ASKPASS`, sudo — `sudo -S -p ''` на каждую команду, повтор мастер-соединения
+  до 5 раз; в репозитории без последнего пустого перевода строки.
+
 - CHECK-адаптер `pam-wheel-access-v2` (2.2.1; B-02, аудит диапазона
   `d22a663..3c70ab1`, B-01): итоговый `NOT_FOUND` выбирается по признакам
   доказанного ENOENT. Строк source index не закрывает. Было: после первых проверок
