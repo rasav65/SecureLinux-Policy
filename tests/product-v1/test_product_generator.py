@@ -4331,6 +4331,17 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
         row = self._decode_error_fixture(status_bytes=b"State:\tS (\xff)\nKthread:\t1\n")
         self.assertEqual((row[2], row[3], row[4]), ("ERROR", "proc-status:invalid-bytes", "ERROR"))
 
+    def test_read_failed_is_not_retried(self):
+        # B-02 аудита 31c92ed..29fed03: read-failed ловит и ошибку типа объекта,
+        # и ввода-вывода — повтор мог бы скрыть её следующей удачной попыткой.
+        for reason in ("proc-exe:read-failed", "proc-status:read-failed", "proc-maps:read-failed"):
+            with self.subTest(reason=reason):
+                row, calls = self._run_with_observer_outputs([
+                    "ERROR\t" + reason,
+                    "VALUE\tpids=1;files=1\tPASS",
+                ])
+                self.assertEqual((row, calls), (("ERROR", reason, "ERROR"), 1))
+
     def test_retry_reasons_are_observer_reasons(self):
         self.assertEqual(RUNNING_PROCESS_PATHS.OBSERVATION_ATTEMPTS, 3)
         for reason in RUNNING_PROCESS_PATHS.RETRY_REASONS:

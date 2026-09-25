@@ -59,15 +59,13 @@ FILE_PARENT_CHANGE_REASONS = (
 # попыток с паузой 1 с; VALUE — только по одной полностью стабильной попытке,
 # иначе ERROR с причиной последней попытки. Смена файлов и каталогов не повторяется;
 # proc-exe:recheck-changed (включает смену режима исполняемого файла) и ошибки
-# декодирования (invalid-bytes) тоже не повторяются.
+# декодирования (invalid-bytes) тоже не повторяются; read-failed не повторяется:
+# общий except ловит и ошибку типа объекта, и ввода-вывода.
 OBSERVATION_ATTEMPTS = 3
 RETRY_REASONS = (
     "proc-population:process-disappeared",
     "proc-stat:initial-starttime-changed",
     "proc-stat:initial-endtime-changed",
-    "proc-exe:read-failed",
-    "proc-status:read-failed",
-    "proc-maps:read-failed",
     "proc-stat:excluded-classification-vanished",
     "proc-stat:excluded-classification-changed",
     "pid-population:mid-snapshot-changed",

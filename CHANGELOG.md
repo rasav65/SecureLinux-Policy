@@ -10,6 +10,13 @@
 
 ## [Unreleased]
 
+- 2.3.2: `proc-exe:read-failed`, `proc-status:read-failed`, `proc-maps:read-failed`
+  исключены из `RETRY_REASONS` (B-02 аудита `31c92ed..29fed03`). Строк source index не
+  закрывает. Было: общий `except` превращал и ошибку типа объекта (EINVAL,
+  IsADirectoryError), и ошибку ввода-вывода в повторяемую причину. Стало: повторяются
+  только причины смены популяции процессов. Тест `test_read_failed_is_not_retried`
+  (до правки — FAIL).
+
 - 2.3.2, исправление повтора наблюдения по аудиту `bb08bbb..31c92ed` (B-01, B-02).
   Строк source index не закрывает. Было: `proc-exe:recheck-changed` (включает смену
   режима/владельца исполняемого файла) повторялся, и следующая попытка могла дать
