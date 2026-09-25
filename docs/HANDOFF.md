@@ -82,13 +82,11 @@
 Решения 25.09.2026 приняты по делегированию человека. Источник пунктов
 вне репозитория — файл очереди `SecureLinux-Policy-20260923-v70.txt` (далее v70).
 
-1. Комментарий `product/apply-adapters/product-suid-sgid-applications-mode-apply-v1.py`
-   (строки 9–11) называет выведенный контроль `…-SUID-SGID-ALLOWLIST` (v70 §7 п.5).
-2. ВМ-проверка пути с изменением прав у `suid-sgid-applications-mode-v1`,
+1. ВМ-проверка пути с изменением прав у `suid-sgid-applications-mode-v1`,
    `standard-system-paths-mode-v1`, `startup-files-write-protection-v1` на семи средах
    (подготовленное нарушение после восстановления снимка).
-3. Инфраструктура: эталонный набор 7 сред в тестах, evidence в репозитории.
-4. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: OPEN-строки
+2. Инфраструктура: эталонный набор 7 сред в тестах, evidence в репозитории.
+3. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: OPEN-строки
    `index/source-v4/SOURCE-INDEX.tsv` — 63 `technical-core` и 35 `technical-perimeter`.
 
 Закрыто 25.09.2026:
@@ -110,6 +108,9 @@
 
 - `OPS_DECLARATION_GAPS`: все активные семантические контракты CHECK объявляют
   `supported_ops` (список пуст).
+
+- Описание APPLY-адаптера 2.3.9 больше не называет выведенный контроль
+  `…-SUID-SGID-ALLOWLIST` (v70 §7 п.5).
 
 Вне репозитория, статус UNKNOWN: v70 §7 п.6 (пункты P3–P9 очереди v68);
 v70 §7 п.7 (три несогласованности регламента v26).

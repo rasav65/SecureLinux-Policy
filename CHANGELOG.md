@@ -10,6 +10,13 @@
 
 ## [Unreleased]
 
+- Описание модуля `product-suid-sgid-applications-mode-apply-v1.py` (2.3.9). Строк
+  source index не закрывает, поведение не меняет. Было: описание называло контроль
+  `…-ALLOWLIST`, выведенный ранее, как решаемый администратором. Стало: единственный
+  контроль механизма — `FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE`. Изменён только
+  docstring; SHA реализации обновлён в `APPLY-IMPLEMENTATION-REGISTRY.tsv`. Применимость
+  ВМ-прогона кандидата `a5bffb4` — REUSED: код не изменён.
+
 - `supported_ops` в шести семантических контрактах CHECK: `home-directories-mode`
   (`eq`), `home-sensitive-files-mode`, `standard-system-paths-mode`,
   `suid-sgid-applications`, `user-cron-files-mode` (`bits-clear`),

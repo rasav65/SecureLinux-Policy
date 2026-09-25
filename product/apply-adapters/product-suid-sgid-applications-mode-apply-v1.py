@@ -6,9 +6,8 @@ APPLY adapter for mechanism `suid-sgid-applications-mode-v1` (2.3.9 SUID/SGID mo
 PURPOSE=DEFENSIVE_COMPLIANCE_VALIDATION
 Authority: product/contracts/mechanism-suid-sgid-applications-mode-v1.json
 
-Механизм обслуживает parameter_kind `suid-sgid-applications`, но только контроль
-`FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE` (`mode` / `bits-clear` / `0022`). Контроль
-`…-ALLOWLIST` (`approved-set` / `subset-of-file`) решается администратором:
+Механизм обслуживает parameter_kind `suid-sgid-applications`, единственный контроль
+которого — `FSTEC-LINUX-2022-2.3.9-SUID-SGID-MODE` (`mode` / `bits-clear` / `0022`);
 любая иная тройка (key, op, expected) даёт `NOT_ELIGIBLE_APPLY_UNSUPPORTED`.
 
 Population is the one of CHECK adapter product-suid-sgid-applications-check-v2:
