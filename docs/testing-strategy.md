@@ -86,6 +86,13 @@ vsyscall=none` в `/proc/cmdline`, 2.4.3, 2.4.4, 2.4.6 и 2.5.1 — PASS, пов
 У `startup-files-write-protection-v1` в том же прогоне на всех 7 средах исход `ALREADY_COMPLIANT`:
 путь с изменением прав на ВМ не проверялся. У `pam-wheel-su-v1` VM-прогон выполнен 25.09.2026 на 7 средах (артефакт `9a42418f…67ab`): 2.2.1 —
 `APPLIED`, CHECK после — PASS (`wheel` с `root`, GID выбран системой), повторный APPLY — `ALREADY_COMPLIANT`.
+Прогон 25.09.2026 (runner SHA `e7a6ffb8…8419`, архив
+`slp-vm-apply-supported7-v15-states1-7-20260925-105923.tar.gz` SHA `cb1fe630…8ab4`) выполнял
+APPLY всех механизмов на 7 средах: исход `done` на всех средах у контролей sysctl
+(кроме 2.6.6: при Apport — решение администратору), `shadow-go-rwx`, `cron-d`, `cron-daily`, 2.4.3, 2.4.4, 2.4.6, 2.5.1 и 2.2.1; у контролей
+`suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1` и
+`startup-files-write-protection-v1` — только `ok`; CHECK до и после — `CHECK_RC=0`, без
+`ERROR`; stderr пуст. Приёмка — решение 25.09.2026 (`docs/PROJECT-MAP.md`).
 
 Ошибка обхода каталога обязана давать отказ до мутации, а не мутацию по неполной
 популяции. Для каждого механизма, который перечисляет каталоги

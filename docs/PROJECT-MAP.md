@@ -212,14 +212,14 @@ flowchart LR
     GEN1["product/generate-product-check-v1.py<br/>предыдущая identity generator"]:::note
     GEN2["product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed
     IMPLREG["product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding активных механизмов"]:::closed
-    APPLY1["config-line-with-runtime-v1<br/>sysctl · dry-run · APPLY<br/>ВМ: 1 среда PASS, приёмка семи сред — впереди"]:::current
-    APPLY2["file-mode-owner-v1<br/>режимы файлов SRC-0005 · APPLY<br/>ВМ: 1 среда PASS, приёмка семи сред — впереди"]:::current
-    APPLY3["optional-file-root-files-mode-v1<br/>режимы cron SRC-0010 · APPLY<br/>ВМ: 1 среда PASS, приёмка семи сред — впереди"]:::current
-    APPLY4["suid-sgid-applications-mode-v1<br/>режимы SUID/SGID SRC-0013 · APPLY<br/>ВМ: 1 среда PASS, приёмка семи сред — впереди"]:::current
-    APPLY5["standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: 1 среда PASS, приёмка семи сред — впереди"]:::current
-    APPLY6["startup-files-write-protection-v1<br/>режимы файлов запуска SRC-0009 · APPLY<br/>ВМ: прогона нет, приёмка семи сред — впереди"]:::current
-    APPLY7["kernel-cmdline-grub-v1<br/>параметры загрузки ядра G4 · APPLY<br/>ВМ: прогон семи сред 24.09.2026, приёмка — впереди"]:::current
-    APPLY8["pam-wheel-su-v1<br/>доступ к su SRC-0003 · APPLY<br/>ВМ: прогон семи сред 25.09.2026, приёмка — впереди"]:::current
+    APPLY1["config-line-with-runtime-v1<br/>sysctl · dry-run · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed
+    APPLY2["file-mode-owner-v1<br/>режимы файлов SRC-0005 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed
+    APPLY3["optional-file-root-files-mode-v1<br/>режимы cron SRC-0010 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed
+    APPLY4["suid-sgid-applications-mode-v1<br/>режимы SUID/SGID SRC-0013 · APPLY<br/>ВМ: семь сред 25.09.2026 без изменений, путь с изменением прав — впереди"]:::current
+    APPLY5["standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: семь сред 25.09.2026 без изменений, путь с изменением прав — впереди"]:::current
+    APPLY6["startup-files-write-protection-v1<br/>режимы файлов запуска SRC-0009 · APPLY<br/>ВМ: семь сред 25.09.2026 без изменений, путь с изменением прав — впереди"]:::current
+    APPLY7["kernel-cmdline-grub-v1<br/>параметры загрузки ядра G4 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed
+    APPLY8["pam-wheel-su-v1<br/>доступ к su SRC-0003 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed
     CLI["securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
     ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note
 
@@ -264,7 +264,7 @@ Human-readable CHECK/REPORT выводит обнаруженную ОС, арх
 
 Статус узла механизма задаётся гейтами: `closed` — механизм прошёл `--release` и VM-цикл по семи поддерживаемым средам;
 `current` — идёт работа. Иного статуса у узла механизма нет.
-Все восемь механизмов в статусе `current`: на ВМ у пяти пройдена одна среда; APPLY всех механизмов прогнан на семи средах 24.09.2026, `pam-wheel-su-v1` — 25.09.2026 (у `startup-files-write-protection-v1` — только исход `ALREADY_COMPLIANT`); решение о приёмке по этим прогонам не принято; приёмка семи поддерживаемых сред (Desktop — FIELD_COMPATIBILITY, отдельной строкой) впереди.
+Узлы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `kernel-cmdline-grub-v1` и `pam-wheel-su-v1` — `closed`: приёмка по VM-прогону 25.09.2026 на семи средах (артефакт `9a42418f…67ab`; мутация, перезагрузка, повторный APPLY без `APPLIED` и `FAILED_*`, CHECK без `ERROR`), решение 25.09.2026. Узлы `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1` и `startup-files-write-protection-v1` — `current`: в том же прогоне у их контролей на всех семи средах исход `ALREADY_COMPLIANT`, путь с изменением прав на семи средах не проверялся. Desktop — FIELD_COMPATIBILITY, отдельной строкой.
 
 Узел `ADMIN` — граница продукта: для части контролей APPLY не реализуется по решению,
 и продукт возвращает решение администратору отдельным терминальным исходом.
@@ -355,8 +355,9 @@ APPLY — общая форма `MECHANISM_AUTHORITY_V1`, по одному до
 `startup-files-write-protection-v1` (файлы запуска SRC-0009), `kernel-cmdline-grub-v1` (параметры загрузки ядра G4) и `pam-wheel-su-v1` (доступ к su SRC-0003); контроли включаются через `apply.supported=true`,
 а общий цикл выполняет generated CLI.
 Старые SRC-0001 contracts/definitions/adapter сохраняются побайтово как historical.
-`SINGLE_DISTRIBUTABLE_ARTIFACT` остаётся generated `securelinux-policy.sh`; полная
-приёмка новой интеграции и VM-cycle по семи поддерживаемым средам являются следующими gates.
+`SINGLE_DISTRIBUTABLE_ARTIFACT` остаётся generated `securelinux-policy.sh`;
+VM-cycle по семи поддерживаемым средам принят 25.09.2026 для пяти механизмов; у трёх
+остальных следующий gate — ВМ-проверка пути с изменением прав.
 `NEXT` machine roadmap — горизонт 1 `HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS`:
 APPLY для безопасных классов `fstec-linux-2022` и VM-прогоны механизмов. Step 7B
 `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` ждёт закрытия горизонта 1.

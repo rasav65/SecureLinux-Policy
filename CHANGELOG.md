@@ -10,6 +10,24 @@
 
 ## [Unreleased]
 
+- Приёмка ВМ-прогона 25.09.2026 (решение исполнителя по поручению человека).
+  Строк source index не закрывает, байты продукта не меняет. Evidence сверено:
+  runner SHA `e7a6ffb8…8419`; архив
+  `slp-vm-apply-supported7-v15-states1-7-20260925-105923.tar.gz` SHA `cb1fe630…8ab4`,
+  81 обычный файл (7 × 11 + 4), кандидат `9a42418f…67ab`; на 7 средах смена `BOOT_ID`,
+  `CHECK_RC=0` и без `ERROR` до и после, stderr пуст, повторный APPLY без `APPLIED` и
+  `FAILED_*`. Архивы 24.09.2026: `slp-vm-apply-v15-work.tar.gz` SHA
+  `2fda8aa627c659297d830580ccc02a16bda8a23335b966e409f90c46a325dab5`,
+  `slp-vm-apply-supported7-v15-states2-20260924-235858.tar.gz` SHA
+  `d4e4d251915f769e7280ca7b20250ee78cae90d317fd727b96ed9ec5c06097ac` (прежний кандидат
+  `d840ede3…c8aa`). Было: все узлы механизмов `current`, решение о приёмке не принято.
+  Стало: `config-line-with-runtime-v1`, `file-mode-owner-v1`,
+  `optional-file-root-files-mode-v1`, `kernel-cmdline-grub-v1`, `pam-wheel-su-v1` —
+  `closed`; `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1`,
+  `startup-files-write-protection-v1` — `current` (на 7 средах только `ok`, путь с
+  изменением прав не проверен). Синхронизированы `docs/PROJECT-MAP.md`,
+  `docs/testing-strategy.md`, `docs/HANDOFF.md`, `tests/roadmap-v1/test_project_map.py`.
+
 - Документы после сверки очереди 25.09.2026 (решения исполнителя по поручению
   человека). Строк source index не закрывает, байты продукта не меняет.
   Было: `docs/PROJECT-MAP.md` называл семь механизмов APPLY без `pam-wheel-su-v1`

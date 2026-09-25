@@ -57,29 +57,30 @@
   `/proc/cmdline`, повторный APPLY — без `APPLIED` и `FAILED_*`. Архивы
   `slp-vm-apply-v15-work.tar.gz` (среды 1, 3–7) и
   `slp-vm-apply-supported7-v15-states2-20260924-235858.tar.gz` (среда 2) — в evidence.
+- Прогон 25.09.2026, артефакт `9a42418f…67ab`, все 7 сред: архив
+  `slp-vm-apply-supported7-v15-states1-7-20260925-105923.tar.gz` (SHA `cb1fe630…8ab4`) —
+  в evidence; принят 25.09.2026 (статусы узлов — `PROJECT-MAP.md`).
 
 ## Очередь
 
 Решения 25.09.2026 принимает исполнитель по поручению человека. Источник пунктов
 вне репозитория — файл очереди `SecureLinux-Policy-20260923-v70.txt` (далее v70).
 
-1. Приёмка ВМ-прогонов 24.09.2026 и 25.09.2026: на ПК сверить SHA архивов в
-   evidence с `CHANGELOG.md` (где SHA не записан — записать) и итоговые строки CHECK,
-   в том числе 2.3.2 на Ubuntu 26.04 minimized без `ERROR`; при совпадении — статус
-   узлов `PROJECT-MAP.md`.
-2. B-02, остаток (v70 §7 п.4; недоступный родитель закрыт в `e420aee`): CHECK-адаптеры
+1. B-02, остаток (v70 §7 п.4; недоступный родитель закрыт в `e420aee`): CHECK-адаптеры
    `kernel-cmdline-v2`, `sysctl-v2`, `file-mode-owner-v2`, `sshd-root-login-v1`,
    `pam-wheel-access-v2` определяют отсутствие через `[[ -e ]]`/`[[ -L ]]`, и ошибка,
    отличная от ENOENT, при доступном родителе даёт `NOT_FOUND`. Решение: отсутствие —
    только доказанный ENOENT по образцу `home-directories-mode` (`stat -c %F`), иначе
    `ERROR`; основание — регламент v26 §8. Один адаптер — один коммит.
-3. `OPS_DECLARATION_GAPS` в `tests/product-v1/test_control_contract_binding.py`:
+2. `OPS_DECLARATION_GAPS` в `tests/product-v1/test_control_contract_binding.py`:
    6 активных контрактов без `supported_ops`; сократить.
-4. Комментарий `product/apply-adapters/product-suid-sgid-applications-mode-apply-v1.py`
+3. Комментарий `product/apply-adapters/product-suid-sgid-applications-mode-apply-v1.py`
    (строки 9–11) называет выведенный контроль `…-SUID-SGID-ALLOWLIST` (v70 §7 п.5).
-5. ВМ-проверка пути с изменением прав у `startup-files-write-protection-v1`.
-6. Инфраструктура: эталонный набор 7 сред в тестах, evidence в репозитории.
-7. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: OPEN-строки
+4. ВМ-проверка пути с изменением прав у `suid-sgid-applications-mode-v1`,
+   `standard-system-paths-mode-v1`, `startup-files-write-protection-v1` на семи средах
+   (подготовленное нарушение после восстановления снимка).
+5. Инфраструктура: эталонный набор 7 сред в тестах, evidence в репозитории.
+6. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: OPEN-строки
    `index/source-v4/SOURCE-INDEX.tsv` — 63 `technical-core` и 35 `technical-perimeter`.
 
 Закрыто 25.09.2026:
@@ -88,6 +89,12 @@
   расширяет доступ, решение остаётся администратору (регламент v26 §30). Не отклонение.
 - 2.6.6: при обнаруженном Apport APPLY возвращает решение администратору
   (`PROJECT-MAP.md`, карта сегментации; v70 §6; регламент v26 §30).
+- Приёмка ВМ-прогона 25.09.2026: узлы APPLY1–APPLY3, APPLY7, APPLY8 — `closed`;
+  APPLY4–APPLY6 — только `ALREADY_COMPLIANT`, см. пункт 4. 2.3.2 на Ubuntu 26.04
+  minimized — PASS до и после APPLY. Прогон 24.09.2026 (архивы
+  `slp-vm-apply-v15-work.tar.gz` SHA `2fda8aa6…dab5`,
+  `slp-vm-apply-supported7-v15-states2-20260924-235858.tar.gz` SHA `d4e4d251…97ac`)
+  относится к прежнему кандидату `d840ede3…c8aa` и заменён прогоном 25.09.2026.
 
 Вне репозитория, статус UNKNOWN: v70 §7 п.6 (пункты P3–P9 очереди v68);
 v70 §7 п.7 (три несогласованности регламента v26).
