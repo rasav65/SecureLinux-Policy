@@ -74,12 +74,17 @@ def shell_function(control_id, locator, key, op, expected):
         "  local _slp_key=" + key_lit,
         "  local _slp_expected=" + exp_lit,
         "  local _slp_raw _slp_text _slp_token _slp_value _slp_first _slp_choice _slp_comp _slp_vrc=0",
-        "  local _slp_bare=0 _slp_values=0 _slp_conflict=0 _slp_parent=",
+        "  local _slp_bare=0 _slp_values=0 _slp_conflict=0 _slp_parent= _slp_stat_out=",
         "  local -a _slp_tokens=() _slp_choices=()",
         '  if [[ ! -e "$_slp_path" ]]; then',
         '    _slp_parent=${_slp_path%/*}',
         '    [[ -z $_slp_parent ]] && _slp_parent=/',
-        '    if [[ -d $_slp_parent && -x $_slp_parent && ! -L "$_slp_path" ]]; then',
+        # `[[ ! -e ]]` истинно при любой ошибке stat (ENAMETOOLONG, EIO и т. п.),
+        # а не только при отсутствии. NOT_FOUND — только доказанный ENOENT:
+        # `stat -c %F` (семантика lstat) и буквальный текст ошибки; успешный
+        # lstat (висячая ссылка) и любая другая ошибка — ERROR.
+        '    _slp_stat_out=$(LC_ALL=C command /usr/bin/stat -c %F -- "$_slp_path" 2>&1)',
+        '    if (( $? != 0 )) && [[ "$_slp_stat_out" == *": No such file or directory" ]] && [[ -d $_slp_parent && -x $_slp_parent ]]; then',
         emit + ' "NOT_FOUND" "-" "NOT_FOUND"',
         "    else",
         emit + ' "ERROR" "cmdline:read-failed" "ERROR"',
@@ -225,7 +230,9 @@ def _selftest():
         decode = r"$(printf '\\x%s' $_slp_v_hex)"
         assert src.count(od_read) == 1
         assert src.count(decode) == 1
-        assert "$(" not in src.replace(od_read, "").replace(decode, "")
+        stat_probe = '$(LC_ALL=C command /usr/bin/stat -c %F -- "$_slp_path" 2>&1)'
+        assert src.count(stat_probe) == 1
+        assert "$(" not in src.replace(od_read, "").replace(decode, "").replace(stat_probe, "")
         for token in MUTATING_TOKENS:
             assert token not in src, token
     assert "IFS='|' read -r -a _slp_choices" in one

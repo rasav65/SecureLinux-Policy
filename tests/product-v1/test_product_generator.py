@@ -6574,6 +6574,18 @@ class UnprovenAbsenceIsErrorFixtures(unittest.TestCase):
         self.assertEqual(self.run_block(self.cmdline_block(target), "slp_check_CMD_ABSENCE"),
                          ("ERROR", "cmdline:read-failed", "ERROR"))
 
+    def test_kernel_cmdline_stat_error_other_than_enoent_is_error(self):
+        # ENAMETOOLONG при доступном для поиска родителе: отсутствие не доказано.
+        block = self.cmdline_block(self.visible / ("n" * 300))
+        self.assertEqual(self.run_block(block, "slp_check_CMD_ABSENCE"),
+                         ("ERROR", "cmdline:read-failed", "ERROR"))
+
+    def test_kernel_cmdline_dangling_symlink_is_error(self):
+        target = self.visible / "cmdline-link"
+        target.symlink_to(self.visible / "absent-target")
+        self.assertEqual(self.run_block(self.cmdline_block(target), "slp_check_CMD_ABSENCE"),
+                         ("ERROR", "cmdline:read-failed", "ERROR"))
+
     def test_kernel_cmdline_absent_source_in_searchable_parent_stays_not_found(self):
         block = self.cmdline_block(self.visible / "absent-cmdline")
         self.assertEqual(self.run_block(block, "slp_check_CMD_ABSENCE"), ("NOT_FOUND", "-", "NOT_FOUND"))
