@@ -54,10 +54,40 @@ FILE_PARENT_CHANGE_REASONS = (
 )
 
 
+# Причины, при которых наблюдение повторяется целиком: популяция процессов
+# изменилась во время CHECK (решение 25.09.2026). Не более OBSERVATION_ATTEMPTS
+# попыток с паузой 1 с; VALUE — только по одной полностью стабильной попытке,
+# иначе ERROR с причиной последней попытки. Смена файлов и каталогов не повторяется.
+OBSERVATION_ATTEMPTS = 3
+RETRY_REASONS = (
+    "proc-population:process-disappeared",
+    "proc-stat:initial-starttime-changed",
+    "proc-stat:initial-endtime-changed",
+    "proc-exe:read-failed",
+    "proc-status:read-failed",
+    "proc-maps:read-failed",
+    "proc-stat:excluded-classification-vanished",
+    "proc-stat:excluded-classification-changed",
+    "pid-population:mid-snapshot-changed",
+    "proc-counter:mid-snapshot-changed",
+    "proc-stat:recheck-starttime-changed",
+    "proc-exe:recheck-missing",
+    "proc-exe:recheck-changed",
+    "proc-maps:recheck-changed",
+    "proc-stat:recheck-endtime-changed",
+    "proc-stat:excluded-recheck-changed",
+    "proc-exe:excluded-reappeared",
+    "pid-population:final-snapshot-changed",
+    "proc-counter:final-snapshot-changed",
+)
+
+
 def _sh_single(value):
     return "'" + value.replace("'", "'\"'\"'") + "'"
 
-def _render(control_id, proc_root="/proc", parent_stop="/"):
+def _render(control_id, proc_root="/proc", parent_stop="/", attempts=OBSERVATION_ATTEMPTS):
+    if attempts not in range(1, OBSERVATION_ATTEMPTS + 1):
+        raise ValueError("attempts must be 1..%d" % OBSERVATION_ATTEMPTS)
     if not isinstance(control_id, str) or not re.fullmatch(CONTROL_ID_PATTERN, control_id):
         raise ValueError("invalid control id")
     if not isinstance(proc_root, str) or not proc_root.startswith("/") or "\n" in proc_root or "\r" in proc_root:
@@ -69,12 +99,21 @@ def _render(control_id, proc_root="/proc", parent_stop="/"):
     emit = '  printf "%s\\t%s\\t%s\\t%s\\t%s\\n" ' + _sh_single(WIRE_RECORD_ID) + " " + cid
     return "\n".join([
         fn + "() {",
-        "  local _slp_obs='' _slp_rc=0 _slp_status='' _slp_value='' _slp_compliance='' _slp_extra=''",
+        "  local _slp_obs='' _slp_rc=0 _slp_status='' _slp_value='' _slp_compliance='' _slp_extra='' _slp_attempt=0",
+        "  while :; do",
+        "  _slp_attempt=$((_slp_attempt + 1))",
         "  _slp_obs=$(command /usr/bin/python3 -I -S -B - " + _sh_single(proc_root) + " " + _sh_single(parent_stop) + " <<'SLP_RUNTIME_PATHS_PY'",
         _PY.rstrip("\n"),
         "SLP_RUNTIME_PATHS_PY",
         "  )",
         "  _slp_rc=$?",
+        "  if (( _slp_rc == 0 && _slp_attempt < " + str(attempts) + " )) && [[ $_slp_obs == ERROR$'\\t'* ]]; then",
+        "    case ${_slp_obs#ERROR$'\\t'} in",
+        "      " + "|".join(RETRY_REASONS) + ") command /usr/bin/sleep 1; continue ;;",
+        "    esac",
+        "  fi",
+        "  break",
+        "  done",
         "  if (( _slp_rc != 0 )); then",
         emit + ' "ERROR" "observer:execution-failed" "ERROR"',
         "    return 0",
@@ -103,8 +142,8 @@ def shell_function(control_id, locator, key, op, expected):
         raise ValueError("only canonical SRC-0006 running-process contract is supported")
     return _render(control_id)
 
-def _shell_function_for_roots(control_id, proc_root, parent_stop):
-    return _render(control_id, proc_root, parent_stop)
+def _shell_function_for_roots(control_id, proc_root, parent_stop, attempts=OBSERVATION_ATTEMPTS):
+    return _render(control_id, proc_root, parent_stop, attempts)
 
 MUTATING_TOKENS = (
     "sysctl -w", "sysctl --write", "tee ", "sed -i", "chmod ", "chown ",
@@ -124,6 +163,11 @@ def _selftest():
     assert len(PROCESS_CHANGE_REASONS) == 21
     assert len(set(PROCESS_CHANGE_REASONS)) == len(PROCESS_CHANGE_REASONS)
     assert len(FILE_PARENT_CHANGE_REASONS) == 9
+    assert OBSERVATION_ATTEMPTS == 3 and len(set(RETRY_REASONS)) == len(RETRY_REASONS)
+    for reason in RETRY_REASONS:
+        assert _PY.count('error("' + reason + '")') == 1, reason
+        assert reason not in FILE_PARENT_CHANGE_REASONS, reason
+    assert "command /usr/bin/sleep 1; continue ;;" in src and "_slp_attempt < 3" in src
     assert len(set(FILE_PARENT_CHANGE_REASONS)) == len(FILE_PARENT_CHANGE_REASONS)
     assert "observation:file-changed" not in _PY
     assert "observation:parent-changed" not in _PY

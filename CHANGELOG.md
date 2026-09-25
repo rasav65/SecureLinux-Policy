@@ -10,6 +10,19 @@
 
 ## [Unreleased]
 
+- CHECK-адаптер `running-process-paths-write-protection-v1` (2.3.2): ограниченный
+  повтор наблюдения. Строк source index не закрывает. Было: на живой системе любое
+  изменение популяции процессов во время CHECK давало `ERROR`
+  (`pid-population:final-snapshot-changed`, `proc-counter:mid-snapshot-changed`,
+  `proc-stat:initial-starttime-changed` в ВМ-прогонах 25.09.2026). Стало: при причинах
+  из `RETRY_REASONS` наблюдение повторяется целиком, не более 3 попыток с паузой 1 с;
+  VALUE — только по одной полностью стабильной попытке, иначе `ERROR` последней
+  попытки; смена файлов и каталогов не повторяется. Правило добавлено в
+  `canonical_population.process_snapshot` контракта. Тесты: повтор до стабильного
+  VALUE, `ERROR` после трёх попыток, отсутствие повтора для прочих причин, причины
+  повтора — причины наблюдателя (до правки — FAIL). Применимость ВМ-прогонов —
+  RERUN для 2.3.2 (пункт 1 очереди HANDOFF).
+
 - Приёмка пути с изменением прав у `suid-sgid-applications-mode-v1`,
   `standard-system-paths-mode-v1`, `startup-files-write-protection-v1`; runner v17 в
   `tools/vm-runner/`. Строк source index не закрывает, байты продукта не меняет. Прогон

@@ -3597,8 +3597,9 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
         )
 
     def _script(self, root, proc, fsroot):
+        # Фикстуры наблюдателя — одна попытка: повтор проверяется отдельными тестами.
         src = RUNNING_PROCESS_PATHS._shell_function_for_roots(
-            "TEST-RUNTIME-PATHS", str(proc), str(fsroot)
+            "TEST-RUNTIME-PATHS", str(proc), str(fsroot), attempts=1
         )
         script = root / "run.sh"
         script.write_text(
@@ -4249,6 +4250,60 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
             with self.subTest(args=args):
                 with self.assertRaises(ValueError):
                     RUNNING_PROCESS_PATHS.shell_function("TEST", *args)
+
+    # --- Повтор наблюдения при смене популяции процессов (решение 25.09.2026) ---
+    def _run_with_observer_outputs(self, outputs):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            for i, text in enumerate(outputs, 1):
+                (root / ("out%d" % i)).write_text(text, encoding="utf-8")
+            (root / "calls").write_text("0", encoding="ascii")
+            fake = root / "fake-python3"
+            fake.write_text(
+                "#!/bin/bash\ncat >/dev/null\n"
+                "n=$(( $(< %s) + 1 )); printf '%%s' \"$n\" > %s\n"
+                "f=%s/out$n; [ -f \"$f\" ] || f=%s/out%d\ncat \"$f\"\n"
+                % (root / "calls", root / "calls", root, root, len(outputs)),
+                encoding="utf-8",
+            )
+            fake.chmod(0o755)
+            block = RUNNING_PROCESS_PATHS._shell_function_for_roots("CTRL.RETRY", "/proc", "/")
+            block = block.replace("command /usr/bin/python3", "command " + str(fake), 1)
+            block = block.replace("command /usr/bin/sleep 1", "command /usr/bin/true", 1)
+            cp = subprocess.run([BASH, "-c", "set -u\n" + block + "\nslp_check_CTRL_RETRY\n"],
+                                text=True, capture_output=True, check=False)
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            self.assertEqual(cp.stderr, "")
+            calls = int((root / "calls").read_text(encoding="ascii"))
+            return tuple(cp.stdout.rstrip("\n").split("\t")[2:]), calls
+
+    def test_transient_population_change_is_retried_to_stable_value(self):
+        row, calls = self._run_with_observer_outputs([
+            "ERROR\tproc-counter:mid-snapshot-changed",
+            "ERROR\tproc-stat:initial-starttime-changed",
+            "VALUE\tpids=1;files=1\tPASS",
+        ])
+        self.assertEqual((row, calls), (("VALUE", "pids=1;files=1", "PASS"), 3))
+
+    def test_persistent_population_change_stays_error_after_three_attempts(self):
+        row, calls = self._run_with_observer_outputs(["ERROR\tpid-population:final-snapshot-changed"])
+        self.assertEqual((row, calls), (("ERROR", "pid-population:final-snapshot-changed", "ERROR"), 3))
+
+    def test_non_population_error_is_not_retried(self):
+        row, calls = self._run_with_observer_outputs([
+            "ERROR\tpath:recheck-snapshot-changed",
+            "VALUE\tpids=1;files=1\tPASS",
+        ])
+        self.assertEqual((row, calls), (("ERROR", "path:recheck-snapshot-changed", "ERROR"), 1))
+
+    def test_retry_reasons_are_observer_reasons(self):
+        self.assertEqual(RUNNING_PROCESS_PATHS.OBSERVATION_ATTEMPTS, 3)
+        for reason in RUNNING_PROCESS_PATHS.RETRY_REASONS:
+            self.assertEqual(RUNNING_PROCESS_PATHS._PY.count('error("' + reason + '")'), 1, reason)
+        for reason in RUNNING_PROCESS_PATHS.FILE_PARENT_CHANGE_REASONS:
+            self.assertNotIn(reason, RUNNING_PROCESS_PATHS.RETRY_REASONS)
 
 
 class UnifiedCliArtifact(unittest.TestCase):
