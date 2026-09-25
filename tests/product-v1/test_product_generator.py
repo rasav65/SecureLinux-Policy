@@ -6544,6 +6544,13 @@ class UnprovenAbsenceIsErrorFixtures(unittest.TestCase):
         self.assertEqual(self.run_block(block, "slp_check_PAM_ABSENCE"),
                          ("ERROR", "group:read-failed", "ERROR"))
 
+    def test_pam_wheel_not_found_only_from_proven_enoent(self):
+        # Итоговый NOT_FOUND выбирается по признакам доказанного ENOENT, а не
+        # повторным `! -e`: ошибка повторного наблюдения не даёт NOT_FOUND.
+        block = self.pam_fixture(self.visible / "su", self.visible / "group")
+        self.assertIn("if (( _slp_pam_absent || _slp_group_absent )); then", block)
+        self.assertNotIn('! -e "$_slp_pam" || ! -e "$_slp_group"', block)
+
     def test_pam_wheel_absent_file_in_searchable_parent_stays_not_found(self):
         group = self.visible / "group"
         group.write_text("wheel:x:10:root\n", encoding="utf-8")

@@ -31,6 +31,7 @@ def _render(control_id: str, pam_path: str, group_path: str) -> str:
         f"  local _slp_group={_sh_single(group_path)}",
         "  local _slp_line _slp_logical='' _slp_trim _slp_module _slp_control _slp_type _slp_gid='' _slp_members='' _slp_name _slp_pam_text _slp_group_text _slp_rest",
         "  local _slp_parent= _slp_pam_field _slp_wheel_field _slp_root_field _slp_comp _slp_stat_out",
+        "  local _slp_pam_absent=0 _slp_group_absent=0",
         "  local -a _slp_tok=() _slp_members_arr=()",
         "  local -A _slp_actual=()",
         "  local _slp_exact=0 _slp_nouid=0 _slp_other=0 _slp_wheel=0 _slp_error=0 _slp_midx=0 _slp_i=0 _slp_vrc=0 _slp_hazard=0",
@@ -65,6 +66,7 @@ def _render(control_id: str, pam_path: str, group_path: str) -> str:
         "      printf 'SLP-CHECK-V1\\t%s\\tERROR\\tpam:read-failed\\tERROR\\n' \"$_slp_cid\"",
         "      return 0",
         "    fi",
+        "    _slp_pam_absent=1",
         "  fi",
         "  if [[ ! -e \"$_slp_group\" ]]; then",
         "    _slp_parent=${_slp_group%/*}; [[ -z $_slp_parent ]] && _slp_parent=/",
@@ -77,8 +79,11 @@ def _render(control_id: str, pam_path: str, group_path: str) -> str:
         "      printf 'SLP-CHECK-V1\\t%s\\tERROR\\tgroup:read-failed\\tERROR\\n' \"$_slp_cid\"",
         "      return 0",
         "    fi",
+        "    _slp_group_absent=1",
         "  fi",
-        "  if [[ ! -e \"$_slp_pam\" || ! -e \"$_slp_group\" ]]; then",
+        # Итоговый NOT_FOUND — по признакам доказанного ENOENT, а не повторным
+        # `! -e`: ошибка повторного наблюдения ведёт к дальнейшим проверкам и ERROR.
+        "  if (( _slp_pam_absent || _slp_group_absent )); then",
         "    printf 'SLP-CHECK-V1\\t%s\\tNOT_FOUND\\t-\\tFAIL\\n' \"$_slp_cid\"",
         "    return 0",
         "  fi",
