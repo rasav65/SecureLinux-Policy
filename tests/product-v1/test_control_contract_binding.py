@@ -11,14 +11,8 @@ CONTROLS_DIR = ROOT / "controls" / "fstec-core" / "linux-2022"
 
 # Active contracts that do not yet declare supported_ops. This list may only
 # shrink: a new entry means a contract lost its operation vocabulary.
-OPS_DECLARATION_GAPS = frozenset({
-    "home-directories-mode",
-    "home-sensitive-files-mode",
-    "running-process-paths-write-protection",
-    "standard-system-paths-mode",
-    "suid-sgid-applications",
-    "user-cron-files-mode",
-})
+# Пусто с 25.09.2026: все активные контракты объявляют supported_ops.
+OPS_DECLARATION_GAPS = frozenset()
 
 BLOCK_RE = r"^%s:\n((?:[ \t]+\S.*\n|[ \t]*\n)*)"
 

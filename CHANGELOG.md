@@ -10,6 +10,18 @@
 
 ## [Unreleased]
 
+- `supported_ops` в шести семантических контрактах CHECK: `home-directories-mode`
+  (`eq`), `home-sensitive-files-mode`, `standard-system-paths-mode`,
+  `suid-sgid-applications`, `user-cron-files-mode` (`bits-clear`),
+  `running-process-paths-write-protection` (`runtime-paths-safe`). Строк source index
+  не закрывает, семантику проверок не меняет: значения — операции уже привязанных
+  контролей. Было: `OPS_DECLARATION_GAPS` в
+  `tests/product-v1/test_control_contract_binding.py` содержал шесть видов, и
+  операция контроля для них не сверялась с контрактом. Стало: список пуст, сверка
+  действует для всех контролей; SHA контрактов обновлены в JSON адаптеров и
+  `ADAPTER-REGISTRY.tsv`. Применимость ВМ-прогона кандидата `a5bffb4` — REUSED:
+  код адаптеров не изменён.
+
 - Приёмка ВМ-прогона кандидата `a5bffb4` (артефакт `d348b953…32be7`) после B-02;
   runner v16 в `tools/vm-runner/`. Строк source index не закрывает, байты продукта не
   меняет. Evidence: среды 1, 3–7 — runner v15,

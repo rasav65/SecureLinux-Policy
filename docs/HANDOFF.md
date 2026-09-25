@@ -82,15 +82,13 @@
 Решения 25.09.2026 приняты по делегированию человека. Источник пунктов
 вне репозитория — файл очереди `SecureLinux-Policy-20260923-v70.txt` (далее v70).
 
-1. `OPS_DECLARATION_GAPS` в `tests/product-v1/test_control_contract_binding.py`:
-   6 активных контрактов без `supported_ops`; сократить.
-2. Комментарий `product/apply-adapters/product-suid-sgid-applications-mode-apply-v1.py`
+1. Комментарий `product/apply-adapters/product-suid-sgid-applications-mode-apply-v1.py`
    (строки 9–11) называет выведенный контроль `…-SUID-SGID-ALLOWLIST` (v70 §7 п.5).
-3. ВМ-проверка пути с изменением прав у `suid-sgid-applications-mode-v1`,
+2. ВМ-проверка пути с изменением прав у `suid-sgid-applications-mode-v1`,
    `standard-system-paths-mode-v1`, `startup-files-write-protection-v1` на семи средах
    (подготовленное нарушение после восстановления снимка).
-4. Инфраструктура: эталонный набор 7 сред в тестах, evidence в репозитории.
-5. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: OPEN-строки
+3. Инфраструктура: эталонный набор 7 сред в тестах, evidence в репозитории.
+4. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: OPEN-строки
    `index/source-v4/SOURCE-INDEX.tsv` — 63 `technical-core` и 35 `technical-perimeter`.
 
 Закрыто 25.09.2026:
@@ -109,6 +107,9 @@
   (`93d886e`, `0707aea`, `42bb7a2`, `dfd600e`, `3c70ab1`, `a5bffb4`); аудит
   `d22a663..3c70ab1` — REVISE (B-01), `3c70ab1..a5bffb4` — PASS; ВМ-прогон кандидата
   `a5bffb4` на 7 средах принят. Узлы APPLY в `PROJECT-MAP.md` не меняются.
+
+- `OPS_DECLARATION_GAPS`: все активные семантические контракты CHECK объявляют
+  `supported_ops` (список пуст).
 
 Вне репозитория, статус UNKNOWN: v70 §7 п.6 (пункты P3–P9 очереди v68);
 v70 §7 п.7 (три несогласованности регламента v26).
