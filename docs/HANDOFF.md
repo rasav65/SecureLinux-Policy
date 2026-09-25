@@ -21,6 +21,10 @@
   `sed -i` не используется.
 - `expected.txt` снимается на чистой копии того же коммита; совпадение байтов на ПК —
   условие `RESULT=PASS`.
+- `render-current-docs.py --write` выполняется до `refresh-pins` и сверяет SHA
+  control-yaml с `CONTROL-MANIFEST.tsv`, а APPLY-реестры — с файлами. Поэтому `edit.py`,
+  который меняет control-yaml или добавляет механизм APPLY, сам пишет эти SHA
+  (пример — шаг `pam-wheel-su-v1`, коммит `0b8cb6a`).
 - После push файлы шага удаляются командой с проверкой
   `git merge-base --is-ancestor HEAD origin/main`.
 
@@ -39,9 +43,13 @@
 
 - 7 сред: Ubuntu 22.04 full, Ubuntu 24.04 mini и full, Ubuntu 26.04 mini и full,
   Debian 12, Debian 13; снимки `upd-20260924`.
-- Runner APPLY `slp-vm-apply-supported7-v15.sh` (пока вне репозитория): восстановление
-  снимка → CHECK → `--apply --dry-run` → `--apply` → перезагрузка (смена `boot_id`) →
-  CHECK → `--apply` → возврат к снимку. Кандидат задаётся `EXPECTED_CHECK_SHA256`.
+- Сценарий прогона APPLY на ВМ находится в файле
+  [`tools/vm-runner/slp-vm-apply-supported7-v15.sh`](../tools/vm-runner/slp-vm-apply-supported7-v15.sh), порядок:
+  восстановление снимка → CHECK → `--apply --dry-run` → `--apply` → перезагрузка (смена
+  `boot_id`) → CHECK → `--apply` → возврат к снимку. Пути, имена ВМ и UUID снимков
+  встроены для рабочего ПК; запуск — копией из `$DOWNLOADS`. Кандидат задаётся
+  `EXPECTED_CHECK_SHA256` (по умолчанию `d840ede3…c8aa`; для `0b8cb6a` —
+  `9a42418f2d3e644d4409458fd72fcf3c2cf9ed95996d28ec7c3d7463b7b867ab`), одна среда — `ONLY=N`.
 - Прогон 24.09.2026, артефакт `d840ede3…c8aa`: на всех 7 средах после перезагрузки
   `init_on_alloc=1 slab_nomerge randomize_kstack_offset=1 vsyscall=none` в
   `/proc/cmdline`, повторный APPLY — без `APPLIED` и `FAILED_*`. Архивы
@@ -50,7 +58,9 @@
 
 ## Очередь
 
-1. APPLY 2.2.1 `su-wheel-access`; B-02 (нужен текст от человека); отклонения 2.3.1 и 2.6.6.
-2. Инфраструктура: эталонный набор 7 сред в тестах, runner ВМ в `tools/vm-runner/`, evidence;
+1. ВМ-прогон `pam-wheel-su-v1` (коммит `0b8cb6a`) runner v15 на 7 средах; решение человека,
+   считать ли прогон 24.09.2026 приёмкой механизмов (статус узлов `PROJECT-MAP.md`).
+2. B-02 (нужен текст от человека); отклонения 2.3.1 и 2.6.6.
+3. Инфраструктура: эталонный набор 7 сред в тестах, evidence в репозитории;
    ВМ-проверка пути с изменением прав у `startup-files-write-protection-v1`.
-3. 63 OPEN-пункта.
+4. 63 OPEN-пункта.

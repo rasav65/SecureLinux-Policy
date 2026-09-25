@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+- `docs/HANDOFF.md` и runner ВМ, согласие человека 25.09.2026. Строк source index
+  не закрывает, байты продукта не меняет. Было: runner APPLY
+  `slp-vm-apply-supported7-v15.sh` хранился вне репозитория; очередь содержала
+  выполненный APPLY 2.2.1. Стало: runner — `tools/vm-runner/` (байты прогона
+  24.09.2026, SHA `e7a6ffb8…8419`, без пустой строки в конце файла); в HANDOFF — путь runner, кандидат для
+  `0b8cb6a`, правило о SHA в `edit.py` до `render-current-docs`, очередь:
+  ВМ-прогон `pam-wheel-su-v1`, решение о приёмке прогона 24.09.2026.
+
 - Механизм APPLY `pam-wheel-su-v1` для 2.2.1 `su-wheel-access` (SRC-0003),
   решения человека 25.09.2026. Строк source index не закрывает. Было:
   `apply.supported: false`, APPLY 2.2.1 не касался; на всех 7 средах CHECK — FAIL
