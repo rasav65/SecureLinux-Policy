@@ -3,7 +3,7 @@
   "adapter_id": "product-file-mode-owner-check-v2",
   "implementation_id": "product-file-mode-owner-check-v2.py",
   "implementation_path": "product/adapters/product-file-mode-owner-check-v2.py",
-  "implementation_sha256": "a8e9548341c1ab2a91eb3a72d5267498ba9778884fa4c296bf4280c135a59d67",
+  "implementation_sha256": "d1ffd5187d946c27c59805a24660d2400b66eada54feda0774d2cf82ba09863e",
   "input_schema_id": "canonical-control-v3",
   "input_schema_version": 1,
   "operation": "check",

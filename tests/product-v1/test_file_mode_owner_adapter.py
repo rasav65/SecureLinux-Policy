@@ -45,7 +45,9 @@ class Emitted(unittest.TestCase):
             src = ADAPTER.shell_function("C", "/etc/shadow", "mode", op, exp)
             for token in ADAPTER.MUTATING_TOKENS:
                 self.assertNotIn(token, src, token)
-            self.assertNotIn("$(", src.replace('$(LC_ALL=C command /usr/bin/stat -L -c %a -- "$_slp_path" 2>/dev/null)', ""))
+            stat_probe = '$(LC_ALL=C command /usr/bin/stat -c %F -- "$_slp_path" 2>&1)'
+            self.assertEqual(src.count(stat_probe), 1)
+            self.assertNotIn("$(", src.replace('$(LC_ALL=C command /usr/bin/stat -L -c %a -- "$_slp_path" 2>/dev/null)', "").replace(stat_probe, ""))
 
     def test_rejects_unsupported(self):
         bad = [
@@ -178,6 +180,11 @@ class Runtime(unittest.TestCase):
     def test_absent_name_is_not_found(self):
         self.assertEqual(self.run_check(self.absent, "eq", "0644"),
                          ("NOT_FOUND", "-", "NOT_FOUND"))
+
+    def test_stat_error_other_than_enoent_is_error(self):
+        # ENAMETOOLONG при доступном для поиска родителе: отсутствие не доказано (B-02).
+        self.assertEqual(self.run_check(os.path.join(self.tmp, "n" * 300), "eq", "0644"),
+                         ("ERROR", "target:stat-failed", "ERROR"))
 
     def test_dangling_symlink_is_error(self):
         self.assertEqual(self.run_check(self.dangling, "eq", "0644"),

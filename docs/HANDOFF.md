@@ -72,7 +72,7 @@
    отличная от ENOENT, при доступном родителе даёт `NOT_FOUND`. Решение: отсутствие —
    только доказанный ENOENT по образцу `home-directories-mode` (`stat -c %F`), иначе
    `ERROR`; основание — регламент v26 §8. Один адаптер — один коммит.
-   Исправлены: `kernel-cmdline-v2`, `sysctl-v2`. После всех пяти — ВМ-прогон 7 сред на новом
+   Исправлены: `kernel-cmdline-v2`, `sysctl-v2`, `file-mode-owner-v2`. После всех пяти — ВМ-прогон 7 сред на новом
    кандидате (регламент v26 §53).
 2. `OPS_DECLARATION_GAPS` в `tests/product-v1/test_control_contract_binding.py`:
    6 активных контрактов без `supported_ops`; сократить.

@@ -71,7 +71,7 @@ def shell_function(control_id, locator, key, op, expected):
         fn + "() {",
         "  local _slp_path=" + path_lit,
         "  local _slp_expected=" + exp_lit,
-        "  local _slp_mode _slp_parent _slp_comp",
+        "  local _slp_mode _slp_parent _slp_comp _slp_stat_out",
         "  if [[ ! -x /usr/bin/stat ]]; then",
         emit_error_tool,
         "    return 0",
@@ -95,7 +95,11 @@ def shell_function(control_id, locator, key, op, expected):
         "  fi",
         "  _slp_parent=${_slp_path%/*}",
         "  [[ -z $_slp_parent ]] && _slp_parent=/",
-        '  if [[ -d $_slp_parent && -x $_slp_parent && ! -e $_slp_path && ! -L $_slp_path ]]; then',
+        # `! -e && ! -L` истинно при любой ошибке lstat (ENAMETOOLONG, EIO и т. п.),
+        # а не только при отсутствии. NOT_FOUND — только доказанный ENOENT:
+        # `stat -c %F` (семантика lstat) и буквальный текст ошибки при LC_ALL=C.
+        '  _slp_stat_out=$(LC_ALL=C command /usr/bin/stat -c %F -- "$_slp_path" 2>&1)',
+        '  if (( $? != 0 )) && [[ "$_slp_stat_out" == *": No such file or directory" ]] && [[ -d $_slp_parent && -x $_slp_parent ]]; then',
         emit_missing,
         "  else",
         emit_error_observation,
