@@ -70,15 +70,21 @@ journal/intent и компенсации к ним не применяются.
 `tests/product-v1/test_kernel_cmdline_grub_apply_adapter.py` на временном дереве с подставным
 `update-grub`.
 
+`pam-wheel-su-v1` сначала создаёт группу `wheel` и добавляет `root`, затем пишет `/etc/pam.d/su`;
+при ошибке записи или итоговой проверки созданная группа удаляется, добавленный `root` убирается,
+прежние байты PAM возвращаются (`FAILED_NOT_COMMITTED`, при ошибке возврата — `FAILED_COMPENSATION`).
+Тест — `tests/product-v1/test_pam_wheel_su_apply_adapter.py` на временном дереве с подставными
+`groupadd`, `gpasswd`, `groupdel`; итоговое дерево проверяется CHECK-адаптером 2.2.1 (PASS).
+
 Историческое: решением DP-3 APPLY для `SRC-0001` выведен из продукта, текущий
-APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1`, `startup-files-write-protection-v1` и `kernel-cmdline-grub-v1`.
+APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1`, `startup-files-write-protection-v1`, `kernel-cmdline-grub-v1` и `pam-wheel-su-v1`.
 Каждый механизм проверяется сквозным тестом встроенного dispatcher
 (`tests/product-v1/test_apply_dispatch_integration.py`) и VM-прогоном;
 у `kernel-cmdline-grub-v1` VM-прогон выполнен 24.09.2026 на 7 средах (артефакт `d840ede3…c8aa`):
 APPLY → перезагрузка → CHECK; после перезагрузки `init_on_alloc=1 slab_nomerge randomize_kstack_offset=1
 vsyscall=none` в `/proc/cmdline`, 2.4.3, 2.4.4, 2.4.6 и 2.5.1 — PASS, повторный APPLY без `APPLIED` и `FAILED_*`.
 У `startup-files-write-protection-v1` в том же прогоне на всех 7 средах исход `ALREADY_COMPLIANT`:
-путь с изменением прав на ВМ не проверялся.
+путь с изменением прав на ВМ не проверялся. У `pam-wheel-su-v1` VM-прогона ещё нет.
 
 Ошибка обхода каталога обязана давать отказ до мутации, а не мутацию по неполной
 популяции. Для каждого механизма, который перечисляет каталоги

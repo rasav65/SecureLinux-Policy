@@ -73,7 +73,7 @@ APPLY для `SRC-0001` выведен из продукта; этот резу�
 Текущий CLI отличается от этого кандидата отображением и составом механизмов.
 Механизмы `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1` и
 `standard-system-paths-mode-v1` приняты на той же среде 20.09.2026; у
-`startup-files-write-protection-v1` и `kernel-cmdline-grub-v1` ВМ-прогона ещё нет. Приёмка
+`startup-files-write-protection-v1` и `kernel-cmdline-grub-v1` 24.09.2026 выполнен прогон на семи средах, у `pam-wheel-su-v1` ВМ-прогона ещё нет. Приёмка
 механизмов APPLY на остальных средах матрицы впереди.
 
 Первое принятие `standard-system-paths-mode-v1` относится к кандидату

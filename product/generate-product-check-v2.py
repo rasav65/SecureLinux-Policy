@@ -1054,8 +1054,10 @@ def _current_display(record):
     mechanism_result = record.get("mechanism_result")
     if not isinstance(mechanism_result, dict):
         return "not-determined"
-    # sysctl отдаёт runtime_*, режимы файлов — resulting_mode/current_mode, параметры ядра — cmdline_current.
-    for field in ("runtime_after", "runtime_before", "resulting_mode", "current_mode", "cmdline_current"):
+    # sysctl отдаёт runtime_*, режимы файлов — resulting_mode/current_mode, параметры ядра — cmdline_current,
+    # доступ к su — policy_current.
+    for field in ("runtime_after", "runtime_before", "resulting_mode", "current_mode", "cmdline_current",
+                  "policy_current"):
         value = mechanism_result.get(field)
         if value is not None:
             return _terminal_scalar(value, "current")
@@ -1094,6 +1096,9 @@ def _block_entry(record, control):
             # Код причины остаётся в JSON-отчёте; инструкция add печатается над таблицей.
             entry["rows"] = [("add", value)]
             entry["risk"] = risk + "."
+        elif decision.get("class") == "ADMIN_ACTION_REQUIRED":
+            # Готовое действие администратора (2.2.1, решение человека 25.09.2026).
+            entry["rows"].append(("note", _terminal_scalar(decision.get("action"), "action")))
         else:
             raise RuntimeError("presentation:operator-decision-invalid")
         entry["admin"] = True

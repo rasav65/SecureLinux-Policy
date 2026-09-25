@@ -151,7 +151,7 @@ sudo /bin/bash -p ./securelinux-policy.sh --apply
 
 ## Применение изменений
 
-Автоматический APPLY выполняется механизмами `config-line-with-runtime-v1` (sysctl), `file-mode-owner-v1` (режим файлов), `optional-file-root-files-mode-v1` (режимы системных файлов cron), `suid-sgid-applications-mode-v1` (режимы SUID/SGID-приложений), `standard-system-paths-mode-v1` (режимы стандартных системных путей) `startup-files-write-protection-v1` (режимы файлов запуска) и `kernel-cmdline-grub-v1` (параметры ядра в командной строке загрузки: файл `/etc/default/grub.d/zz-securelinux-policy.cfg` и `update-grub`, вступают в силу после перезагрузки; `mitigations`, три `iommu`, `tsx` и `debugfs` не пишутся и выводятся блоком «требуется решение администратора»); состав берётся из APPLY registries, количества — из машинного статуса ниже. Остальные controls могут участвовать в CHECK, но не изменяются автоматически без явно поддерживаемой APPLY-семантики.
+Автоматический APPLY выполняется механизмами `config-line-with-runtime-v1` (sysctl), `file-mode-owner-v1` (режим файлов), `optional-file-root-files-mode-v1` (режимы системных файлов cron), `suid-sgid-applications-mode-v1` (режимы SUID/SGID-приложений), `standard-system-paths-mode-v1` (режимы стандартных системных путей) `startup-files-write-protection-v1` (режимы файлов запуска) и `kernel-cmdline-grub-v1` (параметры ядра в командной строке загрузки: файл `/etc/default/grub.d/zz-securelinux-policy.cfg` и `update-grub`, вступают в силу после перезагрузки; `mitigations`, три `iommu`, `tsx` и `debugfs` не пишутся и выводятся блоком «требуется решение администратора») и `pam-wheel-su-v1` (доступ к `su` только для группы `wheel` с `root`: `/etc/pam.d/su` меняется, только если совпадает с файлом пакета, и только при наличии пользователей в группе `sudo` или `admin`; иначе — блок «требуется решение администратора»); состав берётся из APPLY registries, количества — из машинного статуса ниже. Остальные controls могут участвовать в CHECK, но не изменяются автоматически без явно поддерживаемой APPLY-семантики.
 
 Сухой запуск:
 
@@ -255,9 +255,9 @@ FIELD_COMPATIBILITY_ENVIRONMENTS=1
 CHECK_STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 CHECK=IMPLEMENTED_READ_ONLY
 APPLY=IMPLEMENTED
-APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1,kernel-cmdline-grub-v1,optional-file-root-files-mode-v1,standard-system-paths-mode-v1,startup-files-write-protection-v1,suid-sgid-applications-mode-v1
-APPLY_CONTROL_COUNT=39
-APPLY_IMPLEMENTATION_COUNT=7
+APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1,kernel-cmdline-grub-v1,optional-file-root-files-mode-v1,pam-wheel-su-v1,standard-system-paths-mode-v1,startup-files-write-protection-v1,suid-sgid-applications-mode-v1
+APPLY_CONTROL_COUNT=40
+APPLY_IMPLEMENTATION_COUNT=8
 RESTORE=NOT_PLANNED
 ROLLBACK_MODEL=EXTERNAL_SNAPSHOT
 FULL_FSTEC_COMPLIANCE_CLAIM=false

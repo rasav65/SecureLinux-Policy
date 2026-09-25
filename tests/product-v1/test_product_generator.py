@@ -4990,7 +4990,7 @@ SLP_POLICY_RC=1
         # Литерал закреплён явным решением: расширяется только осознанной правкой
         # этого теста при принятии нового APPLY-механизма, а не автоматически под
         # результат прогона.
-        self.assertEqual(set(apply_mechanisms), {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode", "startup-files-write-protection", "kernel-cmdline"})
+        self.assertEqual(set(apply_mechanisms), {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode", "startup-files-write-protection", "kernel-cmdline", "pam-wheel-access"})
         apply_rows = [row for row in rows if "apply" in row]
         expected_apply_controls = [
             c for c in (
@@ -5680,7 +5680,7 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         # Литерал закреплён явным решением: расширяется только осознанной правкой
         # этого теста при принятии нового APPLY-механизма, а не автоматически под
         # результат прогона.
-        self.assertEqual(set(mechanisms), {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode", "startup-files-write-protection", "kernel-cmdline"})
+        self.assertEqual(set(mechanisms), {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode", "startup-files-write-protection", "kernel-cmdline", "pam-wheel-access"})
         mechanism = mechanisms["sysctl"]
         self.assertEqual(mechanism["kind_row"]["apply_kind"], "config-line-with-runtime-v1")
         self.assertEqual(mechanism["kind_row"]["authority_form"], "MECHANISM_AUTHORITY_V1")
@@ -5695,10 +5695,10 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         # Литералы закреплены явным решением: меняются только осознанной правкой
         # этого теста при изменении APPLY-популяции, а не автоматически под
         # результат прогона. Вычисление здесь дало бы сравнение реестра с собой.
-        self.assertEqual(len(enabled), 39)
+        self.assertEqual(len(enabled), 40)
         self.assertEqual(
             {control["parameter_kind"] for control in enabled},
-            {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode", "startup-files-write-protection", "kernel-cmdline"},
+            {"sysctl", "file-mode-owner", "optional-file-root-files-mode", "suid-sgid-applications", "standard-system-paths-mode", "startup-files-write-protection", "kernel-cmdline", "pam-wheel-access"},
         )
         self.assertNotIn(
             "FSTEC-LINUX-2022-2.1.1-LOCAL-ACCOUNT-PASSWORD-STATE",
@@ -6080,6 +6080,31 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         ])
         self.assertEqual(report["controls"][0]["outcome"], "ABORTED_PRECONDITION_CONFLICT")
         self.assertEqual(report["controls"][0]["reason"], "admin-decision:tsx")
+
+    def test_apply_blocks_admin_action_required(self):
+        # Решение 25.09.2026 (2.2.1): блок с готовым действием администратора;
+        # current — policy_current механизма.
+        record = {
+            "outcome": "ABORTED_PRECONDITION_CONFLICT", "reason": "su:no-sudo-members",
+            "actions_attempted": ["P0_ELIGIBILITY", "P1_OBSERVE", "P2_PLAN"], "step_rc": "nonzero",
+            "mutation_performed": False, "transaction_commit": "NOT_STARTED", "policy_current": "wheel=absent",
+            "operator_decision": {"class": "ADMIN_ACTION_REQUIRED", "required": True,
+                                  "action": "назначьте администратора в группу sudo."},
+        }
+        cp, report = self._run_synthetic_apply_dispatcher(record)
+        self.assertEqual(cp.returncode, 1, cp.stderr)
+        self.assertEqual(cp.stderr, "")
+        row = next(line for line in cp.stdout.splitlines() if "passwd-mode" in line and line.count("|") == 5)
+        self.assertEqual([c.strip() for c in row.split("|")[:4]], ["block", "fstec-linux-2099 §9.9.4", "passwd-mode", "wheel=absent"])
+        blocks = self._blocks_section(cp.stdout)
+        self.assertEqual(blocks[0], "block — не применено автоматически, требуется решение администратора (1):")
+        rows = [[cell.strip() for cell in line.split("|")[:3]] for line in blocks[1:] if line.count("|") == 3]
+        self.assertEqual(rows, [
+            ["control", "type", "message"],
+            ["§9.9.4 passwd-mode", "detail", "su:no-sudo-members"],
+            ["", "note", "назначьте администратора в группу sudo."],
+        ])
+        self.assertEqual(report["controls"][0]["outcome"], "ABORTED_PRECONDITION_CONFLICT")
 
     def test_apply_blocks_common_phrases_once(self):
         # Решение 24.09.2026: одинаковый риск у блоков подряд — один раз после

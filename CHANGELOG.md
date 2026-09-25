@@ -10,6 +10,39 @@
 
 ## [Unreleased]
 
+- Механизм APPLY `pam-wheel-su-v1` для 2.2.1 `su-wheel-access` (SRC-0003),
+  решения человека 25.09.2026. Строк source index не закрывает. Было:
+  `apply.supported: false`, APPLY 2.2.1 не касался; на всех 7 средах CHECK — FAIL
+  `pam_wheel=absent;wheel=absent;root=missing`. Стало: `apply.supported: true`,
+  маршрут `parameter_kind=pam-wheel-access` → `pam-wheel-su-v1`
+  (`product/contracts/mechanism-pam-wheel-su-v1.json`,
+  `product/apply-adapters/product-pam-wheel-su-apply-v1.{py,json}`, строки в
+  `APPLY-KIND-REGISTRY.tsv` и `APPLY-IMPLEMENTATION-REGISTRY.tsv`).
+
+  - `/etc/pam.d/su` меняется, только если равен файлу пакета util-linux (SHA
+    `fda16622…`, одинаков на 7 средах; сверено с `util-linux_2.39.3-9ubuntu6.6`):
+    строка 15 `# auth       required   pam_wheel.so` →
+    `auth       required   pam_wheel.so use_uid`.
+  - Нет `wheel` — `groupadd --system wheel`, затем `gpasswd -a root wheel`;
+    прочие участники существующей `wheel` не меняются.
+  - Другой `/etc/pam.d/su` или нет пользователей в `sudo`/`admin` —
+    `ABORTED_PRECONDITION_CONFLICT`, блок с готовым действием (новый класс
+    `operator_decision` `ADMIN_ACTION_REQUIRED`).
+  - Порядок — группа, затем PAM; ошибка записи или итоговой проверки — группа
+    удаляется или `root` убирается, прежние байты PAM возвращаются.
+
+  Генератор: класс `ADMIN_ACTION_REQUIRED` в блоках, поле `policy_current` в
+  колонке current. Тесты: `tests/product-v1/test_pam_wheel_su_apply_adapter.py`
+  (17 на временном дереве, итог сверяется CHECK-адаптером 2.2.1 — PASS);
+  `test_apply_blocks_admin_action_required` в `test_product_generator.py`;
+  литералы APPLY-популяции (39 → 40 контролей, 7 → 8 механизмов,
+  `+pam-wheel-access`), узел `APPLY8` в `test_project_map.py`; в
+  `docs/PROJECT-MAP.md` класс G5 → «да». Попутно в
+  `docs/PROJECT-MAP.md` и `docs/compatibility.md` исправлено «ВМ-прогона ещё нет»
+  у `kernel-cmdline-grub-v1` и `startup-files-write-protection-v1` (прогон
+  24.09.2026). Трекнутый артефакт перегенерирован, `CHECK_SHA256`
+  `9a42418f2d3e644d4409458fd72fcf3c2cf9ed95996d28ec7c3d7463b7b867ab`. ВМ-прогон механизма не выполнялся.
+
 - `tools/refresh-pins.py`: порядок этапов. Строк source index не закрывает,
   байты продукта не меняет. Было: генератор артефакта запускался до обновления
   колонки `sha256` в `CONTROL-MANIFEST.tsv`, и правка control-yaml отказывала с

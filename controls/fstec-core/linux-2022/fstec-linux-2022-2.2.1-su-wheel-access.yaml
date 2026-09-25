@@ -23,4 +23,4 @@ expected:
   value: "auth required pam_wheel.so use_uid;wheel:root"
   type: "string"
 apply:
-  supported: false
+  supported: true
