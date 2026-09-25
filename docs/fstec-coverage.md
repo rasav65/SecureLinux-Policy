@@ -7,8 +7,8 @@
 ```text
 TOTAL_INDEX_ROWS=349
 CONTROLLED_CLOSED_WITH_CONTRACT=40
-DISPOSED_CLOSED_ROWS=211
-OPEN_INDEX_ROWS=98
+DISPOSED_CLOSED_ROWS=293
+OPEN_INDEX_ROWS=16
 CANONICAL_CONTROLS=49
 ```
 
@@ -89,10 +89,10 @@ CANONICAL_CONTROLS=49
 
 | Документ source | Всего строк | Controlled CLOSED | Disposed CLOSED | OPEN | Canonical controls |
 |---|---:|---:|---:|---:|---:|
-| fstec-configuration-2026 | 49 | 0 | 0 | 49 | 0 |
+| fstec-configuration-2026 | 49 | 0 | 42 | 7 | 0 |
 | fstec-linux-2022 | 40 | 40 | 0 | 0 | 49 |
-| fstec-logging-2025 | 14 | 0 | 0 | 14 | 0 |
-| fstec-perimeter-2026 | 35 | 0 | 0 | 35 | 0 |
+| fstec-logging-2025 | 14 | 0 | 5 | 9 | 0 |
+| fstec-perimeter-2026 | 35 | 0 | 35 | 0 | 0 |
 | fstec-security-update-testing-2022 | 70 | 0 | 70 | 0 | 0 |
 | fstec-vulnerability-analysis-2025 | 61 | 0 | 61 | 0 | 0 |
 | fstec-vulnerability-criticality-2025 | 28 | 0 | 28 | 0 | 0 |
@@ -102,6 +102,6 @@ CANONICAL_CONTROLS=49
 
 ## Открытая часть корпуса
 
-`98` source rows остаются `OPEN`. Полный перечень и их source metadata находятся в `index/source-v4/SOURCE-INDEX.tsv`; этот документ не дублирует 349 строк вручную.
+`16` source rows остаются `OPEN`. Полный перечень и их source metadata находятся в `index/source-v4/SOURCE-INDEX.tsv`; этот документ не дублирует 349 строк вручную.
 
 Наличие adapter или canonical control само по себе не закрывает source row: закрытие определяется source status и `CLOSURE-CONTRACT.tsv` либо explicit disposition.

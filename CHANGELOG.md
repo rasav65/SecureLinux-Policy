@@ -10,6 +10,13 @@
 
 ## [Unreleased]
 
+- Step 7B: 82 строки source index закрыты аудированной диспозицией
+  (`index/source-v4/DISPOSITION-LEDGER.tsv`): fstec-perimeter-2026 — 35,
+  fstec-configuration-2026 — 42, fstec-logging-2025 — 5. Было: закрыто 251 из 349,
+  диспозицией 211, открыто 98. Стало: закрыто 333, диспозицией 293, открыто 16 —
+  кандидаты в технические контроли (перечень — `docs/HANDOFF.md`). Байты продукта
+  не меняются.
+
 - Горизонт 1 `HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS` закрыт, `NEXT` — Step 7B
   `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` (`docs/ROADMAP.tsv`). Строк source
   index не закрывает, байты продукта не меняет. Было: горизонт 1 — `NEXT`, Step 7B —
