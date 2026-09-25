@@ -10,7 +10,15 @@
 
 ## [Unreleased]
 
-- Приёмка ВМ-прогона 25.09.2026 (решение исполнителя по поручению человека).
+- Формулировки текущей документации без названий внешних проверяющих и без
+  указания того, кто принимал решения (правило регламента о проектной документации).
+  Строк source index не закрывает, байты продукта не меняет. Было: в `CHANGELOG.md`,
+  `docs/PROJECT-MAP.md`, `docs/compatibility.md`, `product/README.md` и
+  `docs/HANDOFF.md` называлась внешняя система проверки и тот, кто принимал решения.
+  Стало: «аудит», «аудитор», «по делегированию человека»; диапазоны, блокеры и
+  факты не изменены.
+
+- Приёмка ВМ-прогона 25.09.2026 (решение по делегированию человека).
   Строк source index не закрывает, байты продукта не меняет. Evidence сверено:
   runner SHA `e7a6ffb8…8419`; архив
   `slp-vm-apply-supported7-v15-states1-7-20260925-105923.tar.gz` SHA `cb1fe630…8ab4`,
@@ -28,7 +36,7 @@
   изменением прав не проверен). Синхронизированы `docs/PROJECT-MAP.md`,
   `docs/testing-strategy.md`, `docs/HANDOFF.md`, `tests/roadmap-v1/test_project_map.py`.
 
-- Документы после сверки очереди 25.09.2026 (решения исполнителя по поручению
+- Документы после сверки очереди 25.09.2026 (решения по делегированию
   человека). Строк source index не закрывает, байты продукта не меняет.
   Было: `docs/PROJECT-MAP.md` называл семь механизмов APPLY без `pam-wheel-su-v1`
   и кандидат `e683fe2b…2cfc` текущим; раздел «Отложено сознательно» откладывал
@@ -945,7 +953,7 @@
   Новый `CHECK_SHA256`
   `d45437179aaea5ee716c55f8fcaf518c93e8e60e0455b4656246a148b1415d5b`.
 
-- Repair-step по аудиту Codex диапазона `3215d1c..cc90fd6` (`RESULT=REVISE`,
+- Repair-step по аудиту диапазона `3215d1c..cc90fd6` (`RESULT=REVISE`,
   3 блокера; **B-02** — диагностика, без правки продукта). **B-01**: адаптер
   `product-home-directories-mode-check-v2.py` (2.3.11) фильтровал
   байт-опасные TAB/LF/CR в имени элемента `/home` только на ветках
@@ -961,7 +969,7 @@
   ветки directory/symlink/not-directory/error для имени, 4 байта для цели
   readlink) в `HomeDirectoriesModeAdapterFixtures`, 6 новых методов (19→25);
   до правки 11 подтестов падали. **B-02** (только диагностика, без правки):
-  предположение Codex «корневой CHECK-артефакт обязан входить в
+  предположение аудитора «корневой CHECK-артефакт обязан входить в
   `product/SHA256SUMS`» не подтвердилось — отдельного генератора
   `product/SHA256SUMS` нет (не найден ни в одном из двух
   `generate-product-check-v*.py`), манифест — вручную сопровождаемый
@@ -998,7 +1006,7 @@
   `tests/product-v1/SHA256SUMS`, корневые манифесты; новый `CHECK_SHA256`
   `5dc6da078546ec2b7abee025b506c65d7171812e749edab9a22cdf6ac94c7a21`.
 
-- Repair-step по аудиту Codex диапазона `6780086..3215d1c` (`RESULT=REVISE`,
+- Repair-step по аудиту диапазона `6780086..3215d1c` (`RESULT=REVISE`,
   4 блокера). **B-01**: `home:symlink:<путь>-><цель>`/`home:not-directory:<путь>`
   (адаптер 2.3.11) отвергались regex `slp_collect_policy`
   (`^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$`) → `CHECK_INTERNAL_ERROR` на
@@ -1006,7 +1014,7 @@
   полезной нагрузки (`<seg>:<seg>[:payload]`), payload без control-байт
   (`[:cntrl:]`, локаль фиксируется `local LC_ALL=C`); payload с control-байтом
   даёт `home:invalid-name`, как и раньше (сам адаптер 2.3.11 с репарации по
-  аудиту Codex диапазона `3215d1c..cc90fd6`, B-01, явно фильтрует TAB/LF/CR/DEL
+  аудиту диапазона `3215d1c..cc90fd6`, B-01, явно фильтрует TAB/LF/CR/DEL
   — 0x09/0x0A/0x0D/0x7F — в имени элемента и в цели readlink раньше, чем
   reason доходит до этого регекса). Тест — сквозной через сгенерированный
   CLI (`SlpCollectPolicyReasonFormat`, 5 методов: raw/JSON/pretty с путём и
@@ -1041,7 +1049,7 @@
   команды). Правка — захват через sentinel (`&& printf x`), снимается ровно
   один служебный символ, затем ровно один служебный `\n`. Тестов, отдельно
   проверяющих цель с TAB/внутренним LF/сохранением завершающего LF, этот шаг
-  не добавлял (опровергнуто репарацией по аудиту Codex диапазона
+  не добавлял (опровергнуто репарацией по аудиту диапазона
   `3215d1c..cc90fd6`, B-03 документации); с репарации того же диапазона
   (B-01) любой из TAB/LF/CR/DEL в цели readlink даёт `home:invalid-name` без
   payload, поэтому отдельного теста на сохранение «сырого» target с такими
@@ -1122,7 +1130,7 @@
   APPLY не менялись, ВМ-прогон на новых байтах не выполнен (перекроет приёмка
   8 сред).
 
-- Исправления по аудиту Codex коммита `6780086`. **REREAD_UNCHECKED** (тот же
+- Исправления по аудиту коммита `6780086`. **REREAD_UNCHECKED** (тот же
   класс дефекта, что у `pam-wheel-access-v2`) устранён по тому же образцу ещё
   в семи CHECK-адаптерах: `home-directories-mode-check-v2` (passwd),
   `home-sensitive-files-mode-check-v2` (inventory, passwd),
@@ -1155,7 +1163,7 @@
   `test_*` в классе `UnprovenAbsenceIsErrorFixtures` дал на `e420aee` и на
   `6780086` одинаковое число — 11; в `6780086` в этот класс метод не
   добавлен, пять новых тестов коммита лежат в отдельном новом классе
-  `PamWheelSingleReadFixtures`. Замечание аудитора Codex о «12 тестов» не
+  `PamWheelSingleReadFixtures`. Замечание аудитора о «12 тестов» не
   подтверждено; историческая запись CHANGELOG за `e420aee` («7 из 11»)
   остаётся верной и не правится. `docs/PROJECT-MAP.md` и `docs/compatibility.md`
   реклассифицируют кандидат `be828dae…5128` в исторический и описывают
@@ -1165,9 +1173,9 @@
   байтах не выполнен (перекроет приёмка 8 сред).
 
 - `pam-wheel-access-v2`: файл читается один раз (решение человека). Раньше `od` проверял байты, а затем файл заново открывался в `while read … < file`; при исчезновении файла между обращениями перенаправление не удавалось, цикл не выполнялся и контроль выдавал `VALUE/FAIL` вместо `ERROR`. Теперь проверенные `od` байты декодируются в текст, который разбирается построчно без повторного открытия (`pam`, `group`, `authority`); для корректных файлов семантика PASS/FAIL не изменилась (проверены файл без конечного `\n`, продолжение строки в конце файла, пустой файл). Каталог состояния `/var/log/securelinux-policy` во встроенном APPLY-dispatcher: существующий каталог обязан быть не симлинком, каталогом, принадлежать root и не иметь битов `022`; родитель `/var/log` — владелец root, без `o+w`, при `g+w` группа `root` или `syslog` (на Ubuntu `/var/log` — `root:syslog 0775`, буквальное «без `022`» отказывало бы APPLY на каждой Ubuntu; решение человека). Иначе отказ `REFUSED reporting:state-…` до любой записи, `RC=1`. Блокировка `flock(LOCK_EX|LOCK_NB)` на `.lock` в каталоге состояния для `--apply` и `--apply --dry-run`: второй экземпляр — `REFUSED reporting:already-running`, без мутаций и без записи отчёта. Тесты добавлены первыми и до правки падали: 3 из 5 в `PamWheelSingleReadFixtures` (`test_product_generator.py`; остальные два — базовый PASS и граничные случаи — проходили и до, и после) и 11 из 12 в `StateDirGuard` (`test_apply_dispatch_integration.py`; парный «блокировка снята после выхода держателя» проходил и до). Существующие тесты dispatcher подставляют `TRUSTED_UID = PARENT_TRUSTED_UID` пользователя прогона. Адаптеры APPLY не менялись, ВМ-прогоны на одной среде не повторялись — их перекроет приёмка 8 сред. Новый `CHECK_SHA256` `be828dae…5128`; ВМ-прогон на нём не выполнен.
-- CHECK-адаптеры больше не принимают недоступность за отсутствие (находки аудитора Codex, статический анализ). Раньше `[[ ! -e path ]]` не отличал отсутствующее имя от имени под недоступным предком: `sysctl-v2`, `kernel-cmdline-v2`, `pam-wheel-access-v2`, `sshd-root-login-v1` отвечали `NOT_FOUND`, а `home-directories-mode-v2` и `home-sensitive-files-mode-v2` молча пропускали такой home, то есть возможен был `VALUE/PASS` по неполной популяции. Теперь `NOT_FOUND`/пропуск только при доказанном отсутствии (родитель — доступный для поиска каталог, как в `file-mode-owner`); иначе `ERROR` с уже существующей в коде адаптера причиной (контракты перечисляют только форму `<domain>:<reason>`): `sysctl:read-failed`, `cmdline:read-failed`, `pam:read-failed`/`group:read-failed`, `sshd-config:unreadable`/`sshd-binary:resolve-failed`, `home:identity-failed`. Новых причин нет. Тесты добавлены первыми (недоступный предок — `chmod 000`, доступ проверяется зондом от непривилегированного пользователя) и до правки падали: 7 из 11 в `test_product_generator.py` и 1 из 2 в `test_sysctl_adapter.py`; парные тесты «отсутствует в доступном каталоге — `NOT_FOUND`» проходили и до, и после. Подозрение на потерю ошибки в `while read … < file` проверено внедрением: home-directories, home-sensitive и tested-setting-attestation отдают `ERROR` (не дефект, код не менялся); в pam-wheel-access ошибка перенаправления теряется (`VALUE/FAIL`) — способ исправления вынесен на решение человека, код циклов не менялся. Новый `CHECK_SHA256` `9b886b9d…08fd`; ВМ-прогон на нём не выполнен.
+- CHECK-адаптеры больше не принимают недоступность за отсутствие (находки аудитора, статический анализ). Раньше `[[ ! -e path ]]` не отличал отсутствующее имя от имени под недоступным предком: `sysctl-v2`, `kernel-cmdline-v2`, `pam-wheel-access-v2`, `sshd-root-login-v1` отвечали `NOT_FOUND`, а `home-directories-mode-v2` и `home-sensitive-files-mode-v2` молча пропускали такой home, то есть возможен был `VALUE/PASS` по неполной популяции. Теперь `NOT_FOUND`/пропуск только при доказанном отсутствии (родитель — доступный для поиска каталог, как в `file-mode-owner`); иначе `ERROR` с уже существующей в коде адаптера причиной (контракты перечисляют только форму `<domain>:<reason>`): `sysctl:read-failed`, `cmdline:read-failed`, `pam:read-failed`/`group:read-failed`, `sshd-config:unreadable`/`sshd-binary:resolve-failed`, `home:identity-failed`. Новых причин нет. Тесты добавлены первыми (недоступный предок — `chmod 000`, доступ проверяется зондом от непривилегированного пользователя) и до правки падали: 7 из 11 в `test_product_generator.py` и 1 из 2 в `test_sysctl_adapter.py`; парные тесты «отсутствует в доступном каталоге — `NOT_FOUND`» проходили и до, и после. Подозрение на потерю ошибки в `while read … < file` проверено внедрением: home-directories, home-sensitive и tested-setting-attestation отдают `ERROR` (не дефект, код не менялся); в pam-wheel-access ошибка перенаправления теряется (`VALUE/FAIL`) — способ исправления вынесен на решение человека, код циклов не менялся. Новый `CHECK_SHA256` `9b886b9d…08fd`; ВМ-прогон на нём не выполнен.
 
-- Механизм APPLY `standard-system-paths-mode-v1`: повторный ВМ-прогон на текущем кандидате `securelinux-policy.sh` `ba96131b…a55b` (среда `ubuntu-24.04-x86_64-minimized`, 20.09.2026) — `RESULT=PASS`; runner `dashboard/slp-vm-mech5-u2404min-v1.sh` `e6abdf22…4a3d` (перепривязан к новому кандидату), acceptance `c7900db8…12d8`, evidence `dashboard/src0009-vm-evidence/slp-vm-mech5-u2404min-v1-20260920-175045.tar.gz` `eddd6bd1…31d4`. Популяция 8300 файлов; фаза d — `APPLIED`, применён один файл (`/usr/bin/[` `0775` → `0755`); фаза f — `ALREADY_COMPLIANT`; `d.exercised` выполнен. Прежний ВМ-PASS относится к кандидату `e170aae1…dd38`. Коммит `8147d89` вернул адаптеру `product-standard-system-paths-mode-apply-v1.py` режим `100755` (находка аудитора Codex; содержимое не менялось).
+- Механизм APPLY `standard-system-paths-mode-v1`: повторный ВМ-прогон на текущем кандидате `securelinux-policy.sh` `ba96131b…a55b` (среда `ubuntu-24.04-x86_64-minimized`, 20.09.2026) — `RESULT=PASS`; runner `dashboard/slp-vm-mech5-u2404min-v1.sh` `e6abdf22…4a3d` (перепривязан к новому кандидату), acceptance `c7900db8…12d8`, evidence `dashboard/src0009-vm-evidence/slp-vm-mech5-u2404min-v1-20260920-175045.tar.gz` `eddd6bd1…31d4`. Популяция 8300 файлов; фаза d — `APPLIED`, применён один файл (`/usr/bin/[` `0775` → `0755`); фаза f — `ALREADY_COMPLIANT`; `d.exercised` выполнен. Прежний ВМ-PASS относится к кандидату `e170aae1…dd38`. Коммит `8147d89` вернул адаптеру `product-standard-system-paths-mode-apply-v1.py` режим `100755` (находка аудитора; содержимое не менялось).
 
 - Исправлен дефект механизма APPLY `standard-system-paths-mode-v1`, найденный аудитором: при ошибке чтения подкаталога перечислитель (`os.walk` без `onerror`) молча пропускал его, CHECK возвращал `ERROR scan:find-failed`, а APPLY применял `APPLIED`/`COMMITTED` по неполной популяции. Теперь `_entries` завершает контроль отказом `scan:find-failed` до мутаций (`onerror` → `_ObservationError`); семантика CHECK и границы мутации не менялись. Тесты добавлены первыми и до правки падали (3 теста №5: apply, dry-run, observe); для `optional-file-root-files-mode-v1` (ошибка `os.scandir` корня), `suid-sgid-applications-mode-v1` (ошибка чтения каталога в `_scan_mount`) и `config-line-with-runtime-v1` (ошибка `os.scandir` каталога sysctl-источников) код верен, тесты прошли сразу. Новый `CHECK_SHA256` `ba96131b…a55b`; прежний ВМ-PASS №5 относится к кандидату `e170aae1…dd38`; повторный ВМ-прогон на новых байтах выполнен — PASS (запись выше).
 
