@@ -197,8 +197,11 @@ assert "docs/PROJECT-MAP.md" in readme
 
 # B6: deliberately deferred directions are named with their reason.
 deferred = text.split("## Отложено сознательно", 1)[1]
-for marker in ("SRC-0008", "kernel cmdline", "G3", "G5", "инвентарь механизмов"):
+for marker in ("SRC-0008", "G3", "инвентарь механизмов"):
     assert marker in deferred, marker
+# APPLY для kernel cmdline (G4) и G5 реализован: в отложенном их нет.
+for stale in ("kernel cmdline", "G5"):
+    assert stale not in deferred, stale
 # Карта сегментации контролей fstec-linux-2022 (принята 19.09.2026): классы
 # G1–G7 покрывают population CONTROL-MANIFEST ровно один раз, колонка
 # «APPLY сейчас» совпадает с apply.supported контролей. Счётчики не пинуются.
