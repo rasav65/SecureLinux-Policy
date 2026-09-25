@@ -84,7 +84,8 @@ APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-
 APPLY → перезагрузка → CHECK; после перезагрузки `init_on_alloc=1 slab_nomerge randomize_kstack_offset=1
 vsyscall=none` в `/proc/cmdline`, 2.4.3, 2.4.4, 2.4.6 и 2.5.1 — PASS, повторный APPLY без `APPLIED` и `FAILED_*`.
 У `startup-files-write-protection-v1` в том же прогоне на всех 7 средах исход `ALREADY_COMPLIANT`:
-путь с изменением прав на ВМ не проверялся. У `pam-wheel-su-v1` VM-прогона ещё нет.
+путь с изменением прав на ВМ не проверялся. У `pam-wheel-su-v1` VM-прогон выполнен 25.09.2026 на 7 средах (артефакт `9a42418f…67ab`): 2.2.1 —
+`APPLIED`, CHECK после — PASS (`wheel` с `root`, GID выбран системой), повторный APPLY — `ALREADY_COMPLIANT`.
 
 Ошибка обхода каталога обязана давать отказ до мутации, а не мутацию по неполной
 популяции. Для каждого механизма, который перечисляет каталоги

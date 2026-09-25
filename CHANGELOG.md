@@ -10,6 +10,18 @@
 
 ## [Unreleased]
 
+- ВМ-прогон `pam-wheel-su-v1` 25.09.2026 (runner
+  `tools/vm-runner/slp-vm-apply-supported7-v15.sh`, 7 сред, снимки
+  `upd-20260924`, артефакт `9a42418f…67ab`, архив
+  `slp-vm-apply-supported7-v15-states1-7-20260925-105923.tar.gz` SHA
+  `cb1fe630…8ab4` в evidence). Строк source index не закрывает, байты продукта
+  не меняет. Было: ВМ-прогона механизма не было. Стало: на всех 7 средах 2.2.1 —
+  `APPLIED`, CHECK после перезагрузки — PASS
+  `pam_wheel=present;wheel=gid N;root=member`, повторный APPLY —
+  `ALREADY_COMPLIANT`; CHECK всего: Ubuntu 38 PASS / 10 FAIL, Debian 40 / 8.
+  Синхронизированы `docs/PROJECT-MAP.md` (узел `APPLY8`), `docs/compatibility.md`,
+  `docs/testing-strategy.md`, очередь `docs/HANDOFF.md`.
+
 - `docs/HANDOFF.md` и runner ВМ, согласие человека 25.09.2026. Строк source index
   не закрывает, байты продукта не меняет. Было: runner APPLY
   `slp-vm-apply-supported7-v15.sh` хранился вне репозитория; очередь содержала

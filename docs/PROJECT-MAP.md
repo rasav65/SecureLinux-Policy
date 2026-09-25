@@ -219,7 +219,7 @@ flowchart LR
     APPLY5["standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: 1 среда PASS, приёмка семи сред — впереди"]:::current
     APPLY6["startup-files-write-protection-v1<br/>режимы файлов запуска SRC-0009 · APPLY<br/>ВМ: прогона нет, приёмка семи сред — впереди"]:::current
     APPLY7["kernel-cmdline-grub-v1<br/>параметры загрузки ядра G4 · APPLY<br/>ВМ: прогон семи сред 24.09.2026, приёмка — впереди"]:::current
-    APPLY8["pam-wheel-su-v1<br/>доступ к su SRC-0003 · APPLY<br/>ВМ: прогона нет, приёмка семи сред — впереди"]:::current
+    APPLY8["pam-wheel-su-v1<br/>доступ к su SRC-0003 · APPLY<br/>ВМ: прогон семи сред 25.09.2026, приёмка — впереди"]:::current
     CLI["securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
     ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note
 
@@ -264,7 +264,7 @@ Human-readable CHECK/REPORT выводит обнаруженную ОС, арх
 
 Статус узла механизма задаётся гейтами: `closed` — механизм прошёл `--release` и VM-цикл по семи поддерживаемым средам;
 `current` — идёт работа. Иного статуса у узла механизма нет.
-Все восемь механизмов в статусе `current`: на ВМ у пяти пройдена одна среда; 24.09.2026 APPLY всех механизмов, кроме `pam-wheel-su-v1`, прогнан на семи средах (у `startup-files-write-protection-v1` — только исход `ALREADY_COMPLIANT`), решение о приёмке по нему не принято; у `pam-wheel-su-v1` ВМ-прогона ещё нет; приёмка семи поддерживаемых сред (Desktop — FIELD_COMPATIBILITY, отдельной строкой) впереди.
+Все восемь механизмов в статусе `current`: на ВМ у пяти пройдена одна среда; APPLY всех механизмов прогнан на семи средах 24.09.2026, `pam-wheel-su-v1` — 25.09.2026 (у `startup-files-write-protection-v1` — только исход `ALREADY_COMPLIANT`); решение о приёмке по этим прогонам не принято; приёмка семи поддерживаемых сред (Desktop — FIELD_COMPATIBILITY, отдельной строкой) впереди.
 
 Узел `ADMIN` — граница продукта: для части контролей APPLY не реализуется по решению,
 и продукт возвращает решение администратору отдельным терминальным исходом.

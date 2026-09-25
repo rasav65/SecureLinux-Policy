@@ -53,7 +53,7 @@ for marker in (
     'standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: 1 среда PASS, приёмка семи сред — впереди"]:::current',
     'startup-files-write-protection-v1<br/>режимы файлов запуска SRC-0009 · APPLY<br/>ВМ: прогона нет, приёмка семи сред — впереди"]:::current',
     'kernel-cmdline-grub-v1<br/>параметры загрузки ядра G4 · APPLY<br/>ВМ: прогон семи сред 24.09.2026, приёмка — впереди"]:::current',
-    'pam-wheel-su-v1<br/>доступ к su SRC-0003 · APPLY<br/>ВМ: прогона нет, приёмка семи сред — впереди"]:::current',
+    'pam-wheel-su-v1<br/>доступ к su SRC-0003 · APPLY<br/>ВМ: прогон семи сред 25.09.2026, приёмка — впереди"]:::current',
     'ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note',
     'securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed',
 ):
