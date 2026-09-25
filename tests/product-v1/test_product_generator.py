@@ -6527,6 +6527,23 @@ class UnprovenAbsenceIsErrorFixtures(unittest.TestCase):
         self.assertEqual(self.run_block(self.pam_fixture(pam, group), "slp_check_PAM_ABSENCE"),
                          ("ERROR", "group:read-failed", "ERROR"))
 
+    def test_pam_wheel_pam_stat_error_other_than_enoent_is_error(self):
+        # ENAMETOOLONG при доступном для поиска родителе: отсутствие не доказано (B-02).
+        group = self.visible / "group"
+        group.write_text("wheel:x:10:root\n", encoding="utf-8")
+        self.owned(group)
+        block = self.pam_fixture(self.visible / ("n" * 300), group)
+        self.assertEqual(self.run_block(block, "slp_check_PAM_ABSENCE"),
+                         ("ERROR", "pam:read-failed", "ERROR"))
+
+    def test_pam_wheel_group_stat_error_other_than_enoent_is_error(self):
+        pam = self.visible / "su"
+        pam.write_text("auth required pam_wheel.so use_uid\n", encoding="utf-8")
+        self.owned(pam)
+        block = self.pam_fixture(pam, self.visible / ("n" * 300))
+        self.assertEqual(self.run_block(block, "slp_check_PAM_ABSENCE"),
+                         ("ERROR", "group:read-failed", "ERROR"))
+
     def test_pam_wheel_absent_file_in_searchable_parent_stays_not_found(self):
         group = self.visible / "group"
         group.write_text("wheel:x:10:root\n", encoding="utf-8")

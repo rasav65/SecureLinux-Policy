@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+- CHECK-адаптер `pam-wheel-access-v2` (2.2.1; B-02): отсутствие `/etc/pam.d/su` и
+  `/etc/group` — только доказанный ENOENT. Строк source index не закрывает. Было:
+  `[[ ! -e ]]` при доступном родителе вёл к `NOT_FOUND FAIL` при любой ошибке stat.
+  Стало: `stat -c %F` (LC_ALL=C в команде) и текст «No such file or directory»;
+  иначе — `ERROR pam:read-failed` / `ERROR group:read-failed`. Тесты: два случая
+  ENAMETOOLONG (до правки — FAIL). Применимость ВМ-прогона 25.09.2026 — REUSED:
+  ветка выполняется только при недоступных файлах, на 7 средах оба файла читаются
+  (CHECK без `ERROR`). Все пять адаптеров B-02 исправлены.
+
 - CHECK-адаптер `sshd-root-login-v1` (2.1.2; B-02): отсутствие — только доказанный
   ENOENT в четырёх местах. Строк source index не закрывает. Было: `[[ ! -e ]]` для
   `sshd_config` и бинарного файла sshd давал `NOT_FOUND` при любой ошибке stat;
