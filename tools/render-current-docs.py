@@ -137,6 +137,33 @@ def split_control_ids(raw: str) -> list[str]:
     return ids
 
 
+CONTROL_DIR_NAME_RE = re.compile(r"[a-z0-9][a-z0-9-]*")
+
+
+def control_manifest_rows(root: Path) -> list[dict[str, str]]:
+    """Строки всех controls/fstec-core/<каталог>/CONTROL-MANIFEST.tsv с полем dir.
+
+    Правила те же, что у генератора продукта: каждый элемент корня — каталог
+    документа с допустимым именем, не symlink, с манифестом; иное — отказ.
+    """
+    base = root / "controls/fstec-core"
+    if base.is_symlink() or not base.is_dir():
+        raise RuntimeError("controls root missing or not a directory")
+    controls = []
+    for d in sorted(base.iterdir(), key=lambda p: p.name.encode("utf-8")):
+        if d.is_symlink() or not d.is_dir() or not CONTROL_DIR_NAME_RE.fullmatch(d.name):
+            raise RuntimeError(f"invalid control directory: {d.name!r}")
+        manifest = d / "CONTROL-MANIFEST.tsv"
+        if manifest.is_symlink() or not manifest.is_file():
+            raise RuntimeError(f"control directory without CONTROL-MANIFEST.tsv: {d.name!r}")
+        for row in read_tsv(manifest):
+            row["dir"] = d.relative_to(root).as_posix()
+            controls.append(row)
+    if not controls:
+        raise RuntimeError("no control rows under controls/fstec-core")
+    return controls
+
+
 def collect_state(root: Path) -> dict:
     source_rows = read_tsv(root / "index/source-v4/SOURCE-INDEX.tsv")
     if not source_rows:
@@ -174,14 +201,7 @@ def collect_state(root: Path) -> dict:
         if progress[key] != expected:
             raise RuntimeError(f"PROGRESS mismatch {key}: {progress[key]!r} != {expected!r}")
 
-    controls = []
-    for manifest in sorted((root / "controls/fstec-core").glob("*/CONTROL-MANIFEST.tsv"),
-                           key=lambda p: p.parent.name.encode("utf-8")):
-        for row in read_tsv(manifest):
-            row["dir"] = manifest.parent.relative_to(root).as_posix()
-            controls.append(row)
-    if not controls:
-        raise RuntimeError("no CONTROL-MANIFEST.tsv under controls/fstec-core")
+    controls = control_manifest_rows(root)
     control_by_id = {row["control_id"]: row for row in controls}
     if len(control_by_id) != len(controls):
         raise RuntimeError("duplicate control id in CONTROL-MANIFEST")

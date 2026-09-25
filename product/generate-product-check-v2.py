@@ -194,12 +194,14 @@ def control_manifest_paths(repo: Path) -> list[Path]:
     if root.is_symlink() or not root.is_dir():
         raise RuntimeError("controls root missing or not a directory")
     paths = []
+    # Каждый элемент корня — каталог документа с манифестом; иное — отказ,
+    # а не пропуск (B-01 аудита 21fd922..1108e1f).
     for d in sorted(root.iterdir(), key=lambda p: p.name.encode("utf-8")):
-        m = d / "CONTROL-MANIFEST.tsv"
-        if not m.exists() and not m.is_symlink():
-            continue
         if d.is_symlink() or not d.is_dir() or not CONTROL_DIR_NAME_RE.fullmatch(d.name):
             raise RuntimeError(f"invalid control directory: {d.name!r}")
+        m = d / "CONTROL-MANIFEST.tsv"
+        if not m.exists() and not m.is_symlink():
+            raise RuntimeError(f"control directory without CONTROL-MANIFEST.tsv: {d.name!r}")
         require_regular(m, "control manifest")
         paths.append(m)
     if not paths:

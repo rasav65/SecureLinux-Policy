@@ -199,5 +199,20 @@ _tool = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_tool)
 assert _tool.is_carrier("controls/fstec-core/configuration-2026/CONTROL-MANIFEST.tsv")
 assert not _tool.is_carrier("controls/fstec-core/a/b/CONTROL-MANIFEST.tsv")
+# Файл второго каталога закреплён манифестом своего каталога.
+with tempfile.TemporaryDirectory(prefix="slp-pin-closure-") as tmp:
+    copy = tree_copy(tmp)
+    second = copy / "controls/fstec-core/fixture-doc"
+    second.mkdir()
+    (second / "fixture.yaml").write_text("x\n", encoding="utf-8")
+    header = (copy / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv").read_text(encoding="utf-8").split("\n")[0]
+    (second / "CONTROL-MANIFEST.tsv").write_text(
+        header + "\n" + "\t".join(["FIXTURE-1", "SRC-0001", "1", "k", "v", "fixture.yaml", "0" * 64]) + "\n",
+        encoding="utf-8",
+    )
+    rel = "controls/fstec-core/fixture-doc/fixture.yaml"
+    lines = closure(copy, copy / "tools/pin-closure.py", (rel,))
+    assert "controls/fstec-core/fixture-doc/CONTROL-MANIFEST.tsv" in lines, lines
+assert not Path(tmp).exists(), tmp
 
 print(f"PIN_CLOSURE_CASES=PASS_{len(CASES) + 1 + len(NEW_FILE_CASES) + 1}")

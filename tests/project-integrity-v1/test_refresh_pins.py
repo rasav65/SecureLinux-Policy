@@ -158,4 +158,55 @@ for rel, expected in (
 ):
     assert tool.is_control_manifest(rel) is expected, rel
 
+# Второй каталог документа: его манифест обнаруживается и обновляется refresh_carrier.
+with tempfile.TemporaryDirectory(prefix="slp-refresh-pins-") as tmp:
+    copy = fresh_copy(tmp)
+    src = next((copy / "controls/fstec-core/linux-2022").glob("*-2.4.1-*.yaml"))
+    second = copy / "controls/fstec-core/fixture-doc"
+    second.mkdir()
+    y = second / src.name
+    y.write_bytes(src.read_bytes())
+    header = (copy / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv").read_text(encoding="utf-8").split("\n")[0]
+    rel_m = "controls/fstec-core/fixture-doc/CONTROL-MANIFEST.tsv"
+    (copy / rel_m).write_text(
+        header + "\n" + "\t".join(["FIXTURE-1", "SRC-0016", "2.4.1", "k", "v", y.name, sha256(y)]) + "\n",
+        encoding="utf-8",
+    )
+    assert tool.control_manifests(copy) == [rel_m, "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"]
+    y.write_bytes(y.read_bytes() + b"# second-directory edit\n")
+    rel_y = "controls/fstec-core/fixture-doc/" + y.name
+    run_obj = tool.Run(copy, True)
+    assert tool.refresh_carrier(run_obj, rel_m, {rel_y}) is True
+    assert sha256(y) in (copy / rel_m).read_text(encoding="utf-8")
+
+# Рендер: все каталоги документов; каталог без манифеста и symlink — отказ.
+_rspec = importlib.util.spec_from_file_location("slp_render_docs", ROOT / "tools/render-current-docs.py")
+_render = importlib.util.module_from_spec(_rspec)
+_rspec.loader.exec_module(_render)
+with tempfile.TemporaryDirectory(prefix="slp-render-dirs-") as tmp:
+    base = Path(tmp)
+    hdr = "control_id\tindex_id\tlocator\tkey\texpected\tfile\tsha256\n"
+    for name, cid in (("a-doc", "A-1"), ("b-doc", "B-1")):
+        d = base / "controls/fstec-core" / name
+        d.mkdir(parents=True)
+        (d / "CONTROL-MANIFEST.tsv").write_text(hdr + f"{cid}\tSRC-0001\t1\tk\tv\t{cid}.yaml\t{'0' * 64}\n", encoding="utf-8")
+    got = _render.control_manifest_rows(base)
+    assert [(r["control_id"], r["dir"]) for r in got] == [
+        ("A-1", "controls/fstec-core/a-doc"), ("B-1", "controls/fstec-core/b-doc")], got
+    (base / "controls/fstec-core/c-doc").mkdir()
+    try:
+        _render.control_manifest_rows(base)
+    except RuntimeError as exc:
+        assert "without CONTROL-MANIFEST.tsv: 'c-doc'" in str(exc), exc
+    else:
+        raise AssertionError("directory without manifest accepted by renderer")
+    (base / "controls/fstec-core/c-doc").rmdir()
+    (base / "controls/fstec-core/c-doc").symlink_to(base / "controls/fstec-core/a-doc")
+    try:
+        _render.control_manifest_rows(base)
+    except RuntimeError as exc:
+        assert "invalid control directory: 'c-doc'" in str(exc), exc
+    else:
+        raise AssertionError("symlink directory accepted by renderer")
+
 print("REFRESH_PINS_TEST=PASS")

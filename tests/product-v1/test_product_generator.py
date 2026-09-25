@@ -7538,6 +7538,53 @@ class ControlDirectoriesTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "manifest/YAML population mismatch"):
                 GEN_V2_CURRENT.load_manifest(repo)
 
+    def test_directory_without_manifest_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._repo(tmp, {"a-doc": [("A-1", "a-1.yaml")]})
+            orphan = repo / "controls/fstec-core/b-doc"
+            orphan.mkdir()
+            (orphan / "b-1.yaml").write_text("x\n", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "without CONTROL-MANIFEST.tsv: 'b-doc'"):
+                GEN_V2_CURRENT.load_manifest(repo)
+
+    def test_symlink_directory_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._repo(tmp, {"a-doc": [("A-1", "a-1.yaml")]})
+            (repo / "controls/fstec-core/b-doc").symlink_to(repo / "controls/fstec-core/a-doc")
+            with self.assertRaisesRegex(RuntimeError, "invalid control directory: 'b-doc'"):
+                GEN_V2_CURRENT.load_manifest(repo)
+
+    def test_dangling_symlink_entry_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._repo(tmp, {"a-doc": [("A-1", "a-1.yaml")]})
+            (repo / "controls/fstec-core/b-doc").symlink_to(repo / "missing")
+            with self.assertRaisesRegex(RuntimeError, "invalid control directory: 'b-doc'"):
+                GEN_V2_CURRENT.load_manifest(repo)
+
+    def test_regular_file_entry_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._repo(tmp, {"a-doc": [("A-1", "a-1.yaml")]})
+            (repo / "controls/fstec-core/README.md").write_text("x\n", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "invalid control directory: 'README.md'"):
+                GEN_V2_CURRENT.load_manifest(repo)
+
+    def test_load_control_reads_second_directory(self):
+        rows, _ = GEN_V2_CURRENT.load_manifest(ROOT)
+        base = next(r for r in rows if r["control_id"] == "FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT")
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "controls/fstec-core/linux-2022").mkdir(parents=True)
+            second = repo / "controls/fstec-core/fixture-doc"
+            second.mkdir()
+            data = (ROOT / base["dir"] / base["file"]).read_bytes()
+            (second / base["file"]).write_bytes(data)
+            row = dict(base, dir="controls/fstec-core/fixture-doc")
+            control = GEN_V2_CURRENT.load_control(repo, row)
+            self.assertEqual(control["control_id"], base["control_id"])
+            (second / base["file"]).write_bytes(data + b"# changed\n")
+            with self.assertRaisesRegex(RuntimeError, "control SHA mismatch"):
+                GEN_V2_CURRENT.load_control(repo, row)
+
     def test_invalid_directory_name_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = self._repo(tmp, {"Bad_Dir": [("A-1", "a-1.yaml")]})

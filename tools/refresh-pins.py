@@ -64,6 +64,12 @@ CONTROL_MANIFEST_RE = re.compile(r"controls/fstec-core/[a-z0-9][a-z0-9-]*/CONTRO
 
 def is_control_manifest(rel: str) -> bool:
     return CONTROL_MANIFEST_RE.fullmatch(rel) is not None
+
+
+def control_manifests(root: Path) -> list[str]:
+    """Git-видимые манифесты всех каталогов контролей, в порядке путей."""
+    visible = git(root, "ls-files", "--cached", "--others", "--exclude-standard").splitlines()
+    return sorted(rel for rel in visible if is_control_manifest(rel))
 REVIEW_BASELINE = "tests/documentation-v1/CURRENT-MARKDOWN-REVIEW-BASELINE.tsv"
 BASELINE_TEST = "tests/documentation-v1/test_documentation_baseline.py"
 ARTIFACT = "securelinux-policy.sh"
@@ -399,8 +405,7 @@ def execute(root: Path, write: bool, reviewed: set[str], reviewed_truth: bool) -
     changed = changed_paths(root)
     stage_adapter_pins(run)
     stage_apply_bindings(run)
-    visible = git(root, "ls-files", "--cached", "--others", "--exclude-standard").splitlines()
-    for manifest in sorted(rel for rel in visible if is_control_manifest(rel)):
+    for manifest in control_manifests(root):
         refresh_carrier(run, manifest, changed)
     stage_artifact(run)
     if write:

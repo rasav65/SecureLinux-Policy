@@ -10,6 +10,16 @@
 
 ## [Unreleased]
 
+- Каталоги контролей: исправление по аудиту `21fd922..1108e1f` (B-01, B-02). Строк
+  source index не закрывает. Было: каталог без `CONTROL-MANIFEST.tsv` (в том числе с
+  YAML), symlink и файл в `controls/fstec-core` молча пропускались, если был другой
+  манифест; тесты не проверяли эти ветки, второй каталог в `refresh-pins`, `pin-closure`
+  и рендере. Стало: каждый элемент `controls/fstec-core` — каталог документа с
+  допустимым именем и манифестом, иное — отказ в генераторе и в
+  `render-current-docs.py`; тесты покрывают эти случаи, `load_control` из второго
+  каталога, обновление и закрытие пинов второго манифеста. В `securelinux-policy.sh`
+  меняются только строки `GENERATOR_SHA256` (REUSED, регламент v27 §53).
+
 - Каталог контролей на документ (решение пользователя 25.09.2026): генератор продукта,
   `tools/render-current-docs.py`, `tools/refresh-pins.py`, `tools/pin-closure.py` читают
   все `controls/fstec-core/<каталог>/CONTROL-MANIFEST.tsv`. Строк source index не
