@@ -84,19 +84,19 @@
 Решения 25.09.2026 приняты по делегированию человека. Источник пунктов
 вне репозитория — файл очереди `SecureLinux-Policy-20260923-v70.txt` (далее v70).
 
-1. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: 16 OPEN-строк
+1. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: 17 OPEN-строк
    `index/source-v4/SOURCE-INDEX.tsv`, все `technical-core` — кандидаты в контроли:
    fstec-configuration-2026 п.1.1 (парольная политика `login.defs`, `pam_pwquality`,
-   `pam_faillock`), 1.2 (история паролей), 3.2 (Samba — нужна проверка наличия на 7
+   `pam_faillock`), 1.2 (история паролей), 10.5 (правило auditd для записи в `/`), 3.2 (Samba — нужна проверка наличия на 7
    средах), 8.4 (события SSH), 9.1 и 9.2 (`sshd_config`), 11.2 (Telnet, FTP, SNMPv1/v2c);
    fstec-logging-2025 п.1, 3, 4, 5, 7 и приложение 2 п.1–4 (auditd; наличие на 7
    средах не проверено).
 
 Закрыто 25.09.2026:
 
-- Step 7B, диспозиция 82 строк (`DISPOSITION-LEDGER.tsv`): fstec-perimeter-2026 —
+- Step 7B, диспозиция 81 строки (`DISPOSITION-LEDGER.tsv`): fstec-perimeter-2026 —
   все 35 (`external` — сетевые устройства, `organizational` — процессы);
-  fstec-configuration-2026 — 42 (Windows и СУБД — `out-of-scope`, межсетевой экран —
+  fstec-configuration-2026 — 41 (Windows и СУБД — `out-of-scope`, межсетевой экран —
   `out-of-scope` по регламенту v27 §2.2 п.5, процессы и перечни администратора —
   `organizational`); fstec-logging-2025 — 5.
 - Горизонт 1 `HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS` — `CLOSED`, Step 7B — `NEXT`
