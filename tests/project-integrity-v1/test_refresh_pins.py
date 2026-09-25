@@ -208,5 +208,34 @@ with tempfile.TemporaryDirectory(prefix="slp-render-dirs-") as tmp:
         assert "invalid control directory: 'c-doc'" in str(exc), exc
     else:
         raise AssertionError("symlink directory accepted by renderer")
+    (base / "controls/fstec-core/c-doc").unlink()
+
+    def _render_rejects(expected: str) -> None:
+        try:
+            _render.control_manifest_rows(base)
+        except RuntimeError as exc:
+            assert expected in str(exc), (expected, exc)
+        else:
+            raise AssertionError(f"renderer accepted: {expected}")
+
+    # Каталог с YAML без манифеста.
+    (base / "controls/fstec-core/c-doc").mkdir()
+    (base / "controls/fstec-core/c-doc/c-1.yaml").write_text("x\n", encoding="utf-8")
+    _render_rejects("without CONTROL-MANIFEST.tsv: 'c-doc'")
+    (base / "controls/fstec-core/c-doc/c-1.yaml").unlink()
+    (base / "controls/fstec-core/c-doc").rmdir()
+    # Оборванный symlink.
+    (base / "controls/fstec-core/c-doc").symlink_to(base / "missing")
+    _render_rejects("invalid control directory: 'c-doc'")
+    (base / "controls/fstec-core/c-doc").unlink()
+    # Обычный файл в корне каталогов контролей.
+    (base / "controls/fstec-core/README.md").write_text("x\n", encoding="utf-8")
+    _render_rejects("invalid control directory: 'README.md'")
+    (base / "controls/fstec-core/README.md").unlink()
+    # Недопустимое имя каталога (с манифестом).
+    bad = base / "controls/fstec-core/Bad_Dir"
+    bad.mkdir()
+    (bad / "CONTROL-MANIFEST.tsv").write_text(hdr, encoding="utf-8")
+    _render_rejects("invalid control directory: 'Bad_Dir'")
 
 print("REFRESH_PINS_TEST=PASS")
