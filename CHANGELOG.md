@@ -10,6 +10,12 @@
 
 ## [Unreleased]
 
+- 2.3.2: `proc-maps:recheck-changed` исключён из `RETRY_REASONS` (B-01 аудита
+  `29fed03..ba6a87a`). Строк source index не закрывает. Было: запись карты
+  отображения включает путь, и переименование библиотеки или её каталога вызывало
+  повтор, который мог скрыть изменение до проверки файлов. Стало: причина не
+  повторяется; `test_read_failed_is_not_retried` покрывает и её (до правки — FAIL).
+
 - 2.3.2: `proc-exe:read-failed`, `proc-status:read-failed`, `proc-maps:read-failed`
   исключены из `RETRY_REASONS` (B-02 аудита `31c92ed..29fed03`). Строк source index не
   закрывает. Было: общий `except` превращал и ошибку типа объекта (EINVAL,

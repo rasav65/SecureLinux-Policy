@@ -4334,7 +4334,10 @@ class RunningProcessPathsWriteProtectionFixtures(unittest.TestCase):
     def test_read_failed_is_not_retried(self):
         # B-02 аудита 31c92ed..29fed03: read-failed ловит и ошибку типа объекта,
         # и ввода-вывода — повтор мог бы скрыть её следующей удачной попыткой.
-        for reason in ("proc-exe:read-failed", "proc-status:read-failed", "proc-maps:read-failed"):
+        # proc-maps:recheck-changed: запись карты включает путь, переименование файла
+        # или каталога меняет её при неизменном процессе (B-01 аудита 29fed03..ba6a87a).
+        for reason in ("proc-exe:read-failed", "proc-status:read-failed", "proc-maps:read-failed",
+                       "proc-maps:recheck-changed"):
             with self.subTest(reason=reason):
                 row, calls = self._run_with_observer_outputs([
                     "ERROR\t" + reason,

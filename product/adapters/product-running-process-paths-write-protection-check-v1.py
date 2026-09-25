@@ -60,7 +60,8 @@ FILE_PARENT_CHANGE_REASONS = (
 # иначе ERROR с причиной последней попытки. Смена файлов и каталогов не повторяется;
 # proc-exe:recheck-changed (включает смену режима исполняемого файла) и ошибки
 # декодирования (invalid-bytes) тоже не повторяются; read-failed не повторяется:
-# общий except ловит и ошибку типа объекта, и ввода-вывода.
+# общий except ловит и ошибку типа объекта, и ввода-вывода; proc-maps:recheck-changed
+# не повторяется: запись карты включает путь, переименование меняет её.
 OBSERVATION_ATTEMPTS = 3
 RETRY_REASONS = (
     "proc-population:process-disappeared",
@@ -72,7 +73,6 @@ RETRY_REASONS = (
     "proc-counter:mid-snapshot-changed",
     "proc-stat:recheck-starttime-changed",
     "proc-exe:recheck-missing",
-    "proc-maps:recheck-changed",
     "proc-stat:recheck-endtime-changed",
     "proc-stat:excluded-recheck-changed",
     "proc-exe:excluded-reappeared",
