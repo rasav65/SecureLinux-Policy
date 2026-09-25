@@ -10,6 +10,19 @@
 
 ## [Unreleased]
 
+- CHECK-адаптер `sshd-root-login-v1` (2.1.2; B-02): отсутствие — только доказанный
+  ENOENT в четырёх местах. Строк source index не закрывает. Было: `[[ ! -e ]]` для
+  `sshd_config` и бинарного файла sshd давал `NOT_FOUND` при любой ошибке stat;
+  включаемый файл без шаблона и префикс шаблона Include при ошибке stat считались
+  отсутствующими и пропускались, и ненайденная директива могла дать `PASS`. Стало:
+  `stat -c %F` (LC_ALL=C в команде) и текст «No such file or directory»; иначе —
+  `ERROR sshd-config:unreadable`, `ERROR sshd-binary:resolve-failed` и новые причины
+  `sshd-config:include-stat-failed`, `sshd-config:include-prefix-stat-failed`.
+  Тесты: четыре случая ENAMETOOLONG (до правки — FAIL) и пропуск отсутствующих
+  Include. Применимость ВМ-прогона 25.09.2026 для 2.1.2 — RERUN: прежний пропуск
+  Include при ошибке stat в evidence не виден; проверяется итоговым ВМ-прогоном
+  после всех адаптеров B-02.
+
 - CHECK-адаптер `file-mode-owner-v2` (2.3.1; B-02): отсутствие цели — только
   доказанный ENOENT. Строк source index не закрывает. Было: после неудачного
   `stat -L` условие `! -e && ! -L` истинно при любой ошибке lstat, ENAMETOOLONG

@@ -3439,6 +3439,29 @@ class SshdRootLoginAdapterFixtures(unittest.TestCase):
         )
         self.assertEqual((row[2], row[4]), ("ERROR", "ERROR"))
 
+    def test_include_stat_error_other_than_enoent_is_error(self):
+        # ENAMETOOLONG у включаемого файла без шаблона: пропуск не доказан (B-02).
+        row = self.run_fixture(
+            "PermitRootLogin no\nInclude /etc/ssh/TEST-INCLUDE-DIR/nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn\n",
+            include_files={"TEST-INCLUDE-DIR/other.conf": ""},
+        )
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "sshd-config:include-stat-failed", "ERROR"))
+
+    def test_include_glob_prefix_stat_error_other_than_enoent_is_error(self):
+        row = self.run_fixture(
+            "PermitRootLogin no\nInclude /etc/ssh/TEST-INCLUDE-DIR/nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn/*.conf\n",
+            include_files={"TEST-INCLUDE-DIR/other.conf": ""},
+        )
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "sshd-config:include-prefix-stat-failed", "ERROR"))
+
+    def test_absent_include_file_and_prefix_stay_skipped(self):
+        row = self.run_fixture(
+            "PermitRootLogin no\nInclude /etc/ssh/TEST-INCLUDE-DIR/absent.conf\n"
+            "Include /etc/ssh/TEST-INCLUDE-DIR/absent/*.conf\n",
+            include_files={"TEST-INCLUDE-DIR/other.conf": ""},
+        )
+        self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+
     def test_glob_implementation_is_explicit_and_builtin(self):
         block = SSHD_ROOT_LOGIN._shell_function_for_fixture(
             "SSH.TEST", "/tmp/sshd_config", "/tmp/sshd", "PermitRootLogin", "eq", "no"
@@ -6545,6 +6568,24 @@ class UnprovenAbsenceIsErrorFixtures(unittest.TestCase):
         self.seal(sshd)
         block = SSHD_ROOT_LOGIN._shell_function_for_fixture(
             "SSH.ABSENCE", str(cfg), str(sshd), "PermitRootLogin", "eq", "no"
+        )
+        self.assertEqual(self.run_block(block, "slp_check_SSH_ABSENCE"),
+                         ("ERROR", "sshd-binary:resolve-failed", "ERROR"))
+
+    def test_sshd_config_stat_error_other_than_enoent_is_error(self):
+        block = SSHD_ROOT_LOGIN._shell_function_for_fixture(
+            "SSH.ABSENCE", str(self.visible / ("n" * 300)),
+            str(self.sshd_binary(self.visible)), "PermitRootLogin", "eq", "no"
+        )
+        self.assertEqual(self.run_block(block, "slp_check_SSH_ABSENCE"),
+                         ("ERROR", "sshd-config:unreadable", "ERROR"))
+
+    def test_sshd_binary_stat_error_other_than_enoent_is_error(self):
+        cfg = self.visible / "sshd_config"
+        cfg.write_text("PermitRootLogin no\n", encoding="utf-8")
+        self.owned(cfg)
+        block = SSHD_ROOT_LOGIN._shell_function_for_fixture(
+            "SSH.ABSENCE", str(cfg), str(self.visible / ("n" * 300)), "PermitRootLogin", "eq", "no"
         )
         self.assertEqual(self.run_block(block, "slp_check_SSH_ABSENCE"),
                          ("ERROR", "sshd-binary:resolve-failed", "ERROR"))
