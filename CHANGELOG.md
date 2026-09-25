@@ -10,6 +10,20 @@
 
 ## [Unreleased]
 
+- Приёмка пути с изменением прав у `suid-sgid-applications-mode-v1`,
+  `standard-system-paths-mode-v1`, `startup-files-write-protection-v1`; runner v17 в
+  `tools/vm-runner/`. Строк source index не закрывает, байты продукта не меняет. Прогон
+  25.09.2026 (артефакт `74f333d5aec4fc490c3e253b69994eac69c811ae84c9b876a5cf6f7c94f3d1ae`,
+  архив `slp-vm-apply-supported7-v17-states1-7-20260925-162722.tar.gz` SHA
+  `b82a9d8c2e335ad23dae86f7987e42076631777a704ce080776fd206ef483ead`, 81 файл): на 7
+  средах подготовленные нарушения (4777 / 0777 / 0666) дали `violations=1` до APPLY и
+  `violations=0` после APPLY и перезагрузки, режимы 4755 / 755 / 664; повторный APPLY без
+  `APPLIED`; stderr пуст. Было: узлы трёх механизмов `current`. Стало: все восемь узлов
+  `closed`; `tests/roadmap-v1/test_project_map.py` требует `closed` у всех восьми. В среде 1
+  2.3.2 дал `ERROR` до и после APPLY (`proc-counter:mid-snapshot-changed`,
+  `proc-stat:initial-starttime-changed`) — пункт очереди HANDOFF; к проверяемым механизмам
+  не относится.
+
 - Описание модуля `product-suid-sgid-applications-mode-apply-v1.py` (2.3.9). Строк
   source index не закрывает, поведение не меняет. Было: описание называло контроль
   `…-ALLOWLIST`, выведенный ранее, как решаемый администратором. Стало: единственный

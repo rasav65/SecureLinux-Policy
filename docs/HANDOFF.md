@@ -76,15 +76,24 @@
   pid-population:final-snapshot-changed` в 2.3.2 — популяция процессов изменилась
   во время CHECK после загрузки; повтор — PASS. При повторении — ожидание
   `systemctl is-system-running --wait` перед фазой 2.
+- Сценарий v17 находится в файле
+  [`tools/vm-runner/slp-vm-apply-supported7-v17.sh`](../tools/vm-runner/slp-vm-apply-supported7-v17.sh):
+  v16 плюс `FIXTURES=1` (по умолчанию) — подготовленные нарушения для 2.3.5, 2.3.8 и 2.3.9.
+  Прогон 25.09.2026 (артефакт `74f333d5…d1ae`, архив `…-v17-states1-7-20260925-162722.tar.gz`,
+  SHA `b82a9d8c…3ead`) принят для этих трёх механизмов на 7 средах.
 
 ## Очередь
 
 Решения 25.09.2026 приняты по делегированию человека. Источник пунктов
 вне репозитория — файл очереди `SecureLinux-Policy-20260923-v70.txt` (далее v70).
 
-1. ВМ-проверка пути с изменением прав у `suid-sgid-applications-mode-v1`,
-   `standard-system-paths-mode-v1`, `startup-files-write-protection-v1` на семи средах
-   (подготовленное нарушение после восстановления снимка).
+1. 2.3.2 (`running-process-paths-write-protection`): на живой системе наблюдение
+   процессов даёт `ERROR` при изменении популяции во время CHECK —
+   `pid-population:final-snapshot-changed` (среда 2, 25.09.2026 14:11),
+   `proc-counter:mid-snapshot-changed` и `proc-stat:initial-starttime-changed` (среда 1,
+   runner v17, до и после APPLY). Fail-closed корректен, но вердикт ВМ-прогонов
+   нестабилен. Предложение: ограниченный повтор наблюдения внутри адаптера; до
+   реализации — решение по §4 (меняется ли принятая CHECK-семантика).
 2. Инфраструктура: эталонный набор 7 сред в тестах, evidence в репозитории.
 3. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: OPEN-строки
    `index/source-v4/SOURCE-INDEX.tsv` — 63 `technical-core` и 35 `technical-perimeter`.
@@ -111,6 +120,9 @@
 
 - Описание APPLY-адаптера 2.3.9 больше не называет выведенный контроль
   `…-SUID-SGID-ALLOWLIST` (v70 §7 п.5).
+
+- Путь с изменением прав у 2.3.5, 2.3.8, 2.3.9 на семи средах (runner v17); все восемь
+  узлов механизмов APPLY — `closed`.
 
 Вне репозитория, статус UNKNOWN: v70 §7 п.6 (пункты P3–P9 очереди v68);
 v70 §7 п.7 (три несогласованности регламента v26).

@@ -93,6 +93,13 @@ APPLY всех механизмов на 7 средах: исход `done` на 
 `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1` и
 `startup-files-write-protection-v1` — только `ok`; CHECK до и после — `CHECK_RC=0`, без
 `ERROR`; stderr пуст. Приёмка — решение 25.09.2026 (`docs/PROJECT-MAP.md`).
+Путь с изменением прав у этих трёх механизмов проверен прогоном 25.09.2026 runner v17
+(`FIXTURES=1`, артефакт `74f333d5…d1ae`, архив
+`slp-vm-apply-supported7-v17-states1-7-20260925-162722.tar.gz` SHA `b82a9d8c…3ead`): на
+исходном снимке каждой среды создаются `/opt/slp-fixture/suid` 4777,
+`/usr/bin/slp-fixture-path` 0777 и `/etc/systemd/system/slp-fixture.service` 0666; на всех 7
+средах CHECK до APPLY — `violations=1` у 2.3.9, 2.3.8, 2.3.5, после APPLY и перезагрузки —
+`violations=0`, режимы 4755 / 755 / 664, повторный APPLY без `APPLIED`.
 
 Ошибка обхода каталога обязана давать отказ до мутации, а не мутацию по неполной
 популяции. Для каждого механизма, который перечисляет каталоги

@@ -49,9 +49,9 @@ for marker in (
     'config-line-with-runtime-v1<br/>sysctl · dry-run · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
     'file-mode-owner-v1<br/>режимы файлов SRC-0005 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
     'optional-file-root-files-mode-v1<br/>режимы cron SRC-0010 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
-    'suid-sgid-applications-mode-v1<br/>режимы SUID/SGID SRC-0013 · APPLY<br/>ВМ: семь сред 25.09.2026 без изменений, путь с изменением прав — впереди"]:::current',
-    'standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: семь сред 25.09.2026 без изменений, путь с изменением прав — впереди"]:::current',
-    'startup-files-write-protection-v1<br/>режимы файлов запуска SRC-0009 · APPLY<br/>ВМ: семь сред 25.09.2026 без изменений, путь с изменением прав — впереди"]:::current',
+    'suid-sgid-applications-mode-v1<br/>режимы SUID/SGID SRC-0013 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
+    'standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
+    'startup-files-write-protection-v1<br/>режимы файлов запуска SRC-0009 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
     'kernel-cmdline-grub-v1<br/>параметры загрузки ядра G4 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
     'pam-wheel-su-v1<br/>доступ к su SRC-0003 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
     'ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note',
@@ -61,9 +61,9 @@ for marker in (
 # B4: status of a mechanism node is defined by gates, not by prose.
 assert "`closed` — механизм прошёл `--release` и VM-цикл по семи поддерживаемым средам" in product_line
 assert "`current` — идёт работа. Иного статуса у узла механизма нет." in product_line
-# Приёмка 25.09.2026: у APPLY4–APPLY6 путь с изменением прав на семи средах не проверен.
-for _node in ("APPLY4", "APPLY5", "APPLY6"):
-    assert ":::closed" not in product_line.split(_node + '["', 1)[1].split("\n", 1)[0], _node
+# Приёмка 25.09.2026: у всех восьми механизмов VM-цикл на семи средах пройден.
+for _node in ("APPLY1", "APPLY2", "APPLY3", "APPLY4", "APPLY5", "APPLY6", "APPLY7", "APPLY8"):
+    assert ":::closed" in product_line.split(_node + '["', 1)[1].split("\n", 1)[0], _node
 # B1: mechanism prose names mechanisms, not live control counts.
 for stale_count in ("17 sysctl", "3 controls SRC-0005", "итого 20", "активны 17", "(3 контроля SRC-0005)"):
     assert stale_count not in text, stale_count
