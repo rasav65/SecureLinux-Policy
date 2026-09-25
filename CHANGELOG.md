@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+- `tools/source_skeleton_generator.py`: поддержка `unit_kind=numbered-subpoint`
+  (fstec-configuration-2026). Строк source index не закрывает, байты продукта не
+  меняет. Было: 48 строк этого вида — `UNSUPPORTED`, source-блок для SRC-0088
+  (п.9.1) не строился. Стало: `EXACT` 118, `REFUSED` 13, `UNSUPPORTED` 218 из 349;
+  отказы: номер страницы внутри подпункта (`BARE_INTEGER_INSIDE_UNIT`), нарушение
+  нумерации SRC-0091 (`SOURCE_NUMBERING_MISMATCH`), номер страницы в конце. Ссылка
+  «таблице 2.» не считается границей; конечная линия документа удаляется.
+  Source-блоки 49 принятых контролей не изменились (`--verify-pilot`).
+
 - Step 7B: решения пользователя 25.09.2026 по fstec-configuration-2026 пп.9.1, 9.2.
   `SRC-0089` (п.9.2, доступ только по SSH-ключам) закрыт как `organizational`:
   настраивается администраторами подразделений после развёртывания их сервисов.

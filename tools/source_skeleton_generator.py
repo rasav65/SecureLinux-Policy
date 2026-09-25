@@ -69,7 +69,11 @@ from typing import NamedTuple
 
 NORM_VERSION = "norm-v1"
 NORMALIZER_SHA256 = "fdf11e5abc24c966e7b9c9abe318259fd29c06de026addf54cf3710cc937639a"
-SUPPORTED_UNIT_KINDS = {"numbered-position", "general-numbered-position"}
+SUPPORTED_UNIT_KINDS = {
+    "numbered-position",
+    "general-numbered-position",
+    "numbered-subpoint",
+}
 
 STATE_EXACT = "EXACT"
 STATE_REFUSED = "REFUSED"
@@ -77,6 +81,8 @@ STATE_UNSUPPORTED = "UNSUPPORTED"
 REASON_EXACT_EXTRACTION = "EXACT_EXTRACTION"
 REASON_BARE_TRAILING_PAGE_INTEGER = "BARE_TRAILING_PAGE_INTEGER"
 REASON_UNIT_KIND_UNSUPPORTED = "UNIT_KIND_UNSUPPORTED"
+REASON_BARE_INTEGER_INSIDE_UNIT = "BARE_INTEGER_INSIDE_UNIT"
+REASON_SOURCE_NUMBERING_MISMATCH = "SOURCE_NUMBERING_MISMATCH"
 
 
 class DeliberateRefusal(ValueError):
@@ -96,7 +102,11 @@ class CoverageResult(NamedTuple):
 def validate_coverage_result(result: CoverageResult) -> CoverageResult:
     allowed = {
         STATE_EXACT: {REASON_EXACT_EXTRACTION},
-        STATE_REFUSED: {REASON_BARE_TRAILING_PAGE_INTEGER},
+        STATE_REFUSED: {
+            REASON_BARE_TRAILING_PAGE_INTEGER,
+            REASON_BARE_INTEGER_INSIDE_UNIT,
+            REASON_SOURCE_NUMBERING_MISMATCH,
+        },
         STATE_UNSUPPORTED: {REASON_UNIT_KIND_UNSUPPORTED},
     }
     if result.state not in allowed:
@@ -117,6 +127,7 @@ def validate_coverage_result(result: CoverageResult) -> CoverageResult:
 # sequence inside normative text is never removed.
 TERMINAL_PAGE_FURNITURE = {
     "fstec-linux-2022": "________________________",
+    "fstec-configuration-2026": "____________________________",
 }
 
 # The last unit of a section has no following top-level marker. Its end is one
@@ -165,6 +176,21 @@ INDEX_FIELDS = {
 # as "kernel.dmesg_restrict=1. Журнал" or "№ 1085. " also matches. Candidates
 # are therefore filtered into an outline in outline_markers().
 MARKER = re.compile(r"(?<![^\s])(\d+(?:\.\d+)*)\.(?=\s)")
+
+# numbered-subpoint: section heading "N." with a dot, subpoint "N.M" without a
+# trailing dot (fstec-configuration-2026). Candidates pass the same outline
+# successor filter as MARKER.
+SUBPOINT_MARKER = re.compile(r"(?<![^\s])(?:(\d+)\.|(\d+\.\d+))(?=\s)")
+
+# A candidate marker that directly follows one of these exact tokens is a table
+# reference ("в таблице 2."), not an outline boundary. Pinned per source.
+SUBPOINT_EXCLUDED_MARKER_PREFIXES = {
+    "fstec-configuration-2026": ("таблице ", "Таблица "),
+}
+
+# A row whose printed number breaks the outline cannot be extracted exactly.
+# Pinned per index row: SRC-0091 is printed as 8.4 inside section 9.
+INDEX_NUMBERING_MISMATCH = {"SRC-0091"}
 
 
 def sha256_text(text: str) -> str:
@@ -344,6 +370,37 @@ def extract_unit(corpus: str, locator: str):
     return corpus[begin:end].strip()
 
 
+def subpoint_markers(corpus: str, source_id: str):
+    """Return [(offset, locator)] of the numbered-subpoint outline."""
+    excluded = SUBPOINT_EXCLUDED_MARKER_PREFIXES.get(source_id, ())
+    accepted, previous = [], None
+    for match in SUBPOINT_MARKER.finditer(corpus):
+        if excluded and corpus[:match.start()].endswith(excluded):
+            continue
+        locator = match.group(1) or match.group(2)
+        candidate = parts(locator)
+        if is_successor(previous, candidate):
+            accepted.append((match.start(), locator))
+            previous = candidate
+    return accepted
+
+
+def extract_subpoint_unit(corpus: str, locator: str, source_id: str):
+    """Return the exact span of one numbered subpoint, or raise ValueError."""
+    starts = subpoint_markers(corpus, source_id)
+    hits = [i for i, (_, loc) in enumerate(starts) if loc == locator]
+    if len(hits) != 1:
+        raise ValueError(f"subpoint locator {locator} matches={len(hits)}")
+    index = hits[0]
+    begin = starts[index][0]
+    end = len(corpus)
+    for offset, loc in starts[index + 1:]:
+        if depth(loc) <= depth(locator):
+            end = offset
+            break
+    return corpus[begin:end].strip()
+
+
 def extract_general_unit(corpus: str, locator: str, source_id: str):
     """Return the exact span of one ``<section>:<ordinal>`` unit, or raise."""
     section, separator, ordinal_text = locator.partition(":")
@@ -436,7 +493,16 @@ def build_source_block(project_root: Path, row, normalize_text):
     corpus = resolve_corpus(project_root, row).read_text(encoding="utf-8")
     if corpus.endswith("\n"):
         corpus = corpus[:-1]
-    if row["unit_kind"] == "general-numbered-position":
+    if row["unit_kind"] == "numbered-subpoint":
+        if row["index_id"] in INDEX_NUMBERING_MISMATCH:
+            raise DeliberateRefusal(
+                REASON_SOURCE_NUMBERING_MISMATCH,
+                "printed number breaks the source outline; refusing",
+            )
+        raw_quote = extract_subpoint_unit(
+            corpus, row["locator"], row["source_id"]
+        )
+    elif row["unit_kind"] == "general-numbered-position":
         raw_quote = extract_general_unit(
             corpus, row["locator"], row["source_id"]
         )
@@ -457,6 +523,17 @@ def build_source_block(project_root: Path, row, normalize_text):
             REASON_BARE_TRAILING_PAGE_INTEGER,
             "extracted span ends with a bare integer (page number across a "
             "page break); refusing rather than guessing",
+        )
+
+    # A numbered subpoint crossing a page break carries the page number inside
+    # the span; no generic stripping, every standalone integer token refuses.
+    if row["unit_kind"] == "numbered-subpoint" and re.search(
+        r"(?<!\S)\d{1,3}(?!\S)", quote
+    ):
+        raise DeliberateRefusal(
+            REASON_BARE_INTEGER_INSIDE_UNIT,
+            "numbered subpoint contains a standalone integer token (possible "
+            "page number); refusing rather than guessing",
         )
 
     canonical = normalize_text(quote)

@@ -13,13 +13,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CONTROL_MANIFEST = ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
 GEN = ROOT / "tools/source_skeleton_generator.py"
-EXPECTED_GEN_SHA = "bb4b9c48da1f45d97efee801c1fa169b75617885458aaffc99595e683290a7bb"
+EXPECTED_GEN_SHA = "552fb80ba6800dde26b969aade1c095dc2163ebb1ee7e409b2aa5c98e1276a60"
 EXPECTED_SRC0018_SHA = "016c676139eeb902737e3db80a31154aa84fd377203c0819614f1d54c9afb97d"
 EXPECTED_SRC0040_SHA = "f80b7efd3664eb281eb19792dcfccaa16d2e712980e7d9fe4717b7e25924cc0d"
 EXPECTED_SRC0001_SHA = "799b85637928264e6f43d5e32d8cc6b48af6694e30f6fbf5e4c6ddef3a207f3b"
 EXPECTED_SRC0008_SHA = "0be87131f3aea07d4da4134cd82c960c608b16feff43b6996ea4817d9bb38dfe"
 EXPECTED_SRC0014_SHA = "c243edbafcfee7fadede64b0dec702e3f8f92553d6240a89c36575934958b5f0"
-EXPECTED_REFUSED = {"SRC-0133"}
+EXPECTED_REFUSED = {
+    "SRC-0055", "SRC-0060", "SRC-0064", "SRC-0069", "SRC-0075", "SRC-0079",
+    "SRC-0080", "SRC-0090", "SRC-0091", "SRC-0095", "SRC-0096", "SRC-0101",
+    "SRC-0133",
+}
+EXPECTED_SRC0088_SHA = "8b03ebc02e6d0ad956759a0577eae939adb29e2a31024e70db9e3cd902ebfd06"
 
 
 def sha(path: Path) -> str:
@@ -72,6 +77,7 @@ assert len({row["unit_kind"] for row in rows}) == 13
 assert gate.SUPPORTED_UNIT_KINDS == {
     "numbered-position",
     "general-numbered-position",
+    "numbered-subpoint",
 }
 
 # Positive ground truth: every current control is in the supported kind and
@@ -94,9 +100,9 @@ state_counts = {
     for state in (gate.STATE_EXACT, gate.STATE_REFUSED, gate.STATE_UNSUPPORTED)
 }
 assert state_counts == {
-    gate.STATE_EXACT: 82,
-    gate.STATE_REFUSED: 1,
-    gate.STATE_UNSUPPORTED: 266,
+    gate.STATE_EXACT: 118,
+    gate.STATE_REFUSED: 13,
+    gate.STATE_UNSUPPORTED: 218,
 }
 supported = [
     row for row in rows
@@ -113,18 +119,43 @@ unsupported = [
     index_id for index_id, result in typed.items()
     if result.state == gate.STATE_UNSUPPORTED
 ]
-assert len(supported) == len(ok) + len(refused) == 83
+assert len(supported) == len(ok) + len(refused) == 131
 assert set(refused) == EXPECTED_REFUSED
 assert refused["SRC-0133"] == gate.REASON_BARE_TRAILING_PAGE_INTEGER
-assert len(unsupported) == 266
+assert refused["SRC-0091"] == gate.REASON_SOURCE_NUMBERING_MISMATCH
+assert refused["SRC-0055"] == gate.REASON_BARE_INTEGER_INSIDE_UNIT
+assert len(unsupported) == 218
+
+# numbered-subpoint (fstec-configuration-2026): exact 9.1 span ends before 9.2.
+src0088 = typed["SRC-0088"].source_block
+assert src0088["quote"].startswith("9.1 Отключить авторизацию")
+assert src0088["quote"].endswith("PasswordAuthentication no.")
+assert src0088["quote_sha256"] == EXPECTED_SRC0088_SHA
+# The table reference "в таблице 2." is not an outline boundary: 1.2 stays
+# reachable; without the pinned prefix the outline breaks and 1.2 fails.
+assert typed["SRC-0056"].state == gate.STATE_EXACT
+assert typed["SRC-0056"].source_block["quote"].startswith("1.2 Обеспечить")
+_saved_prefixes = gate.SUBPOINT_EXCLUDED_MARKER_PREFIXES
+gate.SUBPOINT_EXCLUDED_MARKER_PREFIXES = {}
+try:
+    gate.classify_row(ROOT, by_id["SRC-0056"], normalize_text)
+except ValueError as exc:
+    assert "matches=0" in str(exc), exc
+else:
+    raise AssertionError("SRC-0056 extracted without the pinned table prefix")
+finally:
+    gate.SUBPOINT_EXCLUDED_MARKER_PREFIXES = _saved_prefixes
+# Terminal footer of fstec-configuration-2026 is not part of 12.3.
+assert typed["SRC-0103"].state == gate.STATE_EXACT
+assert "____" not in typed["SRC-0103"].source_block["quote"]
 
 rc, coverage_out, coverage_err = run_cli("--coverage")
 assert rc == 0, (coverage_out, coverage_err)
 assert "INDEX_ROWS_TOTAL=349" in coverage_out
-assert "ROWS_IN_SUPPORTED_KINDS=83" in coverage_out
-assert "EXACT=82" in coverage_out
-assert "REFUSED=1" in coverage_out
-assert "UNSUPPORTED=266" in coverage_out
+assert "ROWS_IN_SUPPORTED_KINDS=131" in coverage_out
+assert "EXACT=118" in coverage_out
+assert "REFUSED=13" in coverage_out
+assert "UNSUPPORTED=218" in coverage_out
 assert (
     "REFUSED SRC-0133 6.2 "
     "REASON_CODE=BARE_TRAILING_PAGE_INTEGER"
@@ -409,13 +440,14 @@ expected_summary = (
     f"pilot={control_count} unit_kinds={len(gate.SUPPORTED_UNIT_KINDS)}/{len({row['unit_kind'] for row in rows})} "
     f"total_rows={len(rows)} supported_rows={len(supported)} "
     f"exact={len(ok)} refused={len(refused)} unsupported={len(unsupported)} "
-    "typed_reason_codes=3 index_generic_path=1 negative_duplicate_index=1 "
+    "typed_reason_codes=5 index_generic_path=1 negative_duplicate_index=1 "
     "negative_quote_anchor=1 negative_normalizer_sha=1 "
     "negative_normalizer_sha_coverage=1 negative_quote_integrity=1 "
     "negative_unknown_state=1 negative_norm_sha=1 internal_page_exact=1 "
     "internal_page_negative=2 inline_page_exact=1 inline_page_negative=2 "
     "terminal_footer_exact=1 terminal_footer_negative=2 "
-    "documentation_population_parity=3 test_results_fresh=1"
+    "documentation_population_parity=3 subpoint_exact=1 subpoint_table_prefix_negative=1 "
+    "subpoint_terminal_footer=1 test_results_fresh=1"
 )
 stored_summary = (ROOT / "tests/source-skeleton-v1/TEST-RESULTS.txt").read_text(encoding="utf-8").strip()
 assert stored_summary == expected_summary, (stored_summary, expected_summary)

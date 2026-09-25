@@ -97,8 +97,8 @@
    APPLY, требование политики компании. Порядок работ по 9.1:
    0) генератор, `render-current-docs.py`, `refresh-pins.py`, `pin-closure.py` читают
    список каталогов контролей вместо одного пути `controls/fstec-core/linux-2022`;
-   а) `tools/source_skeleton_generator.py` — поддержка `unit_kind=numbered-subpoint`
-   (маркер без точки после номера, `9.1 `); сейчас для SRC-0088 — `UNSUPPORTED`;
+   а) выполнено: `tools/source_skeleton_generator.py` поддерживает
+   `unit_kind=numbered-subpoint`, для SRC-0088 — `EXACT`;
    б) CHECK-адаптер `sshd-config-option` по образцу `sshd-root-login` (директива в
    основном `/etc/ssh/sshd_config` в глобальной области и эффективное значение
    `sshd -T`); по этой семантике на 7 средах ожидается FAIL всех трёх контролей;
