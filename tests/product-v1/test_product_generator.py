@@ -6586,6 +6586,32 @@ class UnprovenAbsenceIsErrorFixtures(unittest.TestCase):
         self.assertEqual(self.run_block(self.cmdline_block(target), "slp_check_CMD_ABSENCE"),
                          ("ERROR", "cmdline:read-failed", "ERROR"))
 
+    # --- sysctl ------------------------------------------------------------
+    def sysctl_block(self, target):
+        spec = importlib.util.spec_from_file_location(
+            "slp_sysctl_absence", ROOT / "product/adapters/product-sysctl-check-v2.py"
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        block = mod.shell_function("SYS.ABSENCE", "sysctl", "kernel.dmesg_restrict", "eq", 1)
+        return block.replace(repr("/proc/sys/kernel/dmesg_restrict"), repr(str(target)), 1)
+
+    def test_sysctl_stat_error_other_than_enoent_is_error(self):
+        # ENAMETOOLONG при доступном для поиска родителе: отсутствие не доказано.
+        block = self.sysctl_block(self.visible / ("n" * 300))
+        self.assertEqual(self.run_block(block, "slp_check_SYS_ABSENCE"),
+                         ("ERROR", "sysctl:read-failed", "ERROR"))
+
+    def test_sysctl_dangling_symlink_is_error(self):
+        target = self.visible / "sysctl-link"
+        target.symlink_to(self.visible / "absent-target")
+        self.assertEqual(self.run_block(self.sysctl_block(target), "slp_check_SYS_ABSENCE"),
+                         ("ERROR", "sysctl:read-failed", "ERROR"))
+
+    def test_sysctl_absent_source_in_searchable_parent_stays_not_found(self):
+        block = self.sysctl_block(self.visible / "absent-sysctl")
+        self.assertEqual(self.run_block(block, "slp_check_SYS_ABSENCE"), ("NOT_FOUND", "-", "NOT_FOUND"))
+
     def test_kernel_cmdline_absent_source_in_searchable_parent_stays_not_found(self):
         block = self.cmdline_block(self.visible / "absent-cmdline")
         self.assertEqual(self.run_block(block, "slp_check_CMD_ABSENCE"), ("NOT_FOUND", "-", "NOT_FOUND"))

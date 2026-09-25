@@ -10,6 +10,18 @@
 
 ## [Unreleased]
 
+- CHECK-адаптер `sysctl-v2` (2.4.1, 2.4.2, 2.4.8, 2.5.2, 2.5.4–2.5.8, 2.5.10, 2.5.11,
+  2.6.1–2.6.6; B-02): отсутствие файла `/proc/sys` — только доказанный ENOENT.
+  Строк source index не закрывает. Было: `[[ ! -e ]]` истинно при любой ошибке
+  stat, ENAMETOOLONG при доступном родителе давал `NOT_FOUND`. Стало: `NOT_FOUND`
+  только при `stat -c %F` с текстом «No such file or directory»; иная ошибка и
+  висячая ссылка — `ERROR sysctl:read-failed`. Тесты:
+  `test_sysctl_stat_error_other_than_enoent_is_error` (до правки — FAIL),
+  `test_sysctl_dangling_symlink_is_error`, `test_sysctl_absent_source_in_searchable_parent_stays_not_found`;
+  `test_sysctl_adapter.py` допускает ровно одну подстановку `stat`.
+  Применимость ВМ-прогона 25.09.2026 — REUSED: изменённая ветка выполняется только
+  при недоступном файле `/proc/sys`, на 7 средах CHECK без `ERROR`.
+
 - CHECK-адаптер `kernel-cmdline-v2` (2.4.3–2.4.7, 2.5.1, 2.5.3, 2.5.9; B-02):
   отсутствие `/proc/cmdline` — только доказанный ENOENT. Строк source index не
   закрывает. Было: `[[ ! -e ]]` истинно при любой ошибке stat, и, например,

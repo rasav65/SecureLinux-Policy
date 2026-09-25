@@ -33,13 +33,16 @@ class Static(unittest.TestCase):
         # B-04 (репарация, аудит Codex 6780086..3215d1c): файл читается один раз —
         # проверенные `od` байты декодируются в текст в памяти (_slp_load_text),
         # повторного открытия файла нет. Подстановок теперь две: сам `od` и
-        # decode-once printf; других быть не должно.
+        # decode-once printf; плюс проверка ENOENT через `stat` (B-02); других
+        # быть не должно.
         od_read='$(LC_ALL=C command /usr/bin/od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null)'
         decode=r"$(printf '\\x%s' $_slp_v_hex)"
         self.assertIn('od -An -v -tx1 -- "$_slp_v_path" 2>/dev/null',src)
         self.assertEqual(src.count(od_read),1)
         self.assertEqual(src.count(decode),1)
-        self.assertNotIn("$(",src.replace(od_read,"").replace(decode,""))
+        stat_probe='$(LC_ALL=C command /usr/bin/stat -c %F -- "$_slp_path" 2>&1)'
+        self.assertEqual(src.count(stat_probe),1)
+        self.assertNotIn("$(",src.replace(od_read,"").replace(decode,"").replace(stat_probe,""))
         for token in ADAPTER.MUTATING_TOKENS: self.assertNotIn(token,src,token)
     def test_binding(self):
         contract=json.loads(CONTRACT_PATH.read_text(encoding="utf-8")); meta=json.loads(ADAPTER_JSON.read_text(encoding="utf-8"))
