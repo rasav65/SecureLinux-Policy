@@ -108,8 +108,8 @@ assert 'P17["SRC-0001 метаданные/транзакция/отчёт<br/>8
 assert 'P18["APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО"]:::closed' in current
 assert 'P19["финальная детерминированная упаковка<br/>ГОТОВО"]:::closed' in current
 assert 'P20["единый распространяемый артефакт<br/>ГОТОВО"]:::closed' in current
-assert 'P21["МЫ ЗДЕСЬ<br/>горизонт 1 · APPLY безопасных классов + ВМ"]:::current' in current
-assert 'P22["Step 7B · расширение FSTEC<br/>ждёт закрытия горизонта 1"]:::future' in current
+assert 'P21["горизонт 1 · APPLY безопасных классов + ВМ<br/>ГОТОВО"]:::closed' in current
+assert 'P22["МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC"]:::current' in current
 assert 'P18["адаптеры реализации APPLY<br/>заблокировано до semantic chain"]:::future' not in current
 diagram = current.split("```mermaid", 1)[1].split("```", 1)[0]
 for marker in (
@@ -182,7 +182,7 @@ assert positions == sorted(positions)
 
 for stale in (
     "МЫ ЗДЕСЬ<br/>единый распространяемый артефакт",
-    "МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC",
+    "МЫ ЗДЕСЬ<br/>горизонт 1",
     'implementation<br/>adapters"]:::future',
     'deterministic<br/>build"]:::future',
     "single distributable<br/>securelinux-ng.sh",
@@ -199,7 +199,7 @@ assert "docs/PROJECT-MAP.md" in readme
 
 # B6: deliberately deferred directions are named with their reason.
 deferred = text.split("## Отложено сознательно", 1)[1]
-for marker in ("SRC-0008", "G3", "инвентарь механизмов"):
+for marker in ("SRC-0008", "G3", "G7", "DP-3", "инвентарь механизмов"):
     assert marker in deferred, marker
 # APPLY для kernel cmdline (G4) и G5 реализован: в отложенном их нет.
 for stale in ("kernel cmdline", "G5"):

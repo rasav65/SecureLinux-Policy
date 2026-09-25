@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+- Горизонт 1 `HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS` закрыт, `NEXT` — Step 7B
+  `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` (`docs/ROADMAP.tsv`). Строк source
+  index не закрывает, байты продукта не меняет. Было: горизонт 1 — `NEXT`, Step 7B —
+  `WAITING_FOR_HORIZON_1` при восьми механизмах APPLY в статусе `closed`; класс G7 без
+  основания в «Отложено сознательно»; `SRC-0008` отложен до отработки шаблона
+  механизма. Стало: APPLY есть у классов G1, G2, G4, G5, G6; G3 и G7 — вне горизонта 1
+  с основанием (`docs/PROJECT-MAP.md`); тесты `tests/roadmap-v1/` и
+  `tests/documentation-v1/` проверяют новый статус.
+
 - Действующий runner ВМ — `tools/vm-runner/slp-vm-apply-supported7-v17.sh`; v15 и v16
   исторические (заменены v17, отличия версий записаны в его заголовке). Строк source index не
   закрывает, байты продукта не меняет. Было: `docs/HANDOFF.md` называл сценарием v15,

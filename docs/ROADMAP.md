@@ -53,11 +53,11 @@ Step 5. Нельзя начинать более поздний этап, пок
   снимком проекта; сами по себе они не доказывают происхождение из конкретного
   удалённого репозитория.
 
-ТЕКУЩИЙ СТАТУС: этапы roadmap 1–6 `CLOSED`. `NEXT` — этап 19
-`HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS` (горизонт 1): APPLY для безопасных классов
-`fstec-linux-2022` и VM-прогоны механизмов. Макроэтап 7
-`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` не завершён и имеет статус
-`WAITING_FOR_HORIZON_1`: Step 7A закрыт, Step 7B ждёт закрытия горизонта 1.
+ТЕКУЩИЙ СТАТУС: этапы roadmap 1–6 `CLOSED`. Этап 19
+`HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS` (горизонт 1) закрыт 25.09.2026: APPLY для
+безопасных классов `fstec-linux-2022` и VM-прогоны механизмов на семи поддерживаемых
+средах. `NEXT` — макроэтап 7 `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`:
+Step 7A закрыт, выполняется Step 7B.
 
 Для `fstec-linux-2022` read-only CHECK принят, обязательный
 `DONOR_TO_V3_MAPPING` принят и опубликован. Покрытие индекса источников
@@ -130,8 +130,8 @@ CLI/sidecar проверены как `0755/0644`.
 отдельно и автоматически не наследуется.
 
 После `DOCUMENT COMPLETE` пауза Step 7B снята. Решением пользователя 19.09.2026
-первым идёт горизонт 1 `HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS`, а Step 7B
-`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` ждёт его закрытия; оставшиеся
+первым шёл горизонт 1 `HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS` (закрыт 25.09.2026),
+затем Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`; оставшиеся
 `OPEN` строки корпуса остаются в очереди source-first расширения. Исторические закрытия Step 7B
 (`SRC-0005/CHECK-11`, sysctl batches, `kernel-cmdline` и последующие controls)
 остаются принятыми фактами.
@@ -350,7 +350,7 @@ Negative-control методика: parser-level негативные случа�
 ### Step 7B — расширение FSTEC
 
 Step 7B возобновлён после достижения `DOCUMENT COMPLETE` текущей вертикали и
-ждёт закрытия горизонта 1 (`WAITING_FOR_HORIZON_1`). Расширение FSTEC выполняется
+закрытия горизонта 1 и является `NEXT`. Расширение FSTEC выполняется
 только по source-first пути:
 
 - новые технические controls должны проходить generator/parity/gates;
@@ -378,11 +378,12 @@ Carry-forward non-blocking findings R3: NUL, `U+2028/U+2029`, VT/FF и CRLF
 `fstec-linux-2022` через механизмы `config-line-with-runtime-v1`,
 `file-mode-owner-v1` и следующие механизмы того же рода, а также VM-прогоны
 механизмов на матрице сред. Статус механизма определяется гейтами: `closed` —
-после `--release` и восьмисредового VM-цикла, до этого — `current`. Контроли,
+после `--release` и VM-цикла на семи поддерживаемых средах, до этого — `current`. Контроли,
 для которых APPLY небезопасен, остаются за границей продукта: продукт печатает
 причину и возвращает решение администратору.
 
-NEXT: `HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS` (горизонт 1); затем
-`FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` (Step 7B).
+Горизонт 1 закрыт 25.09.2026: APPLY есть у классов G1, G2, G4, G5, G6 карты
+сегментации; G3 и G7 вне горизонта 1, основание — в `docs/PROJECT-MAP.md`.
+NEXT: `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS` (Step 7B).
 `APPLY_IMPLEMENTATION_ADAPTERS`, `FINAL_DETERMINISTIC_PACKAGING` и
 `SINGLE_DISTRIBUTABLE_ARTIFACT` закрыты; текущая вертикаль имеет `DOCUMENT COMPLETE`.

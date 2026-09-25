@@ -47,8 +47,8 @@ with (root / "docs/ROADMAP.tsv").open(encoding="utf-8", newline="") as stream:
 orders = [int(row["order"]) for row in rows]
 assert orders == list(range(1, len(rows) + 1))
 by_step = {row["step_id"]: row["status"] for row in rows}
-assert by_step["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "WAITING_FOR_HORIZON_1"
-assert by_step["HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS"] == "NEXT"
+assert by_step["FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS"] == "NEXT"
+assert by_step["HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS"] == "CLOSED"
 assert by_step["APPLY_SEMANTIC_CONTRACT"] == "PARENT_GATE_CLOSED_SOURCE_INSTANCE_REVISE"
 assert by_step["AUTHORITY_2026_REFRESH"] == "CLOSED"
 assert by_step["SRC0001_MODULAR_APPLY_CONTRACT_ARCHITECTURE"] == "CLOSED"
