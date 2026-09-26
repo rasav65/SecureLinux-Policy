@@ -32,8 +32,9 @@ Authority: product/contracts/mechanism-sshd-config-option-v1.json
 - в области `Match` (основной файл или включаемые) директива задана не `no`;
 - `PermitRootLogin`: в группах `sudo` и `admin` нет пользователя, кроме root;
 - `PasswordAuthentication`: ни у одного такого пользователя нет непустого
-  `~/.ssh/authorized_keys` (или `authorized_keys2`), либо `AuthorizedKeysFile`/
-  `PubkeyAuthentication` отличаются от значений по умолчанию.
+  `~/.ssh/authorized_keys` (или `authorized_keys2`) при `PubkeyAuthentication yes` и
+  `AuthorizedKeysFile` по умолчанию в `sshd -T` для его собственного соединения
+  (`Match User` учитывается).
 """
 
 from __future__ import annotations
@@ -106,6 +107,7 @@ DIRECTIVE_RE = re.compile(r"^[ \t]*([^ \t=]+)(?:[ \t]*=[ \t]*|[ \t]+)(.*)$")
 BARE_DIRECTIVE_RE = re.compile(r"^[ \t]*([^ \t=]+)[ \t]*$")
 VALUE_RE = re.compile(r"^([ \t]*[^ \t=]+(?:[ \t]*=[ \t]*|[ \t]+))(\S+)(.*)$")
 GLOB_CHARS = ("*", "?", "[")
+USER_NAME_RE = re.compile(r"[a-z_][a-z0-9_.-]*")
 TMP_SUFFIX = ".slp-tmp"
 
 
@@ -159,6 +161,8 @@ def _read_regular(path, refuse):
             if not chunk:
                 break
             chunks.append(chunk)
+    except OSError:
+        raise _other("sshd-config:read-failed")
     finally:
         os.close(fd)
     return b"".join(chunks), st
@@ -381,9 +385,10 @@ def _syntax_ok(root, run, path=None):
     return cp is not None and cp.returncode == 0
 
 
-def effective_settings(root, run):
-    """Действующие значения `sshd -T` (ключи в нижнем регистре; повтор ключа — None)."""
-    cp = _call(run, [_p(root, SSHD), "-T", "-C", EFFECTIVE_SPEC, "-f", _p(root, SSHD_CONFIG)])
+def effective_settings(root, run, user="root"):
+    """Действующие значения `sshd -T` для соединения `user` (ключи в нижнем регистре; повтор — None)."""
+    spec = EFFECTIVE_SPEC if user == "root" else EFFECTIVE_SPEC.replace("user=root", "user=" + user, 1)
+    cp = _call(run, [_p(root, SSHD), "-T", "-C", spec, "-f", _p(root, SSHD_CONFIG)])
     if cp is None or cp.returncode != 0:
         raise _other("sshd-effective:query-failed")
     try:
@@ -466,9 +471,25 @@ def _has_key(root, home, rel):
                for l in raw.decode("utf-8", errors="replace").split("\n"))
 
 
-def keyed_admins(root, users, key_files):
+def keyed_admins(root, run, users):
+    """(администраторы с ключом, найден ли администратор с нестандартной настройкой ключей).
+
+    Настройки ключей берутся из `sshd -T` для соединения самого администратора, так что
+    `Match User` с другим `PubkeyAuthentication`/`AuthorizedKeysFile` учитывается.
+    """
     homes = _read_homes(root)
-    return [u for u in users if u in homes and any(_has_key(root, homes[u], rel) for rel in key_files)]
+    keyed, nondefault = [], False
+    for user in users:
+        if user not in homes or not USER_NAME_RE.fullmatch(user):
+            continue
+        values = effective_settings(root, run, user)
+        key_files = tuple((values.get("authorizedkeysfile") or "").split())
+        if key_files not in DEFAULT_AUTHORIZED_KEYS or (values.get("pubkeyauthentication") or "").lower() != "yes":
+            nondefault = True
+            continue
+        if any(_has_key(root, homes[user], rel) for rel in key_files):
+            keyed.append(user)
+    return keyed, nondefault
 
 
 def _stage_file(path, raw, st):
@@ -495,8 +516,16 @@ def _stage_file(path, raw, st):
 
 
 def _write_file(path, raw, st):
-    """Замена файла через временный файл в том же каталоге; режим и владелец прежние."""
-    os.replace(_stage_file(path, raw, st), path)
+    """Замена файла через временный файл в том же каталоге; режим и владелец прежние.
+
+    Ошибка замены удаляет временный файл (ошибка удаления не скрывает ошибку замены).
+    """
+    tmp = _stage_file(path, raw, st)
+    try:
+        os.replace(tmp, path)
+    except OSError:
+        _discard([tmp])
+        raise
 
 
 def _bytes_equal(path, raw):
@@ -507,11 +536,16 @@ def _bytes_equal(path, raw):
 
 
 def _discard(paths):
-    for tmp in paths:
+    """Удаление временных файлов; True, если все удалены или отсутствуют."""
+    ok = True
+    for tmp in list(paths):
         try:
             os.unlink(tmp)
         except FileNotFoundError:
             pass
+        except OSError:
+            ok = False
+    return ok
 
 
 def _reload(root, run):
@@ -618,10 +652,10 @@ def execute_control(control_id, key, op, expected, apply_supported, *, dry_run,
         if key == "PermitRootLogin" and not users:
             raise _Refused("ABORTED_PRECONDITION_CONFLICT", "ssh:no-sudo-members", _admin(ACTION_NO_SUDO))
         if key == "PasswordAuthentication":
-            key_files = tuple((values.get("authorizedkeysfile") or "").split())
-            if key_files not in DEFAULT_AUTHORIZED_KEYS or (values.get("pubkeyauthentication") or "").lower() != "yes":
+            keyed, nondefault = keyed_admins(_root, run, users)
+            if not keyed and nondefault:
                 raise _Refused("ABORTED_PRECONDITION_CONFLICT", "ssh:keys-setup-nondefault", _admin(ACTION_KEYS_SETUP))
-            if not keyed_admins(_root, users, key_files):
+            if not keyed:
                 raise _Refused("ABORTED_PRECONDITION_CONFLICT", "ssh:no-keyed-admin", _admin(ACTION_NO_KEY))
         planned = cfg.plan(key)
         for path in planned:
@@ -646,8 +680,7 @@ def execute_control(control_id, key, op, expected, apply_supported, *, dry_run,
 
     def compensate(reason):
         actions.append("COMPENSATION")
-        _discard(staged.values())
-        ok = True
+        ok = _discard(staged.values())
         for path in reversed(written):
             raw, st, _lines = cfg.files[path]
             try:
@@ -690,7 +723,7 @@ def execute_control(control_id, key, op, expected, apply_supported, *, dry_run,
     actions.append("FINAL_POSTCHECK")
     try:
         after, after_effective, _values = _observe(_root, run, key)
-    except _Refused:
+    except (_Refused, OSError):
         return compensate("postcheck:read-failed")
     current = policy_current(after.main_global_no, after_effective)
     if (any(after.files.get(path, (None,))[0] != raw for path, raw in planned.items())

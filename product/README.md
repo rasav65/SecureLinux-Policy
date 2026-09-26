@@ -296,8 +296,10 @@ ssh.service` и итоговая проверка `sshd -T`. Ошибка люб
 отвергается без ожидания); директива в области `Match` задана не
 `no`; для `PermitRootLogin` — в группах `sudo` и `admin` нет пользователя, кроме root; для
 `PasswordAuthentication` — ни у одного такого пользователя нет непустого
-`~/.ssh/authorized_keys` (или `authorized_keys2`) либо `AuthorizedKeysFile`/
-`PubkeyAuthentication` отличаются от значений по умолчанию. Строка `PermitRootLogin no`
+`~/.ssh/authorized_keys` (или `authorized_keys2`) при `PubkeyAuthentication yes` и
+`AuthorizedKeysFile` по умолчанию в `sshd -T` для его собственного соединения (`Match User`
+учитывается). Ошибки чтения, удаления временного файла и восстановительной замены не
+прерывают возврат остальных файлов и дают `FAILED_COMPENSATION`. Строка `PermitRootLogin no`
 выполняет и 2.1.2 (SRC-0002); собственного APPLY у 2.1.2 нет.
 
 ## SRC-0003 / 2.2.1

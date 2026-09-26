@@ -107,6 +107,7 @@ class Tree:
         self.calls = []
         self.fail = set()
         self.extra = {}
+        self.user_extra = {}
 
     def _lines(self, path, depth=0):
         for line in Path(path).read_bytes().decode("utf-8").splitlines():
@@ -138,6 +139,9 @@ class Tree:
         for key, value in DEFAULTS.items():
             values.setdefault(key, value)
         values.update(self.extra)
+        spec = argv[argv.index("-C") + 1] if "-C" in argv else ""
+        user = spec.split(",", 1)[0].split("=", 1)[1] if spec.startswith("user=") else ""
+        values.update(self.user_extra.get(user, {}))
         if values.get("permitrootlogin") == "prohibit-password":
             values["permitrootlogin"] = "without-password"
         out = "".join("%s %s\n" % item for item in sorted(values.items()))
@@ -645,6 +649,121 @@ class Apply(unittest.TestCase):
             r = execute(t, "PermitRootLogin", stage=stage)
             self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
                              ("FAILED_NOT_COMMITTED", "sshd-config:write-failed", False))
+            self.assertEqual(t.config(), STOCK_CONFIG)
+
+    def test_admin_match_block_disabling_keys_is_admin_decision(self):
+        # B-04 аудита f75181a..b1506bd (первый прогон): настройки ключей — для соединения администратора.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            t.user_extra = {"user": {"pubkeyauthentication": "no"}}
+            r = execute(t, "PasswordAuthentication")
+            self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_CONFLICT", "ssh:keys-setup-nondefault"))
+            self.assertIn(["sshd", "-T", "-C", "user=user,host=localhost,addr=127.0.0.1", "-f", str(t.cfg)], t.calls)
+            self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td, group="root:x:0:\nsudo:x:27:user,ops\n")
+            with (t.root / "etc/passwd").open("a", encoding="utf-8") as stream:
+                stream.write("ops:x:1001:1001:ops:/home/ops:/bin/bash\n")
+            t.user_extra = {"user": {"authorizedkeysfile": "/etc/ssh/keys/%u"}}
+            (t.root / "home/ops/.ssh").mkdir(parents=True)
+            (t.root / "home/ops/.ssh/authorized_keys").write_text(KEY, encoding="utf-8")
+            self.assertEqual(execute(t, "PasswordAuthentication")["outcome"], "APPLIED")
+
+    def test_postcheck_read_error_restores(self):
+        # B-08: ошибка чтения при итоговой проверке ведёт в компенсацию.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            real_read = os.read
+            state = {"armed": True}
+
+            def read(fd, n):
+                if state["armed"] and "systemctl" in t.names():
+                    state["armed"] = False
+                    raise OSError("EIO")
+                return real_read(fd, n)
+
+            with mock.patch.object(A.os, "read", read):
+                r = execute(t, "PasswordAuthentication")
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
+                             ("FAILED_NOT_COMMITTED", "postcheck:read-failed", True))
+            self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
+            self.assertEqual(t.names().count("systemctl"), 2)
+
+    def test_restore_verification_read_error_is_failed_compensation(self):
+        # B-08: ошибка чтения при сверке восстановления — FAILED_COMPENSATION, остальные файлы
+        # всё равно возвращаются.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            real_run, real_read = t.run, os.read
+            state = {"compensating": False}
+
+            def run(argv, timeout):
+                if argv[1:2] == ["-t"] and not argv[-1].endswith(A.TMP_SUFFIX) and "no" in t.dropin():
+                    state["compensating"] = True
+                    return subprocess.CompletedProcess(argv, 255, b"", b"")
+                return real_run(argv, timeout)
+
+            def read(fd, n):
+                if state["compensating"]:
+                    raise OSError("EIO")
+                return real_read(fd, n)
+
+            t.run = run
+            with mock.patch.object(A.os, "read", read):
+                r = execute(t, "PasswordAuthentication")
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
+                             ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
+            self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
+
+    def test_discard_error_does_not_stop_restore(self):
+        # B-09: ошибка удаления временного файла не останавливает возврат заменённых файлов.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            real_replace, real_unlink = os.replace, os.unlink
+            calls = []
+
+            def replace(src, dst, *args, **kwargs):
+                calls.append(dst)
+                if len(calls) == 2:
+                    raise OSError("rename failed")
+                return real_replace(src, dst, *args, **kwargs)
+
+            def unlink(path, *args, **kwargs):
+                if str(path) == str(t.dropin_path) + A.TMP_SUFFIX:
+                    raise PermissionError("EACCES")
+                return real_unlink(path, *args, **kwargs)
+
+            with mock.patch.object(A.os, "replace", replace), mock.patch.object(A.os, "unlink", unlink):
+                r = execute(t, "PasswordAuthentication")
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
+                             ("FAILED_COMPENSATION", "sshd-config:write-failed", True))
+            self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
+            self.assertNotIn("systemctl", t.names())
+
+    def test_restore_replace_error_removes_temporary_file(self):
+        # B-10: ошибка восстановительной замены не оставляет .slp-tmp.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            real_run, real_replace = t.run, os.replace
+            calls = []
+
+            def run(argv, timeout):
+                if argv[1:2] == ["-t"] and not argv[-1].endswith(A.TMP_SUFFIX) and "no" in t.dropin():
+                    return subprocess.CompletedProcess(argv, 255, b"", b"")
+                return real_run(argv, timeout)
+
+            def replace(src, dst, *args, **kwargs):
+                calls.append(dst)
+                if len(calls) == 3:
+                    raise OSError("rename failed")
+                return real_replace(src, dst, *args, **kwargs)
+
+            t.run = run
+            with mock.patch.object(A.os, "replace", replace):
+                r = execute(t, "PasswordAuthentication")
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
+                             ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
+            self.assertEqual(leftovers(t), [])
             self.assertEqual(t.config(), STOCK_CONFIG)
 
     def test_missing_tools_and_privilege_and_spec(self):
