@@ -397,6 +397,11 @@ def validate_controls_readme_contract(text: str) -> None:
 
 
 def strip_generated_status(text: str) -> str:
+    # Таблица прогресса — тоже машинный блок render-current-docs (решение 26.09.2026).
+    text = re.sub(
+        r"<!-- BEGIN GENERATED PROGRESS -->.*?<!-- END GENERATED PROGRESS -->",
+        "", text, flags=re.S,
+    )
     return re.sub(
         r"<!-- BEGIN GENERATED CURRENT STATUS -->.*?<!-- END GENERATED CURRENT STATUS -->",
         "", text, flags=re.S,
@@ -634,6 +639,10 @@ def semantic_guard_visible(text: str) -> str:
     # are regenerated from authorities. Ordinary prose is checked independently.
     text = re.sub(
         r"<!-- BEGIN GENERATED CURRENT STATUS -->.*?<!-- END GENERATED CURRENT STATUS -->",
+        "", text, flags=re.S,
+    )
+    text = re.sub(
+        r"<!-- BEGIN GENERATED PROGRESS -->.*?<!-- END GENERATED PROGRESS -->",
         "", text, flags=re.S,
     )
     text = re.sub(
@@ -1060,6 +1069,8 @@ for token in ("DONOR_TO_V3_MAPPING", "REUSE", "ADAPT", "REJECT", "DEFER", "EXTER
 # Generated blocks exist exactly once.
 assert readme.count("<!-- BEGIN GENERATED CURRENT STATUS -->") == 1
 assert readme.count("<!-- END GENERATED CURRENT STATUS -->") == 1
+assert readme.count("<!-- BEGIN GENERATED PROGRESS -->") == 1
+assert readme.count("<!-- END GENERATED PROGRESS -->") == 1
 assert pmap.count("<!-- BEGIN GENERATED MAP STATUS -->") == 1
 assert pmap.count("<!-- END GENERATED MAP STATUS -->") == 1
 

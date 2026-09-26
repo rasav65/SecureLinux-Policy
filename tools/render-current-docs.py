@@ -13,6 +13,20 @@ import tempfile
 
 README_BEGIN = "<!-- BEGIN GENERATED CURRENT STATUS -->"
 README_END = "<!-- END GENERATED CURRENT STATUS -->"
+PROGRESS_BEGIN = "<!-- BEGIN GENERATED PROGRESS -->"
+PROGRESS_END = "<!-- END GENERATED PROGRESS -->"
+# Названия документов — как в docs/policy-layers.md; порядок строк таблицы прогресса:
+# сначала технические документы, затем процессные. Неизвестный source_id — отказ.
+SOURCE_TITLES = (
+    ("fstec-linux-2022", "Безопасная настройка ОС Linux"),
+    ("fstec-configuration-2026", "Типовые ошибки конфигурации"),
+    ("fstec-logging-2025", "Регистрация событий безопасности"),
+    ("fstec-perimeter-2026", "Защита сетевого периметра"),
+    ("fstec-vulnerability-management-2023", "Управление уязвимостями"),
+    ("fstec-vulnerability-analysis-2025", "Анализ уязвимостей"),
+    ("fstec-vulnerability-criticality-2025", "Оценка критичности уязвимостей"),
+    ("fstec-security-update-testing-2022", "Тестирование обновлений безопасности"),
+)
 MAP_BEGIN = "<!-- BEGIN GENERATED MAP STATUS -->"
 MAP_END = "<!-- END GENERATED MAP STATUS -->"
 
@@ -413,6 +427,78 @@ def render_status_block(state: dict) -> str:
     return "\n".join(lines)
 
 
+def source_buckets(state: dict) -> dict[str, dict[str, int]]:
+    """Строки индекса по документам: всего, закрыто контролями/диспозицией, открыто, контролей."""
+    by_source: dict[str, dict[str, int]] = {}
+    for src in state["source_rows"]:
+        bucket = by_source.setdefault(
+            src["source_id"],
+            {"total": 0, "controlled": 0, "disposed": 0, "open": 0, "controls": 0},
+        )
+        bucket["total"] += 1
+        if src["status"] == "OPEN":
+            bucket["open"] += 1
+        elif src["disposition"].strip():
+            bucket["disposed"] += 1
+        else:
+            bucket["controlled"] += 1
+    for control in state["controls"]:
+        source_id = state["source_by_id"][control["index_id"]]["source_id"]
+        by_source[source_id]["controls"] += 1
+    return by_source
+
+
+def percent(part: int, whole: int) -> int:
+    """Целый процент с округлением вниз: 96,0…96,9 → 96."""
+    if whole <= 0:
+        raise RuntimeError("percent of empty population")
+    return part * 100 // whole
+
+
+def render_progress_block(state: dict) -> str:
+    by_source = source_buckets(state)
+    titles = dict(SOURCE_TITLES)
+    unknown = sorted(set(by_source) - set(titles))
+    if unknown:
+        raise RuntimeError(f"progress: source without title: {unknown!r}")
+    total = len(state["source_rows"])
+    controlled = len(state["controlled_closed"])
+    disposed = len(state["disposed_closed"])
+    open_count = len(state["open_rows"])
+    closed = controlled + disposed
+    controls = len(state["controls"])
+    apply_controls = len(state["enabled_apply_controls"])
+    lines = [
+        PROGRESS_BEGIN,
+        "## Прогресс",
+        "",
+        "| Документ ФСТЭК | Строк | Закрыто контролями | Закрыто диспозицией | Открыто |",
+        "|---|---:|---:|---:|---:|",
+    ]
+    for source_id, title in SOURCE_TITLES:
+        bucket = by_source.get(source_id)
+        if bucket is None:
+            continue
+        lines.append(
+            f"| {md_cell(title)} (`{md_cell(source_id)}`) | {bucket['total']} | "
+            f"{bucket['controlled']} | {bucket['disposed']} | {bucket['open']} |"
+        )
+    lines.extend([
+        f"| **Итого** | **{total}** | **{controlled}** | **{disposed}** | **{open_count}** |",
+        "",
+        f"Закрыто {closed} из {total} строк индекса ({percent(closed, total)}%). "
+        f"Контролей {controls}, из них с автоматическим исправлением (APPLY) — "
+        f"{apply_controls} ({percent(apply_controls, controls)}%).",
+        "",
+        "Строка индекса закрывается контролем (проверка CHECK) или диспозицией — "
+        "обоснованным решением, что автоматическая проверка хоста к строке не применяется "
+        "(процессные требования, сетевое оборудование, решения администратора). Проценты "
+        "показывают охват индекса и не означают полного соответствия требованиям ФСТЭК.",
+        PROGRESS_END,
+    ])
+    return "\n".join(lines)
+
+
 def render_map_status_block(state: dict) -> str:
     total = len(state["source_rows"])
     controlled = len(state["controlled_closed"])
@@ -536,23 +622,7 @@ def render_coverage(state: dict) -> str:
         "|---|---:|---:|---:|---:|---:|",
     ])
 
-    by_source: dict[str, dict[str, int]] = {}
-    for src in state["source_rows"]:
-        bucket = by_source.setdefault(
-            src["source_id"],
-            {"total": 0, "controlled": 0, "disposed": 0, "open": 0, "controls": 0},
-        )
-        bucket["total"] += 1
-        if src["status"] == "OPEN":
-            bucket["open"] += 1
-        elif src["disposition"].strip():
-            bucket["disposed"] += 1
-        else:
-            bucket["controlled"] += 1
-
-    for control in state["controls"]:
-        source_id = state["source_by_id"][control["index_id"]]["source_id"]
-        by_source[source_id]["controls"] += 1
+    by_source = source_buckets(state)
 
     for source_id in sorted(by_source, key=lambda s: s.encode("utf-8")):
         bucket = by_source[source_id]
@@ -596,6 +666,9 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
     map_text = pmap.read_text(encoding="utf-8")
     new_readme = replace_block(
         readme_text, README_BEGIN, README_END, render_status_block(state), "README"
+    )
+    new_readme = replace_block(
+        new_readme, PROGRESS_BEGIN, PROGRESS_END, render_progress_block(state), "README progress"
     )
     new_map = replace_block(
         map_text, MAP_BEGIN, MAP_END, render_map_status_block(state), "PROJECT-MAP"

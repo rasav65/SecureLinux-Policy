@@ -118,6 +118,30 @@ expected_apply_kinds = ",".join(sorted(
 ))
 assert f"APPLY_KINDS={expected_apply_kinds}" in readme.splitlines(), expected_apply_kinds
 
+# Таблица прогресса на главной (решение 26.09.2026): строки по документам и итог
+# пересчитываются здесь из SOURCE-INDEX независимо от render-current-docs.
+assert readme.count("<!-- BEGIN GENERATED PROGRESS -->") == 1
+assert readme.count("<!-- END GENERATED PROGRESS -->") == 1
+progress = readme.split("<!-- BEGIN GENERATED PROGRESS -->", 1)[1].split("<!-- END GENERATED PROGRESS -->", 1)[0]
+progress_rows = {}
+for row in index_rows:
+    b = progress_rows.setdefault(row["source_id"], [0, 0, 0, 0])
+    b[0] += 1
+    if row["status"] == "OPEN":
+        b[3] += 1
+    elif row["disposition"].strip():
+        b[2] += 1
+    else:
+        b[1] += 1
+table_rows = re.findall(r"^\| .*? \(`([a-z0-9-]+)`\) \| (\d+) \| (\d+) \| (\d+) \| (\d+) \|$", progress, re.M)
+assert {sid: [int(x) for x in rest] for sid, *rest in table_rows} == progress_rows, table_rows
+assert len(table_rows) == len(progress_rows)
+assert f"| **Итого** | **{total}** | **{controlled}** | **{disposed}** | **{open_rows}** |" in progress
+assert f"Закрыто {controlled + disposed} из {total} строк индекса ({(controlled + disposed) * 100 // total}%)." in progress
+# 43 — тот же явно закреплённый литерал APPLY-популяции, что и APPLY_CONTROL_COUNT выше.
+assert f"Контролей {len(controls)}, из них с автоматическим исправлением (APPLY) — 43 " in progress
+assert "не означают полного соответствия требованиям ФСТЭК" in progress
+
 assert pmap.count("<!-- BEGIN GENERATED MAP STATUS -->") == 1
 assert pmap.count("<!-- END GENERATED MAP STATUS -->") == 1
 map_status = pmap.split("<!-- BEGIN GENERATED MAP STATUS -->", 1)[1].split(
