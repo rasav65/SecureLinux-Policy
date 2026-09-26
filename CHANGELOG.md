@@ -10,6 +10,16 @@
 
 ## [Unreleased]
 
+- Приёмка 2.4.5 iommu (`kernel-cmdline-grub-v1`, AUTO) по ВМ-прогону 26.09.2026: runner v18 на
+  кандидате `2b0a68eb5e37c1eeb2b18eaaac1229a6ea8ba6a9cf7a7f9a47cabd92e52b28b5`, архив
+  `slp-vm-apply-supported7-v18-states1-7-20260926-230325.tar.gz` SHA
+  `be4bff577a4fa80126d42d3d349444ca5397fa88d534191b0a847a9e6a1cd1fc`, 88 файлов. Строк source
+  index не закрывает, байты продукта не меняет. Было: ВМ-прогон впереди. Стало: на 7 средах
+  загрузка после APPLY, `iommu=force iommu.strict=1 iommu.passthrough=0` в `/proc/cmdline`,
+  CHECK 2.4.5 — PASS, повторный APPLY без `APPLIED`/`FAILED_*`; CHECK после APPLY без
+  `ERROR`. Открытый вопрос: 2.3.2 `ERROR proc-status:no-exe-unclassified` в CHECK до APPLY на
+  Ubuntu 26.04 mini (HANDOFF).
+
 - `kernel-cmdline-grub-v1`: 2.4.5 `iommu=force`, `iommu.strict=1`, `iommu.passthrough=0` —
   автоматический APPLY (решение пользователя 26.09.2026). Строк source index не закрывает.
   Было: три параметра — блок «требуется решение администратора» (решение 24.09.2026). Стало:
