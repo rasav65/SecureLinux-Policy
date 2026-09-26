@@ -46,7 +46,7 @@
 - 7 сред: Ubuntu 22.04 full, Ubuntu 24.04 mini и full, Ubuntu 26.04 mini и full,
   Debian 12, Debian 13; снимки `upd-20260924`.
 - Сценарий прогона APPLY на ВМ находится в файле
-  [`tools/vm-runner/slp-vm-apply-supported7-v17.sh`](../tools/vm-runner/slp-vm-apply-supported7-v17.sh), порядок:
+  [`tools/vm-runner/slp-vm-apply-supported7-v18.sh`](../tools/vm-runner/slp-vm-apply-supported7-v18.sh), порядок:
   восстановление снимка → CHECK → `--apply --dry-run` → `--apply` → перезагрузка (смена
   `boot_id`) → CHECK → `--apply` → возврат к снимку. Пути, имена ВМ и UUID снимков
   встроены для рабочего ПК; запуск — из репозитория. Кандидат задаётся
@@ -54,8 +54,12 @@
   `ONLY=N`; `FIXTURES=1` (по умолчанию) создаёт нарушения для 2.3.5, 2.3.8 и 2.3.9.
   Пароль user вводится один раз (регламент v27 §25). `RESULT=PASS` сценария не
   оценивает вердикты CHECK: число `ERROR` проверяется по архиву.
-- Версии v15 и v16 в `tools/vm-runner/` — исторические (заменены v17; отличия версий —
-  в заголовке v17), для прогонов не используются.
+  v18: до CHECK фазы 1 в `~user/.ssh/authorized_keys` дописывается временный ключ ПК
+  (создаётся в рабочем каталоге, в архив не попадает); фаза 2 — вход только по ключу;
+  после перезагрузки — попытка входа по паролю (`pwlogin.txt`, `PASSWORD_LOGIN_RC`,
+  ожидается не 0); `env1`/`env2` — `sshd -T` и активные строки трёх ключей.
+- Версии v15, v16 и v17 в `tools/vm-runner/` — исторические (заменены v18; отличия версий —
+  в заголовке v18), для прогонов не используются.
 - Прогон 24.09.2026, артефакт `d840ede3…c8aa`: на всех 7 средах после перезагрузки
   `init_on_alloc=1 slab_nomerge randomize_kstack_offset=1 vsyscall=none` в
   `/proc/cmdline`, повторный APPLY — без `APPLIED` и `FAILED_*`. Архивы
@@ -172,8 +176,8 @@
   `6afb18e..41c3061` — REVISE (B-01), `41c3061..1836091` — PASS; ВМ-прогон кандидата
   `1836091` на 7 средах принят. Узлы APPLY в `PROJECT-MAP.md` не меняются.
 
-- Инфраструктура ВМ: runner — `tools/vm-runner/slp-vm-apply-supported7-v17.sh`
-  (v15, v16 — исторические); 7 сред — `product/SUPPORTED-PLATFORMS.tsv` и тесты генератора;
+- Инфраструктура ВМ: runner — `tools/vm-runner/slp-vm-apply-supported7-v18.sh`
+  (v15, v16, v17 — исторические); 7 сред — `product/SUPPORTED-PLATFORMS.tsv` и тесты генератора;
   evidence — постоянный каталог `dashboard/src0009-vm-evidence` (регламент v27 §1),
   SHA архивов — `CHANGELOG.md`. Отдельный тест набора сред не вводится: состав уже
   проверяется по `SUPPORTED-PLATFORMS.tsv`.

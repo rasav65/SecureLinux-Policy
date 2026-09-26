@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+- `tools/vm-runner/slp-vm-apply-supported7-v18.sh`: сценарий ВМ для APPLY
+  `sshd-config-option-v1`. Строк source index не закрывает. Было (v17): после
+  `PasswordAuthentication no` вход по паролю закрыт, ключа у `user` нет — APPLY отказал бы
+  (`ssh:no-keyed-admin`), фаза 2 не смогла бы войти. Стало: временный ключ ed25519 ПК
+  дописывается в `~user/.ssh/authorized_keys` до CHECK фазы 1, фаза 2 входит по ключу,
+  после перезагрузки проверяется отказ входа по паролю; в `env1`/`env2` — `sshd -T` и
+  строки трёх ключей. Продукт не меняет; ВМ-прогона ещё нет.
+
 - `sshd-config-option-v1`: исправление по аудиту `74aaa70..dcc61b7` (B-01..B-03). Строк source
   index не закрывает. Было: завершающий «/» цели ссылки отбрасывался — ссылка
   `authorized_keys → real_keys/` на обычный файл засчитывалась (ядро вернёт ENOTDIR); «..»
