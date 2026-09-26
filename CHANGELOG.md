@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+- Приёмка `sshd-config-option-v1` по ВМ-прогону 26.09.2026: runner v18 на кандидате
+  `62d0f00687875e977c93dc450fd32b34c6bd848f507a3d49ba94bee6c11830fa`, архив
+  `slp-vm-apply-supported7-v18-states1-7-20260926-215420.tar.gz` SHA
+  `232e0a17cb3213db8d2d40ec3011af29e9e9c48223817134543f9b5fcbc08bf9`, 88 файлов.
+  Строк source index не закрывает, байты продукта не меняет. Было: узел механизма —
+  `current`, ВМ-прогона нет. Стало: на 7 средах CHECK до — FAIL трёх контролей п.9.1,
+  APPLY — `done`, `sshd -T` после APPLY и перезагрузки — `no`, вход по паролю отвергнут,
+  CHECK после — PASS, повторный APPLY — `ok`, CHECK без `ERROR`; узел — `closed`.
+
 - `tools/vm-runner/slp-vm-apply-supported7-v18.sh`: сценарий ВМ для APPLY
   `sshd-config-option-v1`. Строк source index не закрывает. Было (v17): после
   `PasswordAuthentication no` вход по паролю закрыт, ключа у `user` нет — APPLY отказал бы

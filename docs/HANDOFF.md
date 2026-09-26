@@ -106,10 +106,16 @@
    б) выполнено: CHECK-адаптер `sshd-config-option` по образцу `sshd-root-login` (директива в
    основном `/etc/ssh/sshd_config` в глобальной области и эффективное значение
    `sshd -T`); по этой семантике на 7 средах ожидается FAIL всех трёх контролей;
-   в) механизм APPLY `sshd-config-option-v1` выполнен; ВМ-прогон — сценарием v18: до APPLY
-   временный ключ SSH для `user`, иначе после `PasswordAuthentication no` вход по паролю
-   закрыт. Ожидание: CHECK до — FAIL трёх контролей, APPLY — `APPLIED`, CHECK после
-   перезагрузки — PASS, повторный APPLY — `ALREADY_COMPLIANT`. Разведка 26.09.2026 (архив
+   в) выполнено: механизм APPLY `sshd-config-option-v1`; ВМ-прогон 26.09.2026 runner v18 на
+   7 средах принят (кандидат `62d0f006…30fa`, архив
+   `slp-vm-apply-supported7-v18-states1-7-20260926-215420.tar.gz` SHA `232e0a17…08bf9`):
+   CHECK до — FAIL трёх контролей, APPLY — `done`; в `sshd_config` заменены шаблоны на месте,
+   `50-cloud-init.conf` (5 Ubuntu) — `PasswordAuthentication no`, на 22.04 после
+   перезагрузки cloud-init его не переписал; `sshd -T` — `no` по трём ключам; вход по паролю
+   отвергнут (`PASSWORD_LOGIN_RC=255`), по ключу — работает; CHECK после — PASS, повторный
+   APPLY — `ok`; CHECK без `ERROR`. Прочие FAIL после APPLY: параметры загрузки 2.4.5 ×3,
+   2.4.7, 2.5.3, 2.5.9 и 2.6.6 (Ubuntu) — решение администратора; 2.3.10, 2.3.11 (Ubuntu) —
+   APPLY в очереди. Разведка 26.09.2026 (архив
    `slp-vm-probe-supported7-v2-states1-7-20260926-131539.tar.gz`, SHA `5000d569…3dc8`): на 5
    Ubuntu `/etc/ssh/sshd_config.d/50-cloud-init.conf` = `PasswordAuthentication yes` (SHA
    `6bf43c75…ac1d`, `600 root:root`, пакету не принадлежит, дата — установка); cloud-init на

@@ -220,7 +220,7 @@ flowchart LR
     APPLY6["startup-files-write-protection-v1<br/>режимы файлов запуска SRC-0009 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed
     APPLY7["kernel-cmdline-grub-v1<br/>параметры загрузки ядра G4 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed
     APPLY8["pam-wheel-su-v1<br/>доступ к su SRC-0003 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed
-    APPLY9["sshd-config-option-v1<br/>вход по SSH SRC-0088 · APPLY<br/>ВМ: прогона нет, приёмка семи сред — впереди"]:::current
+    APPLY9["sshd-config-option-v1<br/>вход по SSH SRC-0088 · APPLY<br/>ВМ: приёмка семи сред 26.09.2026"]:::closed
     CLI["securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
     ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note
 
@@ -267,7 +267,7 @@ Human-readable CHECK/REPORT выводит обнаруженную ОС, арх
 
 Статус узла механизма задаётся гейтами: `closed` — механизм прошёл `--release` и VM-цикл по семи поддерживаемым средам;
 `current` — идёт работа. Иного статуса у узла механизма нет.
-Узлы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `kernel-cmdline-grub-v1` и `pam-wheel-su-v1` — `closed`: приёмка по VM-прогону 25.09.2026 на семи средах (артефакт `9a42418f…67ab`; мутация, перезагрузка, повторный APPLY без `APPLIED` и `FAILED_*`, CHECK без `ERROR`), решение 25.09.2026. Узел `sshd-config-option-v1` — `current`: ВМ-прогона нет. Узлы `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1` и `startup-files-write-protection-v1` — `closed`: путь с изменением прав принят по VM-прогону 25.09.2026 с подготовленными нарушениями на семи средах (артефакт `74f333d5…d1ae`; до APPLY — `violations=1`, после APPLY и перезагрузки — `violations=0`, режимы 4755 / 755 / 664), решение 25.09.2026. Desktop — FIELD_COMPATIBILITY, отдельной строкой.
+Узлы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `kernel-cmdline-grub-v1` и `pam-wheel-su-v1` — `closed`: приёмка по VM-прогону 25.09.2026 на семи средах (артефакт `9a42418f…67ab`; мутация, перезагрузка, повторный APPLY без `APPLIED` и `FAILED_*`, CHECK без `ERROR`), решение 25.09.2026. Узел `sshd-config-option-v1` — `closed`: приёмка по VM-прогону 26.09.2026 runner v18 на семи средах (кандидат `62d0f006…30fa`, архив `…-v18-states1-7-20260926-215420.tar.gz` SHA `232e0a17…08bf9`; CHECK до — FAIL трёх контролей п.9.1, APPLY — `done`, `sshd -T` после APPLY и перезагрузки — `no` по трём ключам, вход по паролю отвергнут, CHECK после — PASS, повторный APPLY — `ok`, CHECK без `ERROR`), решение 26.09.2026. Узлы `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1` и `startup-files-write-protection-v1` — `closed`: путь с изменением прав принят по VM-прогону 25.09.2026 с подготовленными нарушениями на семи средах (артефакт `74f333d5…d1ae`; до APPLY — `violations=1`, после APPLY и перезагрузки — `violations=0`, режимы 4755 / 755 / 664), решение 25.09.2026. Desktop — FIELD_COMPATIBILITY, отдельной строкой.
 
 Узел `ADMIN` — граница продукта: для части контролей APPLY не реализуется по решению,
 и продукт возвращает решение администратору отдельным терминальным исходом.
@@ -359,7 +359,7 @@ APPLY — общая форма `MECHANISM_AUTHORITY_V1`, по одному до
 а общий цикл выполняет generated CLI.
 Старые SRC-0001 contracts/definitions/adapter сохраняются побайтово как historical.
 `SINGLE_DISTRIBUTABLE_ARTIFACT` остаётся generated `securelinux-policy.sh`;
-VM-cycle по семи поддерживаемым средам принят 25.09.2026 для восьми механизмов; у `sshd-config-option-v1` ВМ-прогона нет.
+VM-cycle по семи поддерживаемым средам принят 25.09.2026 для восьми механизмов и 26.09.2026 для `sshd-config-option-v1`.
 Горизонт 1 `HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS` закрыт 25.09.2026. `NEXT` machine
 roadmap — Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`.
 
