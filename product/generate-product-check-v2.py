@@ -1032,14 +1032,16 @@ def _terminal_layout(columns=None):
     cols = PRETTY_COLUMNS if columns is None else columns
     if cols < 90:
         return ("vertical", cols, (8, cols - 14))
+    # source от 100 колонок — 29 символов, «fstec-configuration-2026 §9.1» в одну строку;
+    # место отдают control и current (решение пользователя 26.09.2026).
     if cols < 100:
         wsrc, wc, req_min = 18, 24, 10
     elif cols < 110:
-        wsrc, wc, req_min = 22, 28, 12
+        wsrc, wc, req_min = 29, 25, 12
     elif cols < 120:
-        wsrc, wc, req_min = 24, 32, 14
+        wsrc, wc, req_min = 29, 29, 14
     else:
-        wsrc, wc, req_min = 24, 36, 16
+        wsrc, wc, req_min = 29, 33, 16
     ws = 5
     available = cols - 15
     remaining = available - ws - wsrc - wc
@@ -1202,6 +1204,7 @@ def emit_blocks():
           + (", требуется решение администратора" if all_admin else "") + f" ({len(BLOCKS)}):")
     if any(kind == "add" for entry in BLOCKS for kind, _message in entry["rows"]):
         print("add: добавить параметр в GRUB_CMDLINE_LINUX, выполнить update-grub и перезагрузить систему.")
+    _emit_blocks_separator()
     _emit_blocks_row("control", "type", "message")
     _emit_blocks_separator()
     for i, entry in enumerate(BLOCKS):
@@ -1268,6 +1271,7 @@ try:
     ensure_log_file(DEBUG_LOG)
     append_log(APPLY_LOG, f"product apply start dry_run={str(DRY_RUN).lower()} controls={len(APPLY_CONTROLS)}")
     print(f"MODE={MODE} APPLY_CONTROLS={len(APPLY_CONTROLS)}")
+    _emit_separator()
     _emit_table_row("st", "source", "control", "current", "required")
     _emit_separator()
     loaded = {}
@@ -1934,10 +1938,10 @@ slp_pretty_status() {
 SLP_PRETTY_COLS=116
 SLP_PRETTY_MODE=table
 SLP_PRETTY_WS=5
-SLP_PRETTY_WSRC=24
-SLP_PRETTY_WC=32
-SLP_PRETTY_WCUR=26
-SLP_PRETTY_WREQ=16
+SLP_PRETTY_WSRC=29
+SLP_PRETTY_WC=29
+SLP_PRETTY_WCUR=14
+SLP_PRETTY_WREQ=24
 SLP_PRETTY_VFIELD=8
 SLP_PRETTY_VVALUE=104
 
@@ -1975,16 +1979,16 @@ slp_pretty_layout_for_cols() {
     SLP_PRETTY_WC=24
     _slp_req_min=10
   elif (( _slp_cols < 110 )); then
-    SLP_PRETTY_WSRC=22
-    SLP_PRETTY_WC=28
+    SLP_PRETTY_WSRC=29
+    SLP_PRETTY_WC=25
     _slp_req_min=12
   elif (( _slp_cols < 120 )); then
-    SLP_PRETTY_WSRC=24
-    SLP_PRETTY_WC=32
+    SLP_PRETTY_WSRC=29
+    SLP_PRETTY_WC=29
     _slp_req_min=14
   else
-    SLP_PRETTY_WSRC=24
-    SLP_PRETTY_WC=36
+    SLP_PRETTY_WSRC=29
+    SLP_PRETTY_WC=33
     _slp_req_min=16
   fi
   _slp_available=$((_slp_cols - 15))
@@ -2217,6 +2221,7 @@ slp_render_pretty() {
     printf 'PROFILE=%s\n\n' "$SLP_SYSTEM_PROFILE"
   fi
   slp_pretty_layout_init || return 1
+  slp_pretty_separator
   slp_pretty_row 'st' 'source' 'control' 'current' 'required'
   slp_pretty_separator
   for _slp_line in "${SLP_RESULTS[@]}"; do

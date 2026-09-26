@@ -164,6 +164,10 @@ def execute(tree, key, *, dry_run=False, privileged=True, write=None, stage=None
                              _write=write, _stage=stage)
 
 
+def modes(tree):
+    return (stat.S_IMODE(tree.cfg.stat().st_mode), stat.S_IMODE(tree.dropin_path.stat().st_mode))
+
+
 def leftovers(tree):
     return sorted(p.name for p in (tree.root / "etc/ssh").rglob("*" + A.TMP_SUFFIX))
 
@@ -609,6 +613,10 @@ class Apply(unittest.TestCase):
                 signal.signal(signal.SIGALRM, old)
             self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_CONFLICT", "sshd-config:untrusted"))
             self.assertNotIn("systemctl", t.names())
+            self.assertTrue(stat.S_ISFIFO(os.lstat(t.cfg).st_mode))
+            self.assertEqual(stat.S_IMODE(os.lstat(t.cfg).st_mode), 0o644)
+            self.assertEqual((t.dropin(), stat.S_IMODE(t.dropin_path.stat().st_mode)), (CLOUD_INIT, 0o600))
+            self.assertEqual(leftovers(t), [])
 
     def test_include_rules_match_check(self):
         # B-06: те же отказы Include, что у CHECK sshd-config-option.
@@ -909,6 +917,7 @@ class Apply(unittest.TestCase):
             self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
                              ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
             self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
+            self.assertEqual((modes(t), leftovers(t)), ((0o644, 0o600), []))
 
     def test_owner_is_set_before_full_mode(self):
         # B-14: fchown раньше fchmod; режим восстанавливается полностью, включая SUID.
@@ -928,11 +937,50 @@ class Apply(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(os.stat(tmp).st_mode), 0o4644)
 
     def test_special_mode_bits_survive_apply(self):
+        # B-14/B-15: SUID и SGID сохраняются при применении (оба файла).
+        for cfg_mode, dropin_mode in ((0o4644, 0o2600), (0o2644, 0o4600), (0o6644, 0o6600)):
+            with self.subTest(cfg=oct(cfg_mode), dropin=oct(dropin_mode)), tempfile.TemporaryDirectory() as td:
+                t = Tree(td)
+                t.cfg.chmod(cfg_mode)
+                t.dropin_path.chmod(dropin_mode)
+                r = execute(t, "PasswordAuthentication")
+                self.assertEqual(r["outcome"], "APPLIED", r)
+                self.assertEqual(t.config(), stock_with("PasswordAuthentication", "PasswordAuthentication no\n"))
+                self.assertEqual(t.dropin(), "PasswordAuthentication no\n")
+                self.assertEqual((modes(t), leftovers(t)), ((cfg_mode, dropin_mode), []))
+
+    def test_special_mode_bits_survive_restore(self):
+        # B-15: при откате возвращаются байты и полный режим, включая SUID/SGID.
         with tempfile.TemporaryDirectory() as td:
             t = Tree(td)
-            t.cfg.chmod(0o4644)
-            self.assertEqual(execute(t, "PermitRootLogin")["outcome"], "APPLIED")
-            self.assertEqual(stat.S_IMODE(t.cfg.stat().st_mode), 0o4644)
+            t.cfg.chmod(0o6644)
+            t.dropin_path.chmod(0o2600)
+            real_run = t.run
+
+            def run(argv, timeout):
+                if argv[1:2] == ["-t"] and not argv[-1].endswith(A.TMP_SUFFIX) and "no" in t.dropin():
+                    return subprocess.CompletedProcess(argv, 255, b"", b"")
+                return real_run(argv, timeout)
+
+            t.run = run
+            r = execute(t, "PasswordAuthentication")
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"], r["transaction_commit"]),
+                             ("FAILED_NOT_COMMITTED", "sshd-config:validation-failed", True, "NOT_COMMITTED"))
+            self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
+            self.assertEqual((modes(t), leftovers(t)), ((0o6644, 0o2600), []))
+
+    def test_initial_read_close_error_is_refused_without_write(self):
+        # B-15: ошибка close при первоначальном чтении — контролируемый отказ без записи.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            close = self._close_failing(lambda target: target.endswith("/etc/ssh/sshd_config"))
+            with mock.patch.object(A.os, "close", close):
+                r = execute(t, "PermitRootLogin")
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"], r["transaction_commit"]),
+                             ("ABORTED_PRECONDITION_OTHER", "sshd-config:read-failed", False, "NOT_STARTED"))
+            self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
+            self.assertEqual((modes(t), leftovers(t)), ((0o644, 0o600), []))
+            self.assertNotIn("systemctl", t.names())
 
     def test_fifo_account_files_are_refused_without_blocking(self):
         for rel, reason in (("etc/group", "group:read-failed"), ("etc/passwd", "passwd:read-failed")):
@@ -948,6 +996,9 @@ class Apply(unittest.TestCase):
                     signal.alarm(0)
                     signal.signal(signal.SIGALRM, old)
                 self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_OTHER", reason))
+                self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
+                self.assertEqual((modes(t), leftovers(t)), ((0o644, 0o600), []))
+                self.assertTrue(stat.S_ISFIFO(os.lstat(t.root / rel).st_mode))
 
     def test_missing_tools_and_privilege_and_spec(self):
         with tempfile.TemporaryDirectory() as td:

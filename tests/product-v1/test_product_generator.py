@@ -37,7 +37,9 @@ SUDO_ROOT_COMMAND_FILES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-
 STARTUP_FILES_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-startup-files-write-protection-check-v1.py"
 BASH = shutil.which("bash")
 # Ширины колонок current/required для pretty-таблиц CHECK и APPLY по ширине терминала.
-CURRENT_REQUIRED_WIDTHS = {90: (12, 16), 100: (12, 18), 116: (16, 24), 139: (33, 26), 160: (33, 47)}
+# Решение пользователя 26.09.2026: source от 100 колонок — 29 символов
+# («fstec-configuration-2026 §9.1» в одну строку), место отдают control и current.
+CURRENT_REQUIRED_WIDTHS = {90: (12, 16), 100: (12, 14), 116: (14, 24), 139: (31, 26), 160: (33, 45)}
 
 ERROR_REASON_RE = re.compile(r"^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$")
 
@@ -4839,13 +4841,15 @@ SLP_POLICY_RC=1
         self.assertEqual(lines[3], "PLATFORM=ubuntu-24.04-x86_64")
         self.assertEqual(lines[4], "PROFILE=MINIMIZED")
         self.assertEqual(lines[5], "")
-        header = lines[6]
-        separator = lines[7]
+        # Пунктир над заголовком; source 29 символов (решение 26.09.2026).
+        self.assertEqual(lines[6].count("+"), 5)
+        header = lines[7]
+        separator = lines[8]
         self.assertEqual(header.count("|"), 5)
         self.assertEqual(separator.count("+"), 5)
         self.assertEqual(header.index("source"), 9)
-        self.assertEqual(header.index("control"), 36)
-        self.assertEqual(header.index("current"), 71)
+        self.assertEqual(header.index("control"), 41)
+        self.assertEqual(header.index("current"), 73)
         self.assertEqual(header.index("required"), 90)
         total_index = lines.index("TOTAL=4   PASS=2   FAIL=1   NOT_FOUND=0   NOT_APPLICABLE=0   ERROR=1   POLICY=UNEVALUATED")
         table_lines = lines[6:total_index]
@@ -5908,9 +5912,11 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             self.assertEqual(cp.stderr, "")
             self.assertIn("MODE=APPLY APPLY_CONTROLS=2\n", cp.stdout)
             lines = cp.stdout.splitlines()
-            header = lines[1]
+            # Решение пользователя 26.09.2026: пунктир и над заголовком таблицы.
+            self.assertEqual(lines[1].count("+"), 5)
+            header = lines[2]
             self.assertEqual(header.count("|"), 5)
-            self.assertEqual(lines[2].count("+"), 5)
+            self.assertEqual(lines[3].count("+"), 5)
             rows_a = [line for line in lines if "ctrl-a" in line]
             rows_b = [line for line in lines if "ctrl-b" in line]
             self.assertEqual(len(rows_a), 1, cp.stdout)
@@ -6038,8 +6044,10 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
             self.assertNotIn("note:", table_text)
 
             self.assertEqual(lines[blocks_index], "block — не применено автоматически, требуется решение администратора (1):")
-            blocks_header = lines[blocks_index + 1]
-            blocks_separator = lines[blocks_index + 2]
+            # Пунктир над заголовком таблицы блоков (решение 26.09.2026).
+            self.assertEqual(lines[blocks_index + 1].count("+"), 3)
+            blocks_header = lines[blocks_index + 2]
+            blocks_separator = lines[blocks_index + 3]
             blocks_end = lines[total_index - 1]
             self.assertIn("control", blocks_header)
             self.assertIn("type", blocks_header)
@@ -6154,7 +6162,8 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
 
     def test_apply_blocks_precondition_conflict_output_exact(self):
         # Регрессия: вывод CONFLICT с operator_decision побайтно (снято на e3af78f;
-        # решение 24.09.2026: общая фраза над таблицей). Меняется только явным решением.
+        # решение 24.09.2026: общая фраза над таблицей; решение 26.09.2026: пунктир над
+        # заголовком, source 29 символов). Меняется только явным решением.
         record = {
             "outcome": "ABORTED_PRECONDITION_CONFLICT",
             "reason": "runtime-writer:APPORT-NATIVE-SUID-DUMPABLE-V1:C4:agent-exact",
@@ -6168,11 +6177,13 @@ class ApplyMechanismRegistryIntegration(unittest.TestCase):
         self.assertEqual(cp.stderr, "")
         self.assertEqual(cp.stdout, (
             'MODE=APPLY APPLY_CONTROLS=1\n'
-            ' st    | source                   | control                          | current          | required                 |\n'
-            '-------+--------------------------+----------------------------------+------------------+--------------------------+\n'
-            ' block | fstec-linux-2099 §9.9.4  | passwd-mode                      | 2                | = 0644                   |\n'
-            '-------+--------------------------+----------------------------------+------------------+--------------------------+\n'
+            '-------+-------------------------------+-------------------------------+----------------+--------------------------+\n'
+            ' st    | source                        | control                       | current        | required                 |\n'
+            '-------+-------------------------------+-------------------------------+----------------+--------------------------+\n'
+            ' block | fstec-linux-2099 §9.9.4       | passwd-mode                   | 2              | = 0644                   |\n'
+            '-------+-------------------------------+-------------------------------+----------------+--------------------------+\n'
             'block — не применено автоматически, требуется решение администратора (1):\n'
+            '--------------------+--------+-------------------------------------------------------------------------------------+\n'
             ' control            | type   | message                                                                             |\n'
             '--------------------+--------+-------------------------------------------------------------------------------------+\n'
             ' §9.9.4 passwd-mode | detail | runtime-writer:APPORT-NATIVE-SUID-DUMPABLE-V1:C4:agent-exact                        |\n'
@@ -7210,8 +7221,9 @@ class SlpCollectPolicyReasonFormat(unittest.TestCase):
             i for i, line in enumerate(lines)
             if line and set(line) <= {"-", "+"} and line.endswith("+")
         ]
-        self.assertGreaterEqual(len(sep_indices), 2, body)
-        data_lines = lines[sep_indices[0] + 1 : sep_indices[1]]
+        self.assertGreaterEqual(len(sep_indices), 3, body)
+        # Пунктир над заголовком (решение 26.09.2026): данные — между вторым и третьим.
+        data_lines = lines[sep_indices[1] + 1 : sep_indices[2]]
         matches = [row_re.match(line) for line in data_lines]
         self.assertTrue(matches and all(matches), body)
         reconstructed = "".join(m.group(4) for m in matches).rstrip(" ")
@@ -7322,8 +7334,9 @@ class PamWheelAbsentReasonRenderFormat(unittest.TestCase):
             i for i, line in enumerate(lines)
             if line and set(line) <= {"-", "+"} and line.endswith("+")
         ]
-        self.assertGreaterEqual(len(sep_indices), 2, body)
-        data_lines = lines[sep_indices[0] + 1 : sep_indices[1]]
+        self.assertGreaterEqual(len(sep_indices), 3, body)
+        # Пунктир над заголовком (решение 26.09.2026): данные — между вторым и третьим.
+        data_lines = lines[sep_indices[1] + 1 : sep_indices[2]]
         matches = [row_re.match(line) for line in data_lines]
         self.assertTrue(matches and all(matches), body)
         reconstructed = "".join(m.group(4) for m in matches).rstrip(" ")
@@ -7482,8 +7495,9 @@ class HomeSensitiveReasonRenderFormat(unittest.TestCase):
             i for i, line in enumerate(lines)
             if line and set(line) <= {"-", "+"} and line.endswith("+")
         ]
-        self.assertGreaterEqual(len(sep_indices), 2, body)
-        data_lines = lines[sep_indices[0] + 1 : sep_indices[1]]
+        self.assertGreaterEqual(len(sep_indices), 3, body)
+        # Пунктир над заголовком (решение 26.09.2026): данные — между вторым и третьим.
+        data_lines = lines[sep_indices[1] + 1 : sep_indices[2]]
         matches = [row_re.match(line) for line in data_lines]
         self.assertTrue(matches and all(matches), body)
         reconstructed = "".join(m.group(4) for m in matches).rstrip(" ")

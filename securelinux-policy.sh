@@ -3,7 +3,7 @@
 # STATUS=NON_RELEASE_PRODUCT_CANDIDATE
 # PRODUCT_CLI=product-cli-v1
 # GENERATOR_ID=product-check-generator-v2
-# GENERATOR_SHA256=3205fd6e91272c4b502aa38f3deff68f410e0a0e7e242e2083dee3e2f360d6da
+# GENERATOR_SHA256=89344e362ca9588528abacf15abb939356d3225eb6c10457d1c03afde94adb6e
 # CONTROL_MANIFEST_SHA256=b64e4cd610181bce848eb68d52e7ee755df9d2de815095396aec492165408ba4
 # ADAPTER_REGISTRY_SHA256=8b6cec55189430e4e995d81cfea5af6d90ecfa1150ad2ddd7e9ed6eb59efcccc
 # APPLY_KINDS=config-line-with-runtime-v1,file-mode-owner-v1,kernel-cmdline-grub-v1,optional-file-root-files-mode-v1,pam-wheel-su-v1,sshd-config-option-v1,standard-system-paths-mode-v1,startup-files-write-protection-v1,suid-sgid-applications-mode-v1
@@ -7353,7 +7353,7 @@ slp_build_info() {
     'STATUS=NON_RELEASE_PRODUCT_CANDIDATE' \
     'PRODUCT_CLI=product-cli-v1' \
     'GENERATOR_ID=product-check-generator-v2' \
-    'GENERATOR_SHA256=3205fd6e91272c4b502aa38f3deff68f410e0a0e7e242e2083dee3e2f360d6da' \
+    'GENERATOR_SHA256=89344e362ca9588528abacf15abb939356d3225eb6c10457d1c03afde94adb6e' \
     'CONTROL_COUNT=52' \
     'CONTROL_MANIFEST_SHA256=b64e4cd610181bce848eb68d52e7ee755df9d2de815095396aec492165408ba4' \
     'ADAPTER_COUNT=18' \
@@ -7522,10 +7522,10 @@ slp_pretty_status() {
 SLP_PRETTY_COLS=116
 SLP_PRETTY_MODE=table
 SLP_PRETTY_WS=5
-SLP_PRETTY_WSRC=24
-SLP_PRETTY_WC=32
-SLP_PRETTY_WCUR=26
-SLP_PRETTY_WREQ=16
+SLP_PRETTY_WSRC=29
+SLP_PRETTY_WC=29
+SLP_PRETTY_WCUR=14
+SLP_PRETTY_WREQ=24
 SLP_PRETTY_VFIELD=8
 SLP_PRETTY_VVALUE=104
 
@@ -7563,16 +7563,16 @@ slp_pretty_layout_for_cols() {
     SLP_PRETTY_WC=24
     _slp_req_min=10
   elif (( _slp_cols < 110 )); then
-    SLP_PRETTY_WSRC=22
-    SLP_PRETTY_WC=28
+    SLP_PRETTY_WSRC=29
+    SLP_PRETTY_WC=25
     _slp_req_min=12
   elif (( _slp_cols < 120 )); then
-    SLP_PRETTY_WSRC=24
-    SLP_PRETTY_WC=32
+    SLP_PRETTY_WSRC=29
+    SLP_PRETTY_WC=29
     _slp_req_min=14
   else
-    SLP_PRETTY_WSRC=24
-    SLP_PRETTY_WC=36
+    SLP_PRETTY_WSRC=29
+    SLP_PRETTY_WC=33
     _slp_req_min=16
   fi
   _slp_available=$((_slp_cols - 15))
@@ -7805,6 +7805,7 @@ slp_render_pretty() {
     printf 'PROFILE=%s\n\n' "$SLP_SYSTEM_PROFILE"
   fi
   slp_pretty_layout_init || return 1
+  slp_pretty_separator
   slp_pretty_row 'st' 'source' 'control' 'current' 'required'
   slp_pretty_separator
   for _slp_line in "${SLP_RESULTS[@]}"; do
@@ -8161,14 +8162,16 @@ def _terminal_layout(columns=None):
     cols = PRETTY_COLUMNS if columns is None else columns
     if cols < 90:
         return ("vertical", cols, (8, cols - 14))
+    # source от 100 колонок — 29 символов, «fstec-configuration-2026 §9.1» в одну строку;
+    # место отдают control и current (решение пользователя 26.09.2026).
     if cols < 100:
         wsrc, wc, req_min = 18, 24, 10
     elif cols < 110:
-        wsrc, wc, req_min = 22, 28, 12
+        wsrc, wc, req_min = 29, 25, 12
     elif cols < 120:
-        wsrc, wc, req_min = 24, 32, 14
+        wsrc, wc, req_min = 29, 29, 14
     else:
-        wsrc, wc, req_min = 24, 36, 16
+        wsrc, wc, req_min = 29, 33, 16
     ws = 5
     available = cols - 15
     remaining = available - ws - wsrc - wc
@@ -8331,6 +8334,7 @@ def emit_blocks():
           + (", требуется решение администратора" if all_admin else "") + f" ({len(BLOCKS)}):")
     if any(kind == "add" for entry in BLOCKS for kind, _message in entry["rows"]):
         print("add: добавить параметр в GRUB_CMDLINE_LINUX, выполнить update-grub и перезагрузить систему.")
+    _emit_blocks_separator()
     _emit_blocks_row("control", "type", "message")
     _emit_blocks_separator()
     for i, entry in enumerate(BLOCKS):
@@ -8397,6 +8401,7 @@ try:
     ensure_log_file(DEBUG_LOG)
     append_log(APPLY_LOG, f"product apply start dry_run={str(DRY_RUN).lower()} controls={len(APPLY_CONTROLS)}")
     print(f"MODE={MODE} APPLY_CONTROLS={len(APPLY_CONTROLS)}")
+    _emit_separator()
     _emit_table_row("st", "source", "control", "current", "required")
     _emit_separator()
     loaded = {}
