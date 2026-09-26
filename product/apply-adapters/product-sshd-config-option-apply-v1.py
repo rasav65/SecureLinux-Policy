@@ -512,7 +512,7 @@ def _read_groups(root):
 
 
 def _read_homes(root):
-    """{пользователь: (домашний каталог, uid)} из /etc/passwd."""
+    """{пользователь: (домашний каталог, uid, основной gid)} из /etc/passwd."""
     lines = _read_account_file(root, PASSWD, "passwd:read-failed")
     homes = {}
     for line in lines:
@@ -521,7 +521,9 @@ def _read_homes(root):
         fields = line.split(":")
         if len(fields) != 7 or not re.fullmatch(r"[0-9]+", fields[2]):
             raise _other("passwd:invalid-line")
-        homes.setdefault(fields[0], (fields[5], int(fields[2])))
+        if not re.fullmatch(r"[0-9]+", fields[3]):
+            raise _other("passwd:invalid-line")
+        homes.setdefault(fields[0], (fields[5], int(fields[2]), int(fields[3])))
     return homes
 
 
@@ -537,6 +539,33 @@ def _strict_ok(root, path, uid):
     return st.st_uid in owners and not stat.S_IMODE(st.st_mode) & 0o022
 
 
+def _user_gids(root, user, primary_gid):
+    """Группы пользователя: основная и те, где он указан участником в /etc/group."""
+    gids = {primary_gid}
+    for line in _read_account_file(root, GROUP, "group:read-failed"):
+        fields = line.split(":")
+        if len(fields) == 4 and re.fullmatch(r"[0-9]+", fields[2]) and user in fields[3].split(","):
+            gids.add(int(fields[2]))
+    return gids
+
+
+def _user_may(root, path, uid, gids, bits):
+    """Может ли пользователь (uid, gids) получить доступ `bits` (4 — чтение, 1 — проход) к пути
+    по битам владельца, группы или прочих — как проверит ядро при входе от его имени.
+
+    В тестовом дереве (`_root`) объект текущего пользователя считается объектом администратора."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return False
+    mode = stat.S_IMODE(st.st_mode)
+    if st.st_uid == uid or (root is not None and st.st_uid == os.geteuid()):
+        return bool((mode >> 6) & bits == bits)
+    if st.st_gid in gids:
+        return bool((mode >> 3) & bits == bits)
+    return bool(mode & bits == bits)
+
+
 def admin_users(groups):
     """Участники групп sudo и admin (поле участников /etc/group), кроме root."""
     users = []
@@ -547,18 +576,29 @@ def admin_users(groups):
     return users
 
 
-def _has_key(root, home, uid, rel, strict):
-    """Непустой файл ключей; при StrictModes — и права файла, `~/.ssh` и домашнего каталога
-    (иначе sshd ключ отвергнет и администратор останется без входа)."""
+def _has_key(root, home, uid, gids, rel, strict):
+    """Пригодный ключ: непустой файл, который администратор может прочитать, пройдя по всем
+    каталогам фактического (после разрешения ссылок) пути от «/» — sshd читает ключи от имени
+    пользователя; при StrictModes — ещё и права файла, `~/.ssh` и домашнего каталога (иначе
+    sshd ключ отвергнет). В тестовом дереве (`_root`) путь проверяется от его корня."""
     if not home.startswith("/"):
         return False
-    base = home.rstrip("/")
-    path = _p(root, base + "/" + rel)
+    anchor = os.path.realpath(root) if root is not None else "/"
+    real_home = os.path.realpath(_p(root, home.rstrip("/") or "/"))
+    if real_home != anchor and not real_home.startswith(anchor.rstrip("/") + "/"):
+        return False
+    tail = [part for part in real_home[len(anchor):].split("/") if part]
+    walk = [anchor] + [os.path.join(anchor, *tail[:i]) for i in range(1, len(tail) + 1)]
+    key_dirs = [real_home]
+    for part in rel.split("/")[:-1]:
+        key_dirs.append(os.path.join(key_dirs[-1], part))
+    path = os.path.join(real_home, rel)
+    if not all(_user_may(root, d, uid, gids, 1) for d in walk + key_dirs[1:]):
+        return False
+    if not _user_may(root, path, uid, gids, 4):
+        return False
     if strict:
-        dirs = [base]
-        for part in rel.split("/")[:-1]:
-            dirs.append(dirs[-1] + "/" + part)
-        if not all(_strict_ok(root, _p(root, d), uid) for d in dirs) or not _strict_ok(root, path, uid):
+        if not all(_strict_ok(root, d, uid) for d in key_dirs) or not _strict_ok(root, path, uid):
             return False
     try:
         raw, _st = _read_regular(path, _other("keys:invalid-type"))
@@ -594,8 +634,9 @@ def admin_access(root, run, users):
             unverified = True
             continue
         strict = (values.get("strictmodes") or "yes").lower() != "no"
-        home, uid = homes[user]
-        keyed = any(_has_key(root, home, uid, rel, strict) for rel in key_files)
+        home, uid, gid = homes[user]
+        gids = _user_gids(root, user, gid)
+        keyed = any(_has_key(root, home, uid, gids, rel, strict) for rel in key_files)
         password = any((values.get(name) or "").lower() == "yes"
                        for name in ("passwordauthentication", "kbdinteractiveauthentication"))
         access.append((user, keyed, password))

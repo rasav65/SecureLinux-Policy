@@ -91,12 +91,15 @@ def add_key(root, home_rel, name="authorized_keys", key=KEY, home_mode=0o750, ss
     """Ключ пользователя с явными режимами (umask ПК 0002 дал бы запись для группы)."""
     home = Path(root) / home_rel
     home.mkdir(parents=True, exist_ok=True)
-    home.chmod(home_mode)
+    home.chmod(0o750)
     (home / ".ssh").mkdir(exist_ok=True)
-    (home / ".ssh").chmod(ssh_mode)
+    (home / ".ssh").chmod(0o700)
     path = home / ".ssh" / name
     path.write_text(key, encoding="utf-8")
+    # Итоговые режимы — после записи: режим без прохода или записи не мешает создать файл.
     path.chmod(key_mode)
+    (home / ".ssh").chmod(ssh_mode)
+    home.chmod(home_mode)
     return path
 
 
@@ -181,7 +184,7 @@ def ssh_tree_state(tree):
     Читается через pathlib (os.read/os.close тестовых подмен не участвуют)."""
     state = {}
     base = tree.root / "etc/ssh"
-    for path in sorted(base.rglob("*")):
+    for path in [base] + sorted(base.rglob("*")):
         st = os.lstat(path)
         kind = stat.S_IFMT(st.st_mode)
         data = path.read_bytes() if stat.S_ISREG(st.st_mode) else None
@@ -208,6 +211,10 @@ def execute(tree, key, *, dry_run=False, privileged=True, write=None, stage=None
                                privilege_check=lambda: privileged, _root=str(tree.root), _run=tree.run,
                                _write=write, _stage=stage)
     after = ssh_tree_state(tree)
+    tree.last_states = (before, after)
+    if result["outcome"] == "FAILED_COMPENSATION":
+        # Итог частичного отката проверяет сам тест через assert_state (всё дерево).
+        tree.compensation_checked = False
     if result["outcome"] in UNCHANGED_OUTCOMES:
         assert after == before, (result, sorted(set(after.items()) ^ set(before.items()), key=str))
     elif result["outcome"] == "APPLIED":
@@ -244,11 +251,41 @@ def stock_with(template_key, line):
 
 
 class Apply(unittest.TestCase):
+    def setUp(self):
+        self._trees = []
+        original = Tree.__init__
+
+        def tracked(tree, *args, **kwargs):
+            original(tree, *args, **kwargs)
+            self._trees.append(tree)
+
+        patcher = mock.patch.object(Tree, "__init__", tracked)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def tearDown(self):
+        # Каждый исход FAILED_COMPENSATION обязан пройти assert_state.
+        for tree in self._trees:
+            self.assertNotEqual(getattr(tree, "compensation_checked", None), False, tree.root)
+
     def assert_state(self, t, config, dropin, file_modes, tmp_left):
-        """Итоговое состояние после FAILED_COMPENSATION: точные байты, полный режим, .slp-tmp."""
+        """Итоговое состояние после FAILED_COMPENSATION — всё дерево /etc/ssh (B-02 аудита
+        e11ad4c..943483a): основной файл и drop-in с ожидаемыми байтами, прочие объекты без
+        изменений; у всех прежних объектов прежние тип, полный режим, UID и GID; из новых
+        объектов — только перечисленные временные файлы, обычные файлы."""
         self.assertEqual((t.config(), t.dropin()), (config, dropin))
         self.assertEqual(modes(t), file_modes)
         self.assertEqual(leftovers(t), sorted(tmp_left))
+        before, after = t.last_states
+        expected = dict(before)
+        for name, text in (("sshd_config", config), ("sshd_config.d/50-cloud-init.conf", dropin)):
+            kind, mode, _data, uid, gid = expected[name]
+            expected[name] = (kind, mode, text.encode("utf-8", "surrogateescape"), uid, gid)
+        new = {k: v for k, v in after.items() if k not in before}
+        self.assertEqual({k: v for k, v in after.items() if k in before}, expected)
+        self.assertEqual(sorted(k.rsplit("/", 1)[-1] for k in new), sorted(tmp_left))
+        self.assertTrue(all(v[0] == stat.S_IFREG for v in new.values()), new)
+        t.compensation_checked = True
 
     def test_control_yaml_matches_adapter_keys(self):
         seen = {}
@@ -981,6 +1018,7 @@ class Apply(unittest.TestCase):
             self.assertEqual(leftovers(t), ["sshd_config" + A.TMP_SUFFIX])
             self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
             self.assertEqual(modes(t), (0o644, 0o600))
+            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), ["sshd_config" + A.TMP_SUFFIX])
 
     def test_restore_verification_close_error_continues(self):
         # B-13: ошибка close при сверке восстановления — FAILED_COMPENSATION, остальные файлы возвращаются.
@@ -1004,6 +1042,7 @@ class Apply(unittest.TestCase):
                              ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
             self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
             self.assertEqual((modes(t), leftovers(t)), ((0o644, 0o600), []))
+            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), [])
 
     def test_owner_is_set_before_full_mode(self):
         # B-14: fchown раньше fchmod; режим восстанавливается полностью, включая SUID.
@@ -1219,6 +1258,85 @@ class Apply(unittest.TestCase):
             t.cfg.write_bytes(b"PermitRootLogin no\n\x00\n")
             r = execute(t, "PermitRootLogin")
             self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_OTHER", "sshd-config:invalid-bytes"))
+
+    def _stat_override(self, overrides):
+        """Подмена os.stat адаптера: {путь: (режим, uid, gid)}; реальные права не меняются,
+        поэтому проверка не зависит от того, запущен ли тест от root."""
+        real_stat = os.stat
+
+        def fake_stat(path, *args, **kwargs):
+            st = real_stat(path, *args, **kwargs)
+            if str(path) in overrides:
+                mode, uid, gid = overrides[str(path)]
+                return os.stat_result((stat.S_IFMT(st.st_mode) | mode, st.st_ino, st.st_dev, st.st_nlink,
+                                       uid, gid) + tuple(st)[6:])
+            return st
+
+        return mock.patch.object(A.os, "stat", fake_stat)
+
+    def test_admin_key_must_be_readable_by_admin(self):
+        # B-01 аудита e11ad4c..943483a: root прочитает любой файл, но sshd читает ключ от имени
+        # администратора — нужен проход по каталогам и чтение файла (M-01: права подменяются).
+        me, gid = os.geteuid(), os.getegid()
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            t.extra = {"strictmodes": "no"}
+            home = os.path.realpath(t.root / "home/user")
+            cases = (
+                ({home + "/.ssh/authorized_keys": (0o000, me, gid)}, False),
+                ({home + "/.ssh": (0o600, me, gid)}, False),
+                ({home: (0o640, me, gid)}, False),
+                ({os.path.realpath(t.root / "home"): (0o700, 4444, 4444)}, False),
+                # M-02: класс владельца и группы не «проваливается» в биты прочих.
+                ({home + "/.ssh/authorized_keys": (0o044, me, gid)}, False),
+                ({home + "/.ssh/authorized_keys": (0o604, 4444, 1000)}, False),  # 1000 — основная группа user
+                ({home + "/.ssh/authorized_keys": (0o604, 4444, 4444)}, True),
+                ({}, True),
+            )
+            if gid == 4444:
+                self.skipTest("gid 4444 занят текущим пользователем")
+            for overrides, keyed in cases:
+                with self.subTest(overrides=overrides):
+                    with self._stat_override(overrides):
+                        access, _unverified = A.admin_access(str(t.root), t.run, ["user"])
+                    self.assertEqual(access, [("user", keyed, True)])
+
+    def test_admin_key_access_by_group_and_other_bits(self):
+        # Файл не пользователя: чтение по битам группы (если он в группе) или прочих.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            t.extra = {"strictmodes": "no"}  # проверяется только доступ по битам
+            key = t.root / "home/user/.ssh/authorized_keys"
+            real_stat = os.stat
+            foreign = {"gid": 4242, "mode": 0o640}
+
+            def fake_stat(path, *args, **kwargs):
+                st = real_stat(path, *args, **kwargs)
+                if str(path) == str(key):
+                    return os.stat_result((stat.S_IFREG | foreign["mode"], st.st_ino, st.st_dev, st.st_nlink,
+                                           4444, foreign["gid"]) + tuple(st)[6:])
+                return st
+
+            with mock.patch.object(A.os, "stat", fake_stat):
+                self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", False, True)])
+                with (t.root / "etc/group").open("a", encoding="utf-8") as stream:
+                    stream.write("keys:x:4242:user\n")
+                self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", True, True)])
+                foreign["gid"], foreign["mode"] = 4343, 0o644
+                self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", True, True)])
+
+    def test_symlinked_home_is_checked_on_real_path(self):
+        # M-03: /home — ссылка; проверяются каталоги фактического пути, а не записанного.
+        me, gid = os.geteuid(), os.getegid()
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td, key=None)
+            t.extra = {"strictmodes": "no"}
+            add_key(t.root, "srv/home/user")
+            (t.root / "home").symlink_to(t.root / "srv/home")
+            srv = os.path.realpath(t.root / "srv")
+            with self._stat_override({srv: (0o700, 4444, 4444)}):
+                self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", False, True)])
+            self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", True, True)])
 
     def test_missing_tools_and_privilege_and_spec(self):
         with tempfile.TemporaryDirectory() as td:
