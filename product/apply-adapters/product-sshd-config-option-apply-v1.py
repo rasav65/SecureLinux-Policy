@@ -19,13 +19,16 @@ Authority: product/contracts/mechanism-sshd-config-option-v1.json
    на месте: значение меняется на `no` — иначе они перекрыли бы основной файл
    (sshd берёт первое прочитанное значение).
 
-Изменённые файлы пишутся через временный файл (режим и владелец прежние), затем
-`sshd -t`, `systemctl try-reload-or-restart ssh.service` и итоговая проверка `sshd -T`.
-Ошибка проверки, перезагрузки или итоговой проверки — прежние байты всех изменённых
-файлов возвращаются (после попытки перезагрузки sshd перезагружается повторно).
+Каждый изменяемый файл готовится временным файлом в том же каталоге (режим и владелец
+прежние) и проверяется `sshd -t` до замены; после замены — `sshd -t` всего дерева,
+`systemctl try-reload-or-restart ssh.service` и итоговая проверка `sshd -T`. Ошибка любой
+из них — прежние байты всех заменённых файлов возвращаются и сверяются (после попытки
+перезагрузки sshd перезагружается повторно); несовпадение — FAILED_COMPENSATION.
+Правила `Include` (ссылки, тип префикса шаблона, имена с переводом строки) — как у CHECK.
 
 Отказ с блоком «решение администратора», без записи:
-- изменяемый файл не является обычным файлом root без записи для группы и прочих;
+- основной файл (всегда, до признания соответствия) или изменяемый включаемый файл не
+  является обычным файлом root без записи для группы и прочих;
 - в области `Match` (основной файл или включаемые) директива задана не `no`;
 - `PermitRootLogin`: в группах `sudo` и `admin` нет пользователя, кроме root;
 - `PasswordAuthentication`: ни у одного такого пользователя нет непустого
@@ -103,6 +106,7 @@ DIRECTIVE_RE = re.compile(r"^[ \t]*([^ \t=]+)(?:[ \t]*=[ \t]*|[ \t]+)(.*)$")
 BARE_DIRECTIVE_RE = re.compile(r"^[ \t]*([^ \t=]+)[ \t]*$")
 VALUE_RE = re.compile(r"^([ \t]*[^ \t=]+(?:[ \t]*=[ \t]*|[ \t]+))(\S+)(.*)$")
 GLOB_CHARS = ("*", "?", "[")
+TMP_SUFFIX = ".slp-tmp"
 
 
 class _Refused(Exception):
@@ -137,9 +141,12 @@ def _other(reason):
 
 
 def _read_regular(path, refuse):
-    """(байты, stat) обычного файла без перехода по ссылке; не обычный файл — `refuse`."""
+    """(байты, stat) обычного файла без перехода по ссылке; не обычный файл — `refuse`.
+
+    `O_NONBLOCK`: FIFO без писателя не блокирует открытие и отвергается по типу дескриптора.
+    """
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
     except OSError:
         raise _other("sshd-config:read-failed")
     try:
@@ -157,8 +164,14 @@ def _read_regular(path, refuse):
     return b"".join(chunks), st
 
 
+def _trusted_uid(root):
+    """Владелец доверенного файла: root; в тестовом дереве (`_root`) — текущий пользователь."""
+    return 0 if root is None else os.geteuid()
+
+
 def _trusted(st, root):
-    return not stat.S_IMODE(st.st_mode) & 0o022 and (root is not None or st.st_uid == 0)
+    return (stat.S_ISREG(st.st_mode) and not stat.S_IMODE(st.st_mode) & 0o022
+            and st.st_uid == _trusted_uid(root))
 
 
 def _text(raw):
@@ -199,12 +212,42 @@ def _directive(line):
     return m.group(1).lower(), args
 
 
+def _absent(path, reason):
+    """True при доказанном ENOENT; иная ошибка lstat — отказ `reason` (как у CHECK)."""
+    try:
+        os.lstat(path)
+    except FileNotFoundError:
+        return True
+    except OSError:
+        raise _other(reason)
+    return False
+
+
 def _include_targets(root, pattern):
+    """Файлы строки Include по правилам CHECK sshd-config-option."""
     path = pattern if pattern.startswith("/") else SSH_DIR + "/" + pattern
     if any(ch in path for ch in GLOB_CHARS):
+        cut = min(path.index(ch) for ch in GLOB_CHARS if ch in path)
+        prefix = path[:cut].rsplit("/", 1)[0] or "/"
+        real_prefix = _p(root, prefix)
+        if not _absent(real_prefix, "sshd-config:include-prefix-stat-failed"):
+            if os.path.islink(real_prefix):
+                raise _other("sshd-config:include-prefix-symlink")
+            if not os.path.isdir(real_prefix):
+                raise _other("sshd-config:include-prefix-invalid-type")
+            try:
+                for _dir, dirs, files in os.walk(real_prefix, onerror=_raise_scan):
+                    if any("\n" in name for name in dirs + files):
+                        raise _other("sshd-config:include-newline-name")
+            except OSError:
+                raise _other("sshd-config:include-prefix-scan-failed")
         return sorted(glob.glob(_p(root, path)))
     real = _p(root, path)
-    return [real] if os.path.lexists(real) else []
+    return [] if _absent(real, "sshd-config:include-stat-failed") else [real]
+
+
+def _raise_scan(exc):
+    raise exc
 
 
 class Config:
@@ -332,8 +375,9 @@ def _check_tools(root, paths):
             raise _other("tools:missing:" + os.path.basename(path))
 
 
-def _syntax_ok(root, run):
-    cp = _call(run, [_p(root, SSHD), "-t", "-f", _p(root, SSHD_CONFIG)])
+def _syntax_ok(root, run, path=None):
+    """`sshd -t -f`: по умолчанию основной файл; `path` — подготовленный временный файл."""
+    cp = _call(run, [_p(root, SSHD), "-t", "-f", path or _p(root, SSHD_CONFIG)])
     return cp is not None and cp.returncode == 0
 
 
@@ -427,12 +471,17 @@ def keyed_admins(root, users, key_files):
     return [u for u in users if u in homes and any(_has_key(root, homes[u], rel) for rel in key_files)]
 
 
-def _write_file(path, raw, st):
-    """Замена файла через временный файл в том же каталоге; режим и владелец прежние."""
-    tmp = path + ".slp-tmp"
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+def _stage_file(path, raw, st):
+    """Временный файл `<путь>.slp-tmp` в том же каталоге: все байты, прежние режим и владелец."""
+    tmp = path + TMP_SUFFIX
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
     try:
-        os.write(fd, raw)
+        view = memoryview(raw)
+        while view:
+            written = os.write(fd, view)
+            if written <= 0:
+                raise OSError("short write")
+            view = view[written:]
         os.fchmod(fd, stat.S_IMODE(st.st_mode))
         if os.geteuid() == 0:
             os.fchown(fd, st.st_uid, st.st_gid)
@@ -442,7 +491,27 @@ def _write_file(path, raw, st):
         os.unlink(tmp)
         raise
     os.close(fd)
-    os.replace(tmp, path)
+    return tmp
+
+
+def _write_file(path, raw, st):
+    """Замена файла через временный файл в том же каталоге; режим и владелец прежние."""
+    os.replace(_stage_file(path, raw, st), path)
+
+
+def _bytes_equal(path, raw):
+    try:
+        return _read_regular(path, _other("sshd-config:read-failed"))[0] == raw
+    except _Refused:
+        return False
+
+
+def _discard(paths):
+    for tmp in paths:
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
 
 
 def _reload(root, run):
@@ -501,6 +570,9 @@ def _observe(root, run, key):
         if exc.reason == "sshd-config:untrusted":
             raise _Refused(exc.outcome, exc.reason, _admin(ACTION_FILE.format(path=SSHD_CONFIG, key=key)))
         raise
+    if not _trusted(cfg.files[cfg.main][1], root):
+        raise _Refused("ABORTED_PRECONDITION_CONFLICT", "sshd-config:untrusted",
+                       _admin(ACTION_FILE.format(path=SSHD_CONFIG, key=key)))
     if cfg.match_non_no:
         raise _Refused("ABORTED_PRECONDITION_CONFLICT", "sshd-config:ambiguous-match",
                        _admin(ACTION_MATCH.format(key=key)))
@@ -511,16 +583,18 @@ def _observe(root, run, key):
 
 
 def execute_control(control_id, key, op, expected, apply_supported, *, dry_run,
-                    privilege_check=None, _root=None, _run=None, _write=None):
+                    privilege_check=None, _root=None, _run=None, _write=None, _stage=None):
     """Set `<key> no` in /etc/ssh/sshd_config in place (scheme 1–4) and reload sshd.
 
-    `_root`, `_run` и `_write` — только для тестов: корень файловой системы, запуск
-    команд и запись файла (`_write(путь, байты, stat)`).
+    `_root`, `_run`, `_write` и `_stage` — только для тестов: корень файловой системы,
+    запуск команд, восстановление файла (`_write(путь, байты, stat)`) и подготовка
+    временного файла (`_stage(путь, байты, stat)` -> путь временного файла).
     """
     validate_control_input(control_id, key, op, expected, apply_supported)
     actions = ["P0_ELIGIBILITY"]
     run = _run if _run is not None else _default_run
     write = _write if _write is not None else _write_file
+    stage = _stage if _stage is not None else _stage_file
     current = None
 
     def done(outcome, **extra):
@@ -567,10 +641,12 @@ def execute_control(control_id, key, op, expected, apply_supported, *, dry_run,
         return done(exc.outcome, reason=exc.reason, operator_decision=exc.decision)
 
     written = []
+    staged = {}
     reload_attempted = False
 
     def compensate(reason):
         actions.append("COMPENSATION")
+        _discard(staged.values())
         ok = True
         for path in reversed(written):
             raw, st, _lines = cfg.files[path]
@@ -578,6 +654,8 @@ def execute_control(control_id, key, op, expected, apply_supported, *, dry_run,
                 write(path, raw, st)
             except OSError:
                 ok = False
+                continue
+            ok = _bytes_equal(path, raw) and ok
         if reload_attempted:
             ok = _reload(_root, run) and ok
         mutated = bool(written)
@@ -585,12 +663,23 @@ def execute_control(control_id, key, op, expected, apply_supported, *, dry_run,
             return done("FAILED_NOT_COMMITTED", reason=reason, mutation=mutated)
         return done("FAILED_COMPENSATION", reason=reason, mutation=mutated)
 
-    actions.append("PHASE1_CONFIG")
+    # Каждый подготовленный файл проверяется `sshd -t` до замены рабочего файла:
+    # основной — вместе с текущими включаемыми, включаемый — сам по себе.
+    actions.append("PHASE1_STAGE")
     for path, raw in planned.items():
         try:
-            write(path, raw, cfg.files[path][1])
+            staged[path] = stage(path, raw, cfg.files[path][1])
         except OSError:
             return compensate("sshd-config:write-failed")
+        if not _syntax_ok(_root, run, staged[path]):
+            return compensate("sshd-config:validation-failed")
+    actions.append("PHASE1_CONFIG")
+    for path in planned:
+        try:
+            os.replace(staged[path], path)
+        except OSError:
+            return compensate("sshd-config:write-failed")
+        del staged[path]
         written.append(path)
     if not _syntax_ok(_root, run):
         return compensate("sshd-config:validation-failed")

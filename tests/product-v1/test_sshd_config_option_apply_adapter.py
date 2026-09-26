@@ -31,9 +31,11 @@ import os
 import re
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 ADAPTER = ROOT / "product/apply-adapters/product-sshd-config-option-apply-v1.py"
@@ -151,9 +153,14 @@ class Tree:
         return [c[0] if c[0] != "sshd" else "sshd" + c[1] for c in self.calls]
 
 
-def execute(tree, key, *, dry_run=False, privileged=True, write=None, control_id=None, expected="no"):
+def execute(tree, key, *, dry_run=False, privileged=True, write=None, stage=None, control_id=None, expected="no"):
     return A.execute_control(control_id or IDS[key], key, "eq", expected, True, dry_run=dry_run,
-                             privilege_check=lambda: privileged, _root=str(tree.root), _run=tree.run, _write=write)
+                             privilege_check=lambda: privileged, _root=str(tree.root), _run=tree.run,
+                             _write=write, _stage=stage)
+
+
+def leftovers(tree):
+    return sorted(p.name for p in (tree.root / "etc/ssh").rglob("*" + A.TMP_SUFFIX))
 
 
 def stock_with(template_key, line):
@@ -469,32 +476,176 @@ class Apply(unittest.TestCase):
             self.assertEqual(t.config(), STOCK_CONFIG)
             self.assertEqual(t.names().count("systemctl"), 2)
 
-    def test_second_write_failure_restores_first_file(self):
+    def test_candidate_is_validated_before_replacement(self):
+        # B-02: `sshd -t` видит подготовленный временный файл до замены рабочего.
         with tempfile.TemporaryDirectory() as td:
             t = Tree(td)
-            done = []
+            real_run = t.run
+            seen = []
 
-            def write(path, raw, st):
-                if path == str(t.dropin_path) and raw != CLOUD_INIT.encode():
-                    raise OSError("disk full")
-                A._write_file(path, raw, st)
-                done.append(path)
+            def run(argv, timeout):
+                if argv[1:2] == ["-t"]:
+                    seen.append((argv[-1], t.config(), t.dropin()))
+                    if argv[-1].endswith(A.TMP_SUFFIX) and "50-cloud-init" in argv[-1]:
+                        return subprocess.CompletedProcess(argv, 255, b"", b"")
+                return real_run(argv, timeout)
 
-            r = execute(t, "PasswordAuthentication", write=write)
-            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
-                             ("FAILED_NOT_COMMITTED", "sshd-config:write-failed", True))
+            t.run = run
+            r = execute(t, "PasswordAuthentication")
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"], r["transaction_commit"]),
+                             ("FAILED_NOT_COMMITTED", "sshd-config:validation-failed", False, "NOT_STARTED"))
             self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
+            self.assertEqual(leftovers(t), [])
+            self.assertNotIn("systemctl", t.names())
+            staged = [path for path, _c, _d in seen if path.endswith(A.TMP_SUFFIX)]
+            self.assertEqual(staged, [str(t.cfg) + A.TMP_SUFFIX, str(t.dropin_path) + A.TMP_SUFFIX])
+            self.assertTrue(all(c == STOCK_CONFIG and d == CLOUD_INIT for _p, c, d in seen))
 
-    def test_first_write_failure_is_not_committed(self):
+    def test_stage_failure_changes_nothing(self):
         with tempfile.TemporaryDirectory() as td:
             t = Tree(td)
 
-            def write(path, raw, st):
-                raise OSError("disk full")
+            def stage(path, raw, st):
+                if path == str(t.dropin_path):
+                    raise OSError("disk full")
+                return A._stage_file(path, raw, st)
 
-            r = execute(t, "PermitRootLogin", write=write)
+            r = execute(t, "PasswordAuthentication", stage=stage)
             self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
                              ("FAILED_NOT_COMMITTED", "sshd-config:write-failed", False))
+            self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
+            self.assertEqual(leftovers(t), [])
+
+    def test_second_replace_failure_restores_first_file(self):
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            real_replace = os.replace
+            calls = []
+
+            def replace(src, dst, *args, **kwargs):
+                calls.append(dst)
+                if len(calls) == 2:
+                    raise OSError("rename failed")
+                return real_replace(src, dst, *args, **kwargs)
+
+            with mock.patch.object(A.os, "replace", replace):
+                r = execute(t, "PasswordAuthentication")
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"], r["transaction_commit"]),
+                             ("FAILED_NOT_COMMITTED", "sshd-config:write-failed", True, "NOT_COMMITTED"))
+            self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
+            self.assertEqual(leftovers(t), [])
+
+    def test_restore_failure_is_failed_compensation(self):
+        # B-05: ошибка записи или несовпадение восстановленных байтов — FAILED_COMPENSATION.
+        def bad_write(path, raw, st):
+            A._write_file(path, raw + b"# damaged\n", st)
+
+        def raising_write(path, raw, st):
+            raise OSError("disk full")
+
+        for write in (bad_write, raising_write):
+            with self.subTest(write=write.__name__), tempfile.TemporaryDirectory() as td:
+                t = Tree(td)
+                real_run = t.run
+
+                def run(argv, timeout):
+                    if argv[1:2] == ["-t"] and not argv[-1].endswith(A.TMP_SUFFIX) and "no" in t.dropin():
+                        return subprocess.CompletedProcess(argv, 255, b"", b"")
+                    return real_run(argv, timeout)
+
+                t.run = run
+                r = execute(t, "PasswordAuthentication", write=write)
+                self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
+                                 ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
+                self.assertEqual(A.outcome_rc_contribution(r["outcome"]), "nonzero")
+
+    def test_short_writes_are_completed(self):
+        # B-05: os.write, записывающий по 3 байта, даёт полный файл.
+        real_write = os.write
+
+        def short(fd, data):
+            return real_write(fd, bytes(data)[:3])
+
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            with mock.patch.object(A.os, "write", short):
+                r = execute(t, "PasswordAuthentication")
+            self.assertEqual(r["outcome"], "APPLIED", r)
+            self.assertEqual(t.config(), stock_with("PasswordAuthentication", "PasswordAuthentication no\n"))
+            self.assertEqual(t.dropin(), "PasswordAuthentication no\n")
+
+    def test_foreign_owner_of_main_is_refused_even_if_compliant(self):
+        # B-04: доверие основного файла проверяется до признания соответствия.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td, config="PermitEmptyPasswords no\n" + STOCK_CONFIG)
+            with mock.patch.object(A, "_trusted_uid", lambda root: os.geteuid() + 1):
+                r = execute(t, "PermitEmptyPasswords")
+            self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_CONFLICT", "sshd-config:untrusted"))
+            self.assertEqual(r["operator_decision"]["class"], "ADMIN_ACTION_REQUIRED")
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td, config=STOCK_CONFIG + "PasswordAuthentication no\n")
+            t.cfg.chmod(0o664)
+            r = execute(t, "PasswordAuthentication")
+            self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_CONFLICT", "sshd-config:untrusted"))
+            self.assertEqual(t.dropin(), CLOUD_INIT)
+
+    def test_fifo_main_config_is_refused_without_blocking(self):
+        # B-03: FIFO без писателя не блокирует открытие.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            t.cfg.unlink()
+            os.mkfifo(t.cfg, 0o644)
+            old = signal.signal(signal.SIGALRM, lambda *_: (_ for _ in ()).throw(TimeoutError("blocked")))
+            signal.alarm(5)
+            try:
+                r = execute(t, "PermitRootLogin", dry_run=True)
+            finally:
+                signal.alarm(0)
+                signal.signal(signal.SIGALRM, old)
+            self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_CONFLICT", "sshd-config:untrusted"))
+            self.assertNotIn("systemctl", t.names())
+
+    def test_include_rules_match_check(self):
+        # B-06: те же отказы Include, что у CHECK sshd-config-option.
+        cases = (
+            ("Include /etc/ssh/linkdir/*.conf\n", "sshd-config:include-prefix-symlink"),
+            ("Include /etc/ssh/plainfile/*.conf\n", "sshd-config:include-prefix-invalid-type"),
+            ("Include /etc/ssh/sshd_config.d/*.conf\n", "sshd-config:include-newline-name"),
+            ("Include /etc/ssh/link.conf\n", "sshd-config:include-symlink"),
+            ("Include /etc/ssh/d0.conf\n", "sshd-config:include-depth"),
+        )
+        for config, reason in cases:
+            with self.subTest(reason=reason), tempfile.TemporaryDirectory() as td:
+                t = Tree(td, config=config)
+                ssh = t.root / "etc/ssh"
+                (ssh / "realdir").mkdir()
+                (ssh / "linkdir").symlink_to(ssh / "realdir")
+                (ssh / "plainfile").write_text("x\n", encoding="utf-8")
+                (ssh / "link.conf").symlink_to(t.dropin_path)
+                if reason == "sshd-config:include-newline-name":
+                    (ssh / "sshd_config.d" / "bad\nname.conf").write_text("UsePAM yes\n", encoding="utf-8")
+                for i in range(A.MAX_INCLUDE_DEPTH + 2):
+                    (ssh / f"d{i}.conf").write_text(f"Include /etc/ssh/d{i + 1}.conf\n", encoding="utf-8")
+                r = execute(t, "PermitRootLogin")
+                self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_OTHER", reason))
+                self.assertEqual(t.config(), config)
+
+    def test_missing_include_target_is_skipped(self):
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td, config="Include /etc/ssh/absent/*.conf\nInclude /etc/ssh/absent.conf\n")
+            self.assertEqual(execute(t, "PermitRootLogin")["outcome"], "APPLIED")
+
+    def test_first_stage_failure_is_not_committed(self):
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+
+            def stage(path, raw, st):
+                raise OSError("disk full")
+
+            r = execute(t, "PermitRootLogin", stage=stage)
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
+                             ("FAILED_NOT_COMMITTED", "sshd-config:write-failed", False))
+            self.assertEqual(t.config(), STOCK_CONFIG)
 
     def test_missing_tools_and_privilege_and_spec(self):
         with tempfile.TemporaryDirectory() as td:
