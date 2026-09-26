@@ -138,8 +138,42 @@ assert {sid: [int(x) for x in rest] for sid, *rest in table_rows} == progress_ro
 assert len(table_rows) == len(progress_rows)
 assert f"| **Итого** | **{total}** | **{controlled}** | **{disposed}** | **{open_rows}** |" in progress
 assert f"Закрыто {controlled + disposed} из {total} строк индекса ({(controlled + disposed) * 100 // total}%)." in progress
-# 43 — тот же явно закреплённый литерал APPLY-популяции, что и APPLY_CONTROL_COUNT выше.
-assert f"Контролей {len(controls)}, из них с автоматическим исправлением (APPLY) — 43 " in progress
+# Доля контролей с APPLY — предложение целиком; число считается здесь из apply.supported
+# каждого YAML контроля, независимо от render-current-docs (B-02 аудита 4d3aadc..e11ad4c).
+apply_enabled = 0
+for manifest in sorted((ROOT / "controls/fstec-core").glob("*/CONTROL-MANIFEST.tsv")):
+    with manifest.open(encoding="utf-8", newline="") as stream:
+        for row in csv.DictReader(stream, delimiter="\t"):
+            text = (manifest.parent / row["file"]).read_text(encoding="utf-8")
+            block = text.split("\napply:\n", 1)[1]
+            assert block.startswith(("  supported: true\n", "  supported: false\n")), row["file"]
+            apply_enabled += block.startswith("  supported: true\n")
+assert apply_enabled == 43  # тот же явно закреплённый литерал, что APPLY_CONTROL_COUNT выше
+apply_sentence = (
+    f"Контролей {len(controls)}, из них с автоматическим исправлением (APPLY) — "
+    f"{apply_enabled} ({apply_enabled * 100 // len(controls)}%)."
+)
+
+
+def check_apply_sentence(text: str) -> None:
+    assert apply_sentence in text, apply_sentence
+
+
+check_apply_sentence(progress)
+# Подменённый процент или число должен отвергаться.
+for old, new in ((f"({apply_enabled * 100 // len(controls)}%)", "(99%)"), (f"— {apply_enabled} (", "— 44 (")):
+    mutated = progress.replace(old, new, 1)
+    assert mutated != progress, old
+    try:
+        check_apply_sentence(mutated)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError(f"progress APPLY negative fixture accepted: {new}")
+# Названия документов в таблице — как в docs/policy-layers.md (B-01 того же аудита).
+policy_layers = (ROOT / "docs/policy-layers.md").read_text(encoding="utf-8")
+for title, sid in re.findall(r"^\| (.+?) \(`([a-z0-9-]+)`\) \|", progress, re.M):
+    assert f"- `{sid}` — {title[0].lower()}{title[1:]}" in policy_layers, (sid, title)
 assert "не означают полного соответствия требованиям ФСТЭК" in progress
 
 assert pmap.count("<!-- BEGIN GENERATED MAP STATUS -->") == 1

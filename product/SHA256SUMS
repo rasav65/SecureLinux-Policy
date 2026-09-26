@@ -1,5 +1,5 @@
 8b6cec55189430e4e995d81cfea5af6d90ecfa1150ad2ddd7e9ed6eb59efcccc  ADAPTER-REGISTRY.tsv
-6e43f4c330df2d14f91e1b85047fa2d2c31a66baaf571d6e2f88f6282701836f  APPLY-IMPLEMENTATION-REGISTRY.tsv
+290bf823450faf4f89182df4ca3814e6e23f866751810e9fc58a33fc7f9d227d  APPLY-IMPLEMENTATION-REGISTRY.tsv
 35031db3bb6140789f5127f1930511a8d1932a92963884182c51a5d989b74800  APPLY-KIND-REGISTRY.tsv
 5a910c9efa49fa13e2d1183cc3efc9f8c4a951f11f4aca2ee56bd990463ac29e  FIELD-COMPATIBILITY-DESKTOPS.tsv
 fdb87a385d75034b5fc19f07a02570d93d159a1c49a83833b261a4eb24afdfb1  README.md
@@ -77,7 +77,7 @@ c9c58306189ef3dec14947b256a925fa3e8acf1d381ec26caecfb53303e0401e  apply-adapters
 da36db37c30533fdd62713b2a10487cd6ed0566c6aa107031c46f3e5b8013790  apply-adapters/product-pam-wheel-su-apply-v1.json
 d06b490ca0fe4f93a99b8dae0ef6f6dae5f2d9f20c0870c5c06ff8a2fb0c8b9a  apply-adapters/product-pam-wheel-su-apply-v1.py
 fe33deaf600a4febb6bde433ee54085bb92ad78cb26f73e2244dc0aaa94294ba  apply-adapters/product-sshd-config-option-apply-v1.json
-afd6d99bdc09fe67c192b4c31ace7e7997bc66beb0beb2e0150d4b0070ac4481  apply-adapters/product-sshd-config-option-apply-v1.py
+ffc6642a3f0f1b071485f163b162365f55635bb90ba4fd469239c289ba8b0791  apply-adapters/product-sshd-config-option-apply-v1.py
 3f3c42dff0535b981667fa0e975f9fcf13e54910011a18d756a5722acb7cdc64  apply-adapters/product-standard-system-paths-mode-apply-v1.json
 9d60edefaaadbdf4adddfd61c978110299c5a34e212eb7abbbe9134ee531baf2  apply-adapters/product-standard-system-paths-mode-apply-v1.py
 95a26ff484bb9d21722571e105a9b6f7589c9a7a155cc30d85fbeb0c4ac2bae7  apply-adapters/product-startup-files-write-protection-apply-v1.json
@@ -137,4 +137,4 @@ d15d7e89982de63578337429b97a429ecad136c8a8f39f5ba218cce5597193c7  contracts/test
 81e008a5ecc0e451679b4b7bacf25d2c2de365c4cd4573db801009f926559ea3  contracts/user-cron-files-mode-check-semantic-v1.json
 e2099c6abb144a09eb4bf848bc47ebece27f053441d3bff7d1d58e23c2753c14  contracts/user-cron-files-mode-check-semantic-v2.json
 cc75c216e685c792e5dd14a1b056e9f8f6602f772bc8622f04be95bc88d501d3  generate-product-check-v1.py
-89344e362ca9588528abacf15abb939356d3225eb6c10457d1c03afde94adb6e  generate-product-check-v2.py
+d8564f86461304bf9d8c4a08d752201a840aa6a916e401f06f320fb5857d2f0a  generate-product-check-v2.py

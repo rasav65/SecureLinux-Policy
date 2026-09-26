@@ -31,6 +31,7 @@ import os
 import re
 from pathlib import Path
 import shutil
+import random
 import signal
 import stat
 import subprocess
@@ -80,7 +81,23 @@ DEFAULTS = {
     "permitrootlogin": "without-password",
     "pubkeyauthentication": "yes",
     "authorizedkeysfile": ".ssh/authorized_keys .ssh/authorized_keys2",
+    "strictmodes": "yes",
+    "kbdinteractiveauthentication": "no",
+    "authenticationmethods": "any",
 }
+
+
+def add_key(root, home_rel, name="authorized_keys", key=KEY, home_mode=0o750, ssh_mode=0o700, key_mode=0o600):
+    """Ключ пользователя с явными режимами (umask ПК 0002 дал бы запись для группы)."""
+    home = Path(root) / home_rel
+    home.mkdir(parents=True, exist_ok=True)
+    home.chmod(home_mode)
+    (home / ".ssh").mkdir(exist_ok=True)
+    (home / ".ssh").chmod(ssh_mode)
+    path = home / ".ssh" / name
+    path.write_text(key, encoding="utf-8")
+    path.chmod(key_mode)
+    return path
 
 
 class Tree:
@@ -98,8 +115,7 @@ class Tree:
         (self.root / "etc/group").write_text(group, encoding="utf-8")
         (self.root / "etc/passwd").write_text(BASE_PASSWD, encoding="utf-8")
         if key is not None:
-            (self.root / "home/user/.ssh").mkdir(parents=True)
-            (self.root / "home/user/.ssh/authorized_keys").write_text(key, encoding="utf-8")
+            add_key(self.root, "home/user", key=key)
         for rel in ("usr/sbin/sshd", "usr/bin/systemctl"):
             tool = self.root / rel
             tool.parent.mkdir(parents=True, exist_ok=True)
@@ -111,7 +127,7 @@ class Tree:
         self.user_extra = {}
 
     def _lines(self, path, depth=0):
-        for line in Path(path).read_bytes().decode("utf-8").splitlines():
+        for line in Path(path).read_bytes().decode("utf-8", "surrogateescape").splitlines():
             parts = re.split(r"[ \t]*=[ \t]*|[ \t]+", line.strip(), maxsplit=1)
             if not parts[0] or parts[0].startswith("#"):
                 continue
@@ -149,23 +165,73 @@ class Tree:
         return subprocess.CompletedProcess(argv, 0, out.encode("utf-8"), b"")
 
     def config(self):
-        return self.cfg.read_bytes().decode("utf-8")
+        return self.cfg.read_bytes().decode("utf-8", "surrogateescape")
 
     def dropin(self):
-        return self.dropin_path.read_text(encoding="utf-8")
+        # Без нормализации окончаний строк: сравнение точных байтов (B-15).
+        return self.dropin_path.read_bytes().decode("utf-8", "surrogateescape")
 
     def names(self):
         return [c[0] if c[0] != "sshd" else "sshd" + c[1] for c in self.calls]
 
 
+def ssh_tree_state(tree):
+    """Все объекты /etc/ssh дерева: тип, полный режим (S_IMODE) и точные байты обычных файлов.
+
+    Читается через pathlib (os.read/os.close тестовых подмен не участвуют)."""
+    state = {}
+    base = tree.root / "etc/ssh"
+    for path in sorted(base.rglob("*")):
+        st = os.lstat(path)
+        kind = stat.S_IFMT(st.st_mode)
+        data = path.read_bytes() if stat.S_ISREG(st.st_mode) else None
+        state[str(path.relative_to(base))] = (kind, stat.S_IMODE(st.st_mode), data, st.st_uid, st.st_gid)
+    return state
+
+
+UNCHANGED_OUTCOMES = {
+    "ALREADY_COMPLIANT", "DRY_RUN_WOULD_APPLY", "NOT_ELIGIBLE_APPLY_UNSUPPORTED",
+    "ABORTED_PRECONDITION_CONFLICT", "ABORTED_PRECONDITION_OTHER", "FAILED_NOT_COMMITTED",
+}
+
+
 def execute(tree, key, *, dry_run=False, privileged=True, write=None, stage=None, control_id=None, expected="no"):
-    return A.execute_control(control_id or IDS[key], key, "eq", expected, True, dry_run=dry_run,
-                             privilege_check=lambda: privileged, _root=str(tree.root), _run=tree.run,
-                             _write=write, _stage=stage)
+    """Вызов адаптера с общими инвариантами для каждого теста (B-15).
+
+    Исход без мутации или с полным откатом — дерево /etc/ssh побайтно, по типам и полным
+    режимам равно исходному, временных файлов нет. APPLIED — прежние объекты сохранили тип
+    и полный режим, новых объектов (в т.ч. .slp-tmp) нет. FAILED_COMPENSATION проверяется
+    явно в самом тесте.
+    """
+    before = ssh_tree_state(tree)
+    result = A.execute_control(control_id or IDS[key], key, "eq", expected, True, dry_run=dry_run,
+                               privilege_check=lambda: privileged, _root=str(tree.root), _run=tree.run,
+                               _write=write, _stage=stage)
+    after = ssh_tree_state(tree)
+    if result["outcome"] in UNCHANGED_OUTCOMES:
+        assert after == before, (result, sorted(set(after.items()) ^ set(before.items()), key=str))
+    elif result["outcome"] == "APPLIED":
+        assert set(after) == set(before), (result, sorted(set(after) ^ set(before)))
+        assert {k: v[:2] + v[3:] for k, v in after.items()} == {k: v[:2] + v[3:] for k, v in before.items()}, result
+        # Меняться могут только основной файл и включаемые файлы sshd_config.d.
+        changed = {k for k in after if after[k][2] != before[k][2]}
+        assert changed <= {"sshd_config"} | {k for k in after if k.startswith("sshd_config.d/")}, changed
+    return result
 
 
 def modes(tree):
     return (stat.S_IMODE(tree.cfg.stat().st_mode), stat.S_IMODE(tree.dropin_path.stat().st_mode))
+
+
+def special_bits_supported(directory, bits):
+    """SGID сбрасывается ядром, если группа файла не входит в группы пользователя (setgid-каталог
+    выше по пути); тогда проверка сохранения битов в этой среде невозможна."""
+    probe = Path(directory) / ".probe"
+    probe.write_bytes(b"")
+    probe.chmod(0o644 | bits)
+    ok = stat.S_IMODE(probe.stat().st_mode) & bits == bits
+    probe.unlink()
+    return ok
 
 
 def leftovers(tree):
@@ -178,6 +244,12 @@ def stock_with(template_key, line):
 
 
 class Apply(unittest.TestCase):
+    def assert_state(self, t, config, dropin, file_modes, tmp_left):
+        """Итоговое состояние после FAILED_COMPENSATION: точные байты, полный режим, .slp-tmp."""
+        self.assertEqual((t.config(), t.dropin()), (config, dropin))
+        self.assertEqual(modes(t), file_modes)
+        self.assertEqual(leftovers(t), sorted(tmp_left))
+
     def test_control_yaml_matches_adapter_keys(self):
         seen = {}
         for path in sorted(CONTROL_DIR.glob("*.yaml")):
@@ -205,7 +277,8 @@ class Apply(unittest.TestCase):
                 self.assertEqual(t.cfg.stat().st_mode & 0o777, 0o644)
                 self.assertEqual(r["policy_current"], "main_global_no=1;effective=no")
                 self.assertIn(["systemctl", "try-reload-or-restart", "ssh.service"], t.calls)
-                self.assertLess(t.names().index("systemctl"), len(t.names()))
+                # Перезагрузка — до итоговой проверки sshd -T.
+                self.assertLess(t.names().index("systemctl"), len(t.names()) - 1 - t.names()[::-1].index("sshd-T"))
                 r = execute(t, key)
                 self.assertEqual((r["outcome"], r["mutation_performed"]), ("ALREADY_COMPLIANT", False))
 
@@ -356,16 +429,14 @@ class Apply(unittest.TestCase):
     def test_root_key_does_not_count(self):
         with tempfile.TemporaryDirectory() as td:
             t = Tree(td, group="root:x:0:\nsudo:x:27:root,user\n", key=None)
-            (t.root / "root/.ssh").mkdir(parents=True)
-            (t.root / "root/.ssh/authorized_keys").write_text(KEY, encoding="utf-8")
+            add_key(t.root, "root")
             r = execute(t, "PasswordAuthentication")
             self.assertEqual(r["reason"], "ssh:no-keyed-admin")
 
     def test_authorized_keys2_counts(self):
         with tempfile.TemporaryDirectory() as td:
             t = Tree(td, key=None)
-            (t.root / "home/user/.ssh").mkdir(parents=True)
-            (t.root / "home/user/.ssh/authorized_keys2").write_text(KEY, encoding="utf-8")
+            add_key(t.root, "home/user", name="authorized_keys2")
             self.assertEqual(execute(t, "PasswordAuthentication")["outcome"], "APPLIED")
 
     def test_nondefault_key_setup_is_admin_decision(self):
@@ -398,7 +469,9 @@ class Apply(unittest.TestCase):
             t.cfg.rename(real)
             t.cfg.symlink_to(real)
             r = execute(t, "PermitRootLogin")
-            self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_OTHER", "sshd-config:read-failed"))
+            # Ссылка вместо основного файла — не обычный файл: блок «решение администратора».
+            self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_CONFLICT", "sshd-config:untrusted"))
+            self.assertEqual(r["operator_decision"]["class"], "ADMIN_ACTION_REQUIRED")
 
     def test_invalid_config_is_refused_without_write(self):
         cases = (
@@ -448,6 +521,7 @@ class Apply(unittest.TestCase):
             self.assertEqual((r["outcome"], r["reason"]), ("FAILED_COMPENSATION", "reload:failed"))
             self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
             self.assertEqual(t.names().count("systemctl"), 2)
+            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), [])
         with tempfile.TemporaryDirectory() as td:
             t = Tree(td)
             real_run = t.run
@@ -567,6 +641,10 @@ class Apply(unittest.TestCase):
                 self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
                                  ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
                 self.assertEqual(A.outcome_rc_contribution(r["outcome"]), "nonzero")
+                if write is bad_write:
+                    self.assert_state(t, STOCK_CONFIG + "# damaged\n", CLOUD_INIT + "# damaged\n", (0o644, 0o600), [])
+                else:
+                    self.assert_state(t, stock_with("PasswordAuthentication", "PasswordAuthentication no\n"), "PasswordAuthentication no\n", (0o644, 0o600), [])
 
     def test_short_writes_are_completed(self):
         # B-05: os.write, записывающий по 3 байта, даёт полный файл.
@@ -604,6 +682,7 @@ class Apply(unittest.TestCase):
             t = Tree(td)
             t.cfg.unlink()
             os.mkfifo(t.cfg, 0o644)
+            os.chmod(t.cfg, 0o644)  # B-16: режим не зависит от umask
             old = signal.signal(signal.SIGALRM, lambda *_: (_ for _ in ()).throw(TimeoutError("blocked")))
             signal.alarm(5)
             try:
@@ -674,8 +753,7 @@ class Apply(unittest.TestCase):
             with (t.root / "etc/passwd").open("a", encoding="utf-8") as stream:
                 stream.write("ops:x:1001:1001:ops:/home/ops:/bin/bash\n")
             t.user_extra = {"user": {"authorizedkeysfile": "/etc/ssh/keys/%u"}}
-            (t.root / "home/ops/.ssh").mkdir(parents=True)
-            (t.root / "home/ops/.ssh/authorized_keys").write_text(KEY, encoding="utf-8")
+            add_key(t.root, "home/ops")
             self.assertEqual(execute(t, "PasswordAuthentication")["outcome"], "APPLIED")
 
     def test_postcheck_read_error_restores(self):
@@ -723,6 +801,7 @@ class Apply(unittest.TestCase):
             self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
                              ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
             self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
+            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), [])
 
     def test_discard_error_does_not_stop_restore(self):
         # B-09: ошибка удаления временного файла не останавливает возврат заменённых файлов.
@@ -748,6 +827,7 @@ class Apply(unittest.TestCase):
                              ("FAILED_COMPENSATION", "sshd-config:write-failed", True))
             self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
             self.assertNotIn("systemctl", t.names())
+            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), ["50-cloud-init.conf" + A.TMP_SUFFIX])
 
     def test_restore_replace_error_removes_temporary_file(self):
         # B-10: ошибка восстановительной замены не оставляет .slp-tmp.
@@ -774,6 +854,7 @@ class Apply(unittest.TestCase):
                              ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
             self.assertEqual(leftovers(t), [])
             self.assertEqual(t.config(), STOCK_CONFIG)
+            self.assert_state(t, STOCK_CONFIG, "PasswordAuthentication no\n", (0o644, 0o600), [])
 
     def test_stage_error_with_cleanup_error_is_failed_compensation(self):
         # B-11: ошибка fsync при подготовке и ошибка удаления временного файла.
@@ -792,10 +873,11 @@ class Apply(unittest.TestCase):
             with mock.patch.object(A.os, "fsync", fsync), mock.patch.object(A.os, "unlink", unlink):
                 r = execute(t, "PermitRootLogin")
             self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
-                             ("FAILED_COMPENSATION", "sshd-config:write-failed", False))
+                             ("FAILED_COMPENSATION", "sshd-config:write-failed", True))
             self.assertEqual(t.config(), STOCK_CONFIG)
             self.assertEqual(leftovers(t), ["sshd_config" + A.TMP_SUFFIX])
             self.assertNotIn("systemctl", t.names())
+            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), ["sshd_config" + A.TMP_SUFFIX])
 
     def test_restore_stage_error_with_cleanup_error_is_failed_compensation(self):
         # B-11: та же пара ошибок при восстановлении; возврат остальных файлов продолжается.
@@ -828,6 +910,7 @@ class Apply(unittest.TestCase):
                              ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
             self.assertEqual(t.config(), STOCK_CONFIG)
             self.assertEqual(t.dropin(), "PasswordAuthentication no\n")
+            self.assert_state(t, STOCK_CONFIG, "PasswordAuthentication no\n", (0o644, 0o600), ["50-cloud-init.conf" + A.TMP_SUFFIX])
 
     def test_stage_error_with_successful_cleanup_is_not_committed(self):
         with tempfile.TemporaryDirectory() as td:
@@ -852,7 +935,8 @@ class Apply(unittest.TestCase):
             r = execute(t, "PermitEmptyPasswords")
             self.assertEqual((r["outcome"], r["policy_current"]), ("APPLIED", "main_global_no=1;effective=no"))
             self.assertEqual(t.config(), config + "PermitEmptyPasswords no\n")
-        self.assertEqual(A._directive("\x0bPermitRootLogin\x0cyes\r\n"), ("permitrootlogin", ["yes"]))
+        self.assertEqual(A._directive("\x0bPermitRootLogin\x0cyes\r\n"), ("permitrootlogin", "yes"))
+        self.assertEqual(A.split_args("yes"), ["yes"])
 
     def _close_failing(self, match):
         real_close = os.close
@@ -893,8 +977,10 @@ class Apply(unittest.TestCase):
             with mock.patch.object(A.os, "close", close), mock.patch.object(A.os, "unlink", unlink):
                 r = execute(t, "PermitRootLogin")
             self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
-                             ("FAILED_COMPENSATION", "sshd-config:write-failed", False))
+                             ("FAILED_COMPENSATION", "sshd-config:write-failed", True))
             self.assertEqual(leftovers(t), ["sshd_config" + A.TMP_SUFFIX])
+            self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
+            self.assertEqual(modes(t), (0o644, 0o600))
 
     def test_restore_verification_close_error_continues(self):
         # B-13: ошибка close при сверке восстановления — FAILED_COMPENSATION, остальные файлы возвращаются.
@@ -940,6 +1026,8 @@ class Apply(unittest.TestCase):
         # B-14/B-15: SUID и SGID сохраняются при применении (оба файла).
         for cfg_mode, dropin_mode in ((0o4644, 0o2600), (0o2644, 0o4600), (0o6644, 0o6600)):
             with self.subTest(cfg=oct(cfg_mode), dropin=oct(dropin_mode)), tempfile.TemporaryDirectory() as td:
+                if not special_bits_supported(td, stat.S_ISUID | stat.S_ISGID):
+                    self.skipTest("SUID/SGID не сохраняются в этой среде")
                 t = Tree(td)
                 t.cfg.chmod(cfg_mode)
                 t.dropin_path.chmod(dropin_mode)
@@ -952,6 +1040,8 @@ class Apply(unittest.TestCase):
     def test_special_mode_bits_survive_restore(self):
         # B-15: при откате возвращаются байты и полный режим, включая SUID/SGID.
         with tempfile.TemporaryDirectory() as td:
+            if not special_bits_supported(td, stat.S_ISUID | stat.S_ISGID):
+                self.skipTest("SUID/SGID не сохраняются в этой среде")
             t = Tree(td)
             t.cfg.chmod(0o6644)
             t.dropin_path.chmod(0o2600)
@@ -988,6 +1078,7 @@ class Apply(unittest.TestCase):
                 t = Tree(td)
                 (t.root / rel).unlink()
                 os.mkfifo(t.root / rel, 0o644)
+                os.chmod(t.root / rel, 0o644)  # B-16: режим не зависит от umask
                 old = signal.signal(signal.SIGALRM, lambda *_: (_ for _ in ()).throw(TimeoutError("blocked")))
                 signal.alarm(5)
                 try:
@@ -999,6 +1090,135 @@ class Apply(unittest.TestCase):
                 self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
                 self.assertEqual((modes(t), leftovers(t)), ((0o644, 0o600), []))
                 self.assertTrue(stat.S_ISFIFO(os.lstat(t.root / rel).st_mode))
+
+    def test_strict_modes_reject_unusable_admin_key(self):
+        # sshd с StrictModes отвергнет ключ при записи группы/прочих в ~ или ~/.ssh или в сам файл.
+        for home_mode, ssh_mode, key_mode in ((0o770, 0o700, 0o600), (0o750, 0o770, 0o600), (0o750, 0o700, 0o664)):
+            with self.subTest(home=oct(home_mode), ssh=oct(ssh_mode), key=oct(key_mode)), tempfile.TemporaryDirectory() as td:
+                t = Tree(td, key=None)
+                add_key(t.root, "home/user", home_mode=home_mode, ssh_mode=ssh_mode, key_mode=key_mode)
+                r = execute(t, "PasswordAuthentication")
+                self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_CONFLICT", "ssh:no-keyed-admin"))
+                t.extra = {"strictmodes": "no"}
+                self.assertEqual(execute(t, "PasswordAuthentication")["outcome"], "APPLIED")
+
+    def test_strict_modes_reject_foreign_owner(self):
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            real_lstat = os.lstat
+
+            def lstat(path, *args, **kwargs):
+                st = real_lstat(path, *args, **kwargs)
+                if str(path).endswith("/.ssh"):
+                    return os.stat_result((st.st_mode, st.st_ino, st.st_dev, st.st_nlink, st.st_uid + 4242)
+                                          + tuple(st)[5:])
+                return st
+
+            with mock.patch.object(A.os, "lstat", lstat):
+                r = A.execute_control(IDS["PasswordAuthentication"], "PasswordAuthentication", "eq", "no", True,
+                                      dry_run=True, _root=str(t.root), _run=t.run)
+            self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_CONFLICT", "ssh:no-keyed-admin"))
+
+    def test_split_args_matches_check_bash_function(self):
+        # Разбор аргументов совпадает с _slp_split_args CHECK (дифференциально, 5000 строк).
+        if BASH is None:
+            self.skipTest("bash not found")
+        src = CHECK._shell_function_for_fixture("X", "/x", "/y", "PermitRootLogin", "eq", "no")
+        start = src.index("  _slp_split_args() {")
+        fn = src[start:src.index("\n  }\n", start) + 5]
+        rng = random.Random(20260926)
+        alphabet = ["a", "#", "'", '"', "\\", " ", "\t", "\r", "b", "=", "\x0b"]
+        cases = ["".join(rng.choice(alphabet) for _ in range(rng.randint(0, 12))) for _ in range(5000)]
+        script = fn + (
+            '\nwhile IFS= read -r -d "" line; do _slp_args=(); if _slp_split_args "$line"; then printf OK; '
+            'for x in "${_slp_args[@]}"; do printf "\\x1f%s" "$x"; done; printf "\\x1e"; else printf "ERR\\x1e"; fi; done\n')
+        out = subprocess.run([BASH, "-c", script], input="".join(c + "\0" for c in cases).encode("utf-8"),
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True).stdout.decode("utf-8")
+        results = out.split("\x1e")
+        self.assertEqual(len(results), len(cases) + 1)
+        for case, expected in zip(cases, results):
+            try:
+                actual = "OK" + "".join("\x1f" + arg for arg in A.split_args(case))
+            except A._Refused as exc:
+                self.assertEqual(exc.reason, "sshd-config:invalid-arguments")
+                actual = "ERR"
+            self.assertEqual(actual, expected, repr(case))
+
+    def test_parse_matches_check_on_generated_configs(self):
+        # main_global_no, Match и причины отказа разбора совпадают с CHECK на 400 конфигурациях.
+        if BASH is None:
+            self.skipTest("bash not found")
+        rng = random.Random(2609)
+        pieces = [
+            "PermitRootLogin no", "permitrootlogin=no", "PermitRootLogin\tyes", "PERMITROOTLOGIN \"no\"",
+            "PermitRootLogin 'no' # c", "PermitRootLogin no extra", "PermitRootLogin", "PermitRootLogin no=1",
+            "#PermitRootLogin no", "  # comment", "", "\x0bPermitRootLogin no", "UsePAM yes", "Banner \"x",
+            "Match User x", "Match", "PermitRootLogin \"no", "X11Forwarding yes # PermitRootLogin no",
+        ]
+        with tempfile.TemporaryDirectory(dir=ROOT) as bin_dir:
+            sshd = Path(bin_dir) / "sshd"
+            sshd.write_text("#!/usr/bin/env bash\nif [[ ${1:-} == -t ]]; then exit 0; fi\n"
+                            "printf '%s\\n' 'permitrootlogin no'\n", encoding="utf-8")
+            sshd.chmod(0o755)
+            for n in range(400):
+                config = "".join(rng.choice(pieces) + "\n" for _ in range(rng.randint(1, 6)))
+                with self.subTest(n=n, config=config), tempfile.TemporaryDirectory() as td:
+                    t = Tree(td, config=config)
+                    block = CHECK._shell_function_for_fixture("P.X", str(t.cfg), str(sshd), "PermitRootLogin", "eq", "no")
+                    cp = subprocess.run([BASH, "-c", "set -u\n" + block + "\nslp_check_P_X\n"], text=True,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+                    row = cp.stdout.strip().split("\t")
+                    check = row[3] if row[2] == "ERROR" else row[3].split(";", 1)[0]
+                    try:
+                        cfg = A.Config(str(t.root), "permitrootlogin")
+                        apply = ("sshd-config:ambiguous-match" if cfg.match_non_no
+                                 else "main_global_no=%d" % cfg.main_global_no)
+                    except A._Refused as exc:
+                        apply = exc.reason
+                    self.assertEqual(apply, check)
+
+    def test_root_login_needs_admin_who_can_log_in(self):
+        # Вход по паролю выключен, у администратора нет ключа — запрет входа root отрезал бы доступ.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td, key=None)
+            t.extra = {"passwordauthentication": "no"}
+            r = execute(t, "PermitRootLogin")
+            self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_CONFLICT", "ssh:no-admin-login"))
+            self.assertIn("PermitRootLogin no", r["operator_decision"]["action"])
+            t.extra = {"passwordauthentication": "no", "kbdinteractiveauthentication": "yes"}
+            self.assertEqual(execute(t, "PermitRootLogin", dry_run=True)["outcome"], "DRY_RUN_WOULD_APPLY")
+            t.extra = {"passwordauthentication": "no"}
+            add_key(t.root, "home/user")
+            self.assertEqual(execute(t, "PermitRootLogin")["outcome"], "APPLIED")
+
+    def test_access_restrictions_make_admin_unverified(self):
+        restrictions = ({"allowusers": "root"}, {"denyusers": "user"}, {"allowgroups": "wheel"},
+                        {"denygroups": "sudo"}, {"authenticationmethods": "publickey,password"})
+        for extra in restrictions:
+            for key in ("PasswordAuthentication", "PermitRootLogin"):
+                with self.subTest(extra=extra, key=key), tempfile.TemporaryDirectory() as td:
+                    t = Tree(td)
+                    t.user_extra = {"user": extra}
+                    r = execute(t, key)
+                    self.assertEqual((r["outcome"], r["reason"]),
+                                     ("ABORTED_PRECONDITION_CONFLICT", "ssh:keys-setup-nondefault"))
+                    self.assertIn(key + " no", r["operator_decision"]["action"])
+
+    def test_non_utf8_bytes_are_preserved_like_check(self):
+        # CHECK принимает любые байты, кроме NUL и одиночного CR; APPLY переносит их без изменений.
+        raw = STOCK_CONFIG.encode("utf-8") + b"# caf\xe9\n"
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            t.cfg.write_bytes(raw)
+            self.assertEqual(execute(t, "PermitRootLogin")["outcome"], "APPLIED")
+            self.assertEqual(t.cfg.read_bytes(),
+                             stock_with("PermitRootLogin", "PermitRootLogin no\n").encode("utf-8") + b"# caf\xe9\n")
+            self.assertEqual(execute(t, "PermitRootLogin")["outcome"], "ALREADY_COMPLIANT")
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            t.cfg.write_bytes(b"PermitRootLogin no\n\x00\n")
+            r = execute(t, "PermitRootLogin")
+            self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_OTHER", "sshd-config:invalid-bytes"))
 
     def test_missing_tools_and_privilege_and_spec(self):
         with tempfile.TemporaryDirectory() as td:

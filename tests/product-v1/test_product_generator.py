@@ -4724,7 +4724,12 @@ SLP_POLICY_RC=1
     def test_unified_help_version_build_info_and_apply_dispatch(self):
         artifact_text = self.ARTIFACT.read_text(encoding="utf-8")
         self.assertIn("UBUNTU DESKTOP = FIELD_COMPATIBILITY", artifact_text)
-        self.assertIn("КОРРЕКТНОСТЬ APPLY НА ИЗМЕНЁННОЙ ПОЛЬЗОВАТЕЛЕМ DESKTOP-СИСТЕМЕ НЕ ГАРАНТИРУЕТСЯ", artifact_text)
+        self.assertIn("Корректность APPLY на изменённой пользователем desktop-системе не гарантируется.", artifact_text)
+        # Решение пользователя 26.09.2026: предупреждение — рамка одной ширины вместо «!!!».
+        banner = [line for line in artifact_text.splitlines() if "printf" in line and ("'| " in line or "'+--" in line)]
+        widths = {len(line.split("'")[-2]) for line in banner}
+        self.assertEqual((len(banner), len(widths)), (6, 1), banner)
+        self.assertNotIn("!!!!!!!!", artifact_text)
         syntax = subprocess.run([BASH, "-n", str(self.ARTIFACT)], capture_output=True, text=True)
         self.assertEqual(syntax.returncode, 0, syntax.stderr)
         noargs = self.run_cli()
@@ -7589,6 +7594,39 @@ class SshdConfigOptionAdapterTests(unittest.TestCase):
             for token in SSHD_OPTION.MUTATING_TOKENS:
                 self.assertNotIn(token, src)
 
+
+class PresentationOrderTests(unittest.TestCase):
+    """Решение пользователя 26.09.2026: строки 2026 года — под строками 2022 года."""
+
+    def test_documents_by_year_then_manifest_order(self):
+        rows, _digest = GEN_V2_CURRENT.load_manifest(ROOT)
+        loaded = [GEN_V2_CURRENT.load_control(ROOT, row) for row in rows]
+        ordered = GEN_V2_CURRENT.presentation_order(loaded)
+        docs = []
+        for control in ordered:
+            if not docs or docs[-1] != control["doc_id"]:
+                docs.append(control["doc_id"])
+        self.assertEqual(docs, ["fstec-linux-2022", "fstec-configuration-2026"])
+        for doc in docs:
+            self.assertEqual([c["control_id"] for c in ordered if c["doc_id"] == doc],
+                             [c["control_id"] for c in loaded if c["doc_id"] == doc])
+
+    def test_artifact_rows_follow_presentation_order(self):
+        # Порядок строк таблицы CHECK задаёт список _slp_ids в сгенерированном скрипте.
+        text = (ROOT / "securelinux-policy.sh").read_text(encoding="utf-8")
+        lines = [line for line in text.splitlines() if line.startswith("  local -a _slp_ids=(")]
+        self.assertEqual(len(lines), 1)
+        ids = re.findall(r"'(FSTEC-[A-Z0-9.-]+)'", lines[0])
+        rows, _digest = GEN_V2_CURRENT.load_manifest(ROOT)
+        expected = [c["control_id"] for c in GEN_V2_CURRENT.presentation_order(
+            [GEN_V2_CURRENT.load_control(ROOT, row) for row in rows])]
+        self.assertEqual(ids, expected)
+        self.assertTrue(ids[0].startswith("FSTEC-LINUX-2022-"))
+        self.assertTrue(ids[-1].startswith("FSTEC-CONFIGURATION-2026-"))
+
+    def test_doc_id_without_year_is_rejected(self):
+        with self.assertRaisesRegex(RuntimeError, "doc_id without year"):
+            GEN_V2_CURRENT.presentation_order([{"doc_id": "fstec-linux"}])
 
 class ControlDirectoriesTests(unittest.TestCase):
     """Каталог на документ: load_manifest объединяет все CONTROL-MANIFEST.tsv."""

@@ -264,6 +264,21 @@ def _load_one_manifest(repo: Path, path: Path):
     return rows
 
 
+DOC_YEAR_RE = re.compile(r"-(\d{4})$")
+
+
+def presentation_order(controls):
+    """Порядок строк CHECK/APPLY: документы по году (2022 выше 2026), затем doc_id; внутри
+    документа — порядок манифеста (решение пользователя 26.09.2026). Сортировка устойчивая."""
+    def key(control):
+        doc_id = str(control["doc_id"])
+        m = DOC_YEAR_RE.search(doc_id)
+        if m is None:
+            raise RuntimeError(f"doc_id without year: {doc_id!r}")
+        return (int(m.group(1)), doc_id.encode("utf-8"))
+    return sorted(controls, key=key)
+
+
 def load_control(repo: Path, row: dict[str, str]) -> dict[str, object]:
     path = repo / row.get("dir", CONTROL_DIR_REL) / row["file"]
     require_regular(path, "control")
@@ -1367,7 +1382,7 @@ def render_script(
         repo = Path(__file__).resolve(strict=True).parents[1]
         apply_mechanisms, apply_kind_registry_sha, apply_registry_sha = load_apply_mechanisms(repo)
         current_rows, _current_manifest_sha = load_manifest(repo)
-        current_controls = [load_control(repo, row) for row in current_rows]
+        current_controls = presentation_order([load_control(repo, row) for row in current_rows])
         apply_controls = [item for item in current_controls if item["apply_supported"]]
     blocks = []
     function_names = []
@@ -2291,12 +2306,12 @@ slp_run_apply() {
   slp_target_preflight || return $?
   if [[ $_slp_mode == APPLY && $SLP_SYSTEM_TYPE == DESKTOP ]]; then
     {
-      printf '\n%s\n' '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-      printf '%s\n' '!!! ВНИМАНИЕ: UBUNTU DESKTOP = FIELD_COMPATIBILITY !!!'
-      printf '%s\n' '!!! КОРРЕКТНОСТЬ APPLY НА ИЗМЕНЁННОЙ ПОЛЬЗОВАТЕЛЕМ DESKTOP-СИСТЕМЕ НЕ ГАРАНТИРУЕТСЯ. !!!'
-      printf '%s\n' 'Установленные пакеты, службы и локальные настройки могут изменить поведение CHECK/APPLY.'
-      printf '%s\n' 'Перед APPLY выполните --apply --dry-run и обеспечьте внешний snapshot/backup.'
-      printf '%s\n\n' '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+      printf '\n%s\n' '+------------------------------------------------------------------------------------------+'
+      printf '%s\n' '| ВНИМАНИЕ: UBUNTU DESKTOP = FIELD_COMPATIBILITY                                           |'
+      printf '%s\n' '| Корректность APPLY на изменённой пользователем desktop-системе не гарантируется.         |'
+      printf '%s\n' '| Установленные пакеты, службы и локальные настройки могут изменить поведение CHECK/APPLY. |'
+      printf '%s\n' '| Перед APPLY выполните --apply --dry-run и обеспечьте внешний snapshot/backup.            |'
+      printf '%s\n\n' '+------------------------------------------------------------------------------------------+'
     } >&2
   fi
   command /usr/bin/python3 -I -S -B - "$_slp_mode" <<'SLP_PRODUCT_APPLY_EOF'
@@ -2485,7 +2500,7 @@ def main() -> int:
     platform_rows, platform_matrix_sha = load_platform_matrix(repo)
     desktop_rows, desktop_matrix_sha = load_desktop_matrix(repo)
     adapters, registry_sha = load_registry(repo)
-    controls = [load_control(repo, row) for row in rows]
+    controls = presentation_order([load_control(repo, row) for row in rows])
     for c in controls:
         if c["parameter_kind"] not in adapters:
             raise RuntimeError(

@@ -30,19 +30,22 @@ Authority: product/contracts/mechanism-sshd-config-option-v1.json
 - основной файл (всегда, до признания соответствия) или изменяемый включаемый файл не
   является обычным файлом root без записи для группы и прочих;
 - в области `Match` (основной файл или включаемые) директива задана не `no`;
-- `PermitRootLogin`: в группах `sudo` и `admin` нет пользователя, кроме root;
-- `PasswordAuthentication`: ни у одного такого пользователя нет непустого
-  `~/.ssh/authorized_keys` (или `authorized_keys2`) при `PubkeyAuthentication yes` и
-  `AuthorizedKeysFile` по умолчанию в `sshd -T` для его собственного соединения
-  (`Match User` учитывается).
+- `PermitRootLogin`: в группах `sudo` и `admin` нет пользователя, кроме root, или ни один
+  из них не войдёт по SSH сам (вход по паролю выключен и пригодного ключа нет);
+- `PasswordAuthentication`: ни у одного такого пользователя нет пригодного ключа — непустого
+  `~/.ssh/authorized_keys` (или `authorized_keys2`), при StrictModes с правами `~`, `~/.ssh`
+  и файла, которые примет sshd;
+- настройки входа администратора в `sshd -T` для его собственного соединения (`Match User`
+  учитывается) не проверяемы механизмом: AllowUsers/DenyUsers/AllowGroups/DenyGroups,
+  AuthenticationMethods не `any`, нестандартные AuthorizedKeysFile или PubkeyAuthentication.
 """
 
 from __future__ import annotations
 
+import errno
 import glob
 import os
 import re
-import shlex
 import stat
 import subprocess
 
@@ -85,8 +88,12 @@ ACTION_NO_SUDO = ("в группах sudo и admin нет пользовател
 ACTION_NO_KEY = ("ни у одного пользователя групп sudo и admin нет ключа в ~/.ssh/authorized_keys: после "
                  "запрета входа по паролю вход по SSH станет невозможен; добавьте ключ администратору или "
                  "задайте «PasswordAuthentication no» вручную.")
-ACTION_KEYS_SETUP = ("AuthorizedKeysFile или PubkeyAuthentication отличаются от значений по умолчанию: наличие "
-                     "ключей администраторов не проверено; задайте «PasswordAuthentication no» вручную.")
+ACTION_NO_ADMIN_LOGIN = ("ни один пользователь групп sudo и admin не может войти по SSH (вход по паролю "
+                         "выключен, ключа нет): после запрета входа root удалённо администрировать сервер "
+                         "будет некому; добавьте ключ администратору или задайте «PermitRootLogin no» вручную.")
+ACTION_KEYS_SETUP = ("настройки входа администраторов по SSH (AllowUsers, DenyUsers, AllowGroups, DenyGroups, "
+                     "AuthenticationMethods, AuthorizedKeysFile, PubkeyAuthentication) отличаются от значений по "
+                     "умолчанию: возможность входа администратора не проверена; задайте «{key} no» вручную.")
 
 OUTCOMES = (
     "APPLIED",
@@ -152,7 +159,9 @@ def _read_regular(path, refuse):
     """
     try:
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
-    except OSError:
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise refuse  # символьная ссылка — не обычный файл
         raise _other("sshd-config:read-failed")
     try:
         st = os.fstat(fd)
@@ -197,10 +206,9 @@ def _trusted(st, root):
 def _text(raw):
     if b"\x00" in raw or re.search(rb"\r(?!\n)", raw):
         raise _other("sshd-config:invalid-bytes")
-    try:
-        return raw.decode("utf-8")
-    except UnicodeDecodeError:
-        raise _other("sshd-config:invalid-bytes")
+    # Как у CHECK: допустимы любые байты, кроме NUL и одиночного CR; байты, не являющиеся
+    # UTF-8, переносятся без изменений (surrogateescape туда и обратно).
+    return raw.decode("utf-8", "surrogateescape")
 
 
 def _lf_lines(text):
@@ -226,23 +234,55 @@ def _eol(line):
 
 
 def _directive(line):
-    """(ключ в нижнем регистре, аргументы) значимой строки или None."""
+    """(ключ в нижнем регистре, остаток строки) значимой строки или None."""
     body = _body(line)
     if not body.strip(SPACE) or body.lstrip(SPACE).startswith("#"):
         return None
     m = DIRECTIVE_RE.match(body) or BARE_DIRECTIVE_RE.match(body)
     if m is None:
         return None
-    rest = m.group(2) if m.re is DIRECTIVE_RE else ""
-    try:
-        lexer = shlex.shlex(rest, posix=True)
-        lexer.whitespace = " \t\r"  # разделители аргументов — как у разбора CHECK
-        lexer.whitespace_split = True
-        lexer.commenters = "#"
-        args = list(lexer)
-    except ValueError:
-        raise _other("sshd-config:invalid-arguments")
-    return m.group(1).lower(), args
+    return m.group(1).lower(), (m.group(2) if m.re is DIRECTIVE_RE else "")
+
+
+ARG_SPACE = (" ", "\t", "\r")
+
+
+def split_args(rest):
+    """Аргументы строки — как `_slp_split_args` CHECK sshd-config-option (принятая семантика).
+
+    Разделители — пробел, табуляция, CR; `#` в начале аргумента завершает строку; кавычки
+    `'` и `"` группируют; незакрытая кавычка — отказ. Обратная косая черта в CHECK — обычный
+    символ (сравнение с двухсимвольной строкой в bash никогда не истинно), здесь так же;
+    равенство разбора проверено дифференциальным тестом против bash-функции CHECK.
+    """
+    args, i, n = [], 0, len(rest)
+    while i < n:
+        while i < n and rest[i] in ARG_SPACE:
+            i += 1
+        if i >= n or rest[i] == "#":
+            return args
+        token, quote = "", ""
+        while i < n:
+            c = rest[i]
+            if quote:
+                if c == quote:
+                    quote = ""
+                else:
+                    token += c
+                i += 1
+                continue
+            if c in ('"', "'"):
+                quote = c
+                i += 1
+                continue
+            if c in ARG_SPACE:
+                break
+            token += c
+            i += 1
+        if quote:
+            raise _other("sshd-config:invalid-arguments")
+        args.append(token)
+    return args
 
 
 def _absent(path, reason):
@@ -324,7 +364,11 @@ class Config:
             parsed = _directive(line)
             if parsed is None:
                 continue
-            key, args = parsed
+            key, rest = parsed
+            # Как у CHECK: аргументы разбираются только у Match, Include и ключа контроля.
+            if key not in ("match", "include", self.lkey):
+                continue
+            args = split_args(rest)
             if key == "match":
                 if not args:
                     raise _other("sshd-config:invalid-match")
@@ -383,7 +427,7 @@ class Config:
                     main_lines[-1] += "\n"
                 main_lines.append(new_line + "\n")
             changed.add(self.main)
-        return {path: "".join(lines[path]).encode("utf-8") for path in sorted(changed)}
+        return {path: "".join(lines[path]).encode("utf-8", "surrogateescape") for path in sorted(changed)}
 
 
 def _default_run(argv, timeout):
@@ -468,16 +512,29 @@ def _read_groups(root):
 
 
 def _read_homes(root):
+    """{пользователь: (домашний каталог, uid)} из /etc/passwd."""
     lines = _read_account_file(root, PASSWD, "passwd:read-failed")
     homes = {}
     for line in lines:
         if not line or line.startswith("#"):
             continue
         fields = line.split(":")
-        if len(fields) != 7:
+        if len(fields) != 7 or not re.fullmatch(r"[0-9]+", fields[2]):
             raise _other("passwd:invalid-line")
-        homes.setdefault(fields[0], fields[5])
+        homes.setdefault(fields[0], (fields[5], int(fields[2])))
     return homes
+
+
+def _strict_ok(root, path, uid):
+    """Условие StrictModes sshd для одного пути: владелец root или пользователь, без записи g/o.
+
+    В тестовом дереве (`_root`) владельцем допускается и текущий пользователь."""
+    try:
+        st = os.lstat(path)
+    except OSError:
+        return False
+    owners = {0, uid} | ({os.geteuid()} if root is not None else set())
+    return st.st_uid in owners and not stat.S_IMODE(st.st_mode) & 0o022
 
 
 def admin_users(groups):
@@ -490,36 +547,59 @@ def admin_users(groups):
     return users
 
 
-def _has_key(root, home, rel):
+def _has_key(root, home, uid, rel, strict):
+    """Непустой файл ключей; при StrictModes — и права файла, `~/.ssh` и домашнего каталога
+    (иначе sshd ключ отвергнет и администратор останется без входа)."""
     if not home.startswith("/"):
         return False
+    base = home.rstrip("/")
+    path = _p(root, base + "/" + rel)
+    if strict:
+        dirs = [base]
+        for part in rel.split("/")[:-1]:
+            dirs.append(dirs[-1] + "/" + part)
+        if not all(_strict_ok(root, _p(root, d), uid) for d in dirs) or not _strict_ok(root, path, uid):
+            return False
     try:
-        raw, _st = _read_regular(_p(root, home.rstrip("/") + "/" + rel), _other("keys:invalid-type"))
+        raw, _st = _read_regular(path, _other("keys:invalid-type"))
     except _Refused:
         return False
     return any(l.strip() and not l.strip().startswith("#")
                for l in raw.decode("utf-8", errors="replace").split("\n"))
 
 
-def keyed_admins(root, run, users):
-    """(администраторы с ключом, найден ли администратор с нестандартной настройкой ключей).
+ACCESS_RESTRICTIONS = ("allowusers", "denyusers", "allowgroups", "denygroups")
 
-    Настройки ключей берутся из `sshd -T` для соединения самого администратора, так что
-    `Match User` с другим `PubkeyAuthentication`/`AuthorizedKeysFile` учитывается.
+
+def admin_access(root, run, users):
+    """Доступ администраторов по SSH: [(пользователь, ключ пригоден, пароль разрешён)] и признак
+    настройки, которую механизм не проверяет.
+
+    Всё берётся из `sshd -T` для соединения самого администратора (`Match User` учитывается).
+    Непроверяемо: AllowUsers/DenyUsers/AllowGroups/DenyGroups, AuthenticationMethods, отличные
+    от `any`, нестандартные AuthorizedKeysFile или PubkeyAuthentication — такой администратор
+    не засчитывается.
     """
     homes = _read_homes(root)
-    keyed, nondefault = [], False
+    access, unverified = [], False
     for user in users:
         if user not in homes or not USER_NAME_RE.fullmatch(user):
             continue
         values = effective_settings(root, run, user)
         key_files = tuple((values.get("authorizedkeysfile") or "").split())
-        if key_files not in DEFAULT_AUTHORIZED_KEYS or (values.get("pubkeyauthentication") or "").lower() != "yes":
-            nondefault = True
+        if (any(name in values for name in ACCESS_RESTRICTIONS)
+                or (values.get("authenticationmethods") or "any").lower() != "any"
+                or key_files not in DEFAULT_AUTHORIZED_KEYS
+                or (values.get("pubkeyauthentication") or "").lower() != "yes"):
+            unverified = True
             continue
-        if any(_has_key(root, homes[user], rel) for rel in key_files):
-            keyed.append(user)
-    return keyed, nondefault
+        strict = (values.get("strictmodes") or "yes").lower() != "no"
+        home, uid = homes[user]
+        keyed = any(_has_key(root, home, uid, rel, strict) for rel in key_files)
+        password = any((values.get(name) or "").lower() == "yes"
+                       for name in ("passwordauthentication", "kbdinteractiveauthentication"))
+        access.append((user, keyed, password))
+    return access, unverified
 
 
 class _StageFailed(OSError):
@@ -706,12 +786,20 @@ def execute_control(control_id, key, op, expected, apply_supported, *, dry_run,
         users = admin_users(_read_groups(_root))
         if key == "PermitRootLogin" and not users:
             raise _Refused("ABORTED_PRECONDITION_CONFLICT", "ssh:no-sudo-members", _admin(ACTION_NO_SUDO))
-        if key == "PasswordAuthentication":
-            keyed, nondefault = keyed_admins(_root, run, users)
-            if not keyed and nondefault:
-                raise _Refused("ABORTED_PRECONDITION_CONFLICT", "ssh:keys-setup-nondefault", _admin(ACTION_KEYS_SETUP))
-            if not keyed:
-                raise _Refused("ABORTED_PRECONDITION_CONFLICT", "ssh:no-keyed-admin", _admin(ACTION_NO_KEY))
+        if key in ("PermitRootLogin", "PasswordAuthentication"):
+            access, unverified = admin_access(_root, run, users)
+            if key == "PasswordAuthentication":
+                # После записи вход по паролю закрыт: нужен администратор с пригодным ключом.
+                can_login = [user for user, keyed, _password in access if keyed]
+                missing = ("ssh:no-keyed-admin", ACTION_NO_KEY)
+            else:
+                # После записи root не входит: нужен администратор, который войдёт сам.
+                can_login = [user for user, keyed, password in access if keyed or password]
+                missing = ("ssh:no-admin-login", ACTION_NO_ADMIN_LOGIN)
+            if not can_login and unverified:
+                raise _Refused("ABORTED_PRECONDITION_CONFLICT", "ssh:keys-setup-nondefault", _admin(ACTION_KEYS_SETUP.format(key=key)))
+            if not can_login:
+                raise _Refused("ABORTED_PRECONDITION_CONFLICT", missing[0], _admin(missing[1]))
         planned = cfg.plan(key)
         for path in planned:
             if not _trusted(cfg.files[path][1], _root):
@@ -736,19 +824,21 @@ def execute_control(control_id, key, op, expected, apply_supported, *, dry_run,
     def compensate(reason):
         actions.append("COMPENSATION")
         ok = _discard(staged.values())
+        # Оставшийся временный файл в /etc/ssh — тоже изменение системы.
+        left = not ok
         for path in reversed(written):
             raw, st, _lines = cfg.files[path]
             try:
                 write(path, raw, st)
             except OSError as exc:
                 ok = False
-                if isinstance(exc, _StageFailed):
-                    _discard([exc.tmp])
+                if isinstance(exc, _StageFailed) and not _discard([exc.tmp]):
+                    left = True
                 continue
             ok = _bytes_equal(path, raw) and ok
         if reload_attempted:
             ok = _reload(_root, run) and ok
-        mutated = bool(written)
+        mutated = bool(written) or left
         if ok:
             return done("FAILED_NOT_COMMITTED", reason=reason, mutation=mutated)
         return done("FAILED_COMPENSATION", reason=reason, mutation=mutated)
