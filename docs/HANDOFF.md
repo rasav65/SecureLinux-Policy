@@ -109,11 +109,14 @@
    в) выполнено: механизм APPLY `sshd-config-option-v1`; ВМ-прогон 26.09.2026 runner v18 на
    7 средах принят (кандидат `62d0f006…30fa`, архив
    `slp-vm-apply-supported7-v18-states1-7-20260926-215420.tar.gz` SHA `232e0a17…08bf9`):
-   CHECK до — FAIL трёх контролей, APPLY — `done`; в `sshd_config` заменены шаблоны на месте,
+   CHECK до — FAIL трёх контролей, APPLY — `done`; в `sshd_config` — по одной активной строке
+   каждого ключа,
    `50-cloud-init.conf` (5 Ubuntu) — `PasswordAuthentication no`, на 22.04 после
    перезагрузки cloud-init его не переписал; `sshd -T` — `no` по трём ключам; вход по паролю
-   отвергнут (`PASSWORD_LOGIN_RC=255`), по ключу — работает; CHECK после — PASS, повторный
-   APPLY — `ok`; CHECK без `ERROR`. Прочие FAIL после APPLY: параметры загрузки 2.4.5 ×3,
+   отвергнут (`PASSWORD_LOGIN_RC=255`); фаза 2 выполнена по соединению, открытому только
+   ключом (runner v18); CHECK после — PASS, повторный
+   APPLY — `ok`; CHECK без `ERROR`. Прочие FAIL после APPLY: параметры загрузки 2.4.5 ×3
+   (с 26.09.2026 — автоматический APPLY, ВМ-прогон впереди),
    2.4.7, 2.5.3, 2.5.9 и 2.6.6 (Ubuntu) — решение администратора; 2.3.10, 2.3.11 (Ubuntu) —
    APPLY в очереди. Разведка 26.09.2026 (архив
    `slp-vm-probe-supported7-v2-states1-7-20260926-131539.tar.gz`, SHA `5000d569…3dc8`): на 5
@@ -137,6 +140,12 @@
 
 Решения пользователя 26.09.2026 (очередь по порядку):
 
+0. Приоритет: 2.4.5 — `iommu=force`, `iommu.strict=1`, `iommu.passthrough=0` пишутся
+   автоматически (`kernel-cmdline-grub-v1`, AUTO); ВМ-прогон на 7 средах (runner v18,
+   `EXPECTED_CHECK_SHA256` нового кандидата). Проверка пользователем на Ubuntu 24.04 full
+   (VirtualBox): загрузка с тремя параметрами — штатная; `/sys/class/iommu/` пуст, строк
+   `DMAR`/`AMD-Vi` в `dmesg` нет — аппаратного IOMMU у ВМ нет, прогон подтверждает
+   загрузку и CHECK, но не работу трансляции DMA.
 1. fstec-configuration-2026 п.11.2 — CHECK: Telnet, FTP, SNMP не установлены или выключены;
    APPLY: остановить и замаскировать найденные службы.
 2. Парольная политика: `/etc/login.defs` — `PASS_MAX_DAYS 90` (п.1.1 таблица 2; методический

@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+- `kernel-cmdline-grub-v1`: 2.4.5 `iommu=force`, `iommu.strict=1`, `iommu.passthrough=0` —
+  автоматический APPLY (решение пользователя 26.09.2026). Строк source index не закрывает.
+  Было: три параметра — блок «требуется решение администратора» (решение 24.09.2026). Стало:
+  пишутся в `/etc/default/grub.d/zz-securelinux-policy.cfg` вместе с прочими AUTO,
+  `update-grub`, действуют после перезагрузки; другое значение у администратора
+  (`iommu=pt`) — отказ без записи. Решение администратора остаётся у `mitigations`, `tsx`,
+  `debugfs`. HANDOFF: формулировки приёмки sshd сужены до наблюдаемого (аудит
+  `aaf0c2f..5b1f562`, B-02). Меняет продукт: ВМ-прогона нет.
+
 - Приёмка `sshd-config-option-v1` по ВМ-прогону 26.09.2026: runner v18 на кандидате
   `62d0f00687875e977c93dc450fd32b34c6bd848f507a3d49ba94bee6c11830fa`, архив
   `slp-vm-apply-supported7-v18-states1-7-20260926-215420.tar.gz` SHA

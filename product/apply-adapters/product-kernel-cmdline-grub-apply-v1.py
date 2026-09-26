@@ -14,9 +14,9 @@ Authority: product/contracts/mechanism-kernel-cmdline-grub-v1.json
   Новое значение вступает в силу после перезагрузки; CHECK (`/proc/cmdline`)
   до неё остаётся FAIL.
 * Автоматически: `init_on_alloc=1`, `slab_nomerge`, `randomize_kstack_offset=1`,
-  `vsyscall=none` (`AUTO`).
-* `mitigations=auto,nosmt`, `iommu=force`, `iommu.strict=1`, `iommu.passthrough=0`,
-  `tsx=off`, `debugfs=off` не пишутся: исход ABORTED_PRECONDITION_CONFLICT с
+  `vsyscall=none`, `iommu=force`, `iommu.strict=1`, `iommu.passthrough=0` (`AUTO`;
+  iommu — решение пользователя 26.09.2026).
+* `mitigations=auto,nosmt`, `tsx=off`, `debugfs=off` не пишутся: исход ABORTED_PRECONDITION_CONFLICT с
   `operator_decision` класса BOOT_PARAMETER_ADMIN_DECISION — блок «требуется
   решение администратора», как у 2.6.6 (`ADMIN`).
 * Другое значение того же параметра в `/etc/default/grub` или другом
@@ -64,14 +64,12 @@ AUTO = {
     "FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE": ("slab_nomerge", "present", True),
     "FSTEC-LINUX-2022-2.4.6-RANDOMIZE-KSTACK-OFFSET": ("randomize_kstack_offset", "eq", "1"),
     "FSTEC-LINUX-2022-2.5.1-VSYSCALL": ("vsyscall", "eq", "none"),
+    # Решение пользователя 26.09.2026: три параметра 2.4.5 пишутся автоматически.
+    "FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE": ("iommu", "eq", "force"),
+    "FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH": ("iommu.passthrough", "eq", "0"),
+    "FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT": ("iommu.strict", "eq", "1"),
 }
 ADMIN = {
-    "FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE": (("iommu", "eq", "force"),
-        "на части ВМ и оборудования возможны проблемы с загрузкой и устройствами"),
-    "FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH": (("iommu.passthrough", "eq", "0"),
-        "на части ВМ и оборудования возможны проблемы с загрузкой и устройствами"),
-    "FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT": (("iommu.strict", "eq", "1"),
-        "на части ВМ и оборудования возможны проблемы с загрузкой и устройствами"),
     "FSTEC-LINUX-2022-2.4.7-MITIGATIONS": (("mitigations", "eq", "auto,nosmt"),
         "nosmt отключает SMT: число логических CPU уменьшается вдвое"),
     "FSTEC-LINUX-2022-2.5.3-DEBUGFS": (("debugfs", "one-of", "off|no-mount"),

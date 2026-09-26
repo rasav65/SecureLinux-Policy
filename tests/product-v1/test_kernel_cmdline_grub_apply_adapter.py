@@ -16,7 +16,8 @@ root is not required.
   `update-grub`; вступает в силу после перезагрузки (исход `APPLIED`, затем
   `PENDING_REBOOT` до перезагрузки);
 * автоматически — `init_on_alloc=1`, `slab_nomerge`, `randomize_kstack_offset=1`,
-  `vsyscall=none`; `mitigations`, три `iommu`, `tsx`, `debugfs` — блок
+  `vsyscall=none`, `iommu=force`, `iommu.strict=1`, `iommu.passthrough=0`;
+  `mitigations`, `tsx`, `debugfs` — блок
   «требуется решение администратора» (`BOOT_PARAMETER_ADMIN_DECISION`), без записи;
 * другое значение того же параметра у администратора — отказ без записи.
 """
@@ -127,6 +128,8 @@ def execute(tree, cid, dry_run=False):
 INIT = "FSTEC-LINUX-2022-2.4.3-INIT-ON-ALLOC"
 SLAB = "FSTEC-LINUX-2022-2.4.4-SLAB-NOMERGE"
 TSX = "FSTEC-LINUX-2022-2.5.9-TSX"
+IOMMU = ("FSTEC-LINUX-2022-2.4.5-IOMMU-FORCE", "FSTEC-LINUX-2022-2.4.5-IOMMU-STRICT",
+         "FSTEC-LINUX-2022-2.4.5-IOMMU-PASSTHROUGH")
 
 
 class ContractParity(unittest.TestCase):
@@ -142,7 +145,11 @@ class ContractParity(unittest.TestCase):
 
     def test_auto_set_is_the_decision(self):
         tokens = sorted(A.desired_token(*spec) for spec in A.AUTO.values())
-        self.assertEqual(tokens, ["init_on_alloc=1", "randomize_kstack_offset=1", "slab_nomerge", "vsyscall=none"])
+        self.assertEqual(tokens, ["init_on_alloc=1", "iommu.passthrough=0", "iommu.strict=1", "iommu=force",
+                                  "randomize_kstack_offset=1", "slab_nomerge", "vsyscall=none"])
+        # Решение 24.09.2026 для прочих, 26.09.2026 для iommu: решение администратора — только три.
+        self.assertEqual(sorted(A.desired_token(*spec[0]) for spec in A.ADMIN.values()),
+                         ["debugfs=off", "mitigations=auto,nosmt", "tsx=off"])
 
     def test_evaluate_follows_check_semantics(self):
         self.assertEqual(A.evaluate(["a=1"], "a", "eq", "1"), (True, "1"))
@@ -180,6 +187,29 @@ class AutoApply(unittest.TestCase):
             for line in re.findall(r"^\tlinux /vmlinuz.*$", grub, re.M):
                 self.assertIn(" init_on_alloc=1", line)
                 self.assertIn(" slab_nomerge", line)
+
+    def test_iommu_parameters_are_written_together(self):
+        # Решение пользователя 26.09.2026: iommu=force, iommu.strict=1, iommu.passthrough=0 —
+        # автоматически; ключ «iommu» не смешивается с «iommu.strict»/«iommu.passthrough».
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            for cid in IOMMU:
+                self.assertEqual(execute(t, cid)["outcome"], "APPLIED", cid)
+            self.assertIn('"$GRUB_CMDLINE_LINUX iommu.passthrough=0 iommu.strict=1 iommu=force"', t.dropin())
+            for cid in IOMMU:
+                self.assertEqual(execute(t, cid)["outcome"], "PENDING_REBOOT", cid)
+            t.reboot()
+            for cid in IOMMU:
+                self.assertEqual(execute(t, cid)["outcome"], "ALREADY_COMPLIANT", cid)
+            self.assertEqual(t.update_calls, 3)
+
+    def test_iommu_other_value_from_admin_is_refused(self):
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td, grub_linux="iommu=pt")
+            r = execute(t, IOMMU[0])
+            self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_CONFLICT", "grub:foreign-conflict"))
+            self.assertIsNone(t.dropin())
+            self.assertEqual(execute(t, IOMMU[1])["outcome"], "APPLIED")
 
     def test_dry_run_does_not_write(self):
         with tempfile.TemporaryDirectory() as td:

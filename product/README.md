@@ -180,8 +180,8 @@ APPLY для kernel-cmdline выполняет механизм `kernel-cmdline-
 `update-grub` и проверяется, что токен есть в каждой строке `linux …vmlinuz…` файла `/boot/grub/grub.cfg`.
 Новое значение действует после перезагрузки: исход `APPLIED`, до перезагрузки повторный запуск —
 `PENDING_REBOOT`, CHECK до неё остаётся FAIL. Автоматически пишутся `init_on_alloc=1`, `slab_nomerge`,
-`randomize_kstack_offset=1`, `vsyscall=none`. `mitigations=auto,nosmt`, `iommu=force`, `iommu.strict=1`,
-`iommu.passthrough=0`, `tsx=off`, `debugfs=off` не пишутся: исход `ABORTED_PRECONDITION_CONFLICT` и блок
+`randomize_kstack_offset=1`, `vsyscall=none`, `iommu=force`, `iommu.strict=1`, `iommu.passthrough=0`
+(iommu — решение пользователя 26.09.2026). `mitigations=auto,nosmt`, `tsx=off`, `debugfs=off` не пишутся: исход `ABORTED_PRECONDITION_CONFLICT` и блок
 «требуется решение администратора» с готовым токеном, как у 2.6.6. Другое значение того же параметра
 в `/etc/default/grub` или другом `/etc/default/grub.d/*.cfg` — отказ без записи (`grub:foreign-conflict`);
 тот же токен там — не дублируется. Ошибка `update-grub` или проверки — прежний файл (или его
