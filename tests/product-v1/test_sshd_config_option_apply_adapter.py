@@ -32,6 +32,7 @@ import re
 from pathlib import Path
 import shutil
 import signal
+import stat
 import subprocess
 import tempfile
 import unittest
@@ -832,6 +833,121 @@ class Apply(unittest.TestCase):
             self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
                              ("FAILED_NOT_COMMITTED", "sshd-config:write-failed", False))
             self.assertEqual(leftovers(t), [])
+
+    def test_lines_split_on_lf_only_like_check(self):
+        # B-12: \v внутри комментария не отделяет директиву; результат совпадает с CHECK.
+        config = "# note\x0bPermitEmptyPasswords no\nUsePAM yes\n"
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td, config=config)
+            r = execute(t, "PermitEmptyPasswords", dry_run=True)
+            self.assertEqual((r["outcome"], r["policy_current"]), ("DRY_RUN_WOULD_APPLY", "main_global_no=0;effective=no"))
+            r = execute(t, "PermitEmptyPasswords")
+            self.assertEqual((r["outcome"], r["policy_current"]), ("APPLIED", "main_global_no=1;effective=no"))
+            self.assertEqual(t.config(), config + "PermitEmptyPasswords no\n")
+        self.assertEqual(A._directive("\x0bPermitRootLogin\x0cyes\r\n"), ("permitrootlogin", ["yes"]))
+
+    def _close_failing(self, match):
+        real_close = os.close
+
+        def close(fd):
+            try:
+                target = os.readlink(f"/proc/self/fd/{fd}")
+            except OSError:
+                target = ""
+            real_close(fd)
+            if match(target):
+                raise OSError("EIO on close")
+
+        return close
+
+    def test_stage_close_error_removes_temporary_file(self):
+        # B-13: ошибка close при подготовке — временный файл удаляется.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            close = self._close_failing(lambda target: target.endswith("sshd_config" + A.TMP_SUFFIX))
+            with mock.patch.object(A.os, "close", close):
+                r = execute(t, "PermitRootLogin")
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
+                             ("FAILED_NOT_COMMITTED", "sshd-config:write-failed", False))
+            self.assertEqual((t.config(), leftovers(t)), (STOCK_CONFIG, []))
+
+    def test_stage_close_error_with_cleanup_error_is_failed_compensation(self):
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            close = self._close_failing(lambda target: target.endswith("sshd_config" + A.TMP_SUFFIX))
+            real_unlink = os.unlink
+
+            def unlink(path, *args, **kwargs):
+                if str(path).endswith(A.TMP_SUFFIX):
+                    raise PermissionError("EACCES")
+                return real_unlink(path, *args, **kwargs)
+
+            with mock.patch.object(A.os, "close", close), mock.patch.object(A.os, "unlink", unlink):
+                r = execute(t, "PermitRootLogin")
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
+                             ("FAILED_COMPENSATION", "sshd-config:write-failed", False))
+            self.assertEqual(leftovers(t), ["sshd_config" + A.TMP_SUFFIX])
+
+    def test_restore_verification_close_error_continues(self):
+        # B-13: ошибка close при сверке восстановления — FAILED_COMPENSATION, остальные файлы возвращаются.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            real_run = t.run
+            state = {"compensating": False}
+
+            def run(argv, timeout):
+                if argv[1:2] == ["-t"] and not argv[-1].endswith(A.TMP_SUFFIX) and "no" in t.dropin():
+                    state["compensating"] = True
+                    return subprocess.CompletedProcess(argv, 255, b"", b"")
+                return real_run(argv, timeout)
+
+            t.run = run
+            close = self._close_failing(
+                lambda target: state["compensating"] and target.endswith("50-cloud-init.conf"))
+            with mock.patch.object(A.os, "close", close):
+                r = execute(t, "PasswordAuthentication")
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
+                             ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
+            self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
+
+    def test_owner_is_set_before_full_mode(self):
+        # B-14: fchown раньше fchmod; режим восстанавливается полностью, включая SUID.
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "f")
+            open(path, "wb").close()
+            st = os.stat(path)
+            calls = []
+            real_fchmod = os.fchmod
+            fake_st = os.stat_result((stat.S_IFREG | 0o4644,) + tuple(st)[1:])
+            with mock.patch.object(A.os, "geteuid", lambda: 0), \
+                    mock.patch.object(A.os, "fchown", lambda fd, uid, gid: calls.append("fchown")), \
+                    mock.patch.object(A.os, "fchmod", lambda fd, mode: (calls.append(("fchmod", mode)),
+                                                                        real_fchmod(fd, mode))):
+                tmp = A._stage_file(path, b"x\n", fake_st)
+            self.assertEqual(calls, ["fchown", ("fchmod", 0o4644)])
+            self.assertEqual(stat.S_IMODE(os.stat(tmp).st_mode), 0o4644)
+
+    def test_special_mode_bits_survive_apply(self):
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            t.cfg.chmod(0o4644)
+            self.assertEqual(execute(t, "PermitRootLogin")["outcome"], "APPLIED")
+            self.assertEqual(stat.S_IMODE(t.cfg.stat().st_mode), 0o4644)
+
+    def test_fifo_account_files_are_refused_without_blocking(self):
+        for rel, reason in (("etc/group", "group:read-failed"), ("etc/passwd", "passwd:read-failed")):
+            with self.subTest(rel=rel), tempfile.TemporaryDirectory() as td:
+                t = Tree(td)
+                (t.root / rel).unlink()
+                os.mkfifo(t.root / rel, 0o644)
+                old = signal.signal(signal.SIGALRM, lambda *_: (_ for _ in ()).throw(TimeoutError("blocked")))
+                signal.alarm(5)
+                try:
+                    r = execute(t, "PasswordAuthentication", dry_run=True)
+                finally:
+                    signal.alarm(0)
+                    signal.signal(signal.SIGALRM, old)
+                self.assertEqual((r["outcome"], r["reason"]), ("ABORTED_PRECONDITION_OTHER", reason))
 
     def test_missing_tools_and_privilege_and_spec(self):
         with tempfile.TemporaryDirectory() as td:

@@ -103,9 +103,12 @@ COMMIT_NOT_COMMITTED = "NOT_COMMITTED"
 COMMIT_NOT_STARTED = "NOT_STARTED"
 
 CONTROL_ID_PATTERN = r"^(?!.*[\r\n])[A-Za-z0-9._-]+$"
-DIRECTIVE_RE = re.compile(r"^[ \t]*([^ \t=]+)(?:[ \t]*=[ \t]*|[ \t]+)(.*)$")
-BARE_DIRECTIVE_RE = re.compile(r"^[ \t]*([^ \t=]+)[ \t]*$")
-VALUE_RE = re.compile(r"^([ \t]*[^ \t=]+(?:[ \t]*=[ \t]*|[ \t]+))(\S+)(.*)$")
+# Пробельные символы — как `[[:space:]]` CHECK в локали C (без \n: строки уже разделены по LF).
+SPACE = " \t\v\f\r"
+DIRECTIVE_RE = re.compile(r"^[ \t\v\f\r]*([^ \t\v\f\r=]+)(?:[ \t\v\f\r]*=[ \t\v\f\r]*|[ \t\v\f\r]+)(.*)$")
+BARE_DIRECTIVE_RE = re.compile(r"^[ \t\v\f\r]*([^ \t\v\f\r=]+)[ \t\v\f\r]*$")
+VALUE_RE = re.compile(r"^([ \t\v\f\r]*[^ \t\v\f\r=]+(?:[ \t\v\f\r]*=[ \t\v\f\r]*|[ \t\v\f\r]+))"
+                      r"([^ \t\v\f\r]+)(.*)$")
 GLOB_CHARS = ("*", "?", "[")
 USER_NAME_RE = re.compile(r"[a-z_][a-z0-9_.-]*")
 TMP_SUFFIX = ".slp-tmp"
@@ -162,10 +165,23 @@ def _read_regular(path, refuse):
                 break
             chunks.append(chunk)
     except OSError:
+        _close_quietly(fd)
         raise _other("sshd-config:read-failed")
-    finally:
+    except BaseException:
+        _close_quietly(fd)
+        raise
+    try:
         os.close(fd)
+    except OSError:
+        raise _other("sshd-config:read-failed")
     return b"".join(chunks), st
+
+
+def _close_quietly(fd):
+    try:
+        os.close(fd)
+    except OSError:
+        pass
 
 
 def _trusted_uid(root):
@@ -187,6 +203,15 @@ def _text(raw):
         raise _other("sshd-config:invalid-bytes")
 
 
+def _lf_lines(text):
+    """Строки с окончаниями, разделение только по LF (как у CHECK; \v, \f, \x1c… — не разделители)."""
+    parts = text.split("\n")
+    lines = [part + "\n" for part in parts[:-1]]
+    if parts[-1]:
+        lines.append(parts[-1])
+    return lines
+
+
 def _body(line):
     """Строка без окончания (\\n или \\r\\n)."""
     if line.endswith("\r\n"):
@@ -203,14 +228,18 @@ def _eol(line):
 def _directive(line):
     """(ключ в нижнем регистре, аргументы) значимой строки или None."""
     body = _body(line)
-    if not body.strip() or body.lstrip(" \t").startswith("#"):
+    if not body.strip(SPACE) or body.lstrip(SPACE).startswith("#"):
         return None
     m = DIRECTIVE_RE.match(body) or BARE_DIRECTIVE_RE.match(body)
     if m is None:
         return None
     rest = m.group(2) if m.re is DIRECTIVE_RE else ""
     try:
-        args = shlex.split(rest, comments=True, posix=True)
+        lexer = shlex.shlex(rest, posix=True)
+        lexer.whitespace = " \t\r"  # разделители аргументов — как у разбора CHECK
+        lexer.whitespace_split = True
+        lexer.commenters = "#"
+        args = list(lexer)
     except ValueError:
         raise _other("sshd-config:invalid-arguments")
     return m.group(1).lower(), args
@@ -278,7 +307,7 @@ class Config:
             refuse = (_Refused("ABORTED_PRECONDITION_CONFLICT", "sshd-config:untrusted", None) if main
                       else _other("sshd-config:include-invalid-type"))
             raw, st = _read_regular(path, refuse)
-            self.files[path] = (raw, st, _text(raw).splitlines(keepends=True))
+            self.files[path] = (raw, st, _lf_lines(_text(raw)))
         return self.files[path][2]
 
     def _parse(self, path, depth, main, scope):
@@ -416,12 +445,17 @@ def policy_current(main_no, effective):
     return "main_global_no=%d;effective=%s" % (main_no, effective)
 
 
-def _read_groups(root):
+def _read_account_file(root, path, reason):
+    """Строки /etc/group или /etc/passwd: обычный файл без ожидания (FIFO — отказ), UTF-8."""
     try:
-        with open(_p(root, GROUP), "r", encoding="utf-8", errors="strict") as stream:
-            lines = stream.read().split("\n")
-    except (OSError, UnicodeDecodeError):
-        raise _other("group:read-failed")
+        raw, _st = _read_regular(_p(root, path), _other(reason))
+        return raw.decode("utf-8").split("\n")
+    except (_Refused, UnicodeDecodeError):
+        raise _other(reason)
+
+
+def _read_groups(root):
+    lines = _read_account_file(root, GROUP, "group:read-failed")
     groups = {}
     for line in lines:
         if not line or line.startswith("#"):
@@ -434,11 +468,7 @@ def _read_groups(root):
 
 
 def _read_homes(root):
-    try:
-        with open(_p(root, PASSWD), "r", encoding="utf-8", errors="strict") as stream:
-            lines = stream.read().split("\n")
-    except (OSError, UnicodeDecodeError):
-        raise _other("passwd:read-failed")
+    lines = _read_account_file(root, PASSWD, "passwd:read-failed")
     homes = {}
     for line in lines:
         if not line or line.startswith("#"):
@@ -511,22 +541,33 @@ def _stage_file(path, raw, st):
             if written <= 0:
                 raise OSError("short write")
             view = view[written:]
-        os.fchmod(fd, stat.S_IMODE(st.st_mode))
+        # Сначала владелец, затем полный режим: fchown снимает SUID/SGID, fchmod их возвращает.
         if os.geteuid() == 0:
             os.fchown(fd, st.st_uid, st.st_gid)
+        os.fchmod(fd, stat.S_IMODE(st.st_mode))
         os.fsync(fd)
     except BaseException as exc:
+        _close_quietly(fd)
+        _abandon(tmp, exc)
+    try:
         os.close(fd)
-        try:
-            os.unlink(tmp)
-        except OSError:
-            # Временный файл остался: путь передаётся вызывающему для учёта в компенсации.
-            if isinstance(exc, OSError):
-                raise _StageFailed(tmp) from exc
-            raise
-        raise
-    os.close(fd)
+    except OSError as exc:
+        _abandon(tmp, exc)
     return tmp
+
+
+def _abandon(tmp, exc):
+    """Удаление недоготовленного временного файла и повторный подъём ошибки.
+
+    Не удалось удалить — `_StageFailed` с путём, чтобы компенсация учла оставшийся файл.
+    """
+    try:
+        os.unlink(tmp)
+    except OSError:
+        if isinstance(exc, OSError):
+            raise _StageFailed(tmp) from exc
+        raise exc
+    raise exc
 
 
 def _write_file(path, raw, st):
@@ -545,7 +586,7 @@ def _write_file(path, raw, st):
 def _bytes_equal(path, raw):
     try:
         return _read_regular(path, _other("sshd-config:read-failed"))[0] == raw
-    except _Refused:
+    except (_Refused, OSError):
         return False
 
 
