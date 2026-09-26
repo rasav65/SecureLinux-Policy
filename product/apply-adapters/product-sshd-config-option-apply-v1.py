@@ -492,6 +492,14 @@ def keyed_admins(root, run, users):
     return keyed, nondefault
 
 
+class _StageFailed(OSError):
+    """Ошибка подготовки временного файла, после которой его не удалось удалить."""
+
+    def __init__(self, tmp):
+        super().__init__("stage failed, temporary file left: " + tmp)
+        self.tmp = tmp
+
+
 def _stage_file(path, raw, st):
     """Временный файл `<путь>.slp-tmp` в том же каталоге: все байты, прежние режим и владелец."""
     tmp = path + TMP_SUFFIX
@@ -507,9 +515,15 @@ def _stage_file(path, raw, st):
         if os.geteuid() == 0:
             os.fchown(fd, st.st_uid, st.st_gid)
         os.fsync(fd)
-    except BaseException:
+    except BaseException as exc:
         os.close(fd)
-        os.unlink(tmp)
+        try:
+            os.unlink(tmp)
+        except OSError:
+            # Временный файл остался: путь передаётся вызывающему для учёта в компенсации.
+            if isinstance(exc, OSError):
+                raise _StageFailed(tmp) from exc
+            raise
         raise
     os.close(fd)
     return tmp
@@ -685,8 +699,10 @@ def execute_control(control_id, key, op, expected, apply_supported, *, dry_run,
             raw, st, _lines = cfg.files[path]
             try:
                 write(path, raw, st)
-            except OSError:
+            except OSError as exc:
                 ok = False
+                if isinstance(exc, _StageFailed):
+                    _discard([exc.tmp])
                 continue
             ok = _bytes_equal(path, raw) and ok
         if reload_attempted:
@@ -702,7 +718,9 @@ def execute_control(control_id, key, op, expected, apply_supported, *, dry_run,
     for path, raw in planned.items():
         try:
             staged[path] = stage(path, raw, cfg.files[path][1])
-        except OSError:
+        except OSError as exc:
+            if isinstance(exc, _StageFailed):
+                staged[path] = exc.tmp  # учитывается компенсацией: повторное удаление
             return compensate("sshd-config:write-failed")
         if not _syntax_ok(_root, run, staged[path]):
             return compensate("sshd-config:validation-failed")

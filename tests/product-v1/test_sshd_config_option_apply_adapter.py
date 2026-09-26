@@ -766,6 +766,73 @@ class Apply(unittest.TestCase):
             self.assertEqual(leftovers(t), [])
             self.assertEqual(t.config(), STOCK_CONFIG)
 
+    def test_stage_error_with_cleanup_error_is_failed_compensation(self):
+        # B-11: ошибка fsync при подготовке и ошибка удаления временного файла.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            real_unlink = os.unlink
+
+            def fsync(fd):
+                raise OSError("EIO")
+
+            def unlink(path, *args, **kwargs):
+                if str(path).endswith(A.TMP_SUFFIX):
+                    raise PermissionError("EACCES")
+                return real_unlink(path, *args, **kwargs)
+
+            with mock.patch.object(A.os, "fsync", fsync), mock.patch.object(A.os, "unlink", unlink):
+                r = execute(t, "PermitRootLogin")
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
+                             ("FAILED_COMPENSATION", "sshd-config:write-failed", False))
+            self.assertEqual(t.config(), STOCK_CONFIG)
+            self.assertEqual(leftovers(t), ["sshd_config" + A.TMP_SUFFIX])
+            self.assertNotIn("systemctl", t.names())
+
+    def test_restore_stage_error_with_cleanup_error_is_failed_compensation(self):
+        # B-11: та же пара ошибок при восстановлении; возврат остальных файлов продолжается.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+            real_run, real_fsync, real_unlink = t.run, os.fsync, os.unlink
+            state = {"compensating": False}
+
+            def run(argv, timeout):
+                if argv[1:2] == ["-t"] and not argv[-1].endswith(A.TMP_SUFFIX) and "no" in t.dropin():
+                    state["compensating"] = True
+                    return subprocess.CompletedProcess(argv, 255, b"", b"")
+                return real_run(argv, timeout)
+
+            def fsync(fd):
+                if state["compensating"] and os.readlink(f"/proc/self/fd/{fd}").endswith(
+                        "50-cloud-init.conf" + A.TMP_SUFFIX):
+                    raise OSError("EIO")
+                return real_fsync(fd)
+
+            def unlink(path, *args, **kwargs):
+                if state["compensating"] and str(path).endswith(A.TMP_SUFFIX):
+                    raise PermissionError("EACCES")
+                return real_unlink(path, *args, **kwargs)
+
+            t.run = run
+            with mock.patch.object(A.os, "fsync", fsync), mock.patch.object(A.os, "unlink", unlink):
+                r = execute(t, "PasswordAuthentication")
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
+                             ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
+            self.assertEqual(t.config(), STOCK_CONFIG)
+            self.assertEqual(t.dropin(), "PasswordAuthentication no\n")
+
+    def test_stage_error_with_successful_cleanup_is_not_committed(self):
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td)
+
+            def fsync(fd):
+                raise OSError("EIO")
+
+            with mock.patch.object(A.os, "fsync", fsync):
+                r = execute(t, "PermitRootLogin")
+            self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
+                             ("FAILED_NOT_COMMITTED", "sshd-config:write-failed", False))
+            self.assertEqual(leftovers(t), [])
+
     def test_missing_tools_and_privilege_and_spec(self):
         with tempfile.TemporaryDirectory() as td:
             t = Tree(td)
