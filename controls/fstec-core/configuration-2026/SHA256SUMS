@@ -1,5 +1,5 @@
-ac93f546b63da30ab91e1ae264348ec7a3188a303483d23c6bd4cd0cf9f83f34  CONTROL-MANIFEST.tsv
+52be21bc979cf06bb790d4edccc11341e741557a12420d09e405b374ada96eac  CONTROL-MANIFEST.tsv
 fec3aaf4d3cfbc98baf350affcc9897370d947f655943216d445716b99290640  README.md
-fbbd78dc6ff9c47042ecee6d36377292e7cf4b91cd41ac2d7cbca03a4756d28b  fstec-configuration-2026-9.1-ssh-password-authentication.yaml
-df5adb7d41e5c7bf94d81ca6bf6d307a65a0cc78cbc93889d88b9af4ef9b361e  fstec-configuration-2026-9.1-ssh-permit-empty-passwords.yaml
-cfb2e1c5728669647620660ac03e3895c2a39802a19b854e54613624e3bb2c7a  fstec-configuration-2026-9.1-ssh-permit-root-login.yaml
+76f8526661cb3c9854c2e8436d98649482a2be5a6bc4e7b953ac97db71a5a5aa  fstec-configuration-2026-9.1-ssh-password-authentication.yaml
+eb6ea9f476a6b65ef758631f9a920e5c9af3d1f7b136145f2727991641c88055  fstec-configuration-2026-9.1-ssh-permit-empty-passwords.yaml
+ff7f9436907ec698f6298a7d3a5a785da36399228a0f213295ec0626303c8cd2  fstec-configuration-2026-9.1-ssh-permit-root-login.yaml

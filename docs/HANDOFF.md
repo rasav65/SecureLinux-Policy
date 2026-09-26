@@ -102,7 +102,18 @@
    б) выполнено: CHECK-адаптер `sshd-config-option` по образцу `sshd-root-login` (директива в
    основном `/etc/ssh/sshd_config` в глобальной области и эффективное значение
    `sshd -T`); по этой семантике на 7 средах ожидается FAIL всех трёх контролей;
-   в) механизм APPLY для `sshd_config` и ВМ-прогон.
+   в) механизм APPLY `sshd-config-option-v1` выполнен; ВМ-прогон — сценарием v18: до APPLY
+   временный ключ SSH для `user`, иначе после `PasswordAuthentication no` вход по паролю
+   закрыт. Ожидание: CHECK до — FAIL трёх контролей, APPLY — `APPLIED`, CHECK после
+   перезагрузки — PASS, повторный APPLY — `ALREADY_COMPLIANT`. Разведка 26.09.2026 (архив
+   `slp-vm-probe-supported7-v2-states1-7-20260926-131539.tar.gz`, SHA `5000d569…3dc8`): на 5
+   Ubuntu `/etc/ssh/sshd_config.d/50-cloud-init.conf` = `PasswordAuthentication yes` (SHA
+   `6bf43c75…ac1d`, `600 root:root`, пакету не принадлежит, дата — установка); cloud-init на
+   24.04 и 26.04 выключен файлом `/etc/cloud/cloud-init.disabled`, на 22.04 включён,
+   `config_set_passwords` выполнен при установке; на Debian cloud-init и drop-in нет; в
+   основном `sshd_config` на всех 7 средах есть шаблоны `#PermitRootLogin`,
+   `#PasswordAuthentication`, `#PermitEmptyPasswords` после `Include`; `~user/.ssh/authorized_keys`
+   пуст (Ubuntu) или отсутствует (Debian).
    Факты разведки 25.09.2026 (7 сред, `docs/testing-strategy.md`): auditd, libpam-pwquality,
    telnetd, vsftpd, snmpd, fail2ban отсутствуют; `pam_faillock.so` и `pam_pwhistory.so`
    есть, но в `common-auth`/`common-password` не подключены; `common-auth` — `pam_unix.so

@@ -220,6 +220,7 @@ flowchart LR
     APPLY6["startup-files-write-protection-v1<br/>режимы файлов запуска SRC-0009 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed
     APPLY7["kernel-cmdline-grub-v1<br/>параметры загрузки ядра G4 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed
     APPLY8["pam-wheel-su-v1<br/>доступ к su SRC-0003 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed
+    APPLY9["sshd-config-option-v1<br/>вход по SSH SRC-0088 · APPLY<br/>ВМ: прогона нет, приёмка семи сред — впереди"]:::current
     CLI["securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed
     ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note
 
@@ -237,9 +238,11 @@ flowchart LR
     IMPLREG --> APPLY6 --> GEN2
     IMPLREG --> APPLY7 --> GEN2
     IMPLREG --> APPLY8 --> GEN2
+    IMPLREG --> APPLY9 --> GEN2
     APPLY1 -. решение администратору .-> ADMIN
     APPLY7 -. решение администратору .-> ADMIN
     APPLY8 -. решение администратору .-> ADMIN
+    APPLY9 -. решение администратору .-> ADMIN
     GEN1 -. historical .-> GEN2
 
     classDef closed fill:#d9f7df,stroke:#2f7d32,color:#111,stroke-width:2px;
@@ -258,18 +261,18 @@ gitignored rebuild output. APPLY scope вычисляется из `apply.suppor
 (режимы системных файлов cron), `suid-sgid-applications-mode-v1`
 (режимы SUID/SGID-приложений), `standard-system-paths-mode-v1`
 (режимы стандартных системных путей), `startup-files-write-protection-v1`
-(режимы файлов запуска), `kernel-cmdline-grub-v1` (параметры ядра в командной строке загрузки) и `pam-wheel-su-v1` (доступ к `su` через группу `wheel`). SRC-0001 выведен из product APPLY, его артефакты historical.
+(режимы файлов запуска), `kernel-cmdline-grub-v1` (параметры ядра в командной строке загрузки) `pam-wheel-su-v1` (доступ к `su` через группу `wheel`) и `sshd-config-option-v1` (директивы `sshd_config` п.9.1 fstec-configuration-2026). SRC-0001 выведен из product APPLY, его артефакты historical.
 Пользовательский `--restore` отсутствует, потому что operational RESTORE не является future feature.
 Human-readable CHECK/REPORT выводит обнаруженную ОС, архитектуру, profile и runtime platform; target family един для всей поддерживаемой матрицы.
 
 Статус узла механизма задаётся гейтами: `closed` — механизм прошёл `--release` и VM-цикл по семи поддерживаемым средам;
 `current` — идёт работа. Иного статуса у узла механизма нет.
-Узлы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `kernel-cmdline-grub-v1` и `pam-wheel-su-v1` — `closed`: приёмка по VM-прогону 25.09.2026 на семи средах (артефакт `9a42418f…67ab`; мутация, перезагрузка, повторный APPLY без `APPLIED` и `FAILED_*`, CHECK без `ERROR`), решение 25.09.2026. Узлы `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1` и `startup-files-write-protection-v1` — `closed`: путь с изменением прав принят по VM-прогону 25.09.2026 с подготовленными нарушениями на семи средах (артефакт `74f333d5…d1ae`; до APPLY — `violations=1`, после APPLY и перезагрузки — `violations=0`, режимы 4755 / 755 / 664), решение 25.09.2026. Desktop — FIELD_COMPATIBILITY, отдельной строкой.
+Узлы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `kernel-cmdline-grub-v1` и `pam-wheel-su-v1` — `closed`: приёмка по VM-прогону 25.09.2026 на семи средах (артефакт `9a42418f…67ab`; мутация, перезагрузка, повторный APPLY без `APPLIED` и `FAILED_*`, CHECK без `ERROR`), решение 25.09.2026. Узел `sshd-config-option-v1` — `current`: ВМ-прогона нет. Узлы `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1` и `startup-files-write-protection-v1` — `closed`: путь с изменением прав принят по VM-прогону 25.09.2026 с подготовленными нарушениями на семи средах (артефакт `74f333d5…d1ae`; до APPLY — `violations=1`, после APPLY и перезагрузки — `violations=0`, режимы 4755 / 755 / 664), решение 25.09.2026. Desktop — FIELD_COMPATIBILITY, отдельной строкой.
 
 Узел `ADMIN` — граница продукта: для части контролей APPLY не реализуется по решению,
 и продукт возвращает решение администратору отдельным терминальным исходом.
 Прецедент — `suid-dumpable` при обнаруженном Apport (`ABORTED_PRECONDITION_CONFLICT`).
-Тем же исходом `kernel-cmdline-grub-v1` возвращает шесть параметров загрузки, которые по решению человека 24.09.2026 не пишутся автоматически: `mitigations=auto,nosmt`, `iommu=force`, `iommu.strict=1`, `iommu.passthrough=0`, `tsx=off`, `debugfs=off`. `pam-wheel-su-v1` возвращает решение администратору, если `/etc/pam.d/su` отличается от файла пакета или в группах `sudo` и `admin` нет пользователей (решение человека 25.09.2026).
+Тем же исходом `kernel-cmdline-grub-v1` возвращает шесть параметров загрузки, которые по решению человека 24.09.2026 не пишутся автоматически: `mitigations=auto,nosmt`, `iommu=force`, `iommu.strict=1`, `iommu.passthrough=0`, `tsx=off`, `debugfs=off`. `pam-wheel-su-v1` возвращает решение администратору, если `/etc/pam.d/su` отличается от файла пакета или в группах `sudo` и `admin` нет пользователей (решение человека 25.09.2026). `sshd-config-option-v1` возвращает решение администратору, если в области `Match` директива задана не `no`, для `PermitRootLogin` — нет пользователя в `sudo`/`admin`, кроме root, для `PasswordAuthentication` — ни у одного такого пользователя нет ключа SSH (решение 25.09.2026).
 
 ## 4. Инженерный донор → принятый mapping → historical SRC-0001 APPLY → упаковка
 
@@ -352,11 +355,11 @@ APPLY — общая форма `MECHANISM_AUTHORITY_V1`, по одному до
 (режимы файлов SRC-0005), `optional-file-root-files-mode-v1` (режимы cron SRC-0010),
 `suid-sgid-applications-mode-v1` (режимы SUID/SGID-приложений SRC-0013),
 `standard-system-paths-mode-v1` (стандартные системные пути SRC-0012) и
-`startup-files-write-protection-v1` (файлы запуска SRC-0009), `kernel-cmdline-grub-v1` (параметры загрузки ядра G4) и `pam-wheel-su-v1` (доступ к su SRC-0003); контроли включаются через `apply.supported=true`,
+`startup-files-write-protection-v1` (файлы запуска SRC-0009), `kernel-cmdline-grub-v1` (параметры загрузки ядра G4), `pam-wheel-su-v1` (доступ к su SRC-0003) и `sshd-config-option-v1` (директивы `sshd_config` SRC-0088); контроли включаются через `apply.supported=true`,
 а общий цикл выполняет generated CLI.
 Старые SRC-0001 contracts/definitions/adapter сохраняются побайтово как historical.
 `SINGLE_DISTRIBUTABLE_ARTIFACT` остаётся generated `securelinux-policy.sh`;
-VM-cycle по семи поддерживаемым средам принят 25.09.2026 для всех восьми механизмов.
+VM-cycle по семи поддерживаемым средам принят 25.09.2026 для восьми механизмов; у `sshd-config-option-v1` ВМ-прогона нет.
 Горизонт 1 `HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS` закрыт 25.09.2026. `NEXT` machine
 roadmap — Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`.
 
@@ -399,7 +402,7 @@ flowchart LR
 ```
 
 `fstec-linux-2022` read-only CHECK vertical и donor mapping остаются принятыми.
-Модульная SRC-0001 architecture связывает exact SHA восьми historical definition roles и сохраняется как evidence прошлой вертикали. В active APPLY registries её больше нет. Текущий generated CLI маршрутизирует APPLY через механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1`, `startup-files-write-protection-v1`, `kernel-cmdline-grub-v1` и `pam-wheel-su-v1`. ВМ-PASS механизма `standard-system-paths-mode-v1` (20.09.2026) выполнен повторно на кандидате `ba96131b…a55b` после исправления обхода подкаталогов; прежний PASS относится к кандидату `e170aae1…dd38`. Кандидат `be828dae…5128` (CHECK: недоступность не принимается за отсутствие; `pam-wheel-access` разбирает проверенные байты за одно чтение; dispatcher проверяет каталог состояния и берёт `flock`) отличался от обоих; ВМ-прогон на нём не выполнен. Кандидат `a64e662a…f4b9` устранял то же повторное открытие файла после проверки через `od` ещё в семи CHECK-адаптерах (`home-directories-mode`, `home-sensitive-files-mode`, `local-account-password-state`, `sshd-root-login`, `sudoers-reviewed-policy`, `suid-sgid-applications`, `tested-setting-attestation`) и переводил записи APPLY-dispatcher (отчёт, журналы) на дескриптор проверенного каталога состояния вместо строки пути; ВМ-прогон на нём не выполнен. Кандидат `5e0dacf6…85a` переводил популяцию `home-directories-mode` (2.3.11) с обхода `/etc/passwd` на прямые элементы `/home` (решение 22.09.2026); ВМ-прогон на нём тоже не выполнен. Кандидат `e683fe2b…2cfc` (репарация по аудиту диапазона `6780086..3215d1c`) устраняет то же повторное открытие файла после проверки через `od` ещё в двух CHECK-адаптерах (`kernel-cmdline`, `sysctl`); отсутствие `/home` и тип каждого прямого элемента определяются только доказанным `ENOENT` (разбор текста ошибки `stat -c %F`), а не `[[ ! -e ]]`/`[[ -L ]]`; захват цели `readlink` для 2.3.11 больше не теряет собственный завершающий перевод строки; `slp_collect_policy` принимает у `reason` необязательный третий сегмент полезной нагрузки. ВМ-прогон на нём тоже не выполнен. Текущий кандидат — трекнутый `securelinux-policy.sh`, его SHA-256 — в `securelinux-policy.sh.sha256`; ВМ-прогоны APPLY 24.09.2026 и 25.09.2026 записаны в `docs/testing-strategy.md`. Operational recovery после завершённого
+Модульная SRC-0001 architecture связывает exact SHA восьми historical definition roles и сохраняется как evidence прошлой вертикали. В active APPLY registries её больше нет. Текущий generated CLI маршрутизирует APPLY через механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1`, `startup-files-write-protection-v1`, `kernel-cmdline-grub-v1`, `pam-wheel-su-v1` и `sshd-config-option-v1`. ВМ-PASS механизма `standard-system-paths-mode-v1` (20.09.2026) выполнен повторно на кандидате `ba96131b…a55b` после исправления обхода подкаталогов; прежний PASS относится к кандидату `e170aae1…dd38`. Кандидат `be828dae…5128` (CHECK: недоступность не принимается за отсутствие; `pam-wheel-access` разбирает проверенные байты за одно чтение; dispatcher проверяет каталог состояния и берёт `flock`) отличался от обоих; ВМ-прогон на нём не выполнен. Кандидат `a64e662a…f4b9` устранял то же повторное открытие файла после проверки через `od` ещё в семи CHECK-адаптерах (`home-directories-mode`, `home-sensitive-files-mode`, `local-account-password-state`, `sshd-root-login`, `sudoers-reviewed-policy`, `suid-sgid-applications`, `tested-setting-attestation`) и переводил записи APPLY-dispatcher (отчёт, журналы) на дескриптор проверенного каталога состояния вместо строки пути; ВМ-прогон на нём не выполнен. Кандидат `5e0dacf6…85a` переводил популяцию `home-directories-mode` (2.3.11) с обхода `/etc/passwd` на прямые элементы `/home` (решение 22.09.2026); ВМ-прогон на нём тоже не выполнен. Кандидат `e683fe2b…2cfc` (репарация по аудиту диапазона `6780086..3215d1c`) устраняет то же повторное открытие файла после проверки через `od` ещё в двух CHECK-адаптерах (`kernel-cmdline`, `sysctl`); отсутствие `/home` и тип каждого прямого элемента определяются только доказанным `ENOENT` (разбор текста ошибки `stat -c %F`), а не `[[ ! -e ]]`/`[[ -L ]]`; захват цели `readlink` для 2.3.11 больше не теряет собственный завершающий перевод строки; `slp_collect_policy` принимает у `reason` необязательный третий сегмент полезной нагрузки. ВМ-прогон на нём тоже не выполнен. Текущий кандидат — трекнутый `securelinux-policy.sh`, его SHA-256 — в `securelinux-policy.sh.sha256`; ВМ-прогоны APPLY 24.09.2026 и 25.09.2026 записаны в `docs/testing-strategy.md`. Operational recovery после завершённого
 APPLY остаётся внешним snapshot/backup, а пользовательский RESTORE исключён.
 
 ## Что является источником истины
@@ -458,7 +461,9 @@ normative controls, semantic contracts и implementation adapters. Sidecar
   владельца.
 - Класс G3 — APPLY, вероятно, не появится: нестабильная популяция.
 - Класс G7 — содержимое конфигурационных файлов: APPLY для 2.1.1 выведен решением
-  DP-3; 2.1.2 (вход root по SSH) и 2.2.2 (политика sudoers) меняют удалённый доступ
-  и привилегированную политику, которые определяет администратор (решение
-  25.09.2026).
+  DP-3; 2.2.2 (политика sudoers) меняет привилегированную политику, которую
+  определяет администратор (решение 25.09.2026). У 2.1.2 (вход root по SSH)
+  собственного APPLY нет: строку `PermitRootLogin no` пишет механизм
+  `sshd-config-option-v1` п.9.1 fstec-configuration-2026 (решение пользователя
+  25.09.2026, требование политики компании).
 - Генерируемый инвентарь механизмов в блоке карты — решением пользователя 19.09.2026 не делается сейчас; до него механизмы называются в ручной прозе без чисел.

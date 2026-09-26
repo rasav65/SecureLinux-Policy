@@ -54,6 +54,7 @@ for marker in (
     'startup-files-write-protection-v1<br/>режимы файлов запуска SRC-0009 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
     'kernel-cmdline-grub-v1<br/>параметры загрузки ядра G4 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
     'pam-wheel-su-v1<br/>доступ к su SRC-0003 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
+    'sshd-config-option-v1<br/>вход по SSH SRC-0088 · APPLY<br/>ВМ: прогона нет, приёмка семи сред — впереди"]:::current',
     'ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note',
     'securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed',
 ):

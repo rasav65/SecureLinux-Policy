@@ -10,6 +10,20 @@
 
 ## [Unreleased]
 
+- APPLY-механизм `sshd-config-option-v1` для трёх контролей fstec-configuration-2026 п.9.1
+  (SRC-0088), решение пользователя 25.09.2026. Строк source index не закрывает. Было:
+  `apply.supported: false`, APPLY 9.1 не касался. Стало: правка на месте без дублирования
+  строк (схема 1–4, решение 26.09.2026): значение действующей строки в
+  `/etc/ssh/sshd_config`, иначе шаблон `#<Key>`, иначе новая строка перед `Match`; в
+  `sshd_config.d` значение не-`no` меняется на `no` (`50-cloud-init.conf` на Ubuntu); затем
+  `sshd -t`, `systemctl try-reload-or-restart ssh.service`, итоговая проверка `sshd -T`; при
+  ошибке — возврат байтов всех изменённых файлов и повторная перезагрузка. Блок «требуется решение администратора»: `Match`
+  с не-`no`, для `PermitRootLogin` — нет пользователя в `sudo`/`admin`, для
+  `PasswordAuthentication` — нет его ключа SSH или нестандартные
+  `AuthorizedKeysFile`/`PubkeyAuthentication`. Литералы: 40 → 43 контроля APPLY, 8 → 9
+  механизмов. Тест `test_sshd_config_option_apply_adapter.py` (30). Меняет продукт: ВМ-прогон
+  не выполнялся, нужен сценарий v18 (временный ключ SSH до APPLY).
+
 - fstec-configuration-2026 п.9.1 (SRC-0088): CHECK-адаптер `sshd-config-option` и три
   контроля в `controls/fstec-core/configuration-2026` — `PermitEmptyPasswords no`,
   `PermitRootLogin no`, `PasswordAuthentication no` в основном `/etc/ssh/sshd_config` и

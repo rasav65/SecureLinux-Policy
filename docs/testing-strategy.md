@@ -76,8 +76,18 @@ journal/intent и компенсации к ним не применяются.
 Тест — `tests/product-v1/test_pam_wheel_su_apply_adapter.py` на временном дереве с подставными
 `groupadd`, `gpasswd`, `groupdel`; итоговое дерево проверяется CHECK-адаптером 2.2.1 (PASS).
 
+`sshd-config-option-v1` правит ключ на месте в `/etc/ssh/sshd_config` и в `sshd_config.d`
+(значение действующей строки, иначе шаблон `#<Key>`, иначе новая строка перед `Match`), затем
+`sshd -t`, перезагрузка `ssh.service` и итоговая проверка `sshd -T`; при ошибке прежние байты
+всех изменённых файлов возвращаются и sshd перезагружается повторно.
+Тест — `tests/product-v1/test_sshd_config_option_apply_adapter.py` на временном дереве с
+подставными `sshd -t`, `sshd -T` (первое значение по основному файлу и `Include`) и
+`systemctl`; итоговый файл проверяется CHECK-адаптером `sshd-config-option` (PASS). На ВМ
+после `PasswordAuthentication no` вход по паролю закрыт, поэтому сценарий прогона должен
+до APPLY положить пользователю временный ключ SSH.
+
 Историческое: решением DP-3 APPLY для `SRC-0001` выведен из продукта, текущий
-APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1`, `startup-files-write-protection-v1`, `kernel-cmdline-grub-v1` и `pam-wheel-su-v1`.
+APPLY задают механизмы `config-line-with-runtime-v1`, `file-mode-owner-v1`, `optional-file-root-files-mode-v1`, `suid-sgid-applications-mode-v1`, `standard-system-paths-mode-v1`, `startup-files-write-protection-v1`, `kernel-cmdline-grub-v1`, `pam-wheel-su-v1` и `sshd-config-option-v1`.
 Каждый механизм проверяется сквозным тестом встроенного dispatcher
 (`tests/product-v1/test_apply_dispatch_integration.py`) и VM-прогоном;
 у `kernel-cmdline-grub-v1` VM-прогон выполнен 24.09.2026 на 7 средах (артефакт `d840ede3…c8aa`):
