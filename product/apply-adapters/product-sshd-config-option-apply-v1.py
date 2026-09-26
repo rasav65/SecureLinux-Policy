@@ -576,29 +576,98 @@ def admin_users(groups):
     return users
 
 
+MAX_SYMLINK_HOPS = 40
+
+
+def _walk_path(root, path):
+    """Разбор пути `path` (как его видит система; в тестовом дереве — от его корня), как при обращении ядра: по одному компоненту, со всеми переходами по
+    символическим ссылкам (цель ссылки разбирается так же, от «/» или от текущего каталога).
+
+    Возвращает (фактический путь, каталоги, через которые проходит разбор — для каждого нужен
+    бит прохода) или None: объект отсутствует, петля ссылок, выход за корень тестового дерева.
+    В тестовом дереве (`_root`) предки его корня не проверяются, прочие каталоги вне корня —
+    отказ; в рабочей системе корень — «/»."""
+    anchor = os.path.realpath(root) if root is not None else "/"
+    prefix = anchor.rstrip("/") + "/"
+
+    def inside(p):
+        return p == anchor or p.startswith(prefix)
+
+    def ancestor_of_anchor(p):
+        return anchor == p or anchor.startswith(p.rstrip("/") + "/")
+
+    pending = [part for part in path.split("/") if part]
+    current, walked, hops = anchor, [], 0
+    while pending:
+        part = pending.pop(0)
+        if part == ".":
+            continue
+        if inside(current):
+            walked.append(current)
+        elif not ancestor_of_anchor(current):
+            return None
+        if part == "..":
+            current = os.path.dirname(current)
+            continue
+        candidate = os.path.join(current, part)
+        try:
+            st = os.lstat(candidate)
+        except OSError:
+            return None
+        if stat.S_ISLNK(st.st_mode):
+            hops += 1
+            if hops > MAX_SYMLINK_HOPS:
+                return None
+            try:
+                target = os.readlink(candidate)
+            except OSError:
+                return None
+            pending = [p for p in target.split("/") if p] + pending
+            if target.startswith("/"):
+                current = "/"
+            continue
+        if pending and not stat.S_ISDIR(st.st_mode):
+            return None
+        current = candidate
+    if not inside(current):
+        return None
+    return current, walked
+
+
+def _strict_chain(root, path, real_home):
+    """Каталоги, которые проверяет StrictModes sshd (auth_secure_path): от каталога файла вверх
+    до домашнего каталога включительно, а если файл вне него — до «/» (в тестовом дереве —
+    до его корня)."""
+    anchor = os.path.realpath(root) if root is not None else "/"
+    chain, current = [], os.path.dirname(path)
+    while True:
+        chain.append(current)
+        if current == real_home or current == anchor or current == "/":
+            return chain
+        current = os.path.dirname(current)
+
+
 def _has_key(root, home, uid, gids, rel, strict):
     """Пригодный ключ: непустой файл, который администратор может прочитать, пройдя по всем
-    каталогам фактического (после разрешения ссылок) пути от «/» — sshd читает ключи от имени
-    пользователя; при StrictModes — ещё и права файла, `~/.ssh` и домашнего каталога (иначе
-    sshd ключ отвергнет). В тестовом дереве (`_root`) путь проверяется от его корня."""
-    if not home.startswith("/"):
+    каталогам фактического пути от «/» — с разбором каждой символической ссылки по пути и
+    проверкой каталогов её цели (sshd читает ключи от имени пользователя); при StrictModes —
+    ещё права файла и каталогов от файла до домашнего каталога (иначе sshd ключ отвергнет).
+    В тестовом дереве (`_root`) путь проверяется от его корня."""
+    if not home.startswith("/") or rel.startswith("/"):
         return False
-    anchor = os.path.realpath(root) if root is not None else "/"
-    real_home = os.path.realpath(_p(root, home.rstrip("/") or "/"))
-    if real_home != anchor and not real_home.startswith(anchor.rstrip("/") + "/"):
+    user_path = home.rstrip("/") + "/" + rel
+    resolved = _walk_path(root, user_path)
+    home_resolved = _walk_path(root, home)
+    if resolved is None or home_resolved is None:
         return False
-    tail = [part for part in real_home[len(anchor):].split("/") if part]
-    walk = [anchor] + [os.path.join(anchor, *tail[:i]) for i in range(1, len(tail) + 1)]
-    key_dirs = [real_home]
-    for part in rel.split("/")[:-1]:
-        key_dirs.append(os.path.join(key_dirs[-1], part))
-    path = os.path.join(real_home, rel)
-    if not all(_user_may(root, d, uid, gids, 1) for d in walk + key_dirs[1:]):
+    path, walked = resolved
+    if not all(_user_may(root, d, uid, gids, 1) for d in walked):
         return False
     if not _user_may(root, path, uid, gids, 4):
         return False
     if strict:
-        if not all(_strict_ok(root, d, uid) for d in key_dirs) or not _strict_ok(root, path, uid):
+        chain = _strict_chain(root, path, home_resolved[0])
+        if not _strict_ok(root, path, uid) or not all(_strict_ok(root, d, uid) for d in chain):
             return False
     try:
         raw, _st = _read_regular(path, _other("keys:invalid-type"))

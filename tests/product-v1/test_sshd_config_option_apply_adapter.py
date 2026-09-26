@@ -269,22 +269,26 @@ class Apply(unittest.TestCase):
             self.assertNotEqual(getattr(tree, "compensation_checked", None), False, tree.root)
 
     def assert_state(self, t, config, dropin, file_modes, tmp_left):
-        """Итоговое состояние после FAILED_COMPENSATION — всё дерево /etc/ssh (B-02 аудита
-        e11ad4c..943483a): основной файл и drop-in с ожидаемыми байтами, прочие объекты без
-        изменений; у всех прежних объектов прежние тип, полный режим, UID и GID; из новых
-        объектов — только перечисленные временные файлы, обычные файлы."""
+        """Итоговое состояние после FAILED_COMPENSATION — всё дерево /etc/ssh сравнивается целиком
+        с ожидаемым (B-02 аудитов e11ad4c..943483a и 943483a..74aaa70): основной файл и drop-in
+        с ожидаемыми байтами, прочие объекты без изменений, у всех прежних объектов прежние тип,
+        полный режим, UID и GID. `tmp_left` — {относительный путь временного файла: байты};
+        временный файл — обычный файл с полным режимом, UID и GID своего целевого файла
+        (_stage_file: fchown и fchmod до fsync); других новых объектов нет."""
         self.assertEqual((t.config(), t.dropin()), (config, dropin))
         self.assertEqual(modes(t), file_modes)
-        self.assertEqual(leftovers(t), sorted(tmp_left))
         before, after = t.last_states
         expected = dict(before)
         for name, text in (("sshd_config", config), ("sshd_config.d/50-cloud-init.conf", dropin)):
             kind, mode, _data, uid, gid = expected[name]
             expected[name] = (kind, mode, text.encode("utf-8", "surrogateescape"), uid, gid)
-        new = {k: v for k, v in after.items() if k not in before}
-        self.assertEqual({k: v for k, v in after.items() if k in before}, expected)
-        self.assertEqual(sorted(k.rsplit("/", 1)[-1] for k in new), sorted(tmp_left))
-        self.assertTrue(all(v[0] == stat.S_IFREG for v in new.values()), new)
+        for rel, data in tmp_left.items():
+            self.assertTrue(rel.endswith(A.TMP_SUFFIX), rel)
+            self.assertNotIn(rel, before)
+            self.assertIn(rel[:-len(A.TMP_SUFFIX)], before)
+            _kind, mode, _data, uid, gid = before[rel[:-len(A.TMP_SUFFIX)]]
+            expected[rel] = (stat.S_IFREG, mode, data, uid, gid)
+        self.assertEqual(after, expected)
         t.compensation_checked = True
 
     def test_control_yaml_matches_adapter_keys(self):
@@ -558,7 +562,7 @@ class Apply(unittest.TestCase):
             self.assertEqual((r["outcome"], r["reason"]), ("FAILED_COMPENSATION", "reload:failed"))
             self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
             self.assertEqual(t.names().count("systemctl"), 2)
-            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), [])
+            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), {})
         with tempfile.TemporaryDirectory() as td:
             t = Tree(td)
             real_run = t.run
@@ -679,9 +683,9 @@ class Apply(unittest.TestCase):
                                  ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
                 self.assertEqual(A.outcome_rc_contribution(r["outcome"]), "nonzero")
                 if write is bad_write:
-                    self.assert_state(t, STOCK_CONFIG + "# damaged\n", CLOUD_INIT + "# damaged\n", (0o644, 0o600), [])
+                    self.assert_state(t, STOCK_CONFIG + "# damaged\n", CLOUD_INIT + "# damaged\n", (0o644, 0o600), {})
                 else:
-                    self.assert_state(t, stock_with("PasswordAuthentication", "PasswordAuthentication no\n"), "PasswordAuthentication no\n", (0o644, 0o600), [])
+                    self.assert_state(t, stock_with("PasswordAuthentication", "PasswordAuthentication no\n"), "PasswordAuthentication no\n", (0o644, 0o600), {})
 
     def test_short_writes_are_completed(self):
         # B-05: os.write, записывающий по 3 байта, даёт полный файл.
@@ -838,7 +842,7 @@ class Apply(unittest.TestCase):
             self.assertEqual((r["outcome"], r["reason"], r["mutation_performed"]),
                              ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
             self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
-            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), [])
+            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), {})
 
     def test_discard_error_does_not_stop_restore(self):
         # B-09: ошибка удаления временного файла не останавливает возврат заменённых файлов.
@@ -864,7 +868,8 @@ class Apply(unittest.TestCase):
                              ("FAILED_COMPENSATION", "sshd-config:write-failed", True))
             self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
             self.assertNotIn("systemctl", t.names())
-            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), ["50-cloud-init.conf" + A.TMP_SUFFIX])
+            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600),
+                              {"sshd_config.d/50-cloud-init.conf" + A.TMP_SUFFIX: b"PasswordAuthentication no\n"})
 
     def test_restore_replace_error_removes_temporary_file(self):
         # B-10: ошибка восстановительной замены не оставляет .slp-tmp.
@@ -891,7 +896,7 @@ class Apply(unittest.TestCase):
                              ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
             self.assertEqual(leftovers(t), [])
             self.assertEqual(t.config(), STOCK_CONFIG)
-            self.assert_state(t, STOCK_CONFIG, "PasswordAuthentication no\n", (0o644, 0o600), [])
+            self.assert_state(t, STOCK_CONFIG, "PasswordAuthentication no\n", (0o644, 0o600), {})
 
     def test_stage_error_with_cleanup_error_is_failed_compensation(self):
         # B-11: ошибка fsync при подготовке и ошибка удаления временного файла.
@@ -914,7 +919,8 @@ class Apply(unittest.TestCase):
             self.assertEqual(t.config(), STOCK_CONFIG)
             self.assertEqual(leftovers(t), ["sshd_config" + A.TMP_SUFFIX])
             self.assertNotIn("systemctl", t.names())
-            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), ["sshd_config" + A.TMP_SUFFIX])
+            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600),
+                              {"sshd_config" + A.TMP_SUFFIX: stock_with("PermitRootLogin", "PermitRootLogin no\n").encode()})
 
     def test_restore_stage_error_with_cleanup_error_is_failed_compensation(self):
         # B-11: та же пара ошибок при восстановлении; возврат остальных файлов продолжается.
@@ -947,7 +953,8 @@ class Apply(unittest.TestCase):
                              ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
             self.assertEqual(t.config(), STOCK_CONFIG)
             self.assertEqual(t.dropin(), "PasswordAuthentication no\n")
-            self.assert_state(t, STOCK_CONFIG, "PasswordAuthentication no\n", (0o644, 0o600), ["50-cloud-init.conf" + A.TMP_SUFFIX])
+            self.assert_state(t, STOCK_CONFIG, "PasswordAuthentication no\n", (0o644, 0o600),
+                              {"sshd_config.d/50-cloud-init.conf" + A.TMP_SUFFIX: CLOUD_INIT.encode()})
 
     def test_stage_error_with_successful_cleanup_is_not_committed(self):
         with tempfile.TemporaryDirectory() as td:
@@ -1018,7 +1025,35 @@ class Apply(unittest.TestCase):
             self.assertEqual(leftovers(t), ["sshd_config" + A.TMP_SUFFIX])
             self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
             self.assertEqual(modes(t), (0o644, 0o600))
-            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), ["sshd_config" + A.TMP_SUFFIX])
+            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600),
+                              {"sshd_config" + A.TMP_SUFFIX: stock_with("PermitRootLogin", "PermitRootLogin no\n").encode()})
+
+            # Проверка самой assert_state: расхождение байтов, режима, пути или лишний объект
+            # временного файла отвергается (B-02 аудита 943483a..74aaa70).
+            tmp = t.cfg.parent / ("sshd_config" + A.TMP_SUFFIX)
+            good = stock_with("PermitRootLogin", "PermitRootLogin no\n").encode()
+            wrong = (
+                {"sshd_config" + A.TMP_SUFFIX: good + b"x"},
+                {"sshd_config.d/sshd_config" + A.TMP_SUFFIX: good},
+                {},
+            )
+            for tmp_left in wrong:
+                with self.subTest(tmp_left=list(tmp_left)):
+                    with self.assertRaises(AssertionError):
+                        self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), tmp_left)
+            before, after = t.last_states
+            for changed in ((stat.S_IFREG, 0o600, good, 0, 0), (stat.S_IFREG, 0o644, good, 4444, 0)):
+                with self.subTest(changed=changed[1::2]):
+                    t.last_states = (before, dict(after, **{"sshd_config" + A.TMP_SUFFIX: changed}))
+                    with self.assertRaises(AssertionError):
+                        self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600),
+                                          {"sshd_config" + A.TMP_SUFFIX: good})
+            t.last_states = (before, dict(after, extra=(stat.S_IFREG, 0o644, b"", 0, 0)))
+            with self.assertRaises(AssertionError):
+                self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), {"sshd_config" + A.TMP_SUFFIX: good})
+            t.last_states = (before, after)
+            self.assertTrue(tmp.exists())
+            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), {"sshd_config" + A.TMP_SUFFIX: good})
 
     def test_restore_verification_close_error_continues(self):
         # B-13: ошибка close при сверке восстановления — FAILED_COMPENSATION, остальные файлы возвращаются.
@@ -1042,7 +1077,7 @@ class Apply(unittest.TestCase):
                              ("FAILED_COMPENSATION", "sshd-config:validation-failed", True))
             self.assertEqual((t.config(), t.dropin()), (STOCK_CONFIG, CLOUD_INIT))
             self.assertEqual((modes(t), leftovers(t)), ((0o644, 0o600), []))
-            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), [])
+            self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), {})
 
     def test_owner_is_set_before_full_mode(self):
         # B-14: fchown раньше fchmod; режим восстанавливается полностью, включая SUID.
@@ -1336,6 +1371,83 @@ class Apply(unittest.TestCase):
             srv = os.path.realpath(t.root / "srv")
             with self._stat_override({srv: (0o700, 4444, 4444)}):
                 self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", False, True)])
+            self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", True, True)])
+
+    def test_symlinked_ssh_dir_target_ancestors_are_checked(self):
+        # B-01 аудита 943483a..74aaa70: ~/.ssh — ссылка на srv/private/keys; проход нужен и по
+        # каталогам цели ссылки (srv, srv/private), а не только по домашнему каталогу.
+        me, gid = os.geteuid(), os.getegid()
+        if gid == 4444:
+            self.skipTest("gid 4444 занят текущим пользователем")
+        for target_kind in ("absolute", "relative"):
+            with self.subTest(target=target_kind), tempfile.TemporaryDirectory() as td:
+                t = Tree(td, key=None)
+                t.extra = {"strictmodes": "no"}
+                keys = t.root / "srv/private/keys"
+                keys.mkdir(parents=True)
+                (keys / "authorized_keys").write_text(KEY, encoding="utf-8")
+                (keys / "authorized_keys").chmod(0o600)
+                home = t.root / "home/user"
+                home.mkdir(parents=True)
+                target = keys if target_kind == "absolute" else Path("../../srv/private/keys")
+                (home / ".ssh").symlink_to(target)
+                private = os.path.realpath(t.root / "srv/private")
+                with self._stat_override({private: (0o700, 4444, 4444)}):
+                    self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", False, True)])
+                with self._stat_override({private: (0o701, 4444, 4444)}):
+                    self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", True, True)])
+                self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", True, True)])
+
+    def test_symlink_chain_and_loop_in_key_path(self):
+        # Цепочка ссылок: проверяются каталоги каждой промежуточной цели; петля — ключа нет.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td, key=None)
+            t.extra = {"strictmodes": "no"}
+            keys = t.root / "opt/b/keys"
+            keys.mkdir(parents=True)
+            (keys / "authorized_keys").write_text(KEY, encoding="utf-8")
+            (t.root / "opt/a").mkdir()
+            (t.root / "opt/a/hop").symlink_to(t.root / "opt/b/keys")
+            home = t.root / "home/user"
+            home.mkdir(parents=True)
+            (home / ".ssh").symlink_to(t.root / "opt/a/hop")
+            a_dir = os.path.realpath(t.root / "opt/a")
+            with self._stat_override({a_dir: (0o700, 4444, 4444)}):
+                self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", False, True)])
+            self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", True, True)])
+            (t.root / "opt/a/hop").unlink()
+            (t.root / "opt/a/hop").symlink_to(t.root / "opt/a/hop")
+            self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", False, True)])
+
+    def test_key_path_escaping_test_root_is_not_counted(self):
+        # Ссылка за пределы проверяемого корня: каталоги вне него не проверить — ключа нет.
+        with tempfile.TemporaryDirectory() as outside, tempfile.TemporaryDirectory() as td:
+            (Path(outside) / "authorized_keys").write_text(KEY, encoding="utf-8")
+            t = Tree(td, key=None)
+            t.extra = {"strictmodes": "no"}
+            home = t.root / "home/user"
+            home.mkdir(parents=True)
+            (home / ".ssh").symlink_to(outside)
+            self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", False, True)])
+
+    def test_strict_modes_checks_real_parent_chain_of_key(self):
+        # StrictModes: каталоги от фактического каталога ключа вверх до домашнего каталога, а если
+        # ключ вне его — до корня (auth_secure_path sshd); запись группы в любом — ключ отвергнут.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td, key=None)
+            keys = t.root / "srv/private/keys"
+            keys.mkdir(parents=True)
+            (keys / "authorized_keys").write_text(KEY, encoding="utf-8")
+            (keys / "authorized_keys").chmod(0o600)
+            for d in (t.root / "srv", t.root / "srv/private", keys):
+                d.chmod(0o755)
+            home = t.root / "home/user"
+            home.mkdir(parents=True)
+            (home / ".ssh").symlink_to(keys)
+            self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", True, True)])
+            (t.root / "srv").chmod(0o775)
+            self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", False, True)])
+            t.extra = {"strictmodes": "no"}
             self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", True, True)])
 
     def test_missing_tools_and_privilege_and_spec(self):
