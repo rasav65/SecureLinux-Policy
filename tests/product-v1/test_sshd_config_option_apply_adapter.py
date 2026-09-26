@@ -1048,6 +1048,11 @@ class Apply(unittest.TestCase):
                     with self.assertRaises(AssertionError):
                         self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600),
                                           {"sshd_config" + A.TMP_SUFFIX: good})
+            # Ожидаемый временный файл отсутствует в after (B-03 аудита 74aaa70..dcc61b7).
+            missing = {k: v for k, v in after.items() if k != "sshd_config" + A.TMP_SUFFIX}
+            t.last_states = (before, missing)
+            with self.assertRaises(AssertionError):
+                self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), {"sshd_config" + A.TMP_SUFFIX: good})
             t.last_states = (before, dict(after, extra=(stat.S_IFREG, 0o644, b"", 0, 0)))
             with self.assertRaises(AssertionError):
                 self.assert_state(t, STOCK_CONFIG, CLOUD_INIT, (0o644, 0o600), {"sshd_config" + A.TMP_SUFFIX: good})
@@ -1429,6 +1434,47 @@ class Apply(unittest.TestCase):
             home.mkdir(parents=True)
             (home / ".ssh").symlink_to(outside)
             self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", False, True)])
+
+    def test_trailing_slash_link_target_requires_directory(self):
+        # B-01 аудита 74aaa70..dcc61b7: authorized_keys → real_keys/, где real_keys — обычный
+        # файл: открытие даст ENOTDIR, ключ не засчитывается; цель-каталог с «/» разбирается.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td, key=None)
+            t.extra = {"strictmodes": "no"}
+            ssh = t.root / "home/user/.ssh"
+            ssh.mkdir(parents=True)
+            (ssh / "real_keys").write_text(KEY, encoding="utf-8")
+            (ssh / "authorized_keys").symlink_to("real_keys/")
+            self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", False, True)])
+            (ssh / "authorized_keys").unlink()
+            (ssh / "authorized_keys").symlink_to("real_keys")
+            self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", True, True)])
+            (ssh / "authorized_keys").unlink()
+            (ssh / "authorized_keys").symlink_to("./real_keys")
+            (t.root / "home/user/.ssh").rename(t.root / "home/user/.ssh-real")
+            (t.root / "home/user/.ssh").symlink_to(".ssh-real/")
+            self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", True, True)])
+
+    def test_dotdot_out_of_test_root_is_refused(self):
+        # B-02 аудита 74aaa70..dcc61b7: «..» выше корня тестового дерева с возвратом внутрь —
+        # отказ; «..» внутри корня и абсолютная ссылка внутрь дерева — разбираются.
+        with tempfile.TemporaryDirectory() as td:
+            t = Tree(td, key=None)
+            t.extra = {"strictmodes": "no"}
+            keys = t.root / "keys"
+            keys.mkdir()
+            (keys / "authorized_keys").write_text(KEY, encoding="utf-8")
+            home = t.root / "home/user"
+            home.mkdir(parents=True)
+            name = os.path.basename(os.path.realpath(t.root))
+            (home / ".ssh").symlink_to("../../../" + name + "/keys")
+            self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", False, True)])
+            (home / ".ssh").unlink()
+            (home / ".ssh").symlink_to("../../keys")
+            self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", True, True)])
+            (home / ".ssh").unlink()
+            (home / ".ssh").symlink_to(os.path.realpath(keys))
+            self.assertEqual(A.admin_access(str(t.root), t.run, ["user"])[0], [("user", True, True)])
 
     def test_strict_modes_checks_real_parent_chain_of_key(self):
         # StrictModes: каталоги от фактического каталога ключа вверх до домашнего каталога, а если

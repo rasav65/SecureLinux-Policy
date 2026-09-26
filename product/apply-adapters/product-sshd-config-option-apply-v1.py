@@ -584,9 +584,10 @@ def _walk_path(root, path):
     символическим ссылкам (цель ссылки разбирается так же, от «/» или от текущего каталога).
 
     Возвращает (фактический путь, каталоги, через которые проходит разбор — для каждого нужен
-    бит прохода) или None: объект отсутствует, петля ссылок, выход за корень тестового дерева.
+    бит прохода) или None: объект отсутствует, петля ссылок, не-каталог перед «/» (в том числе
+    завершающим «/» цели ссылки — ENOTDIR), выход за корень тестового дерева.
     В тестовом дереве (`_root`) предки его корня не проверяются, прочие каталоги вне корня —
-    отказ; в рабочей системе корень — «/»."""
+    отказ, «..» из корня или из его предка — отказ; в рабочей системе корень — «/»."""
     anchor = os.path.realpath(root) if root is not None else "/"
     prefix = anchor.rstrip("/") + "/"
 
@@ -596,17 +597,24 @@ def _walk_path(root, path):
     def ancestor_of_anchor(p):
         return anchor == p or anchor.startswith(p.rstrip("/") + "/")
 
-    pending = [part for part in path.split("/") if part]
+    def split(text):
+        # Завершающий «/» — требование каталога: пустой компонент в конце сохраняется.
+        parts = [part for part in text.split("/") if part]
+        return parts + [""] if parts and text.endswith("/") else parts
+
+    pending = split(path)
     current, walked, hops = anchor, [], 0
     while pending:
         part = pending.pop(0)
-        if part == ".":
+        if part in (".", ""):
             continue
         if inside(current):
             walked.append(current)
         elif not ancestor_of_anchor(current):
             return None
         if part == "..":
+            if root is not None and not current.startswith(prefix):
+                return None
             current = os.path.dirname(current)
             continue
         candidate = os.path.join(current, part)
@@ -622,7 +630,7 @@ def _walk_path(root, path):
                 target = os.readlink(candidate)
             except OSError:
                 return None
-            pending = [p for p in target.split("/") if p] + pending
+            pending = split(target) + pending
             if target.startswith("/"):
                 current = "/"
             continue

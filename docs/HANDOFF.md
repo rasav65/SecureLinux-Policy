@@ -114,6 +114,10 @@
    основном `sshd_config` на всех 7 средах есть шаблоны `#PermitRootLogin`,
    `#PasswordAuthentication`, `#PermitEmptyPasswords` после `Include`; `~user/.ssh/authorized_keys`
    пуст (Ubuntu) или отсутствует (Debian).
+   Граница проверки ключа администратора (решение пользователя 26.09.2026, принят остаточный
+   риск): вне объёма — ACL, SELinux/AppArmor, NSS не из файлов (LDAP/SSSD),
+   `AuthorizedKeysCommand`; настройка, которую механизм проверить не может, — администратор не
+   засчитывается, APPLY отказывает. Дальнейшие ошибки механизма выявляет ВМ-прогон.
    Факты разведки 25.09.2026 (7 сред, `docs/testing-strategy.md`): auditd, libpam-pwquality,
    telnetd, vsftpd, snmpd, fail2ban отсутствуют; `pam_faillock.so` и `pam_pwhistory.so`
    есть, но в `common-auth`/`common-password` не подключены; `common-auth` — `pam_unix.so
