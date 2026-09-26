@@ -20,6 +20,7 @@
 - `contracts/optional-file-root-files-mode-check-semantic-v1.json` — read-only contract для optional system-cron root + direct regular files; missing root = `VALUE/PASS`, неоднозначный nested/symlink/special population = `ERROR`;
 - `contracts/local-account-password-state-check-semantic-v2.json` — current read-only aggregate contract для локальных `/etc/passwd` accounts + source-anchored `/etc/shadow`; NUL/CR и malformed mapping отвергаются до Bash line parsing; empty password field = `FAIL`;
 - `contracts/sshd-root-login-check-semantic-v1.json` — read-only source-faithful contract SRC-0002: main `/etc/ssh/sshd_config` обязан содержать global `PermitRootLogin no`, а `sshd -t/-T` подтверждают синтаксис и effective `no`; Include/Match ambiguity fail-closed;
+- `contracts/sshd-config-option-check-semantic-v1.json` — read-only contract SRC-0088 (fstec-configuration-2026 п.9.1): один контроль на директиву `PermitEmptyPasswords`, `PermitRootLogin` или `PasswordAuthentication`; основной `/etc/ssh/sshd_config` обязан содержать глобальную директиву этого ключа со значением `no`, effective по `sshd -T` — тоже `no`; Include/Match ambiguity fail-closed;
 - `contracts/pam-wheel-access-check-semantic-v2.json` — current read-only aggregate contract SRC-0003: source-exact PAM rule + local `wheel` record (по имени, GID любой) с `root` в участниках; прочие участники не оцениваются, authority-файл не читается; штатная `auth sufficient pam_rootok.so` перед правилом допустима, прочий prior `auth`/`-auth` success-short-circuit/include перед правилом fails closed;
 - `contracts/sudoers-reviewed-policy-check-semantic-v1.json` — read-only aggregate contract SRC-0004: правила пользователей активной политики sudoers — только три штатных правила;
 - `contracts/cron-command-paths-write-protection-check-semantic-v1.json` — read-only aggregate contract SRC-0007 для persistent cron command target population и exact `go-w` file protection;
@@ -36,6 +37,7 @@
 - `adapters/product-optional-file-root-files-mode-check-v1.py` + JSON binding; только `stat/find/sort`, без chmod/chown/APPLY;
 - `adapters/product-local-account-password-state-check-v2.py` + JSON binding; raw-byte validation + read-only `/etc/passwd`/`/etc/shadow`, без passwd/usermod/APPLY;
 - `adapters/product-sshd-root-login-check-v1.py` + JSON binding; только чтение SSH config tree и `sshd -t/-T`, без записи/reload/restart/APPLY;
+- `adapters/product-sshd-config-option-check-v1.py` + JSON binding; тот же разбор SSH config tree, что у `sshd-root-login`, для ключа контроля; только чтение и `sshd -t/-T`, без записи/reload/restart/APPLY;
 - `adapters/product-pam-wheel-access-check-v2.py` + JSON binding; только чтение `/etc/pam.d/su` и `/etc/group`, без authority-файла; `-auth` учитывается в PAM stack semantics, group password field не фиксируется в `x`; без group/PAM mutation/APPLY;
 - `adapters/product-sudoers-reviewed-policy-check-v1.py` + JSON binding; только `visudo -c` и `cvtsudoers` JSON для active sudoers closure, без authority-файла, sudoers mutation/APPLY;
 - `adapters/product-cron-command-paths-write-protection-check-v1.py` + JSON binding; isolated `/usr/bin/python3` read-only parser canonical Ubuntu cron sources, fail-closed command resolution и direct `run-parts` target expansion; без host mutation/APPLY;
@@ -139,7 +141,7 @@ exact-eq batch закрыл `SRC-0030`, `SRC-0031`,
 `SRC-0036`–`SRC-0039`; затем `SRC-0040 / 2.6.6` закрыт через
 `fs.suid_dumpable eq 0` после точечного удаления terminal page furniture.
 Покрытие индекса источников описывается тремя числами: 40 строк закрыты
-контролями, 294 закрыты аудированной диспозицией, 15 остаются открытыми.
+контролями, 294 закрыты аудированной диспозицией, 14 остаются открытыми.
 Это машинное состояние индекса, а не процент готовности к требованиям
 ФСТЭК. Семантический контракт `SRC-0008 / 2.3.4` был признан
 недействительным после независимого разбора и переработан: принят
@@ -263,6 +265,15 @@ Control `SUID-SGID-MODE` v2 использует population: все regular SUID
 Один aggregate control `sshd-root-login` представляет source-exact требование `PermitRootLogin no` именно в основном `/etc/ssh/sshd_config`. Простого grep и наличия managed drop-in недостаточно: CHECK рекурсивно учитывает активные `Include` в явном лексикографическом порядке путей, восстанавливает `Match`-scope содержащего файла после каждого Include, проверяет `sshd -t` и effective root-context через `sshd -T -C`. Main-файл должен содержать активную global директиву с семантическим значением `no`; effective value также должен быть `no`.
 
 Глобальные дубли сами по себе не объявляются ошибкой: семантика первого полученного значения проверяется effective-выводом OpenSSH. Парсер проверяемых SSH-директив поддерживает whitespace/один `=` как separator, quoted/escaped arguments, CRLF и token-boundary comment semantics (`#` внутри token не обрезается). Glob population получает явную сортировку; function-shadowing `compgen`, ошибка sort/find/compgen и pathname с переводом строки не могут тихо скрыть Include — это fail-closed `ERROR`. `Match`-scope `PermitRootLogin no` безопасен; non-`no` conditional value, include-cycle, symlink/unreadable/malformed config или иная parser ambiguity дают `ERROR`, а не ложный PASS. APPLY/RESTORE, reload/restart SSH отсутствуют.
+
+## SRC-0088 / fstec-configuration-2026 п.9.1
+
+Три контроля `sshd-config-option` в `controls/fstec-core/configuration-2026` — по одному на
+директиву `PermitEmptyPasswords`, `PermitRootLogin`, `PasswordAuthentication` со значением
+`no`. Семантика та же, что у SRC-0002: строка в основном `/etc/ssh/sshd_config` в
+глобальной области и effective `no` по `sshd -T`; drop-in без строки в основном файле
+требование не выполняет. `PermitRootLogin` проверяется дважды — по SRC-0002 и по SRC-0088:
+это разные требования разных документов. APPLY пока нет.
 
 ## SRC-0003 / 2.2.1
 

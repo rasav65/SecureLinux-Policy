@@ -39,7 +39,10 @@ def registry_rows():
 
 ROWS = registry_rows()
 BY_KIND = {row["parameter_kind"]: row for row in ROWS}
-CONTROLS = {path.name: control_facts(path) for path in sorted(CONTROLS_DIR.glob("*.yaml"))}
+CONTROLS = {
+    path.name: control_facts(path)
+    for path in sorted((ROOT / "controls" / "fstec-core").glob("*/*.yaml"))
+}
 
 class ControlContractBinding(unittest.TestCase):
     def test_every_control_declares_kind_and_op(self):

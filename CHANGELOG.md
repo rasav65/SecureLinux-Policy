@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+- fstec-configuration-2026 п.9.1 (SRC-0088): CHECK-адаптер `sshd-config-option` и три
+  контроля в `controls/fstec-core/configuration-2026` — `PermitEmptyPasswords no`,
+  `PermitRootLogin no`, `PasswordAuthentication no` в основном `/etc/ssh/sshd_config` и
+  effective `no` по `sshd -T`. Закрывает 1 строку source index (exact-control-set). Было:
+  закрыто 334 из 349, контролями 40, открыто 15. Стало: закрыто 335, контролями 41,
+  открыто 14; контролей 52. APPLY у новых контролей нет (следующий этап). Меняет
+  продукт: новый кандидат требует ВМ-прогона; по разведке 25.09.2026 на 7 средах
+  ожидается FAIL всех трёх (в основном файле таких строк нет).
+
 - Тесты рендера каталогов контролей по B-02 аудита `21fd922..55fbd35`: отказ
   `control_manifest_rows` на каталог с YAML без манифеста, оборванный symlink, обычный
   файл и недопустимое имя каталога. Только тесты; строк source index не закрывает,

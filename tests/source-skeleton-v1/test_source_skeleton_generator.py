@@ -34,8 +34,11 @@ def sha(path: Path) -> str:
 
 
 def current_control_count() -> int:
-    with CONTROL_MANIFEST.open(encoding="utf-8", newline="") as stream:
-        return sum(1 for _ in csv.DictReader(stream, delimiter="\t"))
+    total = 0
+    for manifest in sorted((ROOT / "controls/fstec-core").glob("*/CONTROL-MANIFEST.tsv")):
+        with manifest.open(encoding="utf-8", newline="") as stream:
+            total += sum(1 for _ in csv.DictReader(stream, delimiter="\t"))
+    return total
 
 
 

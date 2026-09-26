@@ -84,11 +84,11 @@
 Решения 25.09.2026 приняты по делегированию человека. Источник пунктов
 вне репозитория — файл очереди `SecureLinux-Policy-20260923-v70.txt` (далее v70).
 
-1. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: 15 OPEN-строк
+1. Step 7B `FSTEC_AND_CORPORATE_INDEX_EXPANSION_DISPOSITIONS`: 14 OPEN-строк
    `index/source-v4/SOURCE-INDEX.tsv`, все `technical-core` — кандидаты в контроли:
    fstec-configuration-2026 п.1.1 (парольная политика `login.defs`, `pam_pwquality`,
    `pam_faillock`), 1.2 (история паролей), 10.5 (правило auditd для записи в `/`),
-   8.4 (события SSH), 9.1 (`sshd_config`), 11.2 (Telnet, FTP, SNMPv1/v2c);
+   8.4 (события SSH), 11.2 (Telnet, FTP, SNMPv1/v2c);
    fstec-logging-2025 п.1, 3, 4, 5, 7 и приложение 2 п.1–4 (auditd).
    Решения пользователя 25.09.2026: контроли каждого документа — в своём каталоге
    (`controls/fstec-core/configuration-2026`, `controls/fstec-core/logging-2025`) со
@@ -99,7 +99,7 @@
    читают все `controls/fstec-core/<каталог>/CONTROL-MANIFEST.tsv`;
    а) выполнено: `tools/source_skeleton_generator.py` поддерживает
    `unit_kind=numbered-subpoint`, для SRC-0088 — `EXACT`;
-   б) CHECK-адаптер `sshd-config-option` по образцу `sshd-root-login` (директива в
+   б) выполнено: CHECK-адаптер `sshd-config-option` по образцу `sshd-root-login` (директива в
    основном `/etc/ssh/sshd_config` в глобальной области и эффективное значение
    `sshd -T`); по этой семантике на 7 средах ожидается FAIL всех трёх контролей;
    в) механизм APPLY для `sshd_config` и ВМ-прогон.

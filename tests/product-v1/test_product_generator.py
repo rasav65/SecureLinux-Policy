@@ -324,8 +324,8 @@ class GeneratorModel(unittest.TestCase):
         rows, manifest_sha, adapters, registry_sha, controls = self.load_current()
         self.assertEqual(len(rows), len(controls))
         self.assertGreaterEqual(len(controls), 8)
-        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "cron-command-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy", "sudo-root-command-files-protection", "startup-files-write-protection"} <= set(adapters))
-        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "cron-command-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy", "sudo-root-command-files-protection", "startup-files-write-protection"})
+        self.assertTrue({"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "cron-command-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy", "sudo-root-command-files-protection", "startup-files-write-protection", "sshd-config-option"} <= set(adapters))
+        self.assertEqual({c["parameter_kind"] for c in controls}, {"sysctl", "file-mode-owner", "kernel-cmdline", "optional-file-root-files-mode", "local-account-password-state", "user-cron-files-mode", "standard-system-paths-mode", "running-process-paths-write-protection", "cron-command-paths-write-protection", "suid-sgid-applications", "home-sensitive-files-mode", "home-directories-mode", "sshd-root-login", "pam-wheel-access", "sudoers-reviewed-policy", "sudo-root-command-files-protection", "startup-files-write-protection", "sshd-config-option"})
         src0002 = [c for c in controls if c["index_id"] == "SRC-0002"]
         self.assertEqual(len(src0002), 1)
         self.assertEqual(
@@ -504,9 +504,14 @@ class GeneratorModel(unittest.TestCase):
                 "FSTEC-LINUX-2022-2.5.9-TSX": ("SRC-0032", "/proc/cmdline", "tsx", "eq", "off"),
             },
         )
+        # Два каталога документов: сводный SHA — перечень «SHA  путь» манифестов.
         self.assertEqual(
             manifest_sha,
-            sha256_file(ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"),
+            hashlib.sha256("".join(
+                f"{sha256_file(ROOT / 'controls/fstec-core' / n / 'CONTROL-MANIFEST.tsv')}  "
+                f"controls/fstec-core/{n}/CONTROL-MANIFEST.tsv\n"
+                for n in ("configuration-2026", "linux-2022")
+            ).encode("utf-8")).hexdigest(),
         )
         self.assertEqual(registry_sha, sha256_file(ROOT / "product/ADAPTER-REGISTRY.tsv"))
 
@@ -540,7 +545,7 @@ class GeneratorModel(unittest.TestCase):
             if "error" in wire_values:
                 self.assertNotEqual(wire_values["error"], "-")
 
-        self.assertEqual(error_value_count, 10)
+        self.assertEqual(error_value_count, 11)
         historical = {
             "product/contracts/sysctl-check-semantic-v1.json",
             "product/contracts/kernel-cmdline-check-semantic-v1.json",
@@ -5082,9 +5087,10 @@ SLP_POLICY_RC=1
         identities = {control["control_id"]: GEN_V2_CURRENT.terminal_identity(control) for control in controls}
         # Литерал: число canonical controls меняется только явным решением
         # (51 → 50: выведен 2.5.11 RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE;
-        # 50 → 49: выведен 2.3.9 SUID-SGID-ALLOWLIST).
-        self.assertEqual(len(rendered), 49)
-        self.assertEqual(len(identities), 49)
+        # 50 → 49: выведен 2.3.9 SUID-SGID-ALLOWLIST;
+        # 49 → 52: три контроля fstec-configuration-2026 п.9.1, SRC-0088).
+        self.assertEqual(len(rendered), 52)
+        self.assertEqual(len(identities), 52)
         self.assertTrue(all(value and "\n" not in value and "\r" not in value for value in rendered.values()))
         self.assertEqual(identities["FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE"], ("fstec-linux-2022 §2.6.6", "suid-dumpable"))
         self.assertNotIn("FSTEC-LINUX-2022-2.5.11-RANDOMIZE-VA-SPACE-TESTED-BEFORE-USE", identities)
@@ -7484,6 +7490,92 @@ class HomeSensitiveReasonRenderFormat(unittest.TestCase):
         self.assertEqual(reconstructed, "not-determined; reason: " + reason)
 
 
+SSHD_OPTION_ADAPTER_PATH = ROOT / "product" / "adapters" / "product-sshd-config-option-check-v1.py"
+_sshd_opt_spec = importlib.util.spec_from_file_location("slp_sshd_option_adapter", SSHD_OPTION_ADAPTER_PATH)
+SSHD_OPTION = importlib.util.module_from_spec(_sshd_opt_spec)
+_sshd_opt_spec.loader.exec_module(SSHD_OPTION)
+
+
+class SshdConfigOptionAdapterTests(unittest.TestCase):
+    """SRC-0088: одна глобальная директива основного sshd_config со значением no."""
+
+    def run_fixture(self, key, config_text, effective="no", syntax_rc=0):
+        if BASH is None:
+            self.skipTest("bash not found")
+        with tempfile.TemporaryDirectory(dir=ROOT) as td:
+            root = Path(td)
+            cfg = root / "sshd_config"
+            cfg.write_text(config_text.replace("/etc/ssh/TEST-INCLUDE.conf", str(root / "TEST-INCLUDE.conf")),
+                           encoding="utf-8")
+            (root / "TEST-INCLUDE.conf").write_text(f"{key} yes\n", encoding="utf-8")
+            sshd = root / "sshd"
+            sshd.write_text(
+                "#!/usr/bin/env bash\n"
+                "if [[ ${1:-} == -t ]]; then exit " + str(syntax_rc) + "; fi\n"
+                "if [[ ${1:-} == -T ]]; then printf '%s\\n' 'usepam yes' '" + key.lower() + " " + effective + "'; exit 0; fi\n"
+                "exit 2\n",
+                encoding="utf-8",
+            )
+            sshd.chmod(0o755)
+            block = SSHD_OPTION._shell_function_for_fixture("SSH.OPT", str(cfg), str(sshd), key, "eq", "no")
+            cp = subprocess.run([BASH, "-c", "set -u\n" + block + "\nslp_check_SSH_OPT\n"],
+                                text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            return cp.stdout.strip().split("\t")
+
+    def test_each_key_main_global_no_passes(self):
+        for key in SSHD_OPTION.SUPPORTED_KEYS:
+            with self.subTest(key=key):
+                row = self.run_fixture(key, f"{key} no\n")
+                self.assertEqual((row[2], row[4]), ("VALUE", "PASS"))
+                self.assertEqual(row[3], "main_global_no=1;effective=no")
+
+    def test_missing_main_directive_fails_even_if_effective_no(self):
+        for key in SSHD_OPTION.SUPPORTED_KEYS:
+            with self.subTest(key=key):
+                row = self.run_fixture(key, "UsePAM yes\n")
+                self.assertEqual((row[2], row[3], row[4]), ("VALUE", "main_global_no=0;effective=no", "FAIL"))
+
+    def test_other_key_does_not_satisfy_control(self):
+        row = self.run_fixture("PasswordAuthentication", "PermitRootLogin no\nPermitEmptyPasswords no\n")
+        self.assertEqual((row[3], row[4]), ("main_global_no=0;effective=no", "FAIL"))
+
+    def test_effective_yes_from_earlier_include_fails(self):
+        row = self.run_fixture("PasswordAuthentication",
+                               "Include /etc/ssh/TEST-INCLUDE.conf\nPasswordAuthentication no\n", effective="yes")
+        self.assertEqual((row[2], row[3], row[4]), ("VALUE", "main_global_no=1;effective=yes", "FAIL"))
+
+    def test_match_scope_non_no_is_error(self):
+        row = self.run_fixture("PermitEmptyPasswords", "PermitEmptyPasswords no\nMatch User root\nPermitEmptyPasswords yes\n")
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "sshd-config:ambiguous-match", "ERROR"))
+
+    def test_malformed_directive_is_error(self):
+        row = self.run_fixture("PasswordAuthentication", "PasswordAuthentication no extra\n")
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "sshd-config:invalid-directive", "ERROR"))
+
+    def test_syntax_failure_is_error(self):
+        row = self.run_fixture("PermitRootLogin", "PermitRootLogin no\n", syntax_rc=255)
+        self.assertEqual((row[2], row[3], row[4]), ("ERROR", "sshd-config:validation-failed", "ERROR"))
+
+    def test_contract_fields_are_closed(self):
+        for args in (
+            ("C", "/etc/ssh/sshd_config.d/x.conf", "PasswordAuthentication", "eq", "no"),
+            ("C", "/etc/ssh/sshd_config", "UsePAM", "eq", "no"),
+            ("C", "/etc/ssh/sshd_config", "passwordauthentication", "eq", "no"),
+            ("C", "/etc/ssh/sshd_config", "PasswordAuthentication", "contains", "no"),
+            ("C", "/etc/ssh/sshd_config", "PermitEmptyPasswords", "eq", "yes"),
+        ):
+            with self.subTest(args=args):
+                with self.assertRaises(ValueError):
+                    SSHD_OPTION.shell_function(*args)
+
+    def test_rendered_function_is_read_only(self):
+        for key in SSHD_OPTION.SUPPORTED_KEYS:
+            src = SSHD_OPTION.shell_function("C", "/etc/ssh/sshd_config", key, "eq", "no")
+            for token in SSHD_OPTION.MUTATING_TOKENS:
+                self.assertNotIn(token, src)
+
+
 class ControlDirectoriesTests(unittest.TestCase):
     """Каталог на документ: load_manifest объединяет все CONTROL-MANIFEST.tsv."""
 
@@ -7501,11 +7593,21 @@ class ControlDirectoriesTests(unittest.TestCase):
             (d / "CONTROL-MANIFEST.tsv").write_text("".join(lines), encoding="utf-8")
         return repo
 
-    def test_current_tree_single_manifest_keeps_file_sha(self):
+    def test_current_tree_digest_is_listing_of_all_manifests(self):
         rows, digest = GEN_V2_CURRENT.load_manifest(ROOT)
-        manifest = ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"
-        self.assertEqual(digest, sha256_file(manifest))
-        self.assertEqual({row["dir"] for row in rows}, {"controls/fstec-core/linux-2022"})
+        names = ("configuration-2026", "linux-2022")
+        listing = "".join(
+            f"{sha256_file(ROOT / 'controls/fstec-core' / n / 'CONTROL-MANIFEST.tsv')}  "
+            f"controls/fstec-core/{n}/CONTROL-MANIFEST.tsv\n" for n in names
+        )
+        self.assertEqual(digest, hashlib.sha256(listing.encode("utf-8")).hexdigest())
+        self.assertEqual({row["dir"] for row in rows}, {f"controls/fstec-core/{n}" for n in names})
+
+    def test_single_manifest_keeps_file_sha(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._repo(tmp, {"a-doc": [("A-1", "a-1.yaml")]})
+            _, digest = GEN_V2_CURRENT.load_manifest(repo)
+            self.assertEqual(digest, sha256_file(repo / "controls/fstec-core/a-doc/CONTROL-MANIFEST.tsv"))
 
     def test_two_directories_are_merged_with_listing_digest(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -12,10 +12,15 @@ with (ROOT / "index/source-v4/SOURCE-INDEX.tsv").open(
     encoding="utf-8", newline=""
 ) as stream:
     index_rows = list(csv.DictReader(stream, delimiter="\t"))
-with (ROOT / "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv").open(
-    encoding="utf-8", newline=""
-) as stream:
-    controls = list(csv.DictReader(stream, delimiter="\t"))
+def _all_control_manifest_rows(root):
+    rows = []
+    for manifest in sorted((root / "controls/fstec-core").glob("*/CONTROL-MANIFEST.tsv")):
+        with manifest.open(encoding="utf-8", newline="") as stream:
+            rows.extend(csv.DictReader(stream, delimiter="\t"))
+    return rows
+
+
+controls = _all_control_manifest_rows(ROOT)
 with (ROOT / "product/ADAPTER-REGISTRY.tsv").open(
     encoding="utf-8", newline=""
 ) as stream:

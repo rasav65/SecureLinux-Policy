@@ -171,7 +171,7 @@ checker = run(
         "checker/gates-v3/checker.py",
         "--project-root", ".",
         "--index", "index/source-v4/SOURCE-INDEX.tsv",
-        "--controls", "controls/fstec-core/linux-2022",
+        "--controls", "controls/fstec-core",
     ],
     ROOT,
 )

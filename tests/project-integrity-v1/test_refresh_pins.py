@@ -172,7 +172,11 @@ with tempfile.TemporaryDirectory(prefix="slp-refresh-pins-") as tmp:
         header + "\n" + "\t".join(["FIXTURE-1", "SRC-0016", "2.4.1", "k", "v", y.name, sha256(y)]) + "\n",
         encoding="utf-8",
     )
-    assert tool.control_manifests(copy) == [rel_m, "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv"]
+    assert tool.control_manifests(copy) == [
+        "controls/fstec-core/configuration-2026/CONTROL-MANIFEST.tsv",
+        rel_m,
+        "controls/fstec-core/linux-2022/CONTROL-MANIFEST.tsv",
+    ]
     y.write_bytes(y.read_bytes() + b"# second-directory edit\n")
     rel_y = "controls/fstec-core/fixture-doc/" + y.name
     run_obj = tool.Run(copy, True)

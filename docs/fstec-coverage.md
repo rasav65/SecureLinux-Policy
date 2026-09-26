@@ -6,10 +6,10 @@
 
 ```text
 TOTAL_INDEX_ROWS=349
-CONTROLLED_CLOSED_WITH_CONTRACT=40
+CONTROLLED_CLOSED_WITH_CONTRACT=41
 DISPOSED_CLOSED_ROWS=294
-OPEN_INDEX_ROWS=15
-CANONICAL_CONTROLS=49
+OPEN_INDEX_ROWS=14
+CANONICAL_CONTROLS=52
 ```
 
 Число canonical controls и число закрытых source rows — разные величины: одна строка источника может требовать `exact-control-set` из нескольких controls.
@@ -58,6 +58,7 @@ CANONICAL_CONTROLS=49
 | SRC-0038 | 2.6.4 | atomic-single | `FSTEC-LINUX-2022-2.6.4-PROTECTED-FIFOS` | `sysctl` | `product-sysctl-check-v2` |
 | SRC-0039 | 2.6.5 | atomic-single | `FSTEC-LINUX-2022-2.6.5-PROTECTED-REGULAR` | `sysctl` | `product-sysctl-check-v2` |
 | SRC-0040 | 2.6.6 | atomic-single | `FSTEC-LINUX-2022-2.6.6-SUID-DUMPABLE` | `sysctl` | `product-sysctl-check-v2` |
+| SRC-0088 | 9.1 | exact-control-set | `FSTEC-CONFIGURATION-2026-9.1-SSH-PASSWORD-AUTHENTICATION`<br>`FSTEC-CONFIGURATION-2026-9.1-SSH-PERMIT-EMPTY-PASSWORDS`<br>`FSTEC-CONFIGURATION-2026-9.1-SSH-PERMIT-ROOT-LOGIN` | `sshd-config-option` | `product-sshd-config-option-check-v1` |
 
 ## Canonical controls, которые ещё не закрывают строку source
 
@@ -76,6 +77,7 @@ CANONICAL_CONTROLS=49
 | `optional-file-root-files-mode` | `product-optional-file-root-files-mode-check-v1` | да | 6 |
 | `pam-wheel-access` | `product-pam-wheel-access-check-v2` | да | 1 |
 | `running-process-paths-write-protection` | `product-running-process-paths-write-protection-check-v1` | да | 1 |
+| `sshd-config-option` | `product-sshd-config-option-check-v1` | да | 3 |
 | `sshd-root-login` | `product-sshd-root-login-check-v1` | да | 1 |
 | `standard-system-paths-mode` | `product-standard-system-paths-mode-check-v2` | да | 1 |
 | `startup-files-write-protection` | `product-startup-files-write-protection-check-v1` | да | 1 |
@@ -89,7 +91,7 @@ CANONICAL_CONTROLS=49
 
 | Документ source | Всего строк | Controlled CLOSED | Disposed CLOSED | OPEN | Canonical controls |
 |---|---:|---:|---:|---:|---:|
-| fstec-configuration-2026 | 49 | 0 | 43 | 6 | 0 |
+| fstec-configuration-2026 | 49 | 1 | 43 | 5 | 3 |
 | fstec-linux-2022 | 40 | 40 | 0 | 0 | 49 |
 | fstec-logging-2025 | 14 | 0 | 5 | 9 | 0 |
 | fstec-perimeter-2026 | 35 | 0 | 35 | 0 | 0 |
@@ -102,6 +104,6 @@ CANONICAL_CONTROLS=49
 
 ## Открытая часть корпуса
 
-`15` source rows остаются `OPEN`. Полный перечень и их source metadata находятся в `index/source-v4/SOURCE-INDEX.tsv`; этот документ не дублирует 349 строк вручную.
+`14` source rows остаются `OPEN`. Полный перечень и их source metadata находятся в `index/source-v4/SOURCE-INDEX.tsv`; этот документ не дублирует 349 строк вручную.
 
 Наличие adapter или canonical control само по себе не закрывает source row: закрытие определяется source status и `CLOSURE-CONTRACT.tsv` либо explicit disposition.

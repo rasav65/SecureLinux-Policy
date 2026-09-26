@@ -312,6 +312,18 @@ KIND_RULES = {
             },
         ],
     },
+    "sshd-config-option": {
+        "locator": {"const": "/etc/ssh/sshd_config"},
+        "key": {"enum": ["PasswordAuthentication", "PermitEmptyPasswords", "PermitRootLogin"]},
+        "op": {"const": "eq"},
+        "type": {"const": "string"},
+        "relations": [
+            {
+                "if": {"expected.op": {"const": "eq"}},
+                "then": {"expected.value": {"const": "no"}},
+            },
+        ],
+    },
     "pam-wheel-access": {
         "locator": {"const": "/etc/pam.d/su|/etc/group"},
         "key": {"const": "policy"},

@@ -1751,6 +1751,96 @@
           "parameter": {
             "properties": {
               "kind": {
+                "const": "sshd-config-option"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "no"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "enum": [
+                  "PasswordAuthentication",
+                  "PermitEmptyPasswords",
+                  "PermitRootLogin"
+                ]
+              },
+              "locator": {
+                "const": "/etc/ssh/sshd_config"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
                 "const": "pam-wheel-access"
               }
             },
@@ -2233,6 +2323,7 @@
             "home-sensitive-files-mode",
             "local-account-password-state",
             "sshd-root-login",
+            "sshd-config-option",
             "pam-wheel-access",
             "sudoers-reviewed-policy",
             "mount-option",

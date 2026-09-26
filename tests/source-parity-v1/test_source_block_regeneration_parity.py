@@ -52,12 +52,12 @@ def load_parity():
 
 
 def current_control_count():
-    with CONTROL_MANIFEST.open(encoding="utf-8", newline="") as stream:
-        rows = list(csv.DictReader(stream, delimiter="\t"))
+    rows, actual = [], set()
+    for manifest in sorted((ROOT / "controls/fstec-core").glob("*/CONTROL-MANIFEST.tsv")):
+        with manifest.open(encoding="utf-8", newline="") as stream:
+            rows.extend(csv.DictReader(stream, delimiter="\t"))
+        actual |= {path.name for path in manifest.parent.glob("*.yaml")}
     files = {row["file"] for row in rows}
-    actual = {
-        path.name for path in (ROOT / "controls/fstec-core/linux-2022").glob("*.yaml")
-    }
     assert files == actual, (files, actual)
     return len(rows)
 

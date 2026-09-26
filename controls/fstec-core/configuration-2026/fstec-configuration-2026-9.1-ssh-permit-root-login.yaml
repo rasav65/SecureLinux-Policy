@@ -1,0 +1,26 @@
+id: "FSTEC-CONFIGURATION-2026-9.1-SSH-PERMIT-ROOT-LOGIN"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0088"
+  doc_id: "fstec-configuration-2026"
+  doc_sha256: "1f2e53a3c047cd1a21f2f99e8605f7ba7a7680a45fc332b8236199b049c3dad6"
+  locator: "9.1"
+  quote: "9.1 Отключить авторизацию пользователей по паролю и доступ с «нулевым» паролем путем внесения следующих изменений в файл /etc/ssh/sshd_config: PermitEmptyPasswords no PermitRootLogin no PasswordAuthentication no."
+  quote_sha256: "8b03ebc02e6d0ad956759a0577eae939adb29e2a31024e70db9e3cd902ebfd06"
+  norm: "norm-v1"
+requirement:
+  stated: "9.1 Отключить авторизацию пользователей по паролю и доступ с «нулевым» паролем путем внесения следующих изменений в файл /etc/ssh/sshd_config: PermitEmptyPasswords no PermitRootLogin no PasswordAuthentication no."
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "sshd-config-option"
+  locator: "/etc/ssh/sshd_config"
+  key: "PermitRootLogin"
+expected:
+  op: "eq"
+  value: "no"
+  type: "string"
+apply:
+  supported: false
