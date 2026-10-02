@@ -1,0 +1,479 @@
+category	source_line	source_function	code
+package	43	TOPLEVEL	_APT_UPDATED=0  # флаг: 1 = apt-get update уже выполнен в этом сеансе
+pam	73	TOPLEVEL	"PAM_SU_FILE=""/etc/pam.d/su"""
+pam	77	TOPLEVEL	"PAM_COMMON_AUTH_FILE=""/etc/pam.d/common-auth"""
+pam	78	TOPLEVEL	"PAM_COMMON_ACCOUNT_FILE=""/etc/pam.d/common-account"""
+pam	80	TOPLEVEL	"FAILLOCK_CONF=""/etc/security/faillock.conf"""
+pam	83	TOPLEVEL	FAILLOCK_CONF_STRICT=$'# Managed by SecureLinux-NG — pam_faillock strict+ (корпоративный стандарт 4.4)\naudit\nsilent\ndeny = 5\nunlock_time = 900\nfail_interval = 900\n'
+ufw	103	TOPLEVEL	"UFW_EXTRA_RULES=""""  # дополнительные правила ufw, формат: ""15000/udp:Kaspersky 8080/tcp:Proxy"""
+grub	147	TOPLEVEL	GRUB_KERNEL_REQUIRED_PARAMS=(
+mount	1933	restore_fstab_module_if_required	"restore_manifest_has_backup_for ""/etc/fstab"""
+mount	1940	restore_fstab_module_if_required	"""restore $label: legacy manifest без module_state; используется backup /etc/fstab"""
+mount	1943	restore_fstab_module_if_required	"log ""[i]     restore $label: legacy manifest без backup /etc/fstab — пропуск"""
+mount	1948	restore_fstab_module_if_required	"""restore $label: не удалось проверить legacy backup /etc/fstab"""
+mount	1961	restore_fstab_module_if_required	"log ""[i]     restore $label: /etc/fstab уже восстановлен"""
+mount	1965	restore_fstab_module_if_required	"if ! restore_file_from_manifest ""/etc/fstab""; then"
+package	1978	snapshot_installed_packages	if ! dpkg-query -W \
+chmod_chown	1988	snapshot_installed_packages	"if ! chmod 600 ""$snapshot""; then"
+package	2021	record_newly_installed_packages	if ! dpkg-query -W \
+chmod_chown	2031	record_newly_installed_packages	"if ! chmod 600 ""$current""; then"
+package	2060	install_packages_transactionally	install_packages_transactionally() {
+package	2071	install_packages_transactionally	"pkg_installed ""$package"" || \"
+package	2085	install_packages_transactionally	apt-get install -y -q \
+package	2211	collect_manifest_package_candidates	if ! dpkg-query -W \
+package	2266	restore_installed_packages	"if pkg_installed ""$package""; then"
+package	2278	restore_installed_packages	apt-get purge -y -q \
+package	2316	report_installed_packages_for_manual_restore	"if pkg_installed ""$package""; then"
+chmod_chown	2603	apply_runtime_paths_module	"if chmod go-w ""$item""; then"
+chmod_chown	2605	apply_runtime_paths_module	"record_manifest_apply_report                 ""2.3.2 chmod go-w: $item"""
+chmod_chown	2607	apply_runtime_paths_module	"add_warning                 ""2.3.2 chmod go-w failed: $item"""
+chmod_chown	3174	apply_cron_command_paths_module	"if chmod go-w ""$item""; then"
+chmod_chown	3176	apply_cron_command_paths_module	"record_manifest_apply_report                 ""2.3.3 chmod go-w: $item"""
+chmod_chown	3178	apply_cron_command_paths_module	"add_warning                 ""2.3.3 chmod go-w failed: $item"""
+chmod_chown	3342	apply_standard_system_paths_module	"if chmod go-w ""$item""; then"
+chmod_chown	3344	apply_standard_system_paths_module	"record_manifest_apply_report                 ""2.3.8 chmod go-w: $item"""
+chmod_chown	3346	apply_standard_system_paths_module	"add_warning                 ""2.3.8 chmod go-w failed: $item"""
+chmod_chown	3488	apply_suid_sgid_module	"if chown root ""$item""; then"
+chmod_chown	3489	apply_suid_sgid_module	"record_manifest_apply_report ""2.3.9 chown root: $item"""
+chmod_chown	3492	apply_suid_sgid_module	"add_warning ""2.3.9 chown root failed: $item"""
+chmod_chown	3496	apply_suid_sgid_module	"if chmod go-w ""$item""; then"
+chmod_chown	3497	apply_suid_sgid_module	"record_manifest_apply_report ""2.3.9 chmod go-w: $item"""
+chmod_chown	3500	apply_suid_sgid_module	"add_warning ""2.3.9 chmod go-w failed: $item"""
+chmod_chown	3597	apply_user_cron_permissions_module	"if chmod go-w ""$file""; then"
+chmod_chown	3601	apply_user_cron_permissions_module	"add_warning                 ""2.3.7 chmod go-w failed: $file"""
+chmod_chown	3667	apply_home_permissions_module	"elif chmod 700 ""$home_dir""; then"
+chmod_chown	3671	apply_home_permissions_module	"add_warning ""2.3.11 chmod 700 failed: $home_dir"""
+chmod_chown	3703	apply_home_permissions_module	"if chmod go-rwx ""$file""; then"
+chmod_chown	3707	apply_home_permissions_module	"add_warning ""2.3.10 chmod go-rwx failed: $file"""
+systemctl	4349	check_sysctl_userspace_apport_dropin	if ! systemctl cat apport.service \
+systemctl	4391	apply_sysctl_userspace_apport_dropin	if ! systemctl cat apport.service \
+systemctl	4408	apply_sysctl_userspace_apport_dropin	"log ""[DRY-RUN] systemctl daemon-reload"""
+systemctl	4495	apply_sysctl_userspace_apport_dropin	if ! systemctl daemon-reload \
+systemctl	4499	apply_sysctl_userspace_apport_dropin	"""2.6 Apport drop-in: systemctl daemon-reload завершился с ошибкой"""
+systemctl	4547	restore_sysctl_userspace_apport_dropin	elif ! systemctl daemon-reload \
+systemctl	4551	restore_sysctl_userspace_apport_dropin	"""restore 2.6 Apport drop-in: systemctl daemon-reload завершился с ошибкой"""
+grub	5033	apply_grub_kernel_params_module	"local grub_params=(""${GRUB_KERNEL_REQUIRED_PARAMS[@]}"")"
+grub	5057	apply_grub_kernel_params_module	"log ""[DRY-RUN] 2.4 would add missing params to GRUB_CMDLINE_LINUX_DEFAULT"""
+grub	5058	apply_grub_kernel_params_module	"log ""[DRY-RUN] 2.4 would run update-grub / grub2-mkconfig"""
+grub	5115	apply_grub_kernel_params_module	"r""(?m)^(GRUB_CMDLINE_LINUX_DEFAULT=)([\""'])(.*?)([\""'])"""
+grub	5122	apply_grub_kernel_params_module	"""SKIP: GRUB_CMDLINE_LINUX_DEFAULT not found"","
+grub	5193	apply_grub_kernel_params_module	"if command -v update-grub >>""${DEBUG_LOG_FILE:-/dev/null}"" 2>&1; then"
+grub	5194	apply_grub_kernel_params_module	"update-grub >>""${DEBUG_LOG_FILE:-/dev/null}"" 2>&1 \"
+grub	5195	apply_grub_kernel_params_module	"&& add_safe ""2.4 GRUB kernel params applied, update-grub выполнен"" \"
+grub	5196	apply_grub_kernel_params_module	"|| { add_warning ""2.4 update-grub завершился с ошибкой""; record_manifest_warning ""2.4 update-grub failed""; }"
+grub	5197	apply_grub_kernel_params_module	elif command -v grub2-mkconfig >/dev/null 2>&1; then
+grub	5198	apply_grub_kernel_params_module	grub2-mkconfig -o /boot/grub2/grub.cfg >/dev/null 2>&1 \
+grub	5199	apply_grub_kernel_params_module	"&& add_safe ""2.4 GRUB kernel params applied, grub2-mkconfig выполнен"" \"
+grub	5200	apply_grub_kernel_params_module	"|| { add_warning ""2.4 grub2-mkconfig завершился с ошибкой""; record_manifest_warning ""2.4 grub2-mkconfig failed""; }"
+grub	5202	apply_grub_kernel_params_module	"add_warning ""2.4 update-grub / grub2-mkconfig не найден — ${grub_file} обновлён, загрузчик требует ручного обновления"""
+grub	5203	apply_grub_kernel_params_module	"record_manifest_warning ""2.4 grub update command not found; manual update-grub required"""
+grub	5204	apply_grub_kernel_params_module	"add_safe ""2.4 GRUB_CMDLINE_LINUX_DEFAULT обновлён (требуется ручной update-grub)"""
+chmod_chown	5212	apply_grub_kernel_params_module	"chmod 600 ""$grub_cfg"" && \"
+chmod_chown	5213	apply_grub_kernel_params_module	"add_safe ""7.7 grub.cfg chmod 600: $grub_cfg"" || \"
+chmod_chown	5214	apply_grub_kernel_params_module	"add_warning ""7.7 grub.cfg chmod 600 не удался: $grub_cfg"""
+grub	5250	restore_grub_module	"if command -v update-grub >>""${DEBUG_LOG_FILE:-/dev/null}"" 2>&1; then"
+grub	5251	restore_grub_module	"if update-grub >>""${DEBUG_LOG_FILE:-/dev/null}"" 2>&1; then"
+grub	5252	restore_grub_module	"log ""[i]     restore 2.4 GRUB: update-grub выполнен"""
+grub	5254	restore_grub_module	"log ""[WARN]  restore 2.4 GRUB: update-grub завершился с ошибкой"""
+grub	5257	restore_grub_module	elif command -v grub2-mkconfig >/dev/null 2>&1; then
+grub	5258	restore_grub_module	if grub2-mkconfig -o /boot/grub2/grub.cfg \
+grub	5261	restore_grub_module	"log ""[i]     restore 2.4 GRUB: grub2-mkconfig выполнен"""
+grub	5263	restore_grub_module	"log ""[WARN]  restore 2.4 GRUB: grub2-mkconfig завершился с ошибкой"""
+grub	5267	restore_grub_module	"log ""[WARN]  restore 2.4 GRUB: update-grub / grub2-mkconfig не найден — требуется ручное обновление"""
+systemctl	5502	read_systemd_unit_enabled_state	"systemctl is-enabled ""$unit_name"" \"
+systemctl	5513	read_systemd_unit_enabled_state	'systemctl is-enabled returned no state for %s (rc=%s)\n' \
+systemctl	5521	read_systemd_unit_enabled_state	'systemctl is-enabled returned unsupported state for %s: %s (rc=%s)\n' \
+systemctl	5537	read_systemd_unit_active_state	"systemctl is-active ""$unit_name"" \"
+systemctl	5552	read_systemd_unit_active_state	'systemctl is-active returned no state for %s (rc=%s)\n' \
+systemctl	5560	read_systemd_unit_active_state	'systemctl is-active returned unsupported state for %s: %s (rc=%s)\n' \
+systemctl	5882	restore_systemd_unit_exact_state	"if systemctl is-active --quiet ""$unit_name"" \"
+systemctl	5885	restore_systemd_unit_exact_state	"systemctl stop ""$unit_name"" \"
+systemctl	5890	restore_systemd_unit_exact_state	"systemctl unmask ""$unit_name"" \"
+systemctl	5892	restore_systemd_unit_exact_state	"systemctl unmask --runtime ""$unit_name"" \"
+systemctl	5899	restore_systemd_unit_exact_state	"systemctl disable --runtime ""$unit_name"" \"
+systemctl	5901	restore_systemd_unit_exact_state	"systemctl enable ""$unit_name"" \"
+systemctl	5905	restore_systemd_unit_exact_state	"systemctl disable ""$unit_name"" \"
+systemctl	5907	restore_systemd_unit_exact_state	"systemctl enable --runtime ""$unit_name"" \"
+systemctl	5911	restore_systemd_unit_exact_state	"systemctl disable ""$unit_name"" \"
+systemctl	5913	restore_systemd_unit_exact_state	"systemctl disable --runtime ""$unit_name"" \"
+systemctl	5917	restore_systemd_unit_exact_state	"systemctl disable ""$unit_name"" \"
+systemctl	5919	restore_systemd_unit_exact_state	"systemctl disable --runtime ""$unit_name"" \"
+systemctl	5921	restore_systemd_unit_exact_state	"systemctl mask ""$unit_name"" \"
+systemctl	5925	restore_systemd_unit_exact_state	"systemctl disable ""$unit_name"" \"
+systemctl	5927	restore_systemd_unit_exact_state	"systemctl disable --runtime ""$unit_name"" \"
+systemctl	5929	restore_systemd_unit_exact_state	"systemctl mask --runtime ""$unit_name"" \"
+systemctl	5933	restore_systemd_unit_exact_state	"systemctl disable ""$unit_name"" \"
+systemctl	5935	restore_systemd_unit_exact_state	"systemctl disable --runtime ""$unit_name"" \"
+systemctl	5945	restore_systemd_unit_exact_state	"if ! systemctl is-active --quiet ""$unit_name"" \"
+systemctl	5948	restore_systemd_unit_exact_state	"systemctl start ""$unit_name"" \"
+systemctl	5953	restore_systemd_unit_exact_state	"if systemctl is-active --quiet ""$unit_name"" \"
+systemctl	5956	restore_systemd_unit_exact_state	"systemctl stop ""$unit_name"" \"
+systemctl	6407	apply_sysctl_network_module	"systemctl unmask securelinux-ng-sysctl.service                 >>""${DEBUG_LOG_FILE:-/dev/null}"" 2>&1 || true"
+systemctl	6410	apply_sysctl_network_module	"systemctl unmask --runtime securelinux-ng-sysctl.service                 >>""${DEBUG_LOG_FILE:-/dev/null}"" 2>&1 || true"
+systemctl	6483	apply_sysctl_network_module	"if ! systemctl daemon-reload         >>""${DEBUG_LOG_FILE:-/dev/null}"" 2>&1"
+systemctl	6485	apply_sysctl_network_module	"add_error ""8.1-8.3 systemctl daemon-reload завершился с ошибкой"""
+systemctl	6487	apply_sysctl_network_module	"""8.1-8.3 systemctl daemon-reload failed"" \"
+systemctl	6493	apply_sysctl_network_module	systemctl enable securelinux-ng-sysctl.service \
+systemctl	6546	restore_sysctl_network_module	systemctl disable securelinux-ng-sysctl.service \
+systemctl	6548	restore_sysctl_network_module	systemctl disable --runtime securelinux-ng-sysctl.service \
+systemctl	6553	restore_sysctl_network_module	elif ! systemctl daemon-reload \
+systemctl	6557	restore_sysctl_network_module	"""restore network sysctl: systemctl daemon-reload завершился с ошибкой"""
+systemctl	6576	restore_sysctl_network_module	systemctl enable securelinux-ng-sysctl.service \
+systemctl	6580	restore_sysctl_network_module	systemctl enable --runtime securelinux-ng-sysctl.service \
+systemctl	6584	restore_sysctl_network_module	systemctl mask securelinux-ng-sysctl.service \
+systemctl	6588	restore_sysctl_network_module	systemctl mask --runtime securelinux-ng-sysctl.service \
+chmod_chown	6680	apply_sudo_command_paths_module	"chmod go-w ""$item"" && chown root:root ""$item"" && {"
+chmod_chown	6682	apply_sudo_command_paths_module	"record_manifest_apply_report                 ""2.3.4 chmod go-w + chown root: $item"""
+chmod_chown	6683	apply_sudo_command_paths_module	"} || add_warning             ""2.3.4 chmod go-w / chown root failed: $item"""
+chmod_chown	7161	apply_ssh_hardening_module	"|| ! chmod 0644 ""$ssh_tmp"" \"
+chmod_chown	7162	apply_ssh_hardening_module	"|| ! chown root:root ""$ssh_tmp"""
+systemctl	7253	apply_ssh_hardening_module	if systemctl reload sshd \
+systemctl	7255	apply_ssh_hardening_module	|| systemctl reload ssh \
+systemctl	7413	render_account_audit_report	systemctl list-units \
+systemctl	7629	check_apparmor_module	if systemctl is-active --quiet apparmor 2>/dev/null; then
+package	7646	pkg_installed	pkg_installed() {
+package	7647	pkg_installed	"dpkg-query -W -f='${Status}' ""$1"" 2>/dev/null | grep -q ""install ok installed"""
+package	7748	apt_update_once	"log ""[i]     apt-get update..."""
+package	7749	apt_update_once	"if DEBIAN_FRONTEND=noninteractive apt-get update -q >>""${DEBUG_LOG_FILE:-/dev/null}"" 2>&1; then"
+package	7752	apt_update_once	"add_warning ""apt-get update завершился с ошибкой — последующие установки пакетов могут не работать"""
+package	7780	apply_apparmor_module	pkg_installed apparmor && apparmor_was_installed=1
+package	7782	apply_apparmor_module	install_packages_transactionally \
+package	7795	apply_apparmor_module	"record_manifest_warning ""AppArmor: apt-get install failed"""
+systemctl	7800	apply_apparmor_module	systemctl enable --now apparmor.service \
+systemctl	7811	apply_apparmor_module	"add_error ""AppArmor: systemctl enable --now завершился с ошибкой"""
+systemctl	7812	apply_apparmor_module	"record_manifest_warning ""AppArmor: systemctl enable --now failed"""
+package	7895	apply_aide_module	if ! pkg_installed aide; then
+package	7896	apply_aide_module	"install_packages_transactionally ""aide"" aide || true"
+package	7906	apply_aide_module	"record_manifest_warning ""AIDE: apt-get install failed"""
+systemctl	8020	read_fail2ban_service_active_state	systemctl is-active fail2ban.service \
+systemctl	8035	read_fail2ban_service_active_state	'systemctl is-active returned no state for fail2ban.service (rc=%s)\n' \
+systemctl	8042	read_fail2ban_service_active_state	'systemctl is-active returned unsupported state for fail2ban.service: %s (rc=%s)\n' \
+systemctl	8318	restore_fail2ban_service_state	if ! systemctl unmask fail2ban.service \
+systemctl	8324	restore_fail2ban_service_state	if ! systemctl enable fail2ban.service \
+systemctl	8331	restore_fail2ban_service_state	if ! systemctl unmask fail2ban.service \
+systemctl	8337	restore_fail2ban_service_state	if ! systemctl enable --runtime fail2ban.service \
+systemctl	8344	restore_fail2ban_service_state	if ! systemctl unmask fail2ban.service \
+systemctl	8350	restore_fail2ban_service_state	if ! systemctl disable fail2ban.service \
+systemctl	8366	restore_fail2ban_service_state	if ! systemctl disable fail2ban.service \
+systemctl	8382	restore_fail2ban_service_state	if ! systemctl restart fail2ban.service \
+systemctl	8389	restore_fail2ban_service_state	if ! systemctl stop fail2ban.service \
+systemctl	8392	restore_fail2ban_service_state	if systemctl is-active --quiet fail2ban.service \
+systemctl	8406	restore_fail2ban_service_state	if ! systemctl mask fail2ban.service \
+systemctl	8413	restore_fail2ban_service_state	if ! systemctl mask --runtime fail2ban.service \
+systemctl	8433	check_fail2ban_module	if systemctl is-active --quiet fail2ban 2>/dev/null; then
+package	8537	apply_fail2ban_module	if ! pkg_installed fail2ban; then
+package	8541	apply_fail2ban_module	install_packages_transactionally \
+package	8552	apply_fail2ban_module	"""fail2ban: apt-get install failed"""
+package	8565	apply_fail2ban_module	if ! pkg_installed fail2ban; then
+systemctl	8611	apply_fail2ban_module	if ! systemctl enable --now fail2ban.service \
+systemctl	8619	apply_fail2ban_module	if ! systemctl is-active --quiet fail2ban.service \
+systemctl	8700	apply_fail2ban_module	if ! systemctl enable --now fail2ban.service \
+systemctl	8706	apply_fail2ban_module	"""fail2ban: systemctl enable --now failed after writing jail.local"""
+systemctl	8710	apply_fail2ban_module	if ! systemctl is-active --quiet fail2ban.service \
+systemctl	8794	restore_fail2ban_module	if ! systemctl restart fail2ban.service \
+package	8834	apply_rkhunter_module	if ! pkg_installed rkhunter; then
+package	8835	apply_rkhunter_module	"install_packages_transactionally ""rkhunter"" rkhunter || true"
+package	8845	apply_rkhunter_module	"record_manifest_warning ""rkhunter: apt-get install failed"""
+package	8855	apply_rkhunter_module	"record_manifest_irreversible_change ""rkhunter: установлен — удалить вручную: apt-get remove rkhunter"""
+package	8876	restore_rkhunter_module	"log ""[i]     restore rkhunter: пакет не удаляется автоматически; при необходимости удалите вручную: apt-get remove rkhunter"""
+mount	9101	check_mount_hardening_module	"add_skipped ""mount hardening пропущен: требуется профиль paranoid (текущий: ${PROFILE})"""
+mount	9106	check_mount_hardening_module	"if mountpoint -q ""$target"" 2>/dev/null; then"
+mount	9108	check_mount_hardening_module	"opts=$(findmnt -n -o OPTIONS --target ""$target"" 2>/dev/null || echo """")"
+mount	9115	check_mount_hardening_module	"add_safe ""mount hardening: /dev/shm и /var/tmp проверены"""
+mount	9117	check_mount_hardening_module	"add_risky ""mount hardening: ${issues[*]} (requires_reboot)"""
+mount	9123	apply_mount_hardening_module	"add_skipped ""mount hardening пропущен: требуется профиль paranoid (текущий: ${PROFILE})"""
+mount	9128	apply_mount_hardening_module	"log ""[DRY-RUN] harden /dev/shm and /var/tmp in /etc/fstab"""
+mount	9129	apply_mount_hardening_module	"add_skipped ""mount hardening dry-run"""
+mount	9133	apply_mount_hardening_module	"local fstab=""/etc/fstab"""
+mount	9134	apply_mount_hardening_module	"if [[ ! -f ""$fstab"" ]]; then"
+mount	9135	apply_mount_hardening_module	"add_warning ""mount hardening: $fstab не найден"""
+mount	9139	apply_mount_hardening_module	"local bak=""$STATE_DIR/fstab.bak-$TIMESTAMP"""
+mount	9140	apply_mount_hardening_module	"if ! manifest_has_backup_for ""$fstab""; then"
+mount	9141	apply_mount_hardening_module	"if ! backup_file_checked ""$fstab"" ""$bak"" ""mount hardening fstab""; then"
+mount	9142	apply_mount_hardening_module	"add_skipped ""mount hardening apply skipped: fstab backup failed"""
+mount	9145	apply_mount_hardening_module	"if ! record_manifest_backup             ""$fstab""             ""$bak"""
+mount	9147	apply_mount_hardening_module	"add_error                 ""mount hardening: не удалось записать backup mapping для $fstab"""
+mount	9150	apply_mount_hardening_module	"add_warning                     ""mount hardening: не удалось удалить незарегистрированный backup $bak"""
+mount	9158	apply_mount_hardening_module	"add_error             ""mount hardening: не удалось записать typed restore-state"""
+mount	9163	apply_mount_hardening_module	"""$fstab"" \"
+mount	9165	apply_mount_hardening_module	"python3 - ""$fstab"" <<'PYEOF'"
+mount	9195	apply_mount_hardening_module	"add_error ""mount hardening: не удалось атомарно обновить $fstab"""
+mount	9197	apply_mount_hardening_module	"""mount hardening: atomic fstab update failed"""
+mount	9201	apply_mount_hardening_module	"record_manifest_modified_file_best_effort ""$fstab"""
+mount	9202	apply_mount_hardening_module	"record_manifest_apply_report         ""mount hardening: /dev/shm and /var/tmp entries added to fstab""         || add_warning ""mount hardening: apply-report не записан"""
+mount	9203	apply_mount_hardening_module	"record_manifest_irreversible_change         ""mount hardening: fstab modified — эффект после перезагрузки""         || add_warning ""mount hardening: irreversible report не записан"""
+mount	9206	apply_mount_hardening_module	if mountpoint -q /dev/shm 2>/dev/null; then
+mount	9207	apply_mount_hardening_module	"mount -o remount,nosuid,nodev,noexec /dev/shm 2>/dev/null             && add_safe ""mount hardening: /dev/shm remount выполнен""             || add_warning ""mount hardening: /dev/shm remount не удался — эффект после перезагрузки"""
+mount	9212	apply_mount_hardening_module	if mountpoint -q /var/tmp 2>/dev/null; then
+mount	9213	apply_mount_hardening_module	"mount -o remount,nosuid,nodev,noexec /var/tmp 2>/dev/null             && add_safe ""mount hardening: /var/tmp remount выполнен""             || add_warning ""mount hardening: /var/tmp remount не удался — эффект после перезагрузки"""
+mount	9215	apply_mount_hardening_module	"mount -t tmpfs -o nosuid,nodev,noexec,mode=1777 tmpfs /var/tmp 2>/dev/null             && add_safe ""mount hardening: /var/tmp смонтирован как tmpfs""             || add_warning ""mount hardening: /var/tmp mount не удался — эффект после перезагрузки"""
+mount	9220	restore_mount_hardening_module	"if ! restore_fstab_module_if_required         ""mount_hardening"" ""mount hardening"""
+mount	9226	restore_mount_hardening_module	"add_warning             ""restore mount hardening: для полного отката требуется перезагрузка"""
+mount	9236	check_tmp_tmpfs_module	"if findmnt -n -o FSTYPE --target /tmp 2>/dev/null | grep -qx ""tmpfs""; then"
+mount	9238	check_tmp_tmpfs_module	"opts=$(findmnt -n -o OPTIONS --target /tmp 2>/dev/null || echo """")"
+mount	9251	check_tmp_tmpfs_module	if grep -qE '^\s*tmpfs\s+/tmp\s+tmpfs' /etc/fstab 2>/dev/null; then
+mount	9252	check_tmp_tmpfs_module	"add_safe ""/tmp: запись в /etc/fstab присутствует"""
+mount	9254	check_tmp_tmpfs_module	"add_risky ""/tmp: запись в /etc/fstab отсутствует (requires_reboot)"""
+mount	9265	apply_tmp_tmpfs_module	"log ""[DRY-RUN] add tmpfs /tmp to /etc/fstab with nosuid,nodev,noexec,mode=1777"""
+mount	9266	apply_tmp_tmpfs_module	"log ""[DRY-RUN] mount -o remount /tmp"""
+mount	9271	apply_tmp_tmpfs_module	"local fstab=""/etc/fstab"""
+mount	9272	apply_tmp_tmpfs_module	"if [[ ! -f ""$fstab"" ]]; then"
+mount	9273	apply_tmp_tmpfs_module	"add_warning ""/tmp: $fstab не найден — пропуск"""
+mount	9278	apply_tmp_tmpfs_module	"if ! python3 -c ""import sys,json,pathlib; d=json.loads(pathlib.Path(sys.argv[1]).read_text()); sys.exit(0 if any(e.get('original')=='/etc/fstab' for e in d.get('backups',[]) if isinstance(e,dict)) else 1)"" ""$MANIFEST_FILE"" 2>/dev/null; then"
+mount	9279	apply_tmp_tmpfs_module	"local bak=""$STATE_DIR/fstab.bak-$TIMESTAMP"""
+mount	9280	apply_tmp_tmpfs_module	"if ! backup_file_checked ""$fstab"" ""$bak"" ""/tmp tmpfs fstab""; then"
+mount	9281	apply_tmp_tmpfs_module	"add_skipped ""/tmp tmpfs apply skipped: fstab backup failed"""
+mount	9284	apply_tmp_tmpfs_module	"if ! record_manifest_backup             ""$fstab""             ""$bak"""
+mount	9286	apply_tmp_tmpfs_module	"add_error                 ""/tmp: не удалось записать backup mapping для $fstab"""
+mount	9302	apply_tmp_tmpfs_module	"""$fstab"" \"
+mount	9304	apply_tmp_tmpfs_module	"python3 - ""$fstab"" <<'PYEOF'"
+mount	9330	apply_tmp_tmpfs_module	"add_error ""/tmp: не удалось атомарно обновить $fstab"""
+mount	9332	apply_tmp_tmpfs_module	"""/tmp: atomic fstab update failed"""
+mount	9336	apply_tmp_tmpfs_module	"record_manifest_modified_file_best_effort ""$fstab"""
+mount	9337	apply_tmp_tmpfs_module	"record_manifest_apply_report         ""/tmp: tmpfs entry added to /etc/fstab""         || add_warning ""/tmp: apply-report не записан"""
+mount	9338	apply_tmp_tmpfs_module	"record_manifest_irreversible_change         ""/tmp: fstab modified — эффект после перезагрузки""         || add_warning ""/tmp: irreversible report не записан"""
+mount	9341	apply_tmp_tmpfs_module	"if findmnt -n -o FSTYPE --target /tmp 2>/dev/null | grep -qx ""tmpfs""; then"
+mount	9342	apply_tmp_tmpfs_module	"mount -o remount,nosuid,nodev,noexec,mode=1777 /tmp 2>/dev/null             && add_safe ""/tmp: remount с nosuid,nodev,noexec выполнен""             || add_warning ""/tmp: remount не удался — эффект после перезагрузки"""
+mount	9344	apply_tmp_tmpfs_module	"mount /tmp 2>/dev/null             && add_safe ""/tmp: смонтирован как tmpfs""             || add_warning ""/tmp: mount не удался — эффект после перезагрузки"""
+ufw	9361	check_ufw_module	if ! command -v ufw >/dev/null 2>&1; then
+ufw	9362	check_ufw_module	"add_risky ""firewall: ufw не установлен"""
+ufw	9365	check_ufw_module	"if ufw status 2>/dev/null | grep -q ""^Status: active""; then"
+ufw	9366	check_ufw_module	"add_safe ""firewall: ufw активен"""
+ufw	9368	check_ufw_module	"add_risky ""firewall: ufw установлен но не активен"""
+ufw	9374	apply_ufw_module	"log ""[DRY-RUN] install ufw, default deny incoming, allow SSH"""
+ufw	9375	apply_ufw_module	"add_skipped ""firewall dry-run: ufw would be configured"""
+ufw	9390	apply_ufw_module	"ufw status 2>/dev/null | grep -q ""^Status: active"" \"
+systemctl	9392	apply_ufw_module	systemctl is-enabled ufw >/dev/null 2>&1 \
+ufw	9392	apply_ufw_module	systemctl is-enabled ufw >/dev/null 2>&1 \
+systemctl	9394	apply_ufw_module	systemctl is-active nftables >/dev/null 2>&1 \
+systemctl	9396	apply_ufw_module	systemctl is-enabled nftables >/dev/null 2>&1 \
+ufw	9399	apply_ufw_module	"log ""[i]     ufw: установка пакета..."""
+package	9401	apply_ufw_module	if ! pkg_installed ufw; then
+ufw	9401	apply_ufw_module	if ! pkg_installed ufw; then
+package	9402	apply_ufw_module	"install_packages_transactionally ""firewall"" ufw || true"
+ufw	9402	apply_ufw_module	"install_packages_transactionally ""firewall"" ufw || true"
+ufw	9405	apply_ufw_module	"add_error ""firewall: package transaction ufw не зафиксирована"""
+ufw	9411	apply_ufw_module	"add_error ""firewall: не удалось установить ufw"""
+package	9412	apply_ufw_module	"record_manifest_warning ""firewall: apt-get install ufw failed"" || true"
+ufw	9412	apply_ufw_module	"record_manifest_warning ""firewall: apt-get install ufw failed"" || true"
+ufw	9423	apply_ufw_module	"ufw_added_rules=""$(ufw show added 2>/dev/null || true)"""
+ufw	9425	apply_ufw_module	"if grep -Eq '^[[:space:]]*ufw[[:space:]]+' <<<""$ufw_added_rules""; then"
+ufw	9426	apply_ufw_module	"add_error ""firewall: ufw неактивен, но содержит предварительно настроенные правила — автоматическое включение заблокировано"""
+ufw	9427	apply_ufw_module	"record_manifest_warning ""firewall: inactive ufw has preconfigured rules; automatic enable skipped"" || true"
+ufw	9428	apply_ufw_module	"add_policy_gate ""firewall: review inactive preconfigured ufw rules before apply"""
+systemctl	9467	apply_ufw_module	systemctl stop nftables 2>/dev/null || nftables_apply_ok=0
+systemctl	9470	apply_ufw_module	systemctl mask nftables 2>/dev/null || nftables_apply_ok=0
+ufw	9503	apply_ufw_module	"if ! ufw allow ""${ssh_port}/tcp"" comment ""SSH"" >/dev/null 2>&1; then"
+ufw	9505	apply_ufw_module	"add_warning ""firewall: ufw уже активен, но не удалось добавить/подтвердить правило SSH ${ssh_port}/tcp"""
+ufw	9506	apply_ufw_module	"record_manifest_warning ""firewall: pre-active ufw, failed to apply SSH rule ${ssh_port}/tcp"" || true"
+ufw	9514	apply_ufw_module	"if ! ufw allow ""$_port"" comment ""$_comment"" >/dev/null 2>&1; then"
+ufw	9516	apply_ufw_module	"add_warning ""firewall: ufw уже активен, но не удалось добавить дополнительное правило ${_port} (${_comment})"""
+ufw	9517	apply_ufw_module	"record_manifest_warning ""firewall: pre-active ufw, failed to apply extra rule ${_port}:${_comment}"" || true"
+systemctl	9538	apply_ufw_module	"if ! systemctl enable ufw >>""${DEBUG_LOG_FILE:-/dev/null}"" 2>&1; then"
+ufw	9538	apply_ufw_module	"if ! systemctl enable ufw >>""${DEBUG_LOG_FILE:-/dev/null}"" 2>&1; then"
+ufw	9539	apply_ufw_module	"add_error ""firewall: не удалось включить службу ufw"""
+ufw	9540	apply_ufw_module	"record_manifest_warning ""firewall: pre-active ufw service enable failed"" || true"
+ufw	9546	apply_ufw_module	ufw_default_in=$(ufw status verbose 2>/dev/null | awk '/^Default:/{print $2}')
+ufw	9549	apply_ufw_module	"add_error ""firewall: ufw уже активен, политика по умолчанию incoming=${ufw_default_in:-unknown} — ФСТЭК требует deny. Исправьте вручную: ufw default deny incoming"""
+ufw	9550	apply_ufw_module	"record_manifest_warning ""firewall: ufw pre-active, default incoming policy is not deny"" || true"
+ufw	9554	apply_ufw_module	"add_safe ""firewall: ufw активен, политика incoming=deny — соответствует ФСТЭК"""
+ufw	9556	apply_ufw_module	"""firewall: ufw pre-active, default deny confirmed"" \"
+ufw	9560	apply_ufw_module	"add_warning ""firewall: ufw уже активен — существующие правила сохранены. Проверьте: ufw status verbose"""
+ufw	9562	apply_ufw_module	"add_error ""firewall: ufw уже активен — часть обязательных правил не удалось применить автоматически"""
+ufw	9567	apply_ufw_module	"""firewall: ufw pre-active, SSH port=${ssh_port}, extra=${UFW_EXTRA_RULES:-none}"" \"
+ufw	9570	apply_ufw_module	"""firewall restore is partial for pre-active ufw rules; runtime and service pre-state are typed"" \"
+ufw	9577	apply_ufw_module	ufw default deny incoming >/dev/null 2>&1 || ufw_rules_ok=0
+ufw	9578	apply_ufw_module	ufw default allow outgoing >/dev/null 2>&1 || ufw_rules_ok=0
+ufw	9579	apply_ufw_module	"ufw allow ""${ssh_port}/tcp"" comment ""SSH"" >/dev/null 2>&1 || ufw_rules_ok=0"
+ufw	9585	apply_ufw_module	"ufw allow ""$_port"" comment ""$_comment"" >/dev/null 2>&1 || ufw_rules_ok=0"
+ufw	9590	apply_ufw_module	"record_manifest_warning ""firewall: ufw rule sequence failed before enable"" || true"
+ufw	9610	apply_ufw_module	if ! ufw --force enable >/dev/null 2>&1; then
+ufw	9611	apply_ufw_module	"add_error ""firewall: команда ufw --force enable завершилась с ошибкой"""
+ufw	9612	apply_ufw_module	"record_manifest_warning ""firewall: ufw enable failed"" || true"
+ufw	9630	apply_ufw_module	ufw --force disable >/dev/null 2>&1 || true
+systemctl	9634	apply_ufw_module	"if ! systemctl enable ufw >>""${DEBUG_LOG_FILE:-/dev/null}"" 2>&1; then"
+ufw	9634	apply_ufw_module	"if ! systemctl enable ufw >>""${DEBUG_LOG_FILE:-/dev/null}"" 2>&1; then"
+ufw	9637	apply_ufw_module	if ! ufw --force disable >/dev/null 2>&1; then
+systemctl	9639	apply_ufw_module	"add_warning ""firewall: после сбоя systemctl enable не удалось локально отключить UFW"""
+systemctl	9642	apply_ufw_module	"add_error ""firewall: systemctl enable ufw завершился с ошибкой; локальный rollback=${rollback_ok}"""
+ufw	9642	apply_ufw_module	"add_error ""firewall: systemctl enable ufw завершился с ошибкой; локальный rollback=${rollback_ok}"""
+systemctl	9643	apply_ufw_module	"record_manifest_warning ""firewall: systemctl enable ufw failed after runtime enable"" || true"
+ufw	9643	apply_ufw_module	"record_manifest_warning ""firewall: systemctl enable ufw failed after runtime enable"" || true"
+ufw	9649	apply_ufw_module	"""firewall: ufw enabled, SSH port=${ssh_port}, extra=${UFW_EXTRA_RULES:-none}, default deny incoming"" \"
+ufw	9654	apply_ufw_module	"add_safe ""firewall: ufw включён (SSH port=${ssh_port}, extra=${UFW_EXTRA_RULES:-none}, default deny incoming)"""
+ufw	9655	apply_ufw_module	"log ""[i]     firewall: для открытия портов: ufw allow PORT/tcp"""
+ufw	9694	restore_ufw_module	if ufw --force disable >/dev/null 2>&1; then
+systemctl	9706	restore_ufw_module	if ! systemctl enable ufw >/dev/null 2>&1; then
+ufw	9706	restore_ufw_module	if ! systemctl enable ufw >/dev/null 2>&1; then
+systemctl	9711	restore_ufw_module	if ! systemctl disable ufw >/dev/null 2>&1; then
+ufw	9711	restore_ufw_module	if ! systemctl disable ufw >/dev/null 2>&1; then
+systemctl	9723	restore_ufw_module	if ! systemctl unmask nftables >/dev/null 2>&1; then
+systemctl	9729	restore_ufw_module	if ! systemctl enable nftables >/dev/null 2>&1; then
+systemctl	9734	restore_ufw_module	if ! systemctl disable nftables >/dev/null 2>&1; then
+systemctl	9741	restore_ufw_module	if ! systemctl start nftables >/dev/null 2>&1; then
+systemctl	9746	restore_ufw_module	if ! systemctl stop nftables >/dev/null 2>&1; then
+ufw	9785	restore_ufw_module	print('1' if any('ufw enabled' in r for r in reports) else '0')
+ufw	9787	restore_ufw_module	"add_error ""restore firewall: не удалось прочитать legacy-состояние ufw"""
+ufw	9809	restore_ufw_module	if ! ufw --force disable >/dev/null 2>&1; then
+ufw	9813	restore_ufw_module	"elif restore_manifest_has_report_text ""firewall: ufw pre-active""; then"
+systemctl	9819	restore_ufw_module	systemctl unmask nftables 2>/dev/null || nft_restore_ok=0
+systemctl	9820	restore_ufw_module	systemctl enable --now nftables 2>/dev/null || nft_restore_ok=0
+systemctl	9828	restore_ufw_module	systemctl unmask nftables 2>/dev/null || nft_restore_ok=0
+systemctl	9829	restore_ufw_module	systemctl enable nftables 2>/dev/null || nft_restore_ok=0
+chmod_chown	9875	render_auditd_baseline_rules	-a always,exit -F arch=b64 -S chmod -S fchmod -S fchmodat -F auid>=1000 -F perm=wa -k change_file_attr
+chmod_chown	9876	render_auditd_baseline_rules	-a always,exit -F arch=b32 -S chmod -S fchmod -S fchmodat -F auid>=1000 -F perm=wa -k change_file_attr
+systemctl	10024	read_auditd_service_active_state	systemctl is-active auditd.service \
+systemctl	10039	read_auditd_service_active_state	'systemctl is-active returned no state for auditd.service (rc=%s)\n' \
+systemctl	10046	read_auditd_service_active_state	'systemctl is-active returned unsupported state for auditd.service: %s (rc=%s)\n' \
+systemctl	10331	restore_auditd_service_state	if ! systemctl is-active --quiet \
+systemctl	10335	restore_auditd_service_state	if ! systemctl start auditd.service \
+systemctl	10357	restore_auditd_service_state	if systemctl is-active --quiet \
+systemctl	10361	restore_auditd_service_state	if ! systemctl stop auditd.service \
+systemctl	10364	restore_auditd_service_state	if systemctl is-active --quiet \
+systemctl	10380	restore_auditd_service_state	if ! systemctl unmask auditd.service \
+systemctl	10386	restore_auditd_service_state	if ! systemctl enable auditd.service \
+systemctl	10393	restore_auditd_service_state	if ! systemctl unmask auditd.service \
+systemctl	10399	restore_auditd_service_state	if ! systemctl enable --runtime \
+systemctl	10407	restore_auditd_service_state	if ! systemctl unmask auditd.service \
+systemctl	10413	restore_auditd_service_state	if ! systemctl disable auditd.service \
+systemctl	10429	restore_auditd_service_state	if ! systemctl unmask auditd.service \
+systemctl	10435	restore_auditd_service_state	if ! systemctl disable auditd.service \
+systemctl	10445	restore_auditd_service_state	if ! systemctl mask auditd.service \
+systemctl	10452	restore_auditd_service_state	if ! systemctl mask --runtime \
+systemctl	10504	check_auditd_module	if ! systemctl is-active --quiet auditd 2>/dev/null; then
+package	10645	apply_auditd_module	if ! command -v apt-get >/dev/null 2>&1; then
+package	10647	apply_auditd_module	"""auditd: apt-get не найден"""
+package	10778	apply_auditd_module	if ! pkg_installed auditd; then
+package	10782	apply_auditd_module	install_packages_transactionally \
+package	10794	apply_auditd_module	"""auditd: apt-get install failed"""
+package	10810	apply_auditd_module	if ! pkg_installed auditd; then
+systemctl	10864	apply_auditd_module	if ! systemctl enable --now auditd.service \
+systemctl	10886	apply_auditd_module	if ! systemctl is-active --quiet \
+systemctl	11148	restore_auditd_module	if ! systemctl restart auditd.service \
+pam	11174	check_password_backend_safety_module	"local pam_file=""${SECURELINUX_NG_COMMON_PASSWORD_FILE:-/etc/pam.d/common-password}"""
+pam	11355	check_password_policy_module	"if [[ -f ""/etc/pam.d/common-password"" ]]; then"
+pam	11356	check_password_policy_module	if python3 - /etc/pam.d/common-password <<'PYCHECKPW'
+pam	11369	check_password_policy_module	pwq = active_has('pam_pwquality.so')
+pam	11370	check_password_policy_module	pwh = active_has('pam_pwhistory.so')
+pam	11371	check_password_policy_module	unix = active_has('pam_unix.so')
+pam	11383	check_password_policy_module	"add_risky ""CORP-PASSWORD common-password: /etc/pam.d/common-password отсутствует"""
+pam	11583	normalize_common_password_stack	"if active_has(line, ""pam_unix.so"")"
+pam	11590	normalize_common_password_stack	"""active pam_unix.so line not found in common-password"""
+pam	11597	normalize_common_password_stack	"if active_has(line, ""pam_pwquality.so"")"
+pam	11604	normalize_common_password_stack	"""pam_pwquality.so retry=3"""
+pam	11619	normalize_common_password_stack	"""pam_pwhistory.so use_authtok """
+pam	12531	apply_password_policy_module	"local pwhistory_file=""/etc/pam.d/common-password"""
+package	12651	apply_password_policy_module	"pkg_installed ""$package"" || missing_packages+=(""$package"")"
+package	12660	apply_password_policy_module	install_packages_transactionally \
+package	12687	apply_password_policy_module	"if ! pkg_installed ""$package""; then"
+pam	13022	restore_password_policy_module	"if ! restore_file_from_manifest ""/etc/pam.d/common-password""; then"
+pam	13060	pam_faillock_stack_present	"and ""pam_faillock.so"" in tokens"
+pam	13072	pam_faillock_stack_present	"if tokens[0] == ""auth"" and ""pam_unix.so"" in tokens"
+pam	13080	pam_faillock_stack_present	"and ""pam_faillock.so"" in tokens"
+pam	13107	pam_faillock_any_active_line	"if stripped and not stripped.startswith(""#"") and ""pam_faillock.so"" in stripped:"
+pam	13139	normalize_faillock_pam_stack	"if tokens and ""pam_faillock.so"" in tokens:"
+pam	13141	normalize_faillock_pam_stack	"""active pam_faillock.so line already exists"""
+pam	13150	normalize_faillock_pam_stack	"and ""pam_unix.so"" in tokens"
+pam	13156	normalize_faillock_pam_stack	"""expected one active pam_unix.so auth line, """
+pam	13213	normalize_faillock_pam_stack	"and ""pam_unix.so"" in tokens"
+pam	13219	normalize_faillock_pam_stack	"""expected one active pam_unix.so auth line, """
+pam	13233	normalize_faillock_pam_stack	"""auth required pam_faillock.so preauth"","
+pam	13239	normalize_faillock_pam_stack	"""auth [default=die] pam_faillock.so authfail"","
+pam	13240	normalize_faillock_pam_stack	"""auth sufficient pam_faillock.so authsucc"","
+pam	13295	normalize_faillock_pam_stack	"""account required pam_faillock.so"","
+pam	13326	check_faillock_module	"if [[ -f ""$FAILLOCK_CONF"" ]] \"
+pam	13327	check_faillock_module	"&& grep -Eq '^\s*deny\s*=\s*5\s*$' ""$FAILLOCK_CONF"" \"
+pam	13328	check_faillock_module	"&& grep -Eq '^\s*unlock_time\s*=\s*900\s*$' ""$FAILLOCK_CONF"""
+pam	13332	check_faillock_module	"add_risky ""CORP-FAILLOCK конфигурация отсутствует или не соответствует deny=5 unlock_time=900: $FAILLOCK_CONF"""
+pam	13429	rollback_faillock_apply_files	"""$FAILLOCK_CONF"""
+pam	13434	rollback_faillock_apply_files	"if ! rm -f -- ""$FAILLOCK_CONF""; then"
+pam	13471	apply_faillock_module	"""[DRY-RUN] write '$FAILLOCK_CONF' (profile: ${PROFILE})"""
+pam	13480	apply_faillock_module	/lib/security/pam_faillock.so \
+pam	13481	apply_faillock_module	/usr/lib/security/pam_faillock.so \
+pam	13482	apply_faillock_module	/lib/*-linux-gnu/security/pam_faillock.so \
+pam	13483	apply_faillock_module	/usr/lib/*-linux-gnu/security/pam_faillock.so
+pam	13486	apply_faillock_module	"""CORP-FAILLOCK pam_faillock.so не найден — пропуск faillock"""
+pam	13488	apply_faillock_module	"""CORP-FAILLOCK pam_faillock.so not found"""
+pam	13490	apply_faillock_module	"""CORP-FAILLOCK apply skipped: pam_faillock.so missing"""
+pam	13508	apply_faillock_module	"""CORP-FAILLOCK обнаружена частичная или сторонняя конфигурация pam_faillock.so — автоматическое изменение PAM остановлено"""
+pam	13514	apply_faillock_module	"if [[ -e ""$FAILLOCK_CONF"" \"
+pam	13515	apply_faillock_module	"|| -L ""$FAILLOCK_CONF"" ]]"
+pam	13519	apply_faillock_module	"if [[ ! -f ""$FAILLOCK_CONF"" ]]; then"
+pam	13521	apply_faillock_module	"""CORP-FAILLOCK $FAILLOCK_CONF существует, но не является обычным файлом или ссылкой на файл"""
+pam	13525	apply_faillock_module	"if manifest_has_backup_for ""$FAILLOCK_CONF""; then"
+pam	13528	apply_faillock_module	"conf_snapshot=""$STATE_DIR/$(basename ""$FAILLOCK_CONF"").bak-$TIMESTAMP"""
+pam	13531	apply_faillock_module	"""$FAILLOCK_CONF"" \"
+pam	13541	apply_faillock_module	"""$FAILLOCK_CONF"" \"
+pam	13626	apply_faillock_module	"conf_snapshot=""$STATE_DIR/$(basename ""$FAILLOCK_CONF"").rollback-$TIMESTAMP"""
+pam	13630	apply_faillock_module	"""$FAILLOCK_CONF"" \"
+pam	13686	apply_faillock_module	"""$(dirname ""$FAILLOCK_CONF"")"""
+pam	13689	apply_faillock_module	"""CORP-FAILLOCK не удалось создать каталог для $FAILLOCK_CONF"""
+pam	13700	apply_faillock_module	"content=""$FAILLOCK_CONF_STRICT"""
+pam	13703	apply_faillock_module	"""$FAILLOCK_CONF"" \"
+pam	13716	apply_faillock_module	"content=""$FAILLOCK_CONF_STRICT"""
+pam	13719	apply_faillock_module	"""$FAILLOCK_CONF"" \"
+pam	13721	apply_faillock_module	"python3 - ""$FAILLOCK_CONF"" ""$content"" <<'PYMERGE_FL' \"
+pam	13858	apply_faillock_module	"""$FAILLOCK_CONF"" \"
+pam	13886	apply_faillock_module	"""$FAILLOCK_CONF"""
+pam	13908	apply_faillock_module	"""CORP-FAILLOCK pam_faillock активирован: $FAILLOCK_CONF, common-auth, common-account"""
+pam	13919	restore_faillock_module	"for target in         ""$FAILLOCK_CONF""         ""$PAM_COMMON_AUTH_FILE""         ""$PAM_COMMON_ACCOUNT_FILE"""
+chmod_chown	14362	restore_metadata_from_stat_snapshot	"if ! chown ""${uid}:${gid}"" ""$target""; then"
+chmod_chown	14363	restore_metadata_from_stat_snapshot	"add_error ""restore metadata: chown failed for $target"""
+chmod_chown	14367	restore_metadata_from_stat_snapshot	"if ! chmod ""$mode"" ""$target""; then"
+chmod_chown	14368	restore_metadata_from_stat_snapshot	"add_error ""restore metadata: chmod failed for $target"""
+chmod_chown	14487	fs_apply_expected_mode	"chmod 644 -- ""$target"""
+chmod_chown	14490	fs_apply_expected_mode	"chmod go-rwx -- ""$target"""
+chmod_chown	14918	apply_fs_critical_file_one	"chmod_text=""chmod 644"""
+chmod_chown	14921	apply_fs_critical_file_one	"chmod_text=""chmod go-rwx"""
+chmod_chown	14951	apply_fs_critical_file_one	"add_error ""2.3.1 chmod failed: $target"""
+chmod_chown	15167	apply_cron_target_one	"log ""[DRY-RUN] chown ${exp_owner}:${exp_group} '$path'"""
+chmod_chown	15168	apply_cron_target_one	"log ""[DRY-RUN] chmod ${exp_mode} '$path'"""
+chmod_chown	15192	apply_cron_target_one	"if ! chown ""${exp_owner}:${exp_group}"" ""$path""; then"
+chmod_chown	15193	apply_cron_target_one	"add_error ""2.3.6 chown завершился с ошибкой: $path"""
+chmod_chown	15194	apply_cron_target_one	"record_manifest_warning ""2.3.6 chown failed: $path"""
+chmod_chown	15198	apply_cron_target_one	"if ! chmod ""${exp_mode}"" ""$path""; then"
+chmod_chown	15199	apply_cron_target_one	"add_error ""2.3.6 chmod завершился с ошибкой: $path"""
+chmod_chown	15200	apply_cron_target_one	"record_manifest_warning ""2.3.6 chmod failed: $path"""
+mount	15248	systemd_unit_candidates	"suffixes = {"".service"", "".socket"", "".timer"", "".mount"", "".path"", "".target"", "".slice""}"
+chmod_chown	15332	apply_systemd_unit_one	"log ""[DRY-RUN] chown root:root '$path'"""
+chmod_chown	15333	apply_systemd_unit_one	"log ""[DRY-RUN] chmod ${exp_mode} '$path'"""
+chmod_chown	15355	apply_systemd_unit_one	"chown root:root ""$path"""
+chmod_chown	15356	apply_systemd_unit_one	"chmod ""$exp_mode"" ""$path"""
+chmod_chown	15597	apply_sudo_policy_module	"if ! chmod 0440 ""$temporary""; then"
+chmod_chown	15599	apply_sudo_policy_module	"""2.2.2 sudo policy: chmod временного файла завершился ошибкой"""
+chmod_chown	15604	apply_sudo_policy_module	"if ! chown 0:0 ""$temporary""; then"
+chmod_chown	15606	apply_sudo_policy_module	"""2.2.2 sudo policy: chown временного файла завершился ошибкой"""
+chmod_chown	15812	apply_ssh_root_login_module	"|| ! chmod 0644 ""$ssh_tmp"" \"
+chmod_chown	15813	apply_ssh_root_login_module	"|| ! chown root:root ""$ssh_tmp"""
+systemctl	15905	apply_ssh_root_login_module	if systemctl reload sshd \
+systemctl	15907	apply_ssh_root_login_module	|| systemctl reload ssh \
+pam	16341	apply_pam_wheel_module	"line = ""auth required pam_wheel.so use_uid group=wheel"""
+systemctl	16384	require_cmds	for cmd in bash python3 stat uname grep awk date mkdir cat systemctl visudo sysctl; do
+systemctl	16743	detect_environment	elif systemctl is-active display-manager >/dev/null 2>&1; then
+ufw	16996	write_report	"{""item"": ""firewall"", ""status"": ""partial"", ""restore"": ""irreversible"", ""module"": ""ufw""},"
+mount	16997	write_report	"{""item"": ""mount"", ""status"": ""partial"", ""restore"": ""managed-file+reboot-required"", ""module"": ""tmp_tmpfs""},"
+mount	16998	write_report	"{""item"": ""mount"", ""status"": ""partial"", ""restore"": ""managed-file+reboot-required"", ""module"": ""mount_hardening""},"
+package	17456	apply_rsyslog_module	if ! pkg_installed rsyslog; then
+package	17457	apply_rsyslog_module	"install_packages_transactionally ""rsyslog"" rsyslog || true"
+package	17467	apply_rsyslog_module	"record_manifest_warning ""rsyslog: apt-get install failed"""
+systemctl	17472	apply_rsyslog_module	systemctl enable --now rsyslog.service \
+systemctl	17484	apply_rsyslog_module	"record_manifest_warning ""rsyslog: systemctl enable --now failed"""
+systemctl	17519	check_rsyslog_module	if systemctl is-active --quiet rsyslog 2>/dev/null; then
+package	17545	apply_chrony_module	if ! pkg_installed chrony; then
+package	17546	apply_chrony_module	"install_packages_transactionally ""chrony"" chrony || true"
+package	17556	apply_chrony_module	"record_manifest_warning ""chrony: apt-get install failed"""
+systemctl	17561	apply_chrony_module	systemctl enable --now chrony.service \
+systemctl	17573	apply_chrony_module	"record_manifest_warning ""chrony: systemctl enable --now failed"""
+systemctl	17608	check_chrony_module	if systemctl is-active --quiet chrony 2>/dev/null; then
+package	17634	apply_unattended_upgrades_module	if ! pkg_installed unattended-upgrades; then
+package	17635	apply_unattended_upgrades_module	install_packages_transactionally \
+package	17647	apply_unattended_upgrades_module	"record_manifest_warning ""unattended-upgrades: apt-get install failed"""
+systemctl	17652	apply_unattended_upgrades_module	systemctl enable --now unattended-upgrades.service \
+systemctl	17664	apply_unattended_upgrades_module	"record_manifest_warning ""unattended-upgrades: systemctl enable --now failed"""
+systemctl	17682	apply_apport_module	&& ! systemctl list-unit-files apport.service >/dev/null 2>&1
+systemctl	17696	apply_apport_module	systemctl disable --now apport.service \
+systemctl	17708	apply_apport_module	"record_manifest_warning ""apport: systemctl disable --now failed"""
+systemctl	17753	restore_apport_module	"""restore apport: legacy manifest не содержит typed service-state; включите вручную при необходимости: systemctl enable --now apport.service"""
+systemctl	18347	check_apport_module	if systemctl is-active --quiet apport 2>/dev/null; then
+package	18653	check_unattended_upgrades_module	"if ! dpkg-query -W -f='${Status}' unattended-upgrades 2>/dev/null | grep -q ""install ok installed""; then"
+systemctl	18657	check_unattended_upgrades_module	if systemctl is-enabled --quiet unattended-upgrades 2>/dev/null; then

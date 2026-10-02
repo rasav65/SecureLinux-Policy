@@ -1,0 +1,1 @@
+146 duplicate adapter_ref in one registry snapshot -> CONTRACT_ERROR

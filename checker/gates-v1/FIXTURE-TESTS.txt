@@ -1,0 +1,18 @@
+test_active_corpus_is_fail_closed (__main__.GatesV1Tests.test_active_corpus_is_fail_closed) ... ok
+test_gate1_bad_doc_hash (__main__.GatesV1Tests.test_gate1_bad_doc_hash) ... ok
+test_gate1_bad_quote_hash (__main__.GatesV1Tests.test_gate1_bad_quote_hash) ... ok
+test_gate1_quote_not_found (__main__.GatesV1Tests.test_gate1_quote_not_found) ... ok
+test_gate1_unknown_index (__main__.GatesV1Tests.test_gate1_unknown_index) ... ok
+test_gate2_open_uncovered (__main__.GatesV1Tests.test_gate2_open_uncovered) ... ok
+test_gate3_bad_sysctl_locator (__main__.GatesV1Tests.test_gate3_bad_sysctl_locator) ... ok
+test_gate3_derived_requires_justification (__main__.GatesV1Tests.test_gate3_derived_requires_justification) ... ok
+test_gate3_type_mismatch (__main__.GatesV1Tests.test_gate3_type_mismatch) ... ok
+test_gate3_unknown_field (__main__.GatesV1Tests.test_gate3_unknown_field) ... ok
+test_gate4_conflicting_parameter (__main__.GatesV1Tests.test_gate4_conflicting_parameter) ... ok
+test_gate4_duplicate_id (__main__.GatesV1Tests.test_gate4_duplicate_id) ... ok
+test_positive_all_gates (__main__.GatesV1Tests.test_positive_all_gates) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.029s
+
+OK

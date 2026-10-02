@@ -1,0 +1,587 @@
+#!/usr/bin/env python3
+"""B-R1-01 regression: the published CONTROL-SCHEMA.json and the runtime
+closure check must accept exactly the same records.
+
+Two independent guards:
+
+1. Generation parity - the committed schema is byte-identical to the one the
+   checker derives from its own constants (KIND_RULES et al). This makes
+   drift structurally impossible rather than merely detectable.
+2. Differential acceptance - a matrix of records is evaluated by the runtime
+   and by a minimal evaluator for the JSON Schema keyword subset the schema
+   uses. Any disagreement fails. This is the backstop in case the generator
+   itself is wrong.
+"""
+from __future__ import annotations
+
+import importlib.util
+import json
+import re
+import tempfile
+import unittest
+from pathlib import Path
+
+try:  # prefer a real Draft 2020-12 validator when it is installed
+    import jsonschema
+    HAVE_JSONSCHEMA = True
+except ImportError:  # pragma: no cover - environment dependent
+    jsonschema = None
+    HAVE_JSONSCHEMA = False
+
+PROJECT = Path(__file__).resolve().parents[2]
+SCHEMA_PATH = PROJECT / "checker/gates-v3/CONTROL-SCHEMA.json"
+
+_spec = importlib.util.spec_from_file_location(
+    "checker_v3", PROJECT / "checker/gates-v3/checker.py"
+)
+checker = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(checker)
+
+SCHEMA = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+
+
+def schema_errors(instance, schema):
+    """Minimal evaluator for the keyword subset used by CONTROL-SCHEMA.json:
+    type, const, enum, pattern, required, properties, additionalProperties,
+    anyOf, allOf, not, if/then/else. `pattern` uses search semantics, as in
+    JSON Schema."""
+    errors = []
+    if "type" in schema:
+        wanted = schema["type"]
+        wanted = wanted if isinstance(wanted, list) else [wanted]
+        ok = False
+        for t in wanted:
+            if t == "integer":
+                ok = ok or (isinstance(instance, int) and not isinstance(instance, bool))
+            elif t == "boolean":
+                ok = ok or isinstance(instance, bool)
+            elif t == "null":
+                ok = ok or instance is None
+            elif t == "string":
+                ok = ok or isinstance(instance, str)
+            elif t == "object":
+                ok = ok or isinstance(instance, dict)
+            elif t == "array":
+                ok = ok or isinstance(instance, list)
+        if not ok:
+            errors.append("type")
+    if "const" in schema and instance != schema["const"]:
+        errors.append("const")
+    if "enum" in schema and not any(instance == x for x in schema["enum"]):
+        errors.append("enum")
+    if "pattern" in schema and isinstance(instance, str):
+        if re.search(schema["pattern"], instance) is None:
+            errors.append("pattern")
+    if "required" in schema and isinstance(instance, dict):
+        for key in schema["required"]:
+            if key not in instance:
+                errors.append(f"required:{key}")
+    if isinstance(instance, dict):
+        props = schema.get("properties", {})
+        for key, value in instance.items():
+            if key in props:
+                errors.extend(schema_errors(value, props[key]))
+            elif schema.get("additionalProperties") is False and "properties" in schema:
+                errors.append(f"additional:{key}")
+    if "anyOf" in schema and not any(not schema_errors(instance, s) for s in schema["anyOf"]):
+        errors.append("anyOf")
+    if "not" in schema and not schema_errors(instance, schema["not"]):
+        errors.append("not")
+    for sub in schema.get("allOf", []):
+        errors.extend(schema_errors(instance, sub))
+    if "if" in schema:
+        branch = "then" if not schema_errors(instance, schema["if"]) else "else"
+        if branch in schema:
+            errors.extend(schema_errors(instance, schema[branch]))
+    return errors
+
+
+def real_schema_errors(instance, schema):
+    validator = jsonschema.Draft202012Validator(schema)
+    return [e.message for e in validator.iter_errors(instance)]
+
+
+def runtime_errors(record):
+    errors = checker.validate_record_schema(record, "test")
+    if errors:
+        return errors
+    return checker.validate_parameter_closure(record, "test")
+
+
+def record(kind, locator, key, op, value, value_type,
+           layer="fstec-core", profile=None, derived=False, justification=None):
+    return {
+        "id": "TEST.RECORD-1",
+        "layer": layer,
+        "profile": profile,
+        "source": {
+            "index_id": "SRC-0001", "doc_id": "doc", "doc_sha256": "0" * 64,
+            "locator": "1.1", "quote": "quote", "quote_sha256": "1" * 64,
+            "norm": "norm-v1",
+        },
+        "requirement": {
+            "stated": "stated", "derived": derived,
+            "justification": justification, "applicability": "technical",
+        },
+        "parameter": {"kind": kind, "locator": locator, "key": key},
+        "expected": {"op": op, "value": value, "type": value_type},
+        "apply": {"supported": False},
+    }
+
+
+CASES = [
+    ("sysctl accepted", record("sysctl", "sysctl", "kernel.dmesg_restrict", "eq", 1, "integer")),
+    ("sysctl ge integer accepted", record("sysctl", "sysctl", "vm.mmap_min_addr", "ge", 4096, "integer")),
+    ("sysctl ge string rejected", record("sysctl", "sysctl", "kernel.x", "ge", "4096", "string")),
+    ("sysctl locator rejected", record("sysctl", "/proc/sys", "kernel.x", "eq", 1, "integer")),
+    ("sysctl key rejected", record("sysctl", "sysctl", "kernel x", "eq", 1, "integer")),
+    ("sysctl op rejected", record("sysctl", "sysctl", "kernel.x", "contains", "1", "string")),
+    ("sysctl type rejected", record("sysctl", "sysctl", "kernel.x", "eq", True, "boolean")),
+    ("kernel-cmdline eq accepted", record("kernel-cmdline", "/proc/cmdline", "init_on_alloc", "eq", "1", "string")),
+    ("kernel-cmdline present accepted", record("kernel-cmdline", "/proc/cmdline", "slab_nomerge", "present", True, "boolean")),
+    ("kernel-cmdline one-of accepted", record("kernel-cmdline", "/proc/cmdline", "debugfs", "one-of", "off|no-mount", "string")),
+    ("kernel-cmdline one-of single rejected", record("kernel-cmdline", "/proc/cmdline", "debugfs", "one-of", "off", "string")),
+    ("kernel-cmdline one-of whitespace rejected", record("kernel-cmdline", "/proc/cmdline", "debugfs", "one-of", "off|no mount", "string")),
+    ("kernel-cmdline one-of boolean rejected", record("kernel-cmdline", "/proc/cmdline", "debugfs", "one-of", True, "boolean")),
+    ("kernel-cmdline locator rejected", record("kernel-cmdline", "/etc/default/grub", "init_on_alloc", "eq", "1", "string")),
+    ("kernel-cmdline key rejected", record("kernel-cmdline", "/proc/cmdline", "bad key", "eq", "1", "string")),
+    ("kernel-cmdline eq boolean rejected", record("kernel-cmdline", "/proc/cmdline", "init_on_alloc", "eq", True, "boolean")),
+    ("kernel-cmdline eq whitespace rejected", record("kernel-cmdline", "/proc/cmdline", "mitigations", "eq", "auto nosmt", "string")),
+    ("kernel-cmdline present false rejected", record("kernel-cmdline", "/proc/cmdline", "slab_nomerge", "present", False, "boolean")),
+    ("kernel-cmdline present string rejected", record("kernel-cmdline", "/proc/cmdline", "slab_nomerge", "present", "true", "string")),
+    ("optional file-root-files accepted", record("optional-file-root-files-mode", "/etc/cron.d", "mode", "bits-clear", "0033", "string")),
+    ("optional file-root-files locator rejected", record("optional-file-root-files-mode", "/tmp/cron.d", "mode", "bits-clear", "0033", "string")),
+    ("optional file-root-files key rejected", record("optional-file-root-files-mode", "/etc/cron.d", "owner", "bits-clear", "0033", "string")),
+    ("optional file-root-files op rejected", record("optional-file-root-files-mode", "/etc/cron.d", "mode", "eq", "0033", "string")),
+    ("optional file-root-files mask rejected", record("optional-file-root-files-mode", "/etc/cron.d", "mode", "bits-clear", "0077", "string")),
+    ("user cron files accepted", record("user-cron-files-mode", "/var/spool/cron/crontabs", "mode", "bits-clear", "0022", "string")),
+    ("user cron locator rejected", record("user-cron-files-mode", "/var/spool/cron|/var/spool/cron/crontabs", "mode", "bits-clear", "0022", "string")),
+    ("user cron key rejected", record("user-cron-files-mode", "/var/spool/cron/crontabs", "owner", "bits-clear", "0022", "string")),
+    ("user cron op rejected", record("user-cron-files-mode", "/var/spool/cron/crontabs", "mode", "eq", "0022", "string")),
+    ("user cron mask rejected", record("user-cron-files-mode", "/var/spool/cron/crontabs", "mode", "bits-clear", "0033", "string")),
+    ("standard system paths accepted", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>", "mode", "bits-clear", "0022", "string")),
+    ("standard system paths locator rejected", record("standard-system-paths-mode", "/bin|/usr/bin", "mode", "bits-clear", "0022", "string")),
+    ("standard system paths key rejected", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>", "owner", "bits-clear", "0022", "string")),
+    ("standard system paths op rejected", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>", "mode", "eq", "0022", "string")),
+    ("standard system paths mask rejected", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>", "mode", "bits-clear", "0033", "string")),
+    ("cron command paths accepted", record("cron-command-paths-write-protection", "/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs", "write-protection", "cron-command-paths-safe", "file-go-w", "string")),
+    ("cron command paths locator rejected", record("cron-command-paths-write-protection", "/etc/crontab", "write-protection", "cron-command-paths-safe", "file-go-w", "string")),
+    ("cron command paths key rejected", record("cron-command-paths-write-protection", "/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs", "mode", "cron-command-paths-safe", "file-go-w", "string")),
+    ("cron command paths op rejected", record("cron-command-paths-write-protection", "/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs", "write-protection", "bits-clear", "file-go-w", "string")),
+    ("cron command paths expected rejected", record("cron-command-paths-write-protection", "/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs", "write-protection", "cron-command-paths-safe", "0022", "string")),
+    ("startup files accepted", record("startup-files-write-protection", "/etc/rc[0-6].d|systemd-unit-paths", "other-write", "bits-clear", "0002", "string")),
+    ("startup files locator rejected", record("startup-files-write-protection", "/etc/rc#.d", "other-write", "bits-clear", "0002", "string")),
+    ("startup files key rejected", record("startup-files-write-protection", "/etc/rc[0-6].d|systemd-unit-paths", "mode", "bits-clear", "0002", "string")),
+    ("startup files op rejected", record("startup-files-write-protection", "/etc/rc[0-6].d|systemd-unit-paths", "other-write", "eq", "0002", "string")),
+    ("startup files expected rejected", record("startup-files-write-protection", "/etc/rc[0-6].d|systemd-unit-paths", "other-write", "bits-clear", "0022", "string")),
+    ("sudo root command files accepted", record("sudo-root-command-files-protection", "/etc/sudoers", "root-command-files", "root-owned-go-w-conditional", "owner-if-regular-user;go-w-if-other-write", "string", derived=True, justification="product mechanism")),
+    ("sudo root command files locator rejected", record("sudo-root-command-files-protection", "/etc/sudoers|/etc/securelinux-policy/sudoers-reviewed-policy-v1", "root-command-files", "root-owned-go-w-conditional", "owner-if-regular-user;go-w-if-other-write", "string")),
+    ("sudo root command files key rejected", record("sudo-root-command-files-protection", "/etc/sudoers", "mode", "root-owned-go-w-conditional", "owner-if-regular-user;go-w-if-other-write", "string")),
+    ("sudo root command files op rejected", record("sudo-root-command-files-protection", "/etc/sudoers", "root-command-files", "bits-clear", "owner-if-regular-user;go-w-if-other-write", "string")),
+    ("sudo root command files expected rejected", record("sudo-root-command-files-protection", "/etc/sudoers", "root-command-files", "root-owned-go-w-conditional", "0022", "string")),
+    ("running process paths accepted", record("running-process-paths-write-protection", "/proc/<pid>/exe|/proc/<pid>/maps", "write-protection", "runtime-paths-safe", "file-go-w;parent-unprivileged-write-denied", "string")),
+    ("running process paths locator rejected", record("running-process-paths-write-protection", "/proc", "write-protection", "runtime-paths-safe", "file-go-w;parent-unprivileged-write-denied", "string")),
+    ("running process paths key rejected", record("running-process-paths-write-protection", "/proc/<pid>/exe|/proc/<pid>/maps", "mode", "runtime-paths-safe", "file-go-w;parent-unprivileged-write-denied", "string")),
+    ("running process paths op rejected", record("running-process-paths-write-protection", "/proc/<pid>/exe|/proc/<pid>/maps", "write-protection", "bits-clear", "file-go-w;parent-unprivileged-write-denied", "string")),
+    ("running process paths expected rejected", record("running-process-paths-write-protection", "/proc/<pid>/exe|/proc/<pid>/maps", "write-protection", "runtime-paths-safe", "0022", "string")),
+    ("suid-sgid mode accepted", record("suid-sgid-applications", "/proc/self/mountinfo", "mode", "bits-clear", "0022", "string")),
+    ("suid-sgid locator rejected", record("suid-sgid-applications", "/proc/mounts", "mode", "bits-clear", "0022", "string")),
+    ("suid-sgid mode op rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "mode", "eq", "0022", "string")),
+    ("suid-sgid mode mask rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "mode", "bits-clear", "0033", "string")),
+    ("suid-sgid retired allowlist rejected", record("suid-sgid-applications", "/proc/self/mountinfo", "approved-set", "subset-of-file", "/etc/securelinux-policy/suid-sgid.allowlist-v1", "string", derived=True, justification="product mechanism")),
+    ("tested setting attestation retired rejected", record("tested-setting-attestation", "/etc/securelinux-policy/tested-setting-attestations-v1", "SRC-0034", "tested-before-use", "kernel.randomize_va_space=2", "string", derived=True, justification="product mechanism")),
+    ("home sensitive files accepted", record("home-sensitive-files-mode", "/home", "mode", "bits-clear", "0077", "string", derived=True, justification="product mechanism")),
+    ("home sensitive files locator rejected", record("home-sensitive-files-mode", "/home|/etc/securelinux-policy/home-sensitive-files-v1", "mode", "bits-clear", "0077", "string")),
+    ("home sensitive files key rejected", record("home-sensitive-files-mode", "/home", "owner", "bits-clear", "0077", "string")),
+    ("home sensitive files op rejected", record("home-sensitive-files-mode", "/home", "mode", "eq", "0077", "string")),
+    ("home sensitive files mask rejected", record("home-sensitive-files-mode", "/home", "mode", "bits-clear", "0022", "string")),
+    ("home directories accepted", record("home-directories-mode", "/home", "mode", "eq", "0700", "string")),
+    ("home directories locator rejected", record("home-directories-mode", "/etc/passwd", "mode", "eq", "0700", "string")),
+    ("home directories key rejected", record("home-directories-mode", "/home", "owner", "eq", "0700", "string")),
+    ("home directories op rejected", record("home-directories-mode", "/home", "mode", "bits-clear", "0700", "string")),
+    ("home directories mode rejected", record("home-directories-mode", "/home", "mode", "eq", "0750", "string")),
+    ("local account password-state accepted", record("local-account-password-state", "/etc/shadow", "password-field", "all-nonempty", True, "boolean")),
+    ("local account locator rejected", record("local-account-password-state", "/tmp/shadow", "password-field", "all-nonempty", True, "boolean")),
+    ("local account key rejected", record("local-account-password-state", "/etc/shadow", "password", "all-nonempty", True, "boolean")),
+    ("local account op rejected", record("local-account-password-state", "/etc/shadow", "password-field", "eq", True, "boolean")),
+    ("local account false rejected", record("local-account-password-state", "/etc/shadow", "password-field", "all-nonempty", False, "boolean")),
+    ("pam wheel accepted", record("pam-wheel-access", "/etc/pam.d/su|/etc/group", "policy", "pam-wheel-root-member", "auth required pam_wheel.so use_uid;wheel:root", "string", derived=True, justification="product mechanism")),
+    ("pam wheel locator rejected", record("pam-wheel-access", "/etc/pam.d/su", "policy", "pam-wheel-root-member", "auth required pam_wheel.so use_uid;wheel:root", "string", derived=True, justification="product mechanism")),
+    ("pam wheel key rejected", record("pam-wheel-access", "/etc/pam.d/su|/etc/group", "members", "pam-wheel-root-member", "auth required pam_wheel.so use_uid;wheel:root", "string", derived=True, justification="product mechanism")),
+    ("pam wheel op rejected", record("pam-wheel-access", "/etc/pam.d/su|/etc/group", "policy", "eq-authority-file", "auth required pam_wheel.so use_uid;wheel:root", "string", derived=True, justification="product mechanism")),
+    ("pam wheel authority rejected", record("pam-wheel-access", "/etc/pam.d/su|/etc/group", "policy", "pam-wheel-root-member", "/etc/securelinux-policy/wheel-users.allowlist-v1", "string", derived=True, justification="product mechanism")),
+    ("sudoers reviewed accepted", record("sudoers-reviewed-policy", "/etc/sudoers", "user-specs", "standard-rules-only", "root ALL=(ALL:ALL) ALL;%sudo ALL=(ALL:ALL) ALL;%admin ALL=(ALL) ALL", "string", derived=True, justification="product mechanism")),
+    ("sudoers reviewed locator rejected", record("sudoers-reviewed-policy", "/etc/sudoers.d", "user-specs", "standard-rules-only", "root ALL=(ALL:ALL) ALL;%sudo ALL=(ALL:ALL) ALL;%admin ALL=(ALL) ALL", "string", derived=True, justification="product mechanism")),
+    ("sudoers reviewed key rejected", record("sudoers-reviewed-policy", "/etc/sudoers", "policy-tree", "standard-rules-only", "root ALL=(ALL:ALL) ALL;%sudo ALL=(ALL:ALL) ALL;%admin ALL=(ALL) ALL", "string", derived=True, justification="product mechanism")),
+    ("sudoers reviewed op rejected", record("sudoers-reviewed-policy", "/etc/sudoers", "user-specs", "eq-reviewed-policy", "root ALL=(ALL:ALL) ALL;%sudo ALL=(ALL:ALL) ALL;%admin ALL=(ALL) ALL", "string", derived=True, justification="product mechanism")),
+    ("sudoers reviewed authority rejected", record("sudoers-reviewed-policy", "/etc/sudoers", "user-specs", "standard-rules-only", "/etc/securelinux-policy/sudoers-reviewed-policy-v1", "string", derived=True, justification="product mechanism")),
+    ("sshd root-login accepted", record("sshd-root-login", "/etc/ssh/sshd_config", "PermitRootLogin", "eq", "no", "string")),
+    ("sshd root-login locator rejected", record("sshd-root-login", "/etc/ssh/sshd_config.d/x.conf", "PermitRootLogin", "eq", "no", "string")),
+    ("sshd root-login key rejected", record("sshd-root-login", "/etc/ssh/sshd_config", "permitrootlogin", "eq", "no", "string")),
+    ("sshd root-login op rejected", record("sshd-root-login", "/etc/ssh/sshd_config", "PermitRootLogin", "contains", "no", "string")),
+    ("sshd root-login value rejected", record("sshd-root-login", "/etc/ssh/sshd_config", "PermitRootLogin", "eq", "prohibit-password", "string")),
+    ("pwhistory accepted", record("pam-pwhistory-remember", "/etc/pam.d/common-password", "remember", "ge", 5, "integer", derived=True, justification="j")),
+    ("pwhistory value rejected", record("pam-pwhistory-remember", "/etc/pam.d/common-password", "remember", "ge", 3, "integer", derived=True, justification="j")),
+    ("pwhistory op rejected", record("pam-pwhistory-remember", "/etc/pam.d/common-password", "remember", "eq", 5, "integer", derived=True, justification="j")),
+    ("pwhistory key rejected", record("pam-pwhistory-remember", "/etc/pam.d/common-password", "retry", "ge", 5, "integer", derived=True, justification="j")),
+    ("pwhistory locator rejected", record("pam-pwhistory-remember", "/etc/security/pwhistory.conf", "remember", "ge", 5, "integer", derived=True, justification="j")),
+    ("pwhistory not derived rejected", record("pam-pwhistory-remember", "/etc/pam.d/common-password", "remember", "ge", 5, "integer")),
+    ("pwquality minlen accepted", record("pam-pwquality-option", "/etc/pam.d/common-password|/etc/security/pwquality.conf", "minlen", "ge", 12, "integer", derived=True, justification="j")),
+    ("pwquality credit accepted", record("pam-pwquality-option", "/etc/pam.d/common-password|/etc/security/pwquality.conf", "ucredit", "eq", -1, "integer", derived=True, justification="j")),
+    ("pwquality minlen value rejected", record("pam-pwquality-option", "/etc/pam.d/common-password|/etc/security/pwquality.conf", "minlen", "ge", 8, "integer", derived=True, justification="j")),
+    ("pwquality op rejected", record("pam-pwquality-option", "/etc/pam.d/common-password|/etc/security/pwquality.conf", "minlen", "eq", 12, "integer", derived=True, justification="j")),
+    ("pwquality key rejected", record("pam-pwquality-option", "/etc/pam.d/common-password|/etc/security/pwquality.conf", "minclass", "ge", 4, "integer", derived=True, justification="j")),
+    ("pwquality type rejected", record("pam-pwquality-option", "/etc/pam.d/common-password|/etc/security/pwquality.conf", "retry", "eq", "3", "string", derived=True, justification="j")),
+    ("pwquality locator rejected", record("pam-pwquality-option", "/etc/security/pwquality.conf", "retry", "eq", 3, "integer", derived=True, justification="j")),
+    ("pwquality not derived rejected", record("pam-pwquality-option", "/etc/pam.d/common-password|/etc/security/pwquality.conf", "retry", "eq", 3, "integer")),
+    ("login defs max days accepted", record("login-defs-option", "/etc/login.defs", "PASS_MAX_DAYS", "eq", "90", "string", derived=True, justification="j")),
+    ("login defs encrypt accepted", record("login-defs-option", "/etc/login.defs", "ENCRYPT_METHOD", "one-of", "SHA512|YESCRYPT", "string", derived=True, justification="j")),
+    ("login defs value rejected", record("login-defs-option", "/etc/login.defs", "PASS_MAX_DAYS", "eq", "99999", "string", derived=True, justification="j")),
+    ("login defs op rejected", record("login-defs-option", "/etc/login.defs", "ENCRYPT_METHOD", "eq", "SHA512|YESCRYPT", "string", derived=True, justification="j")),
+    ("login defs key rejected", record("login-defs-option", "/etc/login.defs", "PASS_MIN_LEN", "eq", "12", "string", derived=True, justification="j")),
+    ("login defs locator rejected", record("login-defs-option", "/etc/default/login.defs", "PASS_MAX_DAYS", "eq", "90", "string", derived=True, justification="j")),
+    ("login defs not derived rejected", record("login-defs-option", "/etc/login.defs", "PASS_MAX_DAYS", "eq", "90", "string")),
+    ("auditd conf accepted", record("auditd-conf-option", "/etc/audit/auditd.conf", "max_log_file_action", "eq", "keep_logs", "string", derived=True, justification="j")),
+    ("auditd conf value rejected", record("auditd-conf-option", "/etc/audit/auditd.conf", "num_logs", "eq", "5", "string", derived=True, justification="j")),
+    ("auditd conf key rejected", record("auditd-conf-option", "/etc/audit/auditd.conf", "write_logs", "eq", "yes", "string", derived=True, justification="j")),
+    ("auditd conf locator rejected", record("auditd-conf-option", "/etc/audit/audit.rules", "num_logs", "eq", "10", "string", derived=True, justification="j")),
+    ("auditd conf not derived rejected", record("auditd-conf-option", "/etc/audit/auditd.conf", "num_logs", "eq", "10", "string")),
+    ("auditd rules accepted", record("auditd-rules", "/etc/audit/rules.d", "table1", "eq", "present", "string", derived=True, justification="j")),
+    ("auditd rules value rejected", record("auditd-rules", "/etc/audit/rules.d", "table1", "eq", "absent", "string", derived=True, justification="j")),
+    ("auditd rules key rejected", record("auditd-rules", "/etc/audit/rules.d", "myapp", "eq", "present", "string", derived=True, justification="j")),
+    ("auditd rules locator rejected", record("auditd-rules", "/etc/audit/audit.rules", "table1", "eq", "present", "string", derived=True, justification="j")),
+    ("auditd rules not derived rejected", record("auditd-rules", "/etc/audit/rules.d", "table1", "eq", "present", "string")),
+    ("password aging accepted", record("local-account-password-aging", "/etc/shadow", "aging-fields", "eq", "1/90/7", "string", derived=True, justification="j")),
+    ("password aging value rejected", record("local-account-password-aging", "/etc/shadow", "aging-fields", "eq", "1/90/14", "string", derived=True, justification="j")),
+    ("password aging key rejected", record("local-account-password-aging", "/etc/shadow", "max", "eq", "1/90/7", "string", derived=True, justification="j")),
+    ("password aging not derived rejected", record("local-account-password-aging", "/etc/shadow", "aging-fields", "eq", "1/90/7", "string")),
+    ("password age accepted", record("local-account-password-age", "/etc/shadow", "age-days", "le", 90, "integer", derived=True, justification="j")),
+    ("password age value rejected", record("local-account-password-age", "/etc/shadow", "age-days", "le", 60, "integer", derived=True, justification="j")),
+    ("password age op rejected", record("local-account-password-age", "/etc/shadow", "age-days", "eq", 90, "integer", derived=True, justification="j")),
+    ("password age apply rejected", {**record("local-account-password-age", "/etc/shadow", "age-days", "le", 90, "integer", derived=True, justification="j"), "apply": {"supported": True}}),
+    ("auditd free space accepted", record("auditd-log-free-space", "/var/log/audit", "available_bytes", "ge", 7516192768, "integer", derived=True, justification="j")),
+    ("auditd free space value rejected", record("auditd-log-free-space", "/var/log/audit", "available_bytes", "ge", 1073741824, "integer", derived=True, justification="j")),
+    ("auditd free space op rejected", record("auditd-log-free-space", "/var/log/audit", "available_bytes", "eq", 7516192768, "integer", derived=True, justification="j")),
+    ("auditd free space apply rejected", {**record("auditd-log-free-space", "/var/log/audit", "available_bytes", "ge", 7516192768, "integer", derived=True, justification="j"), "apply": {"supported": True}}),
+    ("auditd package accepted", record("auditd-package-service", "dpkg|systemd", "package", "eq", "installed", "string")),
+    ("auditd service accepted", record("auditd-package-service", "dpkg|systemd", "service", "eq", "enabled-active", "string")),
+    ("auditd package value rejected", record("auditd-package-service", "dpkg|systemd", "package", "eq", "enabled-active", "string")),
+    ("auditd service value rejected", record("auditd-package-service", "dpkg|systemd", "service", "eq", "active", "string")),
+    ("auditd key rejected", record("auditd-package-service", "dpkg|systemd", "unit", "eq", "installed", "string")),
+    ("auditd locator rejected", record("auditd-package-service", "systemd", "service", "eq", "enabled-active", "string")),
+    ("auditd derived rejected", record("auditd-package-service", "dpkg|systemd", "package", "eq", "installed", "string", derived=True, justification="j")),
+    ("network service accepted", record("network-service-disabled", "systemd|/proc/net", "telnet", "eq", "disabled", "string", derived=True, justification="j")),
+    ("network service key rejected", record("network-service-disabled", "systemd|/proc/net", "ssh", "eq", "disabled", "string", derived=True, justification="j")),
+    ("network service value rejected", record("network-service-disabled", "systemd|/proc/net", "ftp", "eq", "masked", "string", derived=True, justification="j")),
+    ("network service locator rejected", record("network-service-disabled", "/proc/net", "ftp", "eq", "disabled", "string", derived=True, justification="j")),
+    ("network service not derived rejected", record("network-service-disabled", "systemd|/proc/net", "ftp", "eq", "disabled", "string")),
+    ("sshd option accepted", record("sshd-config-option", "/etc/ssh/sshd_config", "PasswordAuthentication", "eq", "no", "string")),
+    ("sshd option empty passwords accepted", record("sshd-config-option", "/etc/ssh/sshd_config", "PermitEmptyPasswords", "eq", "no", "string")),
+    ("sshd option locator rejected", record("sshd-config-option", "/etc/ssh/sshd_config.d/x.conf", "PasswordAuthentication", "eq", "no", "string")),
+    ("sshd option key rejected", record("sshd-config-option", "/etc/ssh/sshd_config", "UsePAM", "eq", "no", "string")),
+    ("sshd option lowercase key rejected", record("sshd-config-option", "/etc/ssh/sshd_config", "passwordauthentication", "eq", "no", "string")),
+    ("sshd option op rejected", record("sshd-config-option", "/etc/ssh/sshd_config", "PasswordAuthentication", "contains", "no", "string")),
+    ("sshd option value rejected", record("sshd-config-option", "/etc/ssh/sshd_config", "PermitEmptyPasswords", "eq", "yes", "string")),
+    ("sshd option log level accepted", record("sshd-config-option", "/etc/ssh/sshd_config", "LogLevel", "eq", "VERBOSE", "string")),
+    ("sshd option log level info rejected", record("sshd-config-option", "/etc/ssh/sshd_config", "LogLevel", "eq", "INFO", "string")),
+    ("sshd option log level no rejected", record("sshd-config-option", "/etc/ssh/sshd_config", "LogLevel", "eq", "no", "string")),
+    ("sshd option root login verbose rejected", record("sshd-config-option", "/etc/ssh/sshd_config", "PermitRootLogin", "eq", "VERBOSE", "string")),
+    ("file-kv accepted", record("file-kv", "/etc/ssh/sshd_config", "PermitRootLogin", "eq", "no", "string")),
+    ("file-kv relative locator rejected", record("file-kv", "etc/f", "K", "eq", "v", "string")),
+    ("file-mode-owner accepted", record("file-mode-owner", "/etc/shadow", "mode", "eq", "0640", "string")),
+    ("file-mode-owner bits-clear accepted", record("file-mode-owner", "/etc/shadow", "mode", "bits-clear", "0077", "string")),
+    ("file-mode-owner bits-clear zero mask rejected", record("file-mode-owner", "/etc/shadow", "mode", "bits-clear", "0000", "string")),
+    ("file-mode-owner bits-clear short mask rejected", record("file-mode-owner", "/etc/shadow", "mode", "bits-clear", "077", "string")),
+    ("file-mode-owner bits-clear non-octal rejected", record("file-mode-owner", "/etc/shadow", "mode", "bits-clear", "0080", "string")),
+    ("file-mode-owner bits-clear owner rejected", record("file-mode-owner", "/etc/shadow", "owner", "bits-clear", "0077", "string")),
+    ("file-mode-owner bits-clear group rejected", record("file-mode-owner", "/etc/shadow", "group", "bits-clear", "0077", "string")),
+    ("file-mode-owner bits-clear owner_group rejected", record("file-mode-owner", "/etc/shadow", "owner_group", "bits-clear", "0077", "string")),
+    ("file-mode-owner bits-clear wrong type rejected", record("file-mode-owner", "/etc/shadow", "mode", "bits-clear", 63, "integer")),
+    ("file-mode-owner op rejected", record("file-mode-owner", "/etc/shadow", "mode", "contains", "0077", "string")),
+    ("file-mode-owner key rejected", record("file-mode-owner", "/etc/shadow", "perm", "eq", "0640", "string")),
+    ("file-mode-owner type rejected", record("file-mode-owner", "/etc/shadow", "mode", "eq", 640, "integer")),
+    ("mount-option fstype accepted", record("mount-option", "/tmp", "fstype", "eq", "tmpfs", "string")),
+    ("mount-option named accepted", record("mount-option", "/tmp", "option::noexec", "eq", "noexec", "string")),
+    ("mount-option empty suffix rejected", record("mount-option", "/tmp", "option::", "eq", "x", "string")),
+    ("mount-option key rejected", record("mount-option", "/tmp", "opt", "eq", "x", "string")),
+    ("systemd accepted", record("systemd-unit-state", "auditd.service", "enabled", "eq", True, "boolean")),
+    ("systemd unit rejected", record("systemd-unit-state", "auditd.svc", "enabled", "eq", True, "boolean")),
+    ("systemd key rejected", record("systemd-unit-state", "auditd.service", "running", "eq", True, "boolean")),
+    ("package accepted", record("package-presence", "auditd", "installed", "eq", True, "boolean")),
+    ("package key rejected", record("package-presence", "auditd", "present", "eq", True, "boolean")),
+    ("package locator rejected", record("package-presence", "au ditd", "installed", "eq", True, "boolean")),
+    ("pam-line accepted", record("pam-line", "/etc/pam.d/common-auth", "active_line::auth", "contains", "pam_faillock", "string")),
+    ("pam-line empty suffix rejected", record("pam-line", "/etc/pam.d/common-auth", "active_line::", "contains", "x", "string")),
+    ("pam-line key rejected", record("pam-line", "/etc/pam.d/common-auth", "line", "contains", "x", "string")),
+    ("pam-line op rejected", record("pam-line", "/etc/pam.d/common-auth", "active_line::auth", "eq", "x", "string")),
+    ("audit-rule accepted", record("audit-rule", "/etc/audit/rules.d/base.rules", "any", "contains", "-w /etc/passwd", "string")),
+    ("audit-rule locator rejected", record("audit-rule", "rules", "any", "contains", "-w /etc/passwd", "string")),
+    ("unknown kind rejected", record("selinux-boolean", "/x", "k", "eq", "v", "string")),
+    ("corporate with profile accepted", record("sysctl", "sysctl", "kernel.x", "eq", 1, "integer", layer="corporate", profile="strict")),
+    ("corporate without profile rejected", record("sysctl", "sysctl", "kernel.x", "eq", 1, "integer", layer="corporate")),
+    ("firewall with profile rejected", record("sysctl", "sysctl", "kernel.x", "eq", 1, "integer", layer="firewall", profile="strict")),
+    ("authority sudo root non-derived rejected", record("sudo-root-command-files-protection", "/etc/sudoers", "root-command-files", "root-owned-go-w-conditional", "owner-if-regular-user;go-w-if-other-write", "string")),
+    ("authority home sensitive non-derived rejected", record("home-sensitive-files-mode", "/home", "mode", "bits-clear", "0077", "string")),
+    ("authority pam wheel non-derived rejected", record("pam-wheel-access", "/etc/pam.d/su|/etc/group", "policy", "pam-wheel-root-member", "auth required pam_wheel.so use_uid;wheel:root", "string")),
+    ("authority sudoers reviewed non-derived rejected", record("sudoers-reviewed-policy", "/etc/sudoers", "user-specs", "standard-rules-only", "root ALL=(ALL:ALL) ALL;%sudo ALL=(ALL:ALL) ALL;%admin ALL=(ALL) ALL", "string")),
+    ("derived without justification rejected", record("sysctl", "sysctl", "kernel.x", "eq", 1, "integer", derived=True)),
+    ("derived with justification accepted", record("sysctl", "sysctl", "kernel.x", "eq", 1, "integer", derived=True, justification="engineering decision")),
+    ("non-derived with justification rejected", record("sysctl", "sysctl", "kernel.x", "eq", 1, "integer", justification="unexpected")),
+    ("type and value mismatch rejected", record("sysctl", "sysctl", "kernel.x", "eq", "1", "integer")),
+]
+
+# B-R2-01 boundary cases. Runtime matches patterns with re.fullmatch while
+# JSON Schema `pattern` searches, and in the Python regex engine `$` also
+# matches before a trailing newline. Without an explicit single-line
+# assertion the two sides disagree on every one of these.
+FILE_MODE_OWNER_BITS_CLEAR_EXPECTATIONS = {
+    "file-mode-owner accepted": True,
+    "file-mode-owner bits-clear accepted": True,
+    "file-mode-owner bits-clear zero mask rejected": False,
+    "file-mode-owner bits-clear short mask rejected": False,
+    "file-mode-owner bits-clear non-octal rejected": False,
+    "file-mode-owner bits-clear owner rejected": False,
+    "file-mode-owner bits-clear group rejected": False,
+    "file-mode-owner bits-clear owner_group rejected": False,
+    "file-mode-owner bits-clear wrong type rejected": False,
+    "file-mode-owner op rejected": False,
+}
+
+NEWLINE_CASES = [
+    ("sysctl key with trailing LF", record("sysctl", "sysctl", "kernel.x\n", "eq", 1, "integer")),
+    ("sysctl key with trailing CR", record("sysctl", "sysctl", "kernel.x\r", "eq", 1, "integer")),
+    ("sysctl key with embedded LF", record("sysctl", "sysctl", "kernel\n.x", "eq", 1, "integer")),
+    ("file-kv locator with trailing LF", record("file-kv", "/etc/f\n", "K", "eq", "v", "string")),
+    ("file-mode-owner locator with LF", record("file-mode-owner", "/etc/f\n", "mode", "eq", "0600", "string")),
+    ("local account locator with LF", record("local-account-password-state", "/etc/shadow\n", "password-field", "all-nonempty", True, "boolean")),
+    ("pam wheel locator with LF", record("pam-wheel-access", "/etc/pam.d/su|/etc/group\n", "policy", "pam-wheel-root-member", "auth required pam_wheel.so use_uid;wheel:root", "string")),
+    ("sshd root-login locator with LF", record("sshd-root-login", "/etc/ssh/sshd_config\n", "PermitRootLogin", "eq", "no", "string")),
+    ("standard system paths locator with LF", record("standard-system-paths-mode", "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>\n", "mode", "bits-clear", "0022", "string")),
+    ("cron command paths locator with LF", record("cron-command-paths-write-protection", "/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs\n", "write-protection", "cron-command-paths-safe", "file-go-w", "string")),
+    ("startup files locator with LF", record("startup-files-write-protection", "/etc/rc[0-6].d|systemd-unit-paths\n", "other-write", "bits-clear", "0002", "string")),
+    ("sudo root command files locator with LF", record("sudo-root-command-files-protection", "/etc/sudoers\n", "root-command-files", "root-owned-go-w-conditional", "owner-if-regular-user;go-w-if-other-write", "string")),
+    ("running process paths locator with LF", record("running-process-paths-write-protection", "/proc/<pid>/exe|/proc/<pid>/maps\n", "write-protection", "runtime-paths-safe", "file-go-w;parent-unprivileged-write-denied", "string")),
+    ("suid-sgid locator with LF", record("suid-sgid-applications", "/proc/self/mountinfo\n", "mode", "bits-clear", "0022", "string")),
+    ("home sensitive files locator with LF", record("home-sensitive-files-mode", "/home\n", "mode", "bits-clear", "0077", "string")),
+    ("mount-option locator with LF", record("mount-option", "/tmp\n", "fstype", "eq", "tmpfs", "string")),
+    ("mount-option key with LF", record("mount-option", "/tmp", "option::noexec\n", "eq", "noexec", "string")),
+    ("pam-line locator with LF", record("pam-line", "/etc/pam.d/x\n", "active_line::a", "contains", "x", "string")),
+    ("pam-line key with LF", record("pam-line", "/etc/pam.d/x", "active_line::a\n", "contains", "x", "string")),
+    ("audit-rule locator with LF", record("audit-rule", "/etc/audit/x.rules\n", "k", "contains", "-w /x", "string")),
+    ("systemd locator with LF", record("systemd-unit-state", "x.service\n", "enabled", "eq", True, "boolean")),
+    ("package locator with LF", record("package-presence", "auditd\n", "installed", "eq", True, "boolean")),
+]
+
+
+def _with(record_, **overrides):
+    out = json.loads(json.dumps(record_))
+    for dotted, value in overrides.items():
+        section, field = dotted.split("__")
+        out[section][field] = value
+    return out
+
+
+_BASE = record("sysctl", "sysctl", "kernel.x", "eq", 1, "integer")
+NEWLINE_CASES += [
+    ("id with trailing LF", {**json.loads(json.dumps(_BASE)), "id": "TEST.RECORD-1\n"}),
+    ("index_id with trailing LF", _with(_BASE, source__index_id="SRC-0001\n")),
+    ("doc_sha256 with trailing LF", _with(_BASE, source__doc_sha256="0" * 64 + "\n")),
+    ("quote_sha256 with trailing LF", _with(_BASE, source__quote_sha256="1" * 64 + "\n")),
+]
+
+ALL_CASES = CASES + NEWLINE_CASES
+
+
+class GenerationParityTests(unittest.TestCase):
+    def test_committed_schema_is_the_generated_schema(self):
+        self.assertEqual(
+            SCHEMA_PATH.read_text(encoding="utf-8"),
+            checker.render_control_schema(),
+            "CONTROL-SCHEMA.json is not the schema derived from runtime "
+            "constants; regenerate with --emit-schema",
+        )
+
+    def test_gate0_reports_parity(self):
+        self.assertEqual(checker.schema_parity_errors(SCHEMA_PATH), [])
+
+    def test_every_kind_is_covered_by_the_schema(self):
+        kinds_in_schema = set(
+            SCHEMA["properties"]["parameter"]["properties"]["kind"]["enum"]
+        )
+        self.assertEqual(kinds_in_schema, set(checker.KIND_RULES))
+        branch_kinds = {
+            branch["if"]["properties"]["parameter"]["properties"]["kind"]["const"]
+            for branch in SCHEMA["allOf"]
+            if "parameter" in branch.get("if", {}).get("properties", {})
+        }
+        self.assertEqual(branch_kinds, set(checker.KIND_RULES))
+
+
+class DifferentialAcceptanceTests(unittest.TestCase):
+    def test_runtime_and_schema_agree_on_every_case(self):
+        disagreements = []
+        for name, rec in ALL_CASES:
+            runtime_accepts = not runtime_errors(rec)
+            schema_accepts = not schema_errors(rec, SCHEMA)
+            if runtime_accepts != schema_accepts:
+                disagreements.append(
+                    f"{name}: runtime={'accept' if runtime_accepts else 'reject'} "
+                    f"schema={'accept' if schema_accepts else 'reject'}"
+                )
+        self.assertEqual(disagreements, [])
+
+    def test_file_mode_owner_bits_clear_verdicts_are_explicit(self):
+        by_name = dict(CASES)
+        for name, expected_accept in FILE_MODE_OWNER_BITS_CLEAR_EXPECTATIONS.items():
+            with self.subTest(name):
+                rec = by_name[name]
+                runtime_accepts = not runtime_errors(rec)
+                schema_accepts = not schema_errors(rec, SCHEMA)
+                self.assertEqual(
+                    runtime_accepts,
+                    expected_accept,
+                    f"{name}: unexpected runtime verdict",
+                )
+                self.assertEqual(
+                    schema_accepts,
+                    expected_accept,
+                    f"{name}: unexpected schema verdict",
+                )
+
+    def test_matrix_exercises_all_kinds_in_both_directions(self):
+        kinds = {rec["parameter"]["kind"] for _, rec in ALL_CASES}
+        self.assertTrue(set(checker.KIND_RULES).issubset(kinds))
+        accepted = sum(1 for _, rec in ALL_CASES if not runtime_errors(rec))
+        rejected = len(ALL_CASES) - accepted
+        self.assertGreaterEqual(accepted, len(checker.KIND_RULES))
+        self.assertGreaterEqual(rejected, len(checker.KIND_RULES))
+
+    def test_retired_authority_vocabulary_is_rejected_by_both_sides(self):
+        # Контроли 2.3.9 SUID-SGID-ALLOWLIST (cf332e6) и 2.5.11
+        # TESTED-BEFORE-USE (3fe1b8e) выведены; их key/op/kind не допускаются.
+        by_name = dict(CASES)
+        for name in ("suid-sgid retired allowlist rejected", "tested setting attestation retired rejected"):
+            with self.subTest(name):
+                self.assertTrue(runtime_errors(by_name[name]), f"{name}: runtime accepted")
+                self.assertTrue(schema_errors(by_name[name], SCHEMA), f"{name}: schema accepted")
+        self.assertNotIn("tested-setting-attestation", checker.KIND_RULES)
+
+    def test_every_newline_case_is_rejected_by_both_sides(self):
+        for name, rec in NEWLINE_CASES:
+            with self.subTest(name):
+                self.assertTrue(runtime_errors(rec), f"{name}: runtime accepted")
+                self.assertTrue(schema_errors(rec, SCHEMA), f"{name}: schema accepted")
+
+    @unittest.skipUnless(HAVE_JSONSCHEMA,
+                         "jsonschema is not installed; the emulator result stands alone")
+    def test_real_draft202012_validator_agrees_with_runtime(self):
+        disagreements = []
+        for name, rec in ALL_CASES:
+            runtime_accepts = not runtime_errors(rec)
+            schema_accepts = not real_schema_errors(rec, SCHEMA)
+            if runtime_accepts != schema_accepts:
+                disagreements.append(
+                    f"{name}: runtime={'accept' if runtime_accepts else 'reject'} "
+                    f"schema={'accept' if schema_accepts else 'reject'}"
+                )
+        self.assertEqual(disagreements, [])
+
+    def test_emulator_matches_real_validator_when_available(self):
+        if not HAVE_JSONSCHEMA:
+            self.skipTest("jsonschema is not installed")
+        for name, rec in ALL_CASES:
+            with self.subTest(name):
+                self.assertEqual(
+                    not schema_errors(rec, SCHEMA),
+                    not real_schema_errors(rec, SCHEMA),
+                    f"{name}: emulator disagrees with Draft202012Validator",
+                )
+
+
+
+
+class InlineSourceBoundaryTests(unittest.TestCase):
+    def test_src0008_exact_inline_page_furniture_is_accepted(self):
+        raw = "prefix командой chown root путь_к_файлу для 4 каждого исполняемого файла suffix"
+        canonical = "prefix командой chown root путь_к_файлу для каждого исполняемого файла suffix"
+        self.assertTrue(checker.source_quote_in_corpus("SRC-0008", canonical, raw))
+
+    def test_src0014_exact_inline_page_furniture_is_accepted(self):
+        raw = "prefix файлы 5 настройки оболочки suffix"
+        canonical = "prefix файлы настройки оболочки suffix"
+        self.assertTrue(checker.source_quote_in_corpus("SRC-0014", canonical, raw))
+
+    def test_inline_rewrite_is_pinned_and_fail_closed(self):
+        raw = "prefix файлы 5 настройки оболочки suffix"
+        canonical = "prefix файлы настройки оболочки suffix"
+        self.assertFalse(checker.source_quote_in_corpus("SRC-0015", canonical, raw))
+        self.assertFalse(checker.source_quote_in_corpus("SRC-0014", canonical, raw + " / " + raw))
+        self.assertFalse(checker.source_quote_in_corpus("SRC-0014", "prefix файлы настройки оболочки suffix", "prefix файлы 6 настройки оболочки suffix"))
+        raw8 = "prefix командой chown root путь_к_файлу для 4 каждого исполняемого файла suffix"
+        canonical8 = "prefix командой chown root путь_к_файлу для каждого исполняемого файла suffix"
+        self.assertFalse(checker.source_quote_in_corpus("SRC-0007", canonical8, raw8))
+        self.assertFalse(checker.source_quote_in_corpus("SRC-0008", canonical8, raw8 + " / " + raw8))
+
+class ParserInvariantTests(unittest.TestCase):
+    """Defence in depth: a control file cannot even carry a control character
+    in a scalar, so the newline class is unreachable through load_controls."""
+
+    def test_parser_rejects_control_characters_in_scalars(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "record.yaml"
+            path.write_text(
+                'id: "TEST.A"\n'
+                'parameter:\n'
+                '  kind: "sysctl"\n'
+                '  locator: "sysctl"\n'
+                '  key: "kernel.x\\n"\n',
+                encoding="utf-8",
+            )
+            with self.assertRaises(ValueError) as ctx:
+                checker.parse_yaml_subset(path)
+            self.assertIn("control characters", str(ctx.exception))
+
+    def test_parser_accepts_the_same_scalar_without_control_characters(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "record.yaml"
+            path.write_text(
+                'id: "TEST.A"\n'
+                'parameter:\n'
+                '  kind: "sysctl"\n'
+                '  locator: "sysctl"\n'
+                '  key: "kernel.x"\n',
+                encoding="utf-8",
+            )
+            parsed = checker.parse_yaml_subset(path)
+            self.assertEqual(parsed["parameter"]["key"], "kernel.x")
+
+
+class PatternSemanticsTests(unittest.TestCase):
+    """fullmatch (runtime) and search (JSON Schema) must accept the same set."""
+
+    PATTERNS = [
+        "ID_PATTERN", "SHA_PATTERN", "INDEX_ID_PATTERN", "SYSCTL_KEY_PATTERN",
+        "UNIT_PATTERN", "PKG_PATTERN", "ABSOLUTE_PATH_PATTERN",
+        "MOUNT_OPTION_KEY_PATTERN", "PAM_LINE_KEY_PATTERN",
+    ]
+    SAMPLES = [
+        "kernel.x", "kernel.x\n", "\nkernel.x", "kernel\n.x", "kernel.x\r",
+        "/etc/f", "/etc/f\n", "TEST.A", "TEST.A\n", "SRC-0001", "SRC-0001\n",
+        "0" * 64, "0" * 64 + "\n", "x.service", "x.service\n", "auditd",
+        "auditd\n", "option::a", "option::a\n", "active_line::a",
+        "active_line::a\n", "", " ",
+    ]
+
+    def test_fullmatch_and_search_agree_on_every_pattern(self):
+        for name in self.PATTERNS:
+            pattern = getattr(checker, name)
+            for sample in self.SAMPLES:
+                with self.subTest(pattern=name, sample=sample):
+                    self.assertEqual(
+                        re.fullmatch(pattern, sample) is not None,
+                        re.search(pattern, sample) is not None,
+                    )
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

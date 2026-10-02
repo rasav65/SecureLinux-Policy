@@ -1,0 +1,1 @@
+123 adapter hidden query instead of bound finite population -> CONTRACT_ERROR

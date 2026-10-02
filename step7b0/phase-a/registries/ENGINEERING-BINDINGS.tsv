@@ -1,0 +1,11 @@
+role	engineering_contract_id	contract_version	emission_kind	block_role	multiplicity
+launcher	eng-launcher-v1	1	launcher-line	-	1
+cli_rc	eng-cli-rc-v1	1	runtime-block	cli_rc	1
+target_preflight	eng-target-preflight-v1	1	runtime-block	target_preflight	1
+result_aggregation	eng-result-aggregation-v1	1	runtime-block	result_aggregation	1
+machine_output_format	eng-machine-output-format-v1	1	runtime-block	machine_output_format	1
+provenance_query	eng-provenance-query-v1	1	runtime-block	provenance_query	1
+build_info	eng-build-info-v1	1	runtime-block	build_info	1
+readonly_runtime	eng-readonly-runtime-v1	1	build-only	-	0
+generated_block_framing	eng-generated-block-framing-v1	1	build-only	-	0
+main_dispatch	eng-main-dispatch-v1	1	runtime-block	main_dispatch	1

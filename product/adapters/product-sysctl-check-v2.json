@@ -1,0 +1,23 @@
+{
+  "adapter_contract_version": "product-sysctl-check-adapter-v2",
+  "adapter_id": "product-sysctl-check-v2",
+  "expected_type": "integer",
+  "implementation_id": "product-sysctl-check-v2.py",
+  "implementation_path": "product/adapters/product-sysctl-check-v2.py",
+  "implementation_sha256": "ac348026b5e2e11d27bcfe3c1b5978a2bc6464ff98ee0ae911244a6f0c93327f",
+  "input_schema_id": "canonical-control-v3",
+  "input_schema_version": 1,
+  "locator": "sysctl",
+  "operation": "check",
+  "output_schema_id": "slp-check-v1",
+  "output_schema_version": 1,
+  "parameter_kind": "sysctl",
+  "semantic_contract_id": "sysctl-check-semantic-v2",
+  "semantic_contract_path": "product/contracts/sysctl-check-semantic-v2.json",
+  "semantic_contract_sha256": "f912d89b80d2a17819a691190cf8c4bdb1c5340545a5a6b0b1e5b107757a3695",
+  "supported_ops": [
+    "eq",
+    "ge"
+  ],
+  "target_id": "linux-x86_64-supported-v1"
+}

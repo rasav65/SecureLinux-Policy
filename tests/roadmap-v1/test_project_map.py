@@ -1,0 +1,269 @@
+#!/usr/bin/env python3
+from pathlib import Path
+
+root = Path(__file__).resolve().parents[2]
+text = (root / "docs/PROJECT-MAP.md").read_text(encoding="utf-8")
+readme = (root / "README.md").read_text(encoding="utf-8")
+
+assert "основная архитектурная карта текущего SecureLinux-Policy.**" in text
+assert "SecureLinux-Policy v3" not in text
+# Реестр диспозиций заполнен; число закрытых строк — только в генерируемых блоках.
+assert "0 реальных rows" not in text
+assert "Реальных disposed-строк пока 0" not in text
+assert "engineering donor" in text
+assert "<!-- BEGIN GENERATED MAP STATUS -->" in text
+assert "docs/fstec-coverage.md" in text
+assert "docs/policy-layers.md" in text
+assert "docs/compatibility.md" in text
+
+for marker in (
+    "raw-pdftotext",
+    "raw-glyph-recovered",
+    "sources/recovered-v1/norm-v1",
+    "SOURCE-INDEX.text_quality",
+    "CLOSURE-CONTRACT.tsv",
+    "Draft202012Validator",
+    "generator source skeleton",
+    "parity source-block",
+    "DONOR_TO_V3_MAPPING",
+    "REUSE / ADAPT / REJECT / DEFER",
+    "product/ADAPTER-REGISTRY.tsv",
+    "product-sysctl-check-v2",
+    "product-file-mode-owner-check-v2",
+    "product/generate-product-check-v1.py",
+    "product/generate-product-check-v2.py",
+    "securelinux-policy.sh",
+    "NON_RELEASE_PRODUCT_CANDIDATE",
+):
+    assert marker in text, marker
+
+# Current product CHECK components are implemented in the dedicated product line.
+product_line = text.split("## 3. Текущая product-line: read-only CHECK + mechanism-oriented APPLY", 1)[1].split(
+    "## 4. Инженерный донор", 1
+)[0]
+for marker in (
+    'product-sysctl-check-v2<br/>read-only `eq` + integer `ge`"]:::closed',
+    'product-file-mode-owner-check-v2<br/>read-only"]:::closed',
+    'product/generate-product-check-v2.py<br/>текущий детерминированный generator"]:::closed',
+    'product/APPLY-IMPLEMENTATION-REGISTRY.tsv<br/>exact binding активных механизмов"]:::closed',
+    'config-line-with-runtime-v1<br/>sysctl · dry-run · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
+    'file-mode-owner-v1<br/>режимы файлов SRC-0005 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
+    'optional-file-root-files-mode-v1<br/>режимы cron SRC-0010 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
+    'suid-sgid-applications-mode-v1<br/>режимы SUID/SGID SRC-0013 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
+    'standard-system-paths-mode-v1<br/>режимы системных путей SRC-0012 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
+    'startup-files-write-protection-v1<br/>режимы файлов запуска SRC-0009 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
+    'kernel-cmdline-grub-v1<br/>параметры загрузки ядра G4 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
+    'pam-wheel-su-v1<br/>доступ к su SRC-0003 · APPLY<br/>ВМ: приёмка семи сред 25.09.2026"]:::closed',
+    'sshd-config-option-v1<br/>вход по SSH SRC-0088, журнал SSH SRC-0091 · APPLY<br/>ВМ: приёмка семи сред 26.09.2026, 30.09.2026"]:::closed',
+    'network-service-mask-v1<br/>службы Telnet, FTP, SNMP SRC-0098 · APPLY<br/>ВМ: приёмка семи сред 27.09.2026"]:::closed',
+    'login-defs-option-v1<br/>парольная политика login.defs SRC-0055 · APPLY<br/>ВМ: приёмка семи сред 27.09.2026"]:::closed',
+    'pam-pwquality-option-v1<br/>сложность пароля pam_pwquality SRC-0055 · APPLY<br/>ВМ: приёмка семи сред 27.09.2026"]:::closed',
+    'pam-pwhistory-profile-v1<br/>история паролей pam_pwhistory SRC-0056 · APPLY<br/>ВМ: приёмка семи сред 29.09.2026"]:::closed',
+    'home-directories-mode-v1<br/>домашние каталоги SRC-0015 · APPLY<br/>ВМ: приёмка семи сред 29.09.2026"]:::closed',
+    'home-sensitive-files-mode-v1<br/>файлы оболочки в домашних каталогах SRC-0014 · APPLY<br/>ВМ: приёмка семи сред 29.09.2026"]:::closed',
+    'cron-command-paths-write-protection-v1<br/>файлы, вызываемые cron, SRC-0007 · APPLY<br/>ВМ: приёмка семи сред 29.09.2026"]:::closed',
+    'user-cron-files-mode-v1<br/>пользовательские файлы cron SRC-0011 · APPLY<br/>ВМ: приёмка семи сред 29.09.2026"]:::closed',
+    'sudo-root-command-files-protection-v1<br/>файлы, запускаемые через sudo, SRC-0008 · APPLY<br/>ВМ: приёмка семи сред 30.09.2026"]:::closed',
+    'auditd-package-service-v1<br/>пакет и служба auditd SRC-0050, SRC-0051 · APPLY<br/>ВМ: приёмка семи сред 01.10.2026"]:::closed',
+    'auditd-conf-option-v1<br/>параметры auditd.conf SRC-0052 · APPLY<br/>ВМ: приёмка семи сред 01.10.2026"]:::closed',
+    'auditd-rules-v1<br/>правила таблицы 1 SRC-0053 · APPLY<br/>ВМ: приёмка семи сред 01.10.2026"]:::closed',
+    'local-account-empty-password-lock-v1<br/>пустые пароли SRC-0001 · APPLY<br/>ВМ: приёмка семи сред 02.10.2026"]:::closed',
+    'local-account-password-aging-v1<br/>сроки паролей SRC-0055 · APPLY<br/>ВМ: приёмка семи сред 02.10.2026"]:::closed',
+    'ADMIN["граница продукта<br/>APPLY не реализуется по решению<br/>решение администратору, пример: suid-dumpable при Apport"]:::note',
+    'securelinux-policy.sh<br/>tracked CHECK + mechanism-oriented APPLY CLI<br/>NON_RELEASE_PRODUCT_CANDIDATE"]:::closed',
+):
+    assert marker in product_line, marker
+# B4: status of a mechanism node is defined by gates, not by prose.
+assert "`closed` — механизм прошёл `--release` и VM-цикл по семи поддерживаемым средам" in product_line
+assert "`current` — идёт работа. Иного статуса у узла механизма нет." in product_line
+# Приёмка 25–29.09.2026: у всех тринадцати механизмов VM-цикл на семи средах пройден.
+for _node in ("APPLY1", "APPLY2", "APPLY3", "APPLY4", "APPLY5", "APPLY6", "APPLY7", "APPLY8",
+              "APPLY9", "APPLY10", "APPLY11", "APPLY12", "APPLY13", "APPLY14", "APPLY15", "APPLY16", "APPLY17", "APPLY18"):
+    assert ":::closed" in product_line.split(_node + '["', 1)[1].split("\n", 1)[0], _node
+# B1: mechanism prose names mechanisms, not live control counts.
+for stale_count in ("17 sysctl", "3 controls SRC-0005", "итого 20", "активны 17", "(3 контроля SRC-0005)"):
+    assert stale_count not in text, stale_count
+
+# Accepted mapping must be represented as closed, not as future work.
+donor_runtime = text.split("## 4. Инженерный донор", 1)[1].split(
+    "## 5. Provenance", 1
+)[0]
+assert 'MAP["DONOR_TO_V3_MAPPING<br/>ACCEPTED + COMMITTED<br/>REUSE / ADAPT / REJECT / DEFER"]:::closed' in donor_runtime
+assert 'MAP["DONOR_TO_V3_MAPPING<br/>REUSE / ADAPT / REJECT / DEFER"]:::future' not in donor_runtime
+assert 'classDef closed fill:#d9f7df' in donor_runtime
+
+# "Где мы" is a product checkpoint, not a replay of old macro-roadmap labels.
+current = text.split("## 6. Где мы находимся", 1)[1].split(
+    "## Что является источником истины", 1
+)[0]
+assert current.count(":::current") == 1
+assert "active APPLY registries" in current
+assert "predicate / transform definitions" in current
+assert "AUTHORITY_2026_REFRESH" in current
+assert "PAUSED_BY_CURRENT_DOCUMENT_APPLY" not in current
+assert "VM-cycle по семи поддерживаемым средам" in current
+assert "Step 7B · расширение FSTEC" in current
+assert "HORIZON1_SAFE_CLASS_APPLY_AND_VM_RUNS" in current
+assert "Step 7B возвращён в `NEXT`" not in current
+assert 'P4["SRC-0005 / 2.3.1<br/>3 canonical file-mode controls<br/>ГОТОВО"]:::closed' in current
+assert 'P5["CHECK-11<br/>регенерация + read-only запуск<br/>ГОТОВО"]:::closed' in current
+assert 'P6["batch sysctl exact-eq<br/>SRC-0030,0031,0036–0039 + CHECK-17<br/>ГОТОВО"]:::closed' in current
+assert 'P7["SRC-0040 / 2.6.6<br/>исправление terminal source-boundary + CHECK-18<br/>ГОТОВО"]:::closed' in current
+assert 'P8["SRC-0033 / 2.5.10<br/>sysctl lower-bound `ge 4096` + CHECK-19<br/>ГОТОВО"]:::closed' in current
+assert 'P9["batch kernel-cmdline exact-token<br/>7 source rows · 9 controls + CHECK-28<br/>ГОТОВО"]:::closed' in current
+assert 'P9B["ЕДИНЫЙ CLI / БЫСТРЫЙ СТАРТ v1<br/>securelinux-policy.sh · pretty/raw/json<br/>ГОТОВО"]:::closed' in current
+assert 'P10["fstec-linux-2022 CHECK COMPLETE<br/>tag fstec-linux-2022-check-complete-v1<br/>ГОТОВО"]:::closed' in current
+assert 'P10A["DONOR_TO_V3_MAPPING<br/>ACCEPTED + COMMITTED<br/>a898245…<br/>ГОТОВО"]:::closed' in current
+assert 'P11["APPLY parent gate<br/>ПРИНЯТО<br/>SRC-0001 flat contract candidate: REVISE"]:::note' in current
+assert 'P12["AUTHORITY_2026_REFRESH<br/>приказы № 117 + № 137<br/>ГОТОВО"]:::closed' in current
+assert 'P13["SRC-0001 modular APPLY contract architecture<br/>compact registry + SHA bindings<br/>ГОТОВО"]:::closed' in current
+assert 'P14["SRC-0001 predicate / transform definitions<br/>exact empty + exact bang<br/>ГОТОВО"]:::closed' in current
+assert 'P15["SRC-0001 external snapshot precondition<br/>exact attestation + prestate binding<br/>ГОТОВО"]:::closed' in current
+assert 'P16["SRC-0001 lock/reread + object identity<br/>stale + path identity fail-closed<br/>ГОТОВО"]:::closed' in current
+assert 'P17["SRC-0001 метаданные/транзакция/отчёт<br/>8 определений + композиция<br/>ГОТОВО"]:::closed' in current
+assert 'P18["APPLY для SRC-0001<br/>ОДНА ВЕРТИКАЛЬ<br/>ГОТОВО"]:::closed' in current
+assert 'P19["финальная детерминированная упаковка<br/>ГОТОВО"]:::closed' in current
+assert 'P20["единый распространяемый артефакт<br/>ГОТОВО"]:::closed' in current
+assert 'P21["горизонт 1 · APPLY безопасных классов + ВМ<br/>ГОТОВО"]:::closed' in current
+assert 'P22["МЫ ЗДЕСЬ<br/>Step 7B · расширение FSTEC"]:::current' in current
+assert 'P18["адаптеры реализации APPLY<br/>заблокировано до semantic chain"]:::future' not in current
+diagram = current.split("```mermaid", 1)[1].split("```", 1)[0]
+for marker in (
+    "CHECK-8 product-line",
+    "БАЗОВЫЙ НАБОР ТЕСТОВ",
+    "БАЗОВАЯ ДОКУМЕНТАЦИЯ",
+    "SRC-0005 / 2.3.1",
+    "3 canonical file-mode controls",
+    "CHECK-11",
+    "batch sysctl exact-eq",
+    "CHECK-17",
+    "SRC-0040 / 2.6.6",
+    "CHECK-18",
+    "SRC-0033 / 2.5.10",
+    "CHECK-19",
+    "batch kernel-cmdline exact-token",
+    "CHECK-28",
+    "ЕДИНЫЙ CLI / БЫСТРЫЙ СТАРТ v1",
+    "securelinux-policy.sh · pretty/raw/json",
+    "fstec-linux-2022 CHECK COMPLETE",
+    "DONOR_TO_V3_MAPPING",
+    "APPLY parent gate",
+    "AUTHORITY_2026_REFRESH",
+    "SRC-0001 modular APPLY contract architecture",
+    "SRC-0001 predicate / transform definitions",
+    "SRC-0001 external snapshot precondition",
+    "SRC-0001 lock/reread + object identity",
+    "SRC-0001 метаданные/транзакция/отчёт",
+    "APPLY для SRC-0001",
+    "финальная детерминированная упаковка",
+    "единый распространяемый артефакт",
+    "горизонт 1 · APPLY безопасных классов + ВМ",
+    "Step 7B · расширение FSTEC",
+    "ВНЕШНИЙ СНИМОК",
+):
+    assert marker in current, marker
+
+positions = [diagram.index(marker) for marker in (
+    "CHECK-8 product-line",
+    "БАЗОВЫЙ НАБОР ТЕСТОВ",
+    "БАЗОВАЯ ДОКУМЕНТАЦИЯ",
+    "SRC-0005 / 2.3.1",
+    "CHECK-11",
+    "batch sysctl exact-eq",
+    "CHECK-17",
+    "SRC-0040 / 2.6.6",
+    "CHECK-18",
+    "SRC-0033 / 2.5.10",
+    "CHECK-19",
+    "batch kernel-cmdline exact-token",
+    "CHECK-28",
+    "ЕДИНЫЙ CLI / БЫСТРЫЙ СТАРТ v1",
+    "securelinux-policy.sh · pretty/raw/json",
+    "fstec-linux-2022 CHECK COMPLETE",
+    "DONOR_TO_V3_MAPPING",
+    "APPLY parent gate",
+    "AUTHORITY_2026_REFRESH",
+    "SRC-0001 modular APPLY contract architecture",
+    "SRC-0001 predicate / transform definitions",
+    "SRC-0001 external snapshot precondition",
+    "SRC-0001 lock/reread + object identity",
+    "SRC-0001 метаданные/транзакция/отчёт",
+    "APPLY для SRC-0001",
+    "финальная детерминированная упаковка",
+    "единый распространяемый артефакт",
+    "горизонт 1 · APPLY безопасных классов + ВМ",
+    "Step 7B · расширение FSTEC",
+)]
+assert positions == sorted(positions)
+
+for stale in (
+    "МЫ ЗДЕСЬ<br/>единый распространяемый артефакт",
+    "МЫ ЗДЕСЬ<br/>горизонт 1",
+    'implementation<br/>adapters"]:::future',
+    'deterministic<br/>build"]:::future',
+    "single distributable<br/>securelinux-ng.sh",
+):
+    assert stale not in current, stale
+
+assert "путь к конечному `securelinux-ng.sh`" not in text
+assert "Финальный `securelinux-ng.sh`" not in text
+assert "итоговый распространяемый артефакт" in text
+assert "tracked CHECK + mechanism-oriented APPLY CLI" in text
+assert "Gate 0 PASS" in text
+assert "только byte-generation parity" in text
+assert "docs/PROJECT-MAP.md" in readme
+
+# B6: deliberately deferred directions are named with their reason.
+deferred = text.split("## Отложено сознательно", 1)[1]
+# 2.1.1 (прежде выведен решением DP-3) с 01.10.2026 исправляется механизмом — в отложенном его нет.
+for marker in ("SRC-0008", "G3", "G7", "инвентарь механизмов"):
+    assert marker in deferred, marker
+# APPLY для kernel cmdline (G4) и G5 реализован: в отложенном их нет.
+for stale in ("kernel cmdline", "G5"):
+    assert stale not in deferred, stale
+# Карта сегментации контролей fstec-linux-2022 (принята 19.09.2026): классы
+# G1–G7 покрывают population CONTROL-MANIFEST ровно один раз, колонка
+# «APPLY сейчас» совпадает с apply.supported контролей. Счётчики не пинуются.
+import csv as _csv
+_ctrl_dir = root / "controls/fstec-core/linux-2022"
+with (_ctrl_dir / "CONTROL-MANIFEST.tsv").open(encoding="utf-8", newline="") as _f:
+    _manifest = list(_csv.DictReader(_f, delimiter="\t"))
+_supported = {
+    row["control_id"]: "\napply:\n  supported: true\n" in (_ctrl_dir / row["file"]).read_text(encoding="utf-8")
+    for row in _manifest
+}
+_seg = text.split("## Карта сегментации контролей fstec-linux-2022", 1)[1].split("\n## ", 1)[0]
+_rows = [line for line in _seg.splitlines() if line.startswith("| G")]
+_classes = [line.split("|")[1].strip() for line in _rows]
+# Класс может занимать несколько соседних строк (например, часть класса уже с
+# APPLY, часть без); вразброс класс не повторяется.
+_class_order = [c for i, c in enumerate(_classes) if i == 0 or _classes[i - 1] != c]
+assert _class_order == ["G1", "G2", "G3", "G4", "G5", "G6", "G7"], _classes
+# Определение класса G6 закреплено литералом: меняется только явным решением
+# при принятии нового механизма или популяции этого класса; повторяется в каждой
+# строке класса.
+_G6_DEFINITION = (
+    "режимы файлов по вычисляемой стабильной популяции системных объектов "
+    "(корни cron, файлы запуска, стандартные системные пути, SUID/SGID-файлы "
+    "непсевдо-точек монтирования), только снятие битов"
+)
+_g6_definitions = [line.split("|")[2].strip() for line in _rows if line.split("|")[1].strip() == "G6"]
+assert _g6_definitions and all(d == _G6_DEFINITION for d in _g6_definitions), _g6_definitions
+_seen = []
+for line in _rows:
+    cells = [c.strip() for c in line.split("|")[1:-1]]
+    ids = [x.strip().strip("`") for x in cells[2].split(",")]
+    apply_now = cells[3].split()[0]
+    assert apply_now in ("да", "нет"), line
+    for cid in ids:
+        assert cid in _supported, cid
+        assert _supported[cid] == (apply_now == "да"), (cid, apply_now)
+    _seen.extend(ids)
+assert sorted(_seen) == sorted(_supported), sorted(set(_supported) ^ set(_seen))
+assert len(_seen) == len(set(_seen)), "control in more than one class"
+
+print(
+    "PROJECT_MAP_V3=PASS primary=1 current_checkpoint=horizon1-safe-class-apply "
+    "src0005_check11_done=1 exact_eq_check17_done=1 src0040_check18_done=1 "
+    "src0033_check19_done=1 kernel_cmdline_check28_done=1 unified_cli_done=1 src0001_apply_done=1 restore_out_of_scope=1"
+)

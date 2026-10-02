@@ -1,0 +1,3 @@
+index_id	source_id	source_file	source_sha256	source_role	unit_kind	locator	raw_match_line	text_quality	quote_anchor_ready	status	disposition	reason	note
+SRC-0033	fstec-linux-2022	fstec-linux-2022.pdf	350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d	technical-core	numbered-position	2.5.10	282	recovered-glyph-map-v1	YES	CLOSED	out-of-scope	TEST FIXTURE ONLY — synthetic disposition; not active project classification.	TEST FIXTURE ONLY.
+SRC-0034	fstec-linux-2022	fstec-linux-2022.pdf	350f00669436b1d505499b41f1f069bde335e5845441f8985209e1844620967d	technical-core	numbered-position	2.5.11	286	recovered-glyph-map-v1	YES	CLOSED			TEST FIXTURE ONLY — represented by positive control.

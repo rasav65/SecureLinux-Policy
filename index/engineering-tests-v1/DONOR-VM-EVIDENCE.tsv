@@ -1,0 +1,5 @@
+platform	donor_status	donor_cycle	result_note	v3_gate_status
+Ubuntu Server 24.04.4	completed	apply -> check -> restore -> reboot	donor docs report no file/metadata/package differences after restore; write-once sysctl returned after reboot	HISTORICAL_ONLY_NOT_V3_EVIDENCE
+Debian 12	completed	apply -> check -> restore -> reboot	donor docs report no file/metadata/package differences after restore; write-once sysctl returned after reboot	HISTORICAL_ONLY_NOT_V3_EVIDENCE
+Ubuntu 24.04.4 Minimal	completed	apply -> check -> restore -> reboot	donor docs report stable restored state; generated grub.cfg normalized after update-grub; 9 installed dependencies removed	HISTORICAL_ONLY_NOT_V3_EVIDENCE
+Ubuntu 26.04 Minimal	pending	not completed	sudo-rs portability subset documented, but full donor VM release gate explicitly not completed	HISTORICAL_ONLY_NOT_V3_EVIDENCE

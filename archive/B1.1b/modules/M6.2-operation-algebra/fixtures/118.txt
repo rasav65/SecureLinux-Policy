@@ -1,0 +1,1 @@
+118 membership operation field/operator/operand/authorization mismatch -> CONTRACT_ERROR

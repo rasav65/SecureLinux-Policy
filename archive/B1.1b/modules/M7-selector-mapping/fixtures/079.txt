@@ -1,0 +1,1 @@
+79 table loses or duplicates any record_id/selector_ref -> consistency FAIL

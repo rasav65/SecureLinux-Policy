@@ -1,0 +1,8 @@
+runtime_contract_version	runtime_sequence	runtime_phase	block_id	control_id
+runtime-invocation-v1	1	target_preflight	engineering-contract::eng-target-preflight-v1::target_preflight::ubuntu-24.04-x86_64	
+runtime-invocation-v1	2	control	fstec-control::FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT::check::ubuntu-24.04-x86_64	FSTEC-LINUX-2022-2.4.1-DMESG-RESTRICT
+runtime-invocation-v1	3	control	fstec-control::FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT::check::ubuntu-24.04-x86_64	FSTEC-LINUX-2022-2.4.2-KPTR-RESTRICT
+runtime-invocation-v1	4	control	fstec-control::FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN::check::ubuntu-24.04-x86_64	FSTEC-LINUX-2022-2.4.8-BPF-JIT-HARDEN
+runtime-invocation-v1	5	control	fstec-control::FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID::check::ubuntu-24.04-x86_64	FSTEC-LINUX-2022-2.5.2-PERF-EVENT-PARANOID
+runtime-invocation-v1	6	control	fstec-control::FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED::check::ubuntu-24.04-x86_64	FSTEC-LINUX-2022-2.5.4-KEXEC-LOAD-DISABLED
+runtime-invocation-v1	7	aggregation	engineering-contract::eng-result-aggregation-v1::result_aggregation::ubuntu-24.04-x86_64	

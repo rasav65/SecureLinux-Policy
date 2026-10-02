@@ -1,0 +1,11 @@
+STEP3=PASS
+TOTAL_INDEX_ROWS=349
+CLOSED_INDEX_ROWS=0
+OPEN_INDEX_ROWS=349
+QUOTE_ANCHOR_BLOCKED_ROWS=101
+SOURCE_COUNTS=fstec-linux-2022:40,fstec-logging-2025:14,fstec-configuration-2026:49,fstec-perimeter-2026:35,fstec-vulnerability-analysis-2025:61,fstec-vulnerability-management-2023:52,fstec-security-update-testing-2022:70,fstec-vulnerability-criticality-2025:28
+FRAMEWORK_SOURCES=2
+CONTROLS_CREATED=0
+PROBES_CREATED=0
+CHECKER_CREATED=0
+TESTS_CREATED=0

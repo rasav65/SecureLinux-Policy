@@ -1,0 +1,11 @@
+{
+  "checks": 15,
+  "errors": [],
+  "evidence_members": 7,
+  "gate": 6,
+  "metadata_bindings": 4,
+  "name": "evidence_binding",
+  "pass": true,
+  "result_documents": 2,
+  "vm_origin_attestation": false
+}

@@ -1,0 +1,1 @@
+73 ERROR targets non-empty or diagnostics not derived from coverage -> CONTRACT_ERROR

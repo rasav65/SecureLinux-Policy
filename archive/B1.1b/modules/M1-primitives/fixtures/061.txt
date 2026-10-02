@@ -1,0 +1,1 @@
+61 canonical array permutation cannot alter result bytes

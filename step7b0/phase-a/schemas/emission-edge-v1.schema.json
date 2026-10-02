@@ -1,0 +1,1 @@
+{"additional_properties":false,"edge_type_enum":["emit_before","emit_after","emit_requires"],"required":["edge_type","from_emission_node_id","to_emission_node_id"],"schema_id":"emission-edge-v1"}

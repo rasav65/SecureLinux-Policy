@@ -1,0 +1,1 @@
+28 source set empty without matching empty adjudication -> CONTRACT_ERROR

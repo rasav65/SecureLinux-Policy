@@ -1,0 +1,26 @@
+id: "FSTEC-LOGGING-2025-APPENDIX2-LINUX-3-DISK-FULL-ACTION"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0052"
+  doc_id: "fstec-logging-2025"
+  doc_sha256: "2db44a4eebf1ec87986e0aea43f7b1c907e4ef21c052f01a2879e6d458a28a64"
+  locator: "appendix2-linux:3"
+  quote: "3. Осуществить настройку службы Auditd путем редактирования параметров конфигурационного файла, который находится в директории /etc/audit/auditd.conf, где max_log_file — максимальный размер журнального файла аудита в мегабайтах, num_logs — максимальное количество журнальных файлов аудита, log_file – путь к журнальному файлу аудита, log_group – группа, которой принадлежит журнальный файл аудита."
+  quote_sha256: "5083075ca7cdb820508651c79709b71f16d69f48d13beddfc49f9718b986d89d"
+  norm: "norm-v1"
+requirement:
+  stated: "3. Осуществить настройку службы Auditd путем редактирования параметров конфигурационного файла, который находится в директории /etc/audit/auditd.conf, где max_log_file — максимальный размер журнального файла аудита в мегабайтах, num_logs — максимальное количество журнальных файлов аудита, log_file – путь к журнальному файлу аудита, log_group – группа, которой принадлежит журнальный файл аудита."
+  derived: true
+  justification: "Источник требует настроить /etc/audit/auditd.conf и называет параметры max_log_file, num_logs, log_file, log_group без значений. Решение пользователя 30.09.2026 (вариант B, карта разбиения auditd v5): по контролю на параметр; значения по политике компании — log_file = /var/log/audit/audit.log, log_group = root, max_log_file = 50, num_logs = 10, max_log_file_action = keep_logs, log_format = ENRICHED, space_left_action = syslog, admin_space_left_action = suspend, disk_full_action = suspend (хранение журнала не менее трёх месяцев, метки и идентификаторы событий, реакция на нехватку места)."
+  applicability: "technical"
+parameter:
+  kind: "auditd-conf-option"
+  locator: "/etc/audit/auditd.conf"
+  key: "disk_full_action"
+expected:
+  op: "eq"
+  value: "suspend"
+  type: "string"
+apply:
+  supported: true

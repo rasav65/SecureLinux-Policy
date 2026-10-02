@@ -1,0 +1,26 @@
+id: "FSTEC-LOGGING-2025-MAIN-5-AUDIT-LOG-FREE-SPACE"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0045"
+  doc_id: "fstec-logging-2025"
+  doc_sha256: "2db44a4eebf1ec87986e0aea43f7b1c907e4ef21c052f01a2879e6d458a28a64"
+  locator: "main:5"
+  quote: "5. Обеспечить такой размер хранилищ журналов событий безопасности, который будет достаточным для их полноценного анализа."
+  quote_sha256: "372ae998b49be4a847cc25bb8228c6d12fe92148df9282ce1b302a1757e8eb1c"
+  norm: "norm-v1"
+requirement:
+  stated: "5. Обеспечить такой размер хранилищ журналов событий безопасности, который будет достаточным для их полноценного анализа."
+  derived: true
+  justification: "Источник требует обеспечить размер хранилищ журналов событий, достаточный для их полноценного анализа, без значения. Решение пользователя 30.09.2026 (карта разбиения auditd v5/v6): контроль только CHECK — в файловой системе каталога /var/log/audit доступно не менее 7 GiB (7·2^30 байт): оценка объёма журнала auditd за три месяца по замеру 30.09.2026 (правила таблицы 1, без правила п.10.5) с запасом; серверы компании — 60–100 GB. APPLY нет: размер диска — решение администратора; FAIL на тестовых ВМ с меньшим свободным местом — ожидаемое поведение."
+  applicability: "technical"
+parameter:
+  kind: "auditd-log-free-space"
+  locator: "/var/log/audit"
+  key: "available_bytes"
+expected:
+  op: "ge"
+  value: 7516192768
+  type: "integer"
+apply:
+  supported: false

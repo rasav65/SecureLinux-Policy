@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "securelinux-policy-v3-control-schema-v1",
+  "title": "SecureLinux-Policy v3 control record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id","layer","profile","source","requirement","parameter","expected","apply"],
+  "properties": {
+    "id": {"type":"string","pattern":"^[A-Z0-9][A-Z0-9._-]{2,127}$"},
+    "layer": {"enum":["fstec-core","recommended","corporate","firewall"]},
+    "profile": {"enum":[null,"baseline","strict","paranoid"]},
+    "source": {"type":"object","additionalProperties":false},
+    "requirement": {"type":"object","additionalProperties":false},
+    "parameter": {"type":"object","additionalProperties":false},
+    "expected": {"type":"object","additionalProperties":false},
+    "apply": {"type":"object","additionalProperties":false}
+  }
+}

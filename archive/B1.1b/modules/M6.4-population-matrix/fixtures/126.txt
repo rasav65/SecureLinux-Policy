@@ -1,0 +1,1 @@
+126 event-stream adds hidden window/query beyond bound finite snapshot -> CONTRACT_ERROR

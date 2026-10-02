@@ -1,0 +1,1 @@
+149 duplicate population_contract_ref in one registry snapshot -> CONTRACT_ERROR

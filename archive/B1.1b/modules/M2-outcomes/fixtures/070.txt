@@ -1,0 +1,1 @@
+70 PARTIAL.targets differs from all candidate-producing operations -> CONTRACT_ERROR

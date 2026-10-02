@@ -1,0 +1,9 @@
+{
+  "probe_kind": "sysctl",
+  "read_only": true,
+  "result_status": [
+    "VALUE",
+    "NOT_FOUND"
+  ],
+  "schema": "securelinux-policy-probe-results-v1"
+}

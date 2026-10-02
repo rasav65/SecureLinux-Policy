@@ -1,0 +1,1 @@
+99 source-defined aggregation or union-compose carries candidate -> CONTRACT_ERROR

@@ -1,0 +1,26 @@
+id: "FSTEC-CONFIGURATION-2026-11.2-FTP"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0098"
+  doc_id: "fstec-configuration-2026"
+  doc_sha256: "1f2e53a3c047cd1a21f2f99e8605f7ba7a7680a45fc332b8236199b049c3dad6"
+  locator: "11.2"
+  quote: "11.2 Отключить неиспользуемые службы, например, Telnet, FTP, SNMPv1/v2c."
+  quote_sha256: "758cb1f1a0b030c2b5bad0fff2cf790b7462faede141c9a1c59fd808187d73f0"
+  norm: "norm-v1"
+requirement:
+  stated: "11.2 Отключить неиспользуемые службы, например, Telnet, FTP, SNMPv1/v2c."
+  derived: true
+  justification: "Источник называет Telnet, FTP и SNMPv1/v2c примерами неиспользуемых служб. Решение пользователя 26.09.2026: по контролю на службу; служба отключена, если её известные юниты systemd не активны и не включены и порт службы не прослушивается; SNMP проверяется целиком (snmpd по версиям протокола не разделяется); APPLY останавливает и маскирует юниты."
+  applicability: "technical"
+parameter:
+  kind: "network-service-disabled"
+  locator: "systemd|/proc/net"
+  key: "ftp"
+expected:
+  op: "eq"
+  value: "disabled"
+  type: "string"
+apply:
+  supported: true

@@ -1,0 +1,1 @@
+142 scope input bound to reference-use role membership-authority -> CONTRACT_ERROR

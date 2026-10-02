@@ -1,0 +1,26 @@
+id: "FSTEC-LOGGING-2025-APPENDIX2-LINUX-1-AUDITD-PACKAGE"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0050"
+  doc_id: "fstec-logging-2025"
+  doc_sha256: "2db44a4eebf1ec87986e0aea43f7b1c907e4ef21c052f01a2879e6d458a28a64"
+  locator: "appendix2-linux:1"
+  quote: "1. В случае отсутствия указанной службы на автоматизированном рабочем месте, сервере, контроллере домена, необходимо выполнить её установку на каждом объекте регистрации событий путем выполнения в терминале следующей команды: apt-get install auditd"
+  quote_sha256: "8858c54f4b5a960d6448e8724475ab5387ca4f51aef9a8b2c41342f875007a32"
+  norm: "norm-v1"
+requirement:
+  stated: "1. В случае отсутствия указанной службы на автоматизированном рабочем месте, сервере, контроллере домена, необходимо выполнить её установку на каждом объекте регистрации событий путем выполнения в терминале следующей команды: apt-get install auditd"
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "auditd-package-service"
+  locator: "dpkg|systemd"
+  key: "package"
+expected:
+  op: "eq"
+  value: "installed"
+  type: "string"
+apply:
+  supported: true

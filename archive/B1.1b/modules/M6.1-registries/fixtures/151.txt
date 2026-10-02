@@ -1,0 +1,1 @@
+151 host enumeration_source_slot_ref absent from input_slots -> CONTRACT_ERROR

@@ -1,0 +1,1 @@
+98 source-entry error after discoveries -> ERROR retaining source items/candidates

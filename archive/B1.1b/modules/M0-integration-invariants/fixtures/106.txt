@@ -1,0 +1,1 @@
+106 v4->v5, v5->v6, v6->v7, v7->v8 or v8->v9 diff block absent from ledger -> gate FAIL

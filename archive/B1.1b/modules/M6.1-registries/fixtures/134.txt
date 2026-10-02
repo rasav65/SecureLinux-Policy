@@ -1,0 +1,1 @@
+134 adapter-source slot/binding/value v4 with instance_owner B1.6 and exact common fields -> PASS

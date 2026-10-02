@@ -1,0 +1,1 @@
+112 preserve-membership operation with non-none authorization -> CONTRACT_ERROR

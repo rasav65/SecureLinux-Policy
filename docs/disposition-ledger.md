@@ -1,0 +1,94 @@
+# Реестр disposition v1
+
+`DISPOSITION-LEDGER.tsv` — обязательный проверяемый артефакт альтернативного
+пути закрытия строки source index в Gate 2.
+
+## Зачем он нужен
+
+До Step 7A controlled-строка имела строгий `CLOSURE-CONTRACT.tsv` с точным
+множеством control ID, а disposed-строке было достаточно `CLOSED`, допустимого
+`disposition` и непустого свободного `reason`. Это создавало асимметрию и
+делало массовый disposition плохо аудируемым.
+
+Step 7A не создаёт ни одного реального disposition. Он сначала усиливает
+контракт, пока `disposed_closed=0`.
+
+## Формат
+
+Файл находится рядом с соответствующим `SOURCE-INDEX.tsv`.
+
+Поля TSV строго фиксированы и упорядочены:
+
+`index_id  disposition  reason  basis  decided_by  decided_at`
+
+Closed schema состоит из **двух независимых условий**: header должен быть
+ровно этим шестипольным набором в указанном порядке, и каждая физическая
+data-row должна содержать ровно шесть TSV-значений. Лишнее или отсутствующее
+значение приводит к fail-closed до разбора полей.
+
+Ledger — именно **physical TSV**, а не CSV с табуляцией как delimiter.
+CSV-quoting отключён (`QUOTE_NONE`): кавычки являются обычными символами и не
+могут скрыть `TAB`, `CR` или `LF`. Встроенный delimiter меняет арность строки,
+а `CR/LF` образует границу физической строки; оба случая fail-closed.
+
+Требования:
+
+- `index_id` — валидный `SRC-NNNN`, уникальный в ledger и существующий в
+  загруженном индексе;
+- `disposition` — значение текущего enum Gate 2 и точное совпадение со строкой
+  индекса;
+- `reason` — непустой текст и совпадение со stripped-значением `reason` в
+  строке индекса;
+- `basis` — непустое основание решения;
+- `decided_by` — однострочный machine identifier;
+- `decided_at` — UTC-время строго `YYYY-MM-DDTHH:MM:SSZ`, дополнительно
+  проверяемое как реальная календарная дата.
+
+## Инварианты Gate 2
+
+Disposed closure принимается только если одновременно выполнено всё:
+
+1. строка не представлена control;
+2. `status=CLOSED`;
+3. `disposition` входит в разрешённый enum;
+4. `reason` непуст;
+5. completeness contract отсутствует;
+6. существует ровно одна валидная ledger-запись;
+7. `disposition` и `reason` ledger совпадают с index.
+
+Ledger-запись у controlled row запрещена. Orphan-запись, дубликат, отсутствующий
+ledger-файл или некорректный timestamp приводят к fail-closed.
+
+## Почему в v1 нет `quote_sha256`
+
+Идея привязать решение disposition к канонической цитате полезна, но сейчас её
+нельзя сделать универсальной без ложной гарантии: source skeleton generator
+поддерживает только часть `unit_kind`, а deliberate REFUSED остаётся возможным
+fail-closed результатом при page-furniture ambiguity. Exact/refused population
+вычисляется regression-тестом и не дублируется здесь числами или ручным списком
+identities. Step 7B generator API теперь различает `EXACT | REFUSED | UNSUPPORTED` со
+стабильным `reason_code`; integrity failures остаются исключениями и не являются
+coverage-state.
+
+Сам ledger v1 по-прежнему сознательно использует минимальные машинно-сверяемые утверждения:
+уникальность ledger identity, совпадение `disposition` и `reason`, формат
+`decided_by` и строгую календарную проверку `decided_at`. После проверки R1
+зафиксировано дополнительное требование: **до первого реального disposition**
+нужен типизированный anchor-state API `EXACT | REFUSED | UNSUPPORTED`; integrity
+failures обязаны оставаться исключениями и не преобразовываться в эти состояния.
+
+## Текущее состояние
+
+Повторные проверки R3 подтвердили исправление `S7A-R2-B01`.
+Статус Step 7A — `CLOSED`; новых блокеров `S7A-R3-Bxx` не выявлено.
+
+`index/source-v4/DISPOSITION-LEDGER.tsv` содержит записи аудированных диспозиций;
+их число показывает генерируемый машинный статус.
+
+Следовательно, закрытие Step 7A само по себе не закрывает строки FSTEC.
+Текущая live population не дублируется здесь вручную и берётся из
+`SOURCE-INDEX.tsv` / сгенерированный `docs/fstec-coverage.md`.
+
+Step 7B current implementation вводит typed quote-anchor contract/API; наличие API
+само по себе не является закрытием Step 7B block boundary. Диспозиции процессных
+документов внесены в ledger по альтернативному пути Gate 2 с построчным основанием.

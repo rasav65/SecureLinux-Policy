@@ -1,0 +1,1 @@
+140 non-adapter slot carries adapter target/source fields -> schema FAIL

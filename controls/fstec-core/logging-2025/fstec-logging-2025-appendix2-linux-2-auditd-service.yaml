@@ -1,0 +1,26 @@
+id: "FSTEC-LOGGING-2025-APPENDIX2-LINUX-2-AUDITD-SERVICE"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0051"
+  doc_id: "fstec-logging-2025"
+  doc_sha256: "2db44a4eebf1ec87986e0aea43f7b1c907e4ef21c052f01a2879e6d458a28a64"
+  locator: "appendix2-linux:2"
+  quote: "2. После установки необходимо запустить и включить службу путем выполнения в терминале следующих команд: sudo systemctl start auditd sudo systemctl enable auditd"
+  quote_sha256: "ccf43e6cc8c852b7c386d7540313589fa6b97536e9170d94a80751e60d1c25bf"
+  norm: "norm-v1"
+requirement:
+  stated: "2. После установки необходимо запустить и включить службу путем выполнения в терминале следующих команд: sudo systemctl start auditd sudo systemctl enable auditd"
+  derived: false
+  justification: null
+  applicability: "technical"
+parameter:
+  kind: "auditd-package-service"
+  locator: "dpkg|systemd"
+  key: "service"
+expected:
+  op: "eq"
+  value: "enabled-active"
+  type: "string"
+apply:
+  supported: true

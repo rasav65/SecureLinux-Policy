@@ -1,0 +1,28 @@
+GATE0=PASS schema_generation_parity errors=0
+GATE1=PASS checked=5 errors=0
+GATE2=FAIL total=349 controlled_closed=5 disposed_closed=0 uncovered=344 contracts=5 errors=344
+GATE3=PASS checked=5 errors=0
+GATE4=PASS checked=5 unique_ids=5 scoped_identities=5 physical_identities=5 scope_conflicts=0 profile_variants=0 cross_scope_conflicts=0 errors=0
+GATE5=PASS checked=5 value=5 not_found=0 noncompliant=4 errors=0
+OVERALL=FAIL
+ERROR[GATE2]=SRC-0001: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0002: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0003: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0004: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0005: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0006: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0007: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0008: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0009: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0010: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0011: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0012: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0013: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0014: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0015: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0018: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0019: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0020: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0021: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=SRC-0022: no control and no valid CLOSED disposition+reason (status='OPEN', disposition='')
+ERROR[GATE2]=... 324 more

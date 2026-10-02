@@ -1,0 +1,26 @@
+id: "FSTEC-CONFIGURATION-2026-1.2-PWHISTORY-REMEMBER"
+layer: "fstec-core"
+profile: null
+source:
+  index_id: "SRC-0056"
+  doc_id: "fstec-configuration-2026"
+  doc_sha256: "1f2e53a3c047cd1a21f2f99e8605f7ba7a7680a45fc332b8236199b049c3dad6"
+  locator: "1.2"
+  quote: "1.2 Обеспечить запрет на повторное использование паролей путем ведения журнала использованных паролей в соответствии с парольной политикой."
+  quote_sha256: "d7fc2ec1e041a96c320f1355a99ddd18b8110bb98355e7579da29c09aa3b623d"
+  norm: "norm-v1"
+requirement:
+  stated: "1.2 Обеспечить запрет на повторное использование паролей путем ведения журнала использованных паролей в соответствии с парольной политикой."
+  derived: true
+  justification: "П.1.2 требует запрета повторного использования паролей через журнал использованных паролей в соответствии с парольной политикой; таблица 1 п.1.1 называет историю не менее 5–10 паролей. Решение пользователя 26.09.2026: pam_pwhistory remember=5 (не менее 5); 27.09.2026: модуль включается профилем pam-auth-update; принимаются только эталонные стеки password, подтверждённые журналами семи сред (строка pam_pwhistory remember=5 retry=1 use_authtok между pam_pwquality и pam_unix), pwhistory.conf — без действующих строк."
+  applicability: "technical"
+parameter:
+  kind: "pam-pwhistory-remember"
+  locator: "/etc/pam.d/common-password"
+  key: "remember"
+expected:
+  op: "ge"
+  value: 5
+  type: "integer"
+apply:
+  supported: true

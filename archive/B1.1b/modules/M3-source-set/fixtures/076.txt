@@ -1,0 +1,1 @@
+76 source-membership clause fields differ from filter use -> CONTRACT_ERROR

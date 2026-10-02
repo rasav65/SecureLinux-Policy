@@ -1,0 +1,3 @@
+source_id	source_file	source_sha256	source_role	closure_counted	followup
+fstec-order-117-2025-requirements	fstec-order-117-2025-requirements.pdf	9b19bbcb8020601b96b09a15181fd5423ee47f5bb24138add04ecfa4e72868cf	framework	NO	classification/applicability framework; not one-control-per-clause
+fstec-methodology-2026-04-12	fstec-methodology-2026-04-12.pdf	8bab1f9f3cfe4448fc2fc9c1970a075f1544433c1f80647bb693c16c44d1b057	framework	NO	framework + Appendix 2 MEASURE_CLASS_MAP (96 measures) tracked by separate future gate

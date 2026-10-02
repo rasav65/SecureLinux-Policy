@@ -1,0 +1,1 @@
+30 required source entry omitted or converted to optional -> CONTRACT_ERROR

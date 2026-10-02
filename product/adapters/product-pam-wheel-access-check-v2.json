@@ -1,0 +1,20 @@
+{
+  "adapter_contract_version": "product-pam-wheel-access-check-adapter-v2",
+  "adapter_id": "product-pam-wheel-access-check-v2",
+  "implementation_id": "product-pam-wheel-access-check-v2.py",
+  "implementation_path": "product/adapters/product-pam-wheel-access-check-v2.py",
+  "implementation_sha256": "54ed508c23f712069aebe797345cf5edf954be690ce99e562cdc5afb9fb3b7e8",
+  "input_schema_id": "canonical-control-v3",
+  "input_schema_version": 1,
+  "operation": "check",
+  "output_schema_id": "slp-check-v1",
+  "output_schema_version": 1,
+  "parameter_kind": "pam-wheel-access",
+  "semantic_contract_id": "pam-wheel-access-check-semantic-v2",
+  "semantic_contract_path": "product/contracts/pam-wheel-access-check-semantic-v2.json",
+  "semantic_contract_sha256": "6b419ad3093a3634becefddda3418a247c81ecec42f8074978c17eefd08c7a95",
+  "supported_ops": [
+    "pam-wheel-root-member"
+  ],
+  "target_id": "linux-x86_64-supported-v1"
+}

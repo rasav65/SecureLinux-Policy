@@ -1,0 +1,1 @@
+44 reference operand without same reference-authority population -> CONTRACT_ERROR

@@ -1,0 +1,1 @@
+45 reference filter without one matching filter-reference unit -> CONTRACT_ERROR

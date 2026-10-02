@@ -1,0 +1,1 @@
+83 B1.2 started before independent TASK-B1.1 acceptance -> gate FAIL

@@ -1,0 +1,1 @@
+21 every resolver kind/subject/output contract mismatch -> CONTRACT_ERROR

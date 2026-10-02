@@ -1,0 +1,1 @@
+85 input_role/target.kind or config-target linkage mismatch -> CONTRACT_ERROR

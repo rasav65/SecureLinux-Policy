@@ -1,0 +1,1 @@
+GATE6_TESTS=PASS positive=1 negative=9

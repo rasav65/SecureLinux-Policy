@@ -1,0 +1,14 @@
+control_id	index_id	locator	key	expected	file	sha256
+FSTEC-LOGGING-2025-APPENDIX2-LINUX-1-AUDITD-PACKAGE	SRC-0050	appendix2-linux:1	package	installed	fstec-logging-2025-appendix2-linux-1-auditd-package.yaml	ed62bb3e204a515008d85aaa43b63401686e160861c668a5e6e1887a23730755
+FSTEC-LOGGING-2025-APPENDIX2-LINUX-2-AUDITD-SERVICE	SRC-0051	appendix2-linux:2	service	enabled-active	fstec-logging-2025-appendix2-linux-2-auditd-service.yaml	7bf9aed2d479ef42256a1eb5f932a4389d3975d2b17479b5f7d0ad6e989838ee
+FSTEC-LOGGING-2025-APPENDIX2-LINUX-3-ADMIN-SPACE-LEFT-ACTION	SRC-0052	appendix2-linux:3	admin_space_left_action	suspend	fstec-logging-2025-appendix2-linux-3-admin-space-left-action.yaml	78273afca734eda3c8ae2c88d0a2e5d8faf9ced2ee4e48bca84eb3dc5acd6616
+FSTEC-LOGGING-2025-APPENDIX2-LINUX-3-DISK-FULL-ACTION	SRC-0052	appendix2-linux:3	disk_full_action	suspend	fstec-logging-2025-appendix2-linux-3-disk-full-action.yaml	ec69d80d27048b60d94696cc17bff59be0e87ae8747697bfdc70df44835cbb5d
+FSTEC-LOGGING-2025-APPENDIX2-LINUX-3-LOG-FILE	SRC-0052	appendix2-linux:3	log_file	/var/log/audit/audit.log	fstec-logging-2025-appendix2-linux-3-log-file.yaml	5be2ba537675bd11fdb18215f38a9f9a44937e20e809cd2fd3ca3e4fdae7a688
+FSTEC-LOGGING-2025-APPENDIX2-LINUX-3-LOG-FORMAT	SRC-0052	appendix2-linux:3	log_format	ENRICHED	fstec-logging-2025-appendix2-linux-3-log-format.yaml	d1f87588076632917a592d14e99293a87f1094ba40afcce4fa026d5aae2e3023
+FSTEC-LOGGING-2025-APPENDIX2-LINUX-3-LOG-GROUP	SRC-0052	appendix2-linux:3	log_group	root	fstec-logging-2025-appendix2-linux-3-log-group.yaml	0ecb846f760dc4d25e8d9d9935f5df5a2a2c41f3f450016b34c8596e9f54f421
+FSTEC-LOGGING-2025-APPENDIX2-LINUX-3-MAX-LOG-FILE	SRC-0052	appendix2-linux:3	max_log_file	50	fstec-logging-2025-appendix2-linux-3-max-log-file.yaml	a8c79d19f7cd62edd64db7a5cf2128c0df1d8d8895a32581963c87f337b75137
+FSTEC-LOGGING-2025-APPENDIX2-LINUX-3-MAX-LOG-FILE-ACTION	SRC-0052	appendix2-linux:3	max_log_file_action	keep_logs	fstec-logging-2025-appendix2-linux-3-max-log-file-action.yaml	f5c371e0c2207bfd5d44048d15737c2f1456aa3abd913f34d96ec77100018ac1
+FSTEC-LOGGING-2025-APPENDIX2-LINUX-3-NUM-LOGS	SRC-0052	appendix2-linux:3	num_logs	10	fstec-logging-2025-appendix2-linux-3-num-logs.yaml	229ba729d6d9b6b7ca7943083f8823b40dcab5cf6b48c0c8e7a3427311139d52
+FSTEC-LOGGING-2025-APPENDIX2-LINUX-3-SPACE-LEFT-ACTION	SRC-0052	appendix2-linux:3	space_left_action	syslog	fstec-logging-2025-appendix2-linux-3-space-left-action.yaml	70d0b34fcb9747bf8bcb175081e017e8442c8d0e7a4d173b8eb390bbc76ac10d
+FSTEC-LOGGING-2025-APPENDIX2-LINUX-4-AUDIT-RULES	SRC-0053	appendix2-linux:4	table1	present	fstec-logging-2025-appendix2-linux-4-audit-rules.yaml	f535544323987db0a811197a6333c43e3aff3066080bbfa3ff222a44a838eb68
+FSTEC-LOGGING-2025-MAIN-5-AUDIT-LOG-FREE-SPACE	SRC-0045	main:5	available_bytes	7516192768	fstec-logging-2025-main-5-audit-log-free-space.yaml	32ef02a7b73e505f582ed861468c9018a1534d9821906e01e2c73fc4fc152120

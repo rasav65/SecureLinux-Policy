@@ -1,0 +1,1 @@
+{"cases":[{"expected":1,"raw_hex":"310a","result":{"compliance":"PASS","status":"VALUE","value":"1"}},{"expected":2,"raw_hex":"20202b320a","result":{"compliance":"PASS","status":"VALUE","value":"2"}},{"expected":2,"raw_hex":"3030330a","result":{"compliance":"FAIL","status":"VALUE","value":"3"}}]}

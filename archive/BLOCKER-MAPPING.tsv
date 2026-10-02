@@ -1,0 +1,6 @@
+# Historical report identifiers are immutable.
+# Cross-project B-* numbers are registered only as a correspondence table.
+historical_id	cross_id	status	action	summary
+N-01	B-06	OPEN_HISTORICAL	INTENTIONALLY_NOT_FIXED	удалён FilenamePopulationUse, от которого зависит LOCKED-модуль M3
+N-02	B-07	OPEN_HISTORICAL	INTENTIONALLY_NOT_FIXED	перечень потребителей неполон: M3, M4, M7 не переоткрыты
+N-03	B-08	OPEN_HISTORICAL	INTENTIONALLY_NOT_FIXED	R2-OWNERSHIP.json устарел, R2-checker не перезапускался

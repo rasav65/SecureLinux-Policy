@@ -1,0 +1,4973 @@
+{
+  "$id": "securelinux-policy-v3-control-schema-v3",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "else": {
+        "properties": {
+          "profile": {
+            "type": "null"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "layer": {
+            "const": "corporate"
+          }
+        },
+        "required": [
+          "layer"
+        ]
+      },
+      "then": {
+        "properties": {
+          "profile": {
+            "enum": [
+              "baseline",
+              "strict",
+              "paranoid"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "else": {
+        "properties": {
+          "requirement": {
+            "properties": {
+              "justification": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "requirement": {
+            "properties": {
+              "derived": {
+                "const": true
+              }
+            },
+            "required": [
+              "derived"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "requirement": {
+            "properties": {
+              "justification": {
+                "pattern": ".*\\S.*",
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "type": {
+                "const": "integer"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "value": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "type": {
+                "const": "string"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "value": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "type": {
+                "const": "boolean"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "value": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "sysctl"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "ge"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "type": {
+                          "const": "integer"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "enum": [
+                  "eq",
+                  "ge"
+                ]
+              },
+              "type": {
+                "enum": [
+                  "integer",
+                  "string"
+                ]
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "pattern": "^(?![\\s\\S]*[\\r\\n])[A-Za-z0-9_.-]+$"
+              },
+              "locator": {
+                "const": "sysctl"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "kernel-cmdline"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "type": {
+                          "const": "string"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "pattern": "^(?![\\s\\S]*[\\r\\n])[A-Za-z0-9_.,:+/-]+$"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "present"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "type": {
+                          "const": "boolean"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "one-of"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "type": {
+                          "const": "string"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "pattern": "^(?![\\s\\S]*[\\r\\n])[A-Za-z0-9_.,:+/-]+(?:\\|[A-Za-z0-9_.,:+/-]+)+$"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "enum": [
+                  "eq",
+                  "present",
+                  "one-of"
+                ]
+              },
+              "type": {
+                "enum": [
+                  "string",
+                  "boolean"
+                ]
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "pattern": "^(?![\\s\\S]*[\\r\\n])[A-Za-z0-9_.-]+$"
+              },
+              "locator": {
+                "const": "/proc/cmdline"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "file-kv"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "enum": [
+                  "integer",
+                  "string",
+                  "boolean"
+                ]
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "locator": {
+                "pattern": "^(?![\\s\\S]*[\\r\\n])/.*$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "file-mode-owner"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "bits-clear"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "mode"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "type": {
+                          "const": "string"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "allOf": [
+                            {
+                              "pattern": "^(?!.*[\\r\\n])[0-7]{4}$"
+                            },
+                            {
+                              "not": {
+                                "const": "0000"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "enum": [
+                  "eq",
+                  "bits-clear"
+                ]
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "enum": [
+                  "mode",
+                  "owner",
+                  "group",
+                  "owner_group"
+                ]
+              },
+              "locator": {
+                "pattern": "^(?![\\s\\S]*[\\r\\n])/.*$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "optional-file-root-files-mode"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "bits-clear"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "0033"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "bits-clear"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "mode"
+              },
+              "locator": {
+                "enum": [
+                  "/etc/crontab",
+                  "/etc/cron.d",
+                  "/etc/cron.hourly",
+                  "/etc/cron.daily",
+                  "/etc/cron.weekly",
+                  "/etc/cron.monthly"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "user-cron-files-mode"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "bits-clear"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "0022"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "bits-clear"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "mode"
+              },
+              "locator": {
+                "const": "/var/spool/cron/crontabs"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "standard-system-paths-mode"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "bits-clear"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "0022"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "bits-clear"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "mode"
+              },
+              "locator": {
+                "const": "/bin|/sbin|/usr/bin|/usr/sbin|<root-PATH>|/lib|/lib64|/usr/lib|/usr/lib64|/usr/local/lib|/usr/local/lib64|/lib/modules/<uname-r>"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "cron-command-paths-write-protection"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "cron-command-paths-safe"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "file-go-w"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "cron-command-paths-safe"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "write-protection"
+              },
+              "locator": {
+                "const": "/etc/crontab|/etc/cron.d|/var/spool/cron/crontabs"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "startup-files-write-protection"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "bits-clear"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "0002"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "bits-clear"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "other-write"
+              },
+              "locator": {
+                "const": "/etc/rc[0-6].d|systemd-unit-paths"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "sudo-root-command-files-protection"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "root-owned-go-w-conditional"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "owner-if-regular-user;go-w-if-other-write"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "root-owned-go-w-conditional"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "root-command-files"
+              },
+              "locator": {
+                "const": "/etc/sudoers"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "running-process-paths-write-protection"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "runtime-paths-safe"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "file-go-w;parent-unprivileged-write-denied"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "runtime-paths-safe"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "write-protection"
+              },
+              "locator": {
+                "const": "/proc/<pid>/exe|/proc/<pid>/maps"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "suid-sgid-applications"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "bits-clear"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "mode"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "0022"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "bits-clear"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "mode"
+              },
+              "locator": {
+                "const": "/proc/self/mountinfo"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "home-directories-mode"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "0700"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "mode"
+              },
+              "locator": {
+                "const": "/home"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "home-sensitive-files-mode"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "bits-clear"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "0077"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "bits-clear"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "mode"
+              },
+              "locator": {
+                "const": "/home"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "local-account-password-state"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "all-nonempty"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "all-nonempty"
+              },
+              "type": {
+                "const": "boolean"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "password-field"
+              },
+              "locator": {
+                "const": "/etc/shadow"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "sshd-root-login"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "no"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "PermitRootLogin"
+              },
+              "locator": {
+                "const": "/etc/ssh/sshd_config"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "login-defs-option"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "ENCRYPT_METHOD"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "one-of"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "SHA512|YESCRYPT"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "HOME_MODE"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "0700"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "PASS_MAX_DAYS"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "90"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "PASS_MIN_DAYS"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "1"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "PASS_WARN_AGE"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "7"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "enum": [
+                  "eq",
+                  "one-of"
+                ]
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "enum": [
+                  "ENCRYPT_METHOD",
+                  "HOME_MODE",
+                  "PASS_MAX_DAYS",
+                  "PASS_MIN_DAYS",
+                  "PASS_WARN_AGE"
+                ]
+              },
+              "locator": {
+                "const": "/etc/login.defs"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "pam-pwhistory-remember"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "ge"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": 5
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "ge"
+              },
+              "type": {
+                "const": "integer"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "remember"
+              },
+              "locator": {
+                "const": "/etc/pam.d/common-password"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "pam-pwquality-option"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "dcredit"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": -1
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "lcredit"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": -1
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "minlen"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "ge"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": 12
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "ocredit"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": -1
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "retry"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": 3
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "ucredit"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": -1
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "enum": [
+                  "eq",
+                  "ge"
+                ]
+              },
+              "type": {
+                "const": "integer"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "enum": [
+                  "dcredit",
+                  "lcredit",
+                  "minlen",
+                  "ocredit",
+                  "retry",
+                  "ucredit"
+                ]
+              },
+              "locator": {
+                "const": "/etc/pam.d/common-password|/etc/security/pwquality.conf"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "auditd-conf-option"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "admin_space_left_action"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "suspend"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "disk_full_action"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "suspend"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "log_file"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "/var/log/audit/audit.log"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "log_format"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "ENRICHED"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "log_group"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "root"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "max_log_file"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "50"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "max_log_file_action"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "keep_logs"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "num_logs"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "10"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "space_left_action"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "syslog"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "enum": [
+                  "admin_space_left_action",
+                  "disk_full_action",
+                  "log_file",
+                  "log_format",
+                  "log_group",
+                  "max_log_file",
+                  "max_log_file_action",
+                  "num_logs",
+                  "space_left_action"
+                ]
+              },
+              "locator": {
+                "const": "/etc/audit/auditd.conf"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "auditd-package-service"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "package"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "installed"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "service"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "enabled-active"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "enum": [
+                  "package",
+                  "service"
+                ]
+              },
+              "locator": {
+                "const": "dpkg|systemd"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "local-account-password-aging"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "1/90/7"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "aging-fields"
+              },
+              "locator": {
+                "const": "/etc/shadow"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "local-account-password-age"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "le"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": 90
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                },
+                {
+                  "properties": {
+                    "apply": {
+                      "properties": {
+                        "supported": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "supported"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "apply"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "le"
+              },
+              "type": {
+                "const": "integer"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "age-days"
+              },
+              "locator": {
+                "const": "/etc/shadow"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "auditd-log-free-space"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "ge"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": 7516192768
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                },
+                {
+                  "properties": {
+                    "apply": {
+                      "properties": {
+                        "supported": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "supported"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "apply"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "ge"
+              },
+              "type": {
+                "const": "integer"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "available_bytes"
+              },
+              "locator": {
+                "const": "/var/log/audit"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "auditd-rules"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "table1"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "present"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "enum": [
+                  "table1"
+                ]
+              },
+              "locator": {
+                "const": "/etc/audit/rules.d"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "network-service-disabled"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "eq"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "disabled"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "enum": [
+                  "ftp",
+                  "snmp",
+                  "telnet"
+                ]
+              },
+              "locator": {
+                "const": "systemd|/proc/net"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "sshd-config-option"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "LogLevel"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "VERBOSE"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "PasswordAuthentication"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "no"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "PermitEmptyPasswords"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "no"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "parameter": {
+                      "properties": {
+                        "key": {
+                          "const": "PermitRootLogin"
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "parameter"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "no"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "enum": [
+                  "LogLevel",
+                  "PasswordAuthentication",
+                  "PermitEmptyPasswords",
+                  "PermitRootLogin"
+                ]
+              },
+              "locator": {
+                "const": "/etc/ssh/sshd_config"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "pam-wheel-access"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "pam-wheel-root-member"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "auth required pam_wheel.so use_uid;wheel:root"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "pam-wheel-root-member"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "policy"
+              },
+              "locator": {
+                "const": "/etc/pam.d/su|/etc/group"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "sudoers-reviewed-policy"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "op": {
+                          "const": "standard-rules-only"
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "expected": {
+                      "properties": {
+                        "value": {
+                          "const": "root ALL=(ALL:ALL) ALL;%sudo ALL=(ALL:ALL) ALL;%admin ALL=(ALL) ALL"
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "expected"
+                  ]
+                },
+                {
+                  "properties": {
+                    "requirement": {
+                      "properties": {
+                        "derived": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "derived"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requirement"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "standard-rules-only"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "user-specs"
+              },
+              "locator": {
+                "const": "/etc/sudoers"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "mount-option"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "anyOf": [
+                  {
+                    "const": "fstype"
+                  },
+                  {
+                    "pattern": "^(?![\\s\\S]*[\\r\\n])option::.+$"
+                  }
+                ]
+              },
+              "locator": {
+                "pattern": "^(?![\\s\\S]*[\\r\\n])/.*$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "systemd-unit-state"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "boolean"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "enum": [
+                  "active",
+                  "enabled",
+                  "masked"
+                ]
+              },
+              "locator": {
+                "pattern": "^(?![\\s\\S]*[\\r\\n])[A-Za-z0-9_.@:-]+\\.(?:service|socket|timer|path|mount|target)$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "package-presence"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "eq"
+              },
+              "type": {
+                "const": "boolean"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "const": "installed"
+              },
+              "locator": {
+                "pattern": "^(?![\\s\\S]*[\\r\\n])[A-Za-z0-9][A-Za-z0-9+._:-]*$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "pam-line"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "contains"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "key": {
+                "pattern": "^(?![\\s\\S]*[\\r\\n])active_line::.+$"
+              },
+              "locator": {
+                "pattern": "^(?![\\s\\S]*[\\r\\n])/.*$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parameter": {
+            "properties": {
+              "kind": {
+                "const": "audit-rule"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "op": {
+                "const": "contains"
+              },
+              "type": {
+                "const": "string"
+              }
+            }
+          },
+          "parameter": {
+            "properties": {
+              "locator": {
+                "pattern": "^(?![\\s\\S]*[\\r\\n])/.*$"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "apply": {
+      "additionalProperties": false,
+      "properties": {
+        "supported": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "supported"
+      ],
+      "type": "object"
+    },
+    "expected": {
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "pattern": ".*\\S.*",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "integer",
+            "string",
+            "boolean"
+          ]
+        },
+        "value": {}
+      },
+      "required": [
+        "op",
+        "value",
+        "type"
+      ],
+      "type": "object"
+    },
+    "id": {
+      "pattern": "^(?![\\s\\S]*[\\r\\n])[A-Z0-9][A-Z0-9._-]{2,127}$",
+      "type": "string"
+    },
+    "layer": {
+      "enum": [
+        "fstec-core",
+        "recommended",
+        "corporate",
+        "firewall"
+      ]
+    },
+    "parameter": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "pattern": ".*\\S.*",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "sysctl",
+            "kernel-cmdline",
+            "file-kv",
+            "file-mode-owner",
+            "optional-file-root-files-mode",
+            "user-cron-files-mode",
+            "standard-system-paths-mode",
+            "cron-command-paths-write-protection",
+            "startup-files-write-protection",
+            "sudo-root-command-files-protection",
+            "running-process-paths-write-protection",
+            "suid-sgid-applications",
+            "home-directories-mode",
+            "home-sensitive-files-mode",
+            "local-account-password-state",
+            "sshd-root-login",
+            "login-defs-option",
+            "pam-pwhistory-remember",
+            "pam-pwquality-option",
+            "auditd-conf-option",
+            "auditd-package-service",
+            "local-account-password-aging",
+            "local-account-password-age",
+            "auditd-log-free-space",
+            "auditd-rules",
+            "network-service-disabled",
+            "sshd-config-option",
+            "pam-wheel-access",
+            "sudoers-reviewed-policy",
+            "mount-option",
+            "systemd-unit-state",
+            "package-presence",
+            "pam-line",
+            "audit-rule"
+          ]
+        },
+        "locator": {
+          "pattern": ".*\\S.*",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "locator",
+        "key"
+      ],
+      "type": "object"
+    },
+    "profile": {
+      "enum": [
+        null,
+        "baseline",
+        "strict",
+        "paranoid"
+      ]
+    },
+    "requirement": {
+      "additionalProperties": false,
+      "properties": {
+        "applicability": {
+          "enum": [
+            "technical",
+            "monitoring",
+            "firewall"
+          ]
+        },
+        "derived": {
+          "type": "boolean"
+        },
+        "justification": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stated": {
+          "pattern": ".*\\S.*",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stated",
+        "derived",
+        "justification",
+        "applicability"
+      ],
+      "type": "object"
+    },
+    "source": {
+      "additionalProperties": false,
+      "properties": {
+        "doc_id": {
+          "pattern": ".*\\S.*",
+          "type": "string"
+        },
+        "doc_sha256": {
+          "pattern": "^(?![\\s\\S]*[\\r\\n])[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "index_id": {
+          "pattern": "^(?![\\s\\S]*[\\r\\n])SRC-[0-9]{4}$",
+          "type": "string"
+        },
+        "locator": {
+          "pattern": ".*\\S.*",
+          "type": "string"
+        },
+        "norm": {
+          "const": "norm-v1"
+        },
+        "quote": {
+          "pattern": ".*\\S.*",
+          "type": "string"
+        },
+        "quote_sha256": {
+          "pattern": "^(?![\\s\\S]*[\\r\\n])[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "index_id",
+        "doc_id",
+        "doc_sha256",
+        "locator",
+        "quote",
+        "quote_sha256",
+        "norm"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "layer",
+    "profile",
+    "source",
+    "requirement",
+    "parameter",
+    "expected",
+    "apply"
+  ],
+  "title": "SecureLinux-Policy v3 control record",
+  "type": "object"
+}
