@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Сообщить об уязвимости
+    url: https://github.com/rasav65/SecureLinux-Policy/security/policy
+    about: Закрыто, через Report a vulnerability на вкладке Security — не публичным issue.

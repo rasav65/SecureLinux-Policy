@@ -1,0 +1,47 @@
+name: Ошибка или замечание
+description: Сообщить о неверном результате проверки, сбое применения или неточности документации
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Не публикуйте пароли, ключи и содержимое /etc/shadow. Об уязвимостях сообщайте закрыто — см. SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Версия
+      description: Вывод `sudo /bin/bash -p ./securelinux-policy.sh --version`, строка VERSION
+      placeholder: "1.0"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: ОС и вариант установки
+      placeholder: "Ubuntu 24.04 сервер, минимальная установка"
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Команда запуска и код выхода
+      placeholder: "sudo /bin/bash -p ./securelinux-policy.sh --apply; код 1"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Что произошло и что ожидалось
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Фрагмент вывода или отчёта
+      description: Строки таблицы с проблемным пунктом, блок «решение администратора» или фрагмент /var/log/securelinux-policy/report.json
+      render: text
+  - type: textarea
+    id: buildinfo
+    attributes:
+      label: Вывод --build-info
+      render: text
