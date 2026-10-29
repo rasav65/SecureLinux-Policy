@@ -1,0 +1,34 @@
+NORM-V1 — machine normalization for source quote anchoring
+===========================================================
+
+Version: norm-v1
+Encoding: UTF-8
+Output line ending: LF
+Output shape: substantive content on one line + exactly one final LF.
+
+Ordered transformations:
+1. CRLF -> LF; CR -> LF; form feed -> LF.
+2. Remove U+00AD SOFT HYPHEN only.
+3. Expand presentation ligatures:
+   U+FB00 ff, U+FB01 fi, U+FB02 fl, U+FB03 ffi,
+   U+FB04 ffl, U+FB05 st, U+FB06 st.
+4. Unicode NFC normalization.
+5. U+00A0, U+202F and U+2007 -> ASCII SPACE.
+6. Every run of Unicode whitespace -> exactly one ASCII SPACE.
+7. Strip leading/trailing whitespace and append exactly one LF.
+
+Deliberately NOT performed:
+- no case folding;
+- no punctuation rewriting;
+- no replacement of visible hyphen-minus or dash characters;
+- no heuristic dehyphenation of words split by a visible hyphen;
+- no OCR;
+- no page/header/footer removal;
+- no semantic correction of source typos;
+- no NFKC compatibility normalization.
+
+Purpose:
+The norm-v1 text is a deterministic machine-search representation used by
+Gate 1. Human-readable evidence remains available in the raw pdftotext output.
+A control quote and the source corpus must be normalized by the exact same
+norm-v1 implementation before substring comparison.
