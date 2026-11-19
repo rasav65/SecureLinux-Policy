@@ -1,0 +1,5 @@
+pdftotext_path=/usr/bin/pdftotext
+pdftotext_version=pdftotext version 24.02.0
+pdftotext_args=-enc UTF-8 -nopgbrk INPUT.pdf -
+normalizer=norm-v1
+normalizer_sha256=fdf11e5abc24c966e7b9c9abe318259fd29c06de026addf54cf3710cc937639a
